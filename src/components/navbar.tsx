@@ -20,15 +20,18 @@ export function Navbar() {
           <div className="hidden md:block">
             <div className="ml-10 flex items-baseline space-x-8">
               <a
-                href="#features"
+                href="/trading-basics"
                 className="font-geist text-white hover:text-red-500 transition-colors duration-200"
               >
-                База знаний
+                Основы
               </a>
-              <a href="#applications" className="font-geist text-white hover:text-red-500 transition-colors duration-200">
-                Разделы
+              <a href="/bots-guide" className="font-geist text-white hover:text-red-500 transition-colors duration-200">
+                Боты
               </a>
-              <a href="#faq" className="font-geist text-white hover:text-red-500 transition-colors duration-200">
+              <a href="/bot-builder" className="font-geist text-white hover:text-red-500 transition-colors duration-200">
+                Конструктор
+              </a>
+              <a href="/#faq" className="font-geist text-white hover:text-red-500 transition-colors duration-200">
                 Вопросы
               </a>
             </div>
@@ -55,21 +58,28 @@ export function Navbar() {
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 bg-black/98 border-t border-red-500/20">
               <a
-                href="#features"
+                href="/trading-basics"
                 className="block px-3 py-2 font-geist text-white hover:text-red-500 transition-colors duration-200"
                 onClick={() => setIsOpen(false)}
               >
-                База знаний
+                Основы
               </a>
               <a
-                href="#applications"
+                href="/bots-guide"
                 className="block px-3 py-2 font-geist text-white hover:text-red-500 transition-colors duration-200"
                 onClick={() => setIsOpen(false)}
               >
-                Разделы
+                Боты
               </a>
               <a
-                href="#faq"
+                href="/bot-builder"
+                className="block px-3 py-2 font-geist text-white hover:text-red-500 transition-colors duration-200"
+                onClick={() => setIsOpen(false)}
+              >
+                Конструктор
+              </a>
+              <a
+                href="/#faq"
                 className="block px-3 py-2 font-geist text-white hover:text-red-500 transition-colors duration-200"
                 onClick={() => setIsOpen(false)}
               >

@@ -20,9 +20,12 @@ export function Navbar() {
           <div className="hidden md:block">
             <div className="ml-10 flex items-baseline space-x-8">
               <a
-                href="/trading-basics"
+                href="/catalog"
                 className="font-geist text-white hover:text-red-500 transition-colors duration-200"
               >
+                Каталог
+              </a>
+              <a href="/trading-basics" className="font-geist text-white hover:text-red-500 transition-colors duration-200">
                 Основы
               </a>
               <a href="/bots-guide" className="font-geist text-white hover:text-red-500 transition-colors duration-200">
@@ -30,9 +33,6 @@ export function Navbar() {
               </a>
               <a href="/bot-builder" className="font-geist text-white hover:text-red-500 transition-colors duration-200">
                 Конструктор
-              </a>
-              <a href="/#faq" className="font-geist text-white hover:text-red-500 transition-colors duration-200">
-                Вопросы
               </a>
             </div>
           </div>
@@ -58,6 +58,13 @@ export function Navbar() {
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 bg-black/98 border-t border-red-500/20">
               <a
+                href="/catalog"
+                className="block px-3 py-2 font-geist text-white hover:text-red-500 transition-colors duration-200"
+                onClick={() => setIsOpen(false)}
+              >
+                Каталог
+              </a>
+              <a
                 href="/trading-basics"
                 className="block px-3 py-2 font-geist text-white hover:text-red-500 transition-colors duration-200"
                 onClick={() => setIsOpen(false)}
@@ -77,13 +84,6 @@ export function Navbar() {
                 onClick={() => setIsOpen(false)}
               >
                 Конструктор
-              </a>
-              <a
-                href="/#faq"
-                className="block px-3 py-2 font-geist text-white hover:text-red-500 transition-colors duration-200"
-                onClick={() => setIsOpen(false)}
-              >
-                Вопросы
               </a>
               <div className="px-3 py-2">
                 <Button className="w-full bg-red-500 hover:bg-red-600 text-white font-geist border-0">

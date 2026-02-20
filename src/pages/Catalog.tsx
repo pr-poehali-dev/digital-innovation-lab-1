@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { Badge } from "@/components/ui/badge"
@@ -137,9 +137,32 @@ const levelColor: Record<string, string> = {
   "Любой": "text-zinc-400 border-zinc-600",
 }
 
+const STORAGE_KEY = "tradebase_read"
+
 export default function Catalog() {
   const [search, setSearch] = useState("")
   const [activeCategory, setActiveCategory] = useState("Все")
+  const [read, setRead] = useState<Set<number>>(new Set())
+
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]") as number[]
+    setRead(new Set(saved))
+  }, [])
+
+  const toggleRead = (e: React.MouseEvent, id: number) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setRead((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]))
+      return next
+    })
+  }
 
   const filtered = materials.filter((m) => {
     const matchCategory = activeCategory === "Все" || m.category === activeCategory
@@ -150,19 +173,44 @@ export default function Catalog() {
     return matchCategory && matchSearch
   })
 
+  const readCount = materials.filter((m) => read.has(m.id)).length
+  const totalReadable = materials.filter((m) => m.readTime !== "Интерактив").length
+  const progressPct = Math.round((readCount / totalReadable) * 100)
+
   return (
     <div className="dark min-h-screen bg-black">
       <Navbar />
       <main className="pt-24 pb-20">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
-          <div className="text-center mb-12">
+          <div className="text-center mb-10">
             <Badge className="bg-red-500/20 text-red-400 border-red-500/30 mb-4">Все материалы</Badge>
             <h1 className="font-orbitron text-4xl md:text-5xl font-bold text-white mb-6">
               Каталог базы знаний
             </h1>
             <p className="text-gray-300 text-lg max-w-2xl mx-auto leading-relaxed">
               {materials.length} материалов по трейдингу и торговым ботам. Фильтруйте по теме или ищите нужное.
+            </p>
+          </div>
+
+          {/* Progress block */}
+          <div className="max-w-xl mx-auto mb-10 bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-orbitron text-white text-sm">Ваш прогресс</span>
+              <span className="font-space-mono text-red-400 text-sm font-bold">{readCount} / {totalReadable} прочитано</span>
+            </div>
+            <div className="w-full bg-zinc-800 rounded-full h-2 mb-2">
+              <div
+                className="bg-red-500 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+            <p className="text-zinc-500 font-space-mono text-xs">
+              {progressPct === 0
+                ? "Начните с любого материала — отмечайте прочитанное галочкой на карточке"
+                : progressPct === 100
+                ? "🎉 Вы прочитали все материалы! Попробуйте конструктор ботов."
+                : `Осталось ${totalReadable - readCount} материал${totalReadable - readCount === 1 ? "" : totalReadable - readCount < 5 ? "а" : "ов"}`}
             </p>
           </div>
 
@@ -201,36 +249,64 @@ export default function Catalog() {
           {/* Grid */}
           {filtered.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filtered.map((item) => (
-                <a key={item.id} href={item.href} className="group block">
-                  <Card className="bg-zinc-900 border-zinc-800 h-full transition-all duration-300 group-hover:border-red-500/40 group-hover:bg-zinc-800/80">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className={`text-xs font-space-mono px-2 py-1 rounded-full border ${item.badgeColor}`}>
-                          {item.badge}
-                        </span>
-                        <span className={`text-xs font-space-mono border rounded-full px-2 py-1 ${levelColor[item.level]}`}>
-                          {item.level}
-                        </span>
-                      </div>
-                      <CardTitle className="font-orbitron text-base text-white leading-snug group-hover:text-red-400 transition-colors">
-                        {item.title}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-zinc-400 font-space-mono text-xs leading-relaxed mb-4">
-                        {item.description}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-zinc-600 font-space-mono text-xs">{item.readTime}</span>
-                        <span className="text-red-400 text-xs font-space-mono group-hover:translate-x-1 transition-transform inline-block">
-                          Читать →
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </a>
-              ))}
+              {filtered.map((item) => {
+                const isRead = read.has(item.id)
+                const isInteractive = item.readTime === "Интерактив"
+                return (
+                  <a key={item.id} href={item.href} className="group block relative">
+                    <Card className={`h-full transition-all duration-300 ${
+                      isRead
+                        ? "bg-zinc-900/60 border-green-500/30"
+                        : "bg-zinc-900 border-zinc-800 group-hover:border-red-500/40 group-hover:bg-zinc-800/80"
+                    }`}>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className={`text-xs font-space-mono px-2 py-1 rounded-full border ${item.badgeColor}`}>
+                            {item.badge}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-space-mono border rounded-full px-2 py-1 ${levelColor[item.level]}`}>
+                              {item.level}
+                            </span>
+                            {!isInteractive && (
+                              <button
+                                onClick={(e) => toggleRead(e, item.id)}
+                                title={isRead ? "Отметить как непрочитанное" : "Отметить как прочитанное"}
+                                className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all shrink-0 ${
+                                  isRead
+                                    ? "bg-green-500 border-green-500 text-white"
+                                    : "border-zinc-600 text-zinc-600 hover:border-green-500 hover:text-green-400"
+                                }`}
+                              >
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                  <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <CardTitle className={`font-orbitron text-base leading-snug transition-colors ${
+                          isRead ? "text-zinc-400" : "text-white group-hover:text-red-400"
+                        }`}>
+                          {item.title}
+                          {isRead && <span className="ml-2 text-green-400 text-xs font-space-mono normal-case">✓ прочитано</span>}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-zinc-400 font-space-mono text-xs leading-relaxed mb-4">
+                          {item.description}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-zinc-600 font-space-mono text-xs">{item.readTime}</span>
+                          <span className="text-red-400 text-xs font-space-mono group-hover:translate-x-1 transition-transform inline-block">
+                            {isInteractive ? "Открыть →" : "Читать →"}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </a>
+                )
+              })}
             </div>
           ) : (
             <div className="text-center py-20">

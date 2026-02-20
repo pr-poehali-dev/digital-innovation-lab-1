@@ -1,8 +1,11 @@
+import { useState, useEffect } from "react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+
+const STORAGE_KEY = "tradebase_chapters_basics"
 
 const articles = [
   {
@@ -108,13 +111,37 @@ const articles = [
 ]
 
 export default function TradingBasics() {
+  const [readChapters, setReadChapters] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]") as string[]
+    setReadChapters(new Set(saved))
+  }, [])
+
+  const toggleChapter = (id: string) => {
+    setReadChapters((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]))
+      return next
+    })
+  }
+
+  const readCount = readChapters.size
+  const total = articles.length
+  const pct = Math.round((readCount / total) * 100)
+
   return (
     <div className="dark min-h-screen bg-black">
       <Navbar />
       <main className="pt-24 pb-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
-          <div className="text-center mb-16">
+          <div className="text-center mb-10">
             <Badge className="bg-red-500/20 text-red-400 border-red-500/30 mb-4">База знаний</Badge>
             <h1 className="font-orbitron text-4xl md:text-5xl font-bold text-white mb-6">
               Основы трейдинга
@@ -124,54 +151,86 @@ export default function TradingBasics() {
             </p>
           </div>
 
-          {/* Progress bar */}
-          <div className="flex gap-2 mb-12 flex-wrap justify-center">
-            {articles.map((a) => (
-              <a
-                key={a.id}
-                href={`#${a.id}`}
-                className="text-xs font-space-mono text-red-400 border border-red-500/30 px-3 py-1 rounded-full hover:bg-red-500/10 transition-colors"
-              >
-                {a.badge}
-              </a>
-            ))}
+          {/* Progress */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-10">
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-orbitron text-white text-sm">Прогресс по курсу</span>
+              <span className="font-space-mono text-red-400 text-sm font-bold">{readCount} / {total} глав</span>
+            </div>
+            <div className="w-full bg-zinc-800 rounded-full h-2 mb-2">
+              <div
+                className="bg-red-500 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <div className="flex gap-2 mt-3 flex-wrap">
+              {articles.map((a) => (
+                <a
+                  key={a.id}
+                  href={`#${a.id}`}
+                  className={`text-xs font-space-mono px-3 py-1 rounded-full border transition-colors ${
+                    readChapters.has(a.id)
+                      ? "bg-green-500/20 border-green-500/40 text-green-400"
+                      : "border-red-500/30 text-red-400 hover:bg-red-500/10"
+                  }`}
+                >
+                  {readChapters.has(a.id) ? "✓ " : ""}{a.badge}
+                </a>
+              ))}
+            </div>
           </div>
 
           {/* Articles */}
           <div className="space-y-12">
-            {articles.map((article) => (
-              <div key={article.id} id={article.id} className="scroll-mt-24">
-                <Card className="bg-zinc-900 border-red-500/20">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Badge className="bg-red-500 text-white border-0">{article.badge}</Badge>
-                    </div>
-                    <CardTitle className="font-orbitron text-2xl text-white leading-tight">
-                      {article.title}
-                    </CardTitle>
-                    <p className="text-gray-400 leading-relaxed mt-2">{article.summary}</p>
-                  </CardHeader>
-                  <CardContent>
-                    <Accordion type="multiple" className="w-full">
-                      {article.sections.map((section, idx) => (
-                        <AccordionItem
-                          key={idx}
-                          value={`${article.id}-${idx}`}
-                          className="border-red-500/20"
+            {articles.map((article) => {
+              const isDone = readChapters.has(article.id)
+              return (
+                <div key={article.id} id={article.id} className="scroll-mt-24">
+                  <Card className={`border transition-colors ${isDone ? "bg-zinc-900/60 border-green-500/25" : "bg-zinc-900 border-red-500/20"}`}>
+                    <CardHeader className="pb-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <Badge className="bg-red-500 text-white border-0">{article.badge}</Badge>
+                        <button
+                          onClick={() => toggleChapter(article.id)}
+                          className={`flex items-center gap-2 text-xs font-space-mono px-3 py-1.5 rounded-full border transition-all ${
+                            isDone
+                              ? "bg-green-500/20 border-green-500/40 text-green-400"
+                              : "border-zinc-600 text-zinc-500 hover:border-green-500/50 hover:text-green-400"
+                          }`}
                         >
-                          <AccordionTrigger className="text-left text-base font-semibold text-white hover:text-red-400 font-orbitron">
-                            {section.title}
-                          </AccordionTrigger>
-                          <AccordionContent className="text-gray-300 leading-relaxed font-space-mono text-sm">
-                            {section.content}
-                          </AccordionContent>
-                        </AccordionItem>
-                      ))}
-                    </Accordion>
-                  </CardContent>
-                </Card>
-              </div>
-            ))}
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                            <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                          {isDone ? "Прочитано" : "Отметить прочитанным"}
+                        </button>
+                      </div>
+                      <CardTitle className={`font-orbitron text-2xl leading-tight ${isDone ? "text-zinc-400" : "text-white"}`}>
+                        {article.title}
+                      </CardTitle>
+                      <p className="text-gray-400 leading-relaxed mt-2">{article.summary}</p>
+                    </CardHeader>
+                    <CardContent>
+                      <Accordion type="multiple" className="w-full">
+                        {article.sections.map((section, idx) => (
+                          <AccordionItem
+                            key={idx}
+                            value={`${article.id}-${idx}`}
+                            className="border-red-500/20"
+                          >
+                            <AccordionTrigger className="text-left text-base font-semibold text-white hover:text-red-400 font-orbitron">
+                              {section.title}
+                            </AccordionTrigger>
+                            <AccordionContent className="text-gray-300 leading-relaxed font-space-mono text-sm">
+                              {section.content}
+                            </AccordionContent>
+                          </AccordionItem>
+                        ))}
+                      </Accordion>
+                    </CardContent>
+                  </Card>
+                </div>
+              )
+            })}
           </div>
 
           {/* Next step */}

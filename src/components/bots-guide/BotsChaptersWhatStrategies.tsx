@@ -1,0 +1,206 @@
+import React from "react"
+import {
+  BotWorkflowDiagram,
+  GridBotChart,
+  DCAChart,
+  StrategyComparisonTable,
+  APIKeysGuide,
+} from "./BotsCharts"
+import type { Chapter } from "./BotsChapterTypes"
+
+export const chapterWhatIsBot: Chapter = {
+  id: "what-is-bot",
+  badge: "Глава 1",
+  title: "Что такое торговый бот и как он работает",
+  summary: "Торговый бот — программа, которая автоматически исполняет сделки по заранее заданной логике. Он не спит, не устаёт и не поддаётся эмоциям.",
+  sections: [
+    {
+      title: "Цикл работы бота: от сигнала до сделки",
+      content: (
+        <div className="space-y-3">
+          <p className="text-gray-300 leading-relaxed">Торговый бот — это просто программа, которая повторяет те же действия, что делает трейдер вручную — только быстрее и без эмоций.</p>
+          <BotWorkflowDiagram />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
+              <div className="text-3xl mb-2">⚡</div>
+              <div className="text-white font-orbitron text-xs font-bold mb-1">Скорость</div>
+              <p className="text-zinc-400 text-xs">50–500 мс vs 2–5 секунд вручную. Критично для скальпинга и арбитража.</p>
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
+              <div className="text-3xl mb-2">🧘</div>
+              <div className="text-white font-orbitron text-xs font-bold mb-1">Без эмоций</div>
+              <p className="text-zinc-400 text-xs">Страх и жадность — главные враги трейдера. Бот исполняет стратегию без отклонений.</p>
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
+              <div className="text-3xl mb-2">🕐</div>
+              <div className="text-white font-orbitron text-xs font-bold mb-1">24/7</div>
+              <p className="text-zinc-400 text-xs">Криптовалютный рынок не закрывается. Бот торгует пока вы спите.</p>
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: "API-ключи: как безопасно подключить бота",
+      content: (
+        <div className="space-y-3">
+          <p className="text-gray-300 leading-relaxed">API (Application Programming Interface) — мост между вашим ботом и биржей. Понимание безопасности API критично: ошибка здесь = потеря всего счёта.</p>
+          <APIKeysGuide />
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+            <div className="text-white font-orbitron text-xs font-bold mb-2">Что бот может делать через API</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-space-mono">
+              <div>
+                <div className="text-green-400 mb-2">Разрешённые действия:</div>
+                <ul className="text-zinc-400 space-y-1">
+                  <li>✓ Получать котировки и данные</li>
+                  <li>✓ Видеть баланс счёта</li>
+                  <li>✓ Открывать ордера</li>
+                  <li>✓ Закрывать позиции</li>
+                  <li>✓ Читать историю сделок</li>
+                </ul>
+              </div>
+              <div>
+                <div className="text-red-400 mb-2">Отключите вывод средств:</div>
+                <ul className="text-zinc-400 space-y-1">
+                  <li>✗ Вывод на внешний кошелёк</li>
+                  <li>✗ Перевод между аккаунтами</li>
+                  <li>✗ Изменение настроек аккаунта</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: "Преимущества и ограничения: что бот не умеет",
+      content: (
+        <div className="space-y-3">
+          <p className="text-gray-300 leading-relaxed">Боты — мощный инструмент, но не волшебная палочка. Понимание их ограничений спасёт от разочарований и потерь.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <div className="text-green-400 font-orbitron text-xs font-bold mb-2">Что бот делает лучше человека</div>
+              <ul className="space-y-2">
+                {[
+                  "Работает 24/7 без перерывов",
+                  "Исполняет стратегию без эмоций",
+                  "Реагирует за миллисекунды",
+                  "Тестирует стратегии на годах данных",
+                  "Одновременно ведёт 10+ пар",
+                  "Не паникует при -20% за день",
+                ].map((t, i) => (
+                  <li key={i} className="flex gap-2 text-xs font-space-mono text-zinc-400">
+                    <span className="text-green-400 flex-shrink-0">✓</span>{t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <div className="text-red-400 font-orbitron text-xs font-bold mb-2">Что бот не умеет</div>
+              <ul className="space-y-2">
+                {[
+                  "Понимать новости и события (FOMC, твиты Маска)",
+                  "Адаптироваться к изменению режима рынка",
+                  "Предсказывать black swan события",
+                  "Читать \"психологию\" рынка",
+                  "Работать при технических сбоях биржи",
+                  "Гарантировать прибыль при плохой стратегии",
+                ].map((t, i) => (
+                  <li key={i} className="flex gap-2 text-xs font-space-mono text-zinc-400">
+                    <span className="text-red-400 flex-shrink-0">✗</span>{t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <div className="bg-zinc-900 border border-yellow-500/20 rounded-xl p-4">
+            <div className="text-yellow-400 font-orbitron text-xs font-bold mb-1">Главный принцип</div>
+            <p className="text-zinc-400 text-xs font-space-mono">Бот усиливает вашу стратегию, а не создаёт её. Плохая стратегия + бот = быстрый слив (бот торгует хуже, но быстрее). Хорошая стратегия + бот = масштабирование прибыли.</p>
+          </div>
+        </div>
+      )
+    },
+  ]
+}
+
+export const chapterStrategies: Chapter = {
+  id: "strategies",
+  badge: "Глава 2",
+  title: "Популярные стратегии для ботов",
+  summary: "Стратегия — сердце любого бота. Рассмотрим самые распространённые алгоритмические стратегии с их логикой, плюсами и минусами.",
+  sections: [
+    {
+      title: "Обзор и сравнение всех стратегий",
+      content: (
+        <div className="space-y-3">
+          <p className="text-gray-300 leading-relaxed">Выбор стратегии зависит от вашего капитала, технических знаний и текущего состояния рынка. Не существует «лучшей» стратегии — только подходящая для конкретного рынка.</p>
+          <StrategyComparisonTable />
+          <div className="bg-zinc-900 border border-red-500/20 rounded-xl p-4">
+            <div className="text-red-400 font-orbitron text-xs font-bold mb-1">Мартингейл — почему не рекомендуется</div>
+            <p className="text-zinc-400 text-xs font-space-mono">Мартингейл удваивает размер позиции после каждого убытка. Математически это работает — до первой длинной серии потерь. Серия из 8 потерь при начальном лоте $100 → убыток $25,600. Один рыночный обвал уничтожает весь депозит.</p>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: "Grid-бот: зарабатывай на боковике",
+      content: (
+        <div className="space-y-3">
+          <p className="text-gray-300 leading-relaxed">Grid-бот идеален когда рынок «ходит» в диапазоне без чёткого тренда. Именно в такие периоды ручная торговля особенно сложна, а бот зарабатывает стабильно.</p>
+          <GridBotChart />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
+              <div className="text-white font-orbitron text-xs font-bold mb-2">Как настроить Grid-бот</div>
+              <ul className="text-zinc-400 text-xs font-space-mono space-y-1">
+                <li>→ Выберите диапазон цены (макс. и мин.)</li>
+                <li>→ Задайте количество уровней (5–50)</li>
+                <li>→ Чем больше уровней → меньше прибыль с каждого, но чаще срабатывают</li>
+                <li>→ Оставьте 20–30% капитала резервом</li>
+              </ul>
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
+              <div className="text-white font-orbitron text-xs font-bold mb-2">Когда Grid-бот не работает</div>
+              <ul className="text-zinc-400 text-xs font-space-mono space-y-1">
+                <li>✗ Сильный тренд (цена уходит за диапазон)</li>
+                <li>✗ Flash-crash (моментальный обвал)</li>
+                <li>✗ Очень низкая ликвидность актива</li>
+                <li>✗ Широкий спред на бирже</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: "DCA-бот и трендовые стратегии",
+      content: (
+        <div className="space-y-3">
+          <p className="text-gray-300 leading-relaxed">DCA (Dollar Cost Averaging) — самая безопасная стратегия для новичков. Трендовые стратегии — для тех, кто хочет следовать рынку автоматически.</p>
+          <DCAChart />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+            <div className="bg-zinc-900 border border-blue-500/20 rounded-xl p-4">
+              <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">DCA-стратегия</div>
+              <div className="text-zinc-400 text-xs font-space-mono space-y-2">
+                <div><span className="text-white">Для кого:</span> долгосрочные инвесторы в BTC/ETH</div>
+                <div><span className="text-white">Логика:</span> покупать фиксированную сумму каждую неделю или при падении на X%</div>
+                <div><span className="text-white">Плюс:</span> не нужно угадывать дно рынка</div>
+                <div><span className="text-white">Минус:</span> при медвежьем рынке замораживает капитал на месяцы</div>
+              </div>
+            </div>
+            <div className="bg-zinc-900 border border-yellow-500/20 rounded-xl p-4">
+              <div className="text-yellow-400 font-orbitron text-xs font-bold mb-2">Трендовый бот (EMA/MACD)</div>
+              <div className="text-zinc-400 text-xs font-space-mono space-y-2">
+                <div><span className="text-white">Для кого:</span> свинг-трейдеры, H1–H4</div>
+                <div><span className="text-white">Логика:</span> вход по Golden Cross EMA, выход по Death Cross</div>
+                <div><span className="text-white">Плюс:</span> хорошо работает на сильных трендах (BTC 2020–2021)</div>
+                <div><span className="text-white">Минус:</span> боковик генерирует много убыточных сделок</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    },
+  ]
+}
+
+export const chaptersWhatStrategies: Chapter[] = [chapterWhatIsBot, chapterStrategies]

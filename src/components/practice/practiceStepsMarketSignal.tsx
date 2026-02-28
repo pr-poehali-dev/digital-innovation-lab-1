@@ -4,170 +4,139 @@ export const stepMarketAnalysis: PracticeStep = {
   id: "market-analysis",
   badge: "Шаг 1",
   color: "blue",
-  icon: "BarChart2",
-  title: "Анализ рынка: читаем BTC/USD",
-  summary: "Прежде чем открыть сделку на Pocket Option — нужно понять, куда движется рынок. Применяем всё из раздела «Основы трейдинга».",
+  icon: "TrendingUp",
+  title: "Анализ рынка: определяем тренд и уровни",
+  summary: "Перед каждой сделкой нужно понять, куда движется рынок и где находятся ключевые уровни. Без этого — не анализ, а азартная игра.",
   sections: [
     {
-      title: "Выбираем тайм-фрейм и инструмент",
+      title: "Определение тренда через EMA 20/50",
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">
-            Pocket Option — платформа бинарных опционов. BTC/USD — самый ликвидный инструмент с предсказуемыми паттернами.
-            Для краткосрочных сделок (1–5 минут) работаем на <span className="text-blue-400 font-semibold">тайм-фрейме M1 и M5</span>.
+            Открываем BTC/USD на таймфрейме M5. Добавляем две EMA: 20-периодную (быстрая) и 50-периодную (медленная).
+            Правило простое: <span className="text-blue-400 font-semibold">EMA 20 выше EMA 50 = восходящий тренд (CALL), ниже = нисходящий (PUT).</span>
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-3">
+            <div className="flex gap-3 items-start">
+              <div className="w-2 h-2 rounded-full bg-green-400 mt-1.5 shrink-0"></div>
+              <div>
+                <span className="text-green-400 font-orbitron text-xs font-bold">Бычий сигнал: </span>
+                <span className="text-zinc-300 text-xs font-space-mono">EMA 20 пересекает EMA 50 снизу вверх. Цена выше обеих линий. Открываем CALL.</span>
+              </div>
+            </div>
+            <div className="flex gap-3 items-start">
+              <div className="w-2 h-2 rounded-full bg-red-400 mt-1.5 shrink-0"></div>
+              <div>
+                <span className="text-red-400 font-orbitron text-xs font-bold">Медвежий сигнал: </span>
+                <span className="text-zinc-300 text-xs font-space-mono">EMA 20 пересекает EMA 50 сверху вниз. Цена ниже обеих линий. Открываем PUT.</span>
+              </div>
+            </div>
+            <div className="flex gap-3 items-start">
+              <div className="w-2 h-2 rounded-full bg-yellow-400 mt-1.5 shrink-0"></div>
+              <div>
+                <span className="text-yellow-400 font-orbitron text-xs font-bold">Флэт — пропускаем: </span>
+                <span className="text-zinc-300 text-xs font-space-mono">EMA переплетаются, цена ходит между линиями. В этот период профессионалы не торгуют.</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+            <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">Из жизни: как торгует Пол Тюдор Джонс</div>
+            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+              Легендарный трейдер Пол Тюдор Джонс говорил: «Я смотрю на 200-дневную скользящую среднюю. Если цена ниже — у меня нет длинных позиций, точка».
+              Он использует скользящие средние как фильтр — торгует только по тренду, никогда против него.
+              Тот же принцип работает на M5: EMA показывает тебе направление — иди за рынком, не против него.
+            </p>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: "Поиск уровней поддержки и сопротивления",
+      content: (
+        <div className="space-y-3">
+          <p className="text-gray-300 leading-relaxed">
+            Уровни — это психологические зоны, где рынок многократно разворачивался. Профессиональные трейдеры ждут именно момента, когда цена подходит к уровню.
+          </p>
+          <div className="space-y-2">
             {[
-              { label: "Инструмент", value: "BTC/USD", desc: "Высокая ликвидность, предсказуемые уровни", color: "text-yellow-400" },
-              { label: "Тайм-фрейм", value: "M5", desc: "Для анализа + M1 для входа", color: "text-blue-400" },
-              { label: "Экспирация", value: "3–5 мин", desc: "Стандарт для скальпинга", color: "text-green-400" },
+              {
+                step: "1",
+                title: "Ищем локальные максимумы и минимумы",
+                desc: "На M5 BTC/USD смотрим последние 3–4 часа. Где цена разворачивалась минимум 2 раза — это уровень.",
+                color: "text-blue-400"
+              },
+              {
+                step: "2",
+                title: "Смотрим на круглые числа",
+                desc: "BTC часто разворачивается у круглых уровней: $95,000, $96,000, $97,000. Это зоны скопления ордеров крупных игроков.",
+                color: "text-purple-400"
+              },
+              {
+                step: "3",
+                title: "Ждём приближения цены к уровню",
+                desc: "Не входим в середине движения. Ждём, когда цена придёт к уровню — именно здесь вероятность разворота максимальна.",
+                color: "text-green-400"
+              },
             ].map((item, i) => (
-              <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-                <div className="text-zinc-500 text-xs font-space-mono mb-1">{item.label}</div>
-                <div className={`font-orbitron font-bold text-sm ${item.color}`}>{item.value}</div>
-                <div className="text-zinc-500 text-xs mt-1">{item.desc}</div>
+              <div key={i} className="flex gap-3 items-start bg-zinc-900 border border-zinc-800 rounded-lg p-3">
+                <div className={`font-orbitron text-sm font-bold ${item.color} w-5 shrink-0`}>{item.step}</div>
+                <div>
+                  <div className={`font-orbitron text-xs font-bold mb-1 ${item.color}`}>{item.title}</div>
+                  <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">{item.desc}</p>
+                </div>
               </div>
             ))}
           </div>
-          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
-            <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">Из главы «Тайм-фреймы»</div>
-            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">
-              M5 показывает структуру — где сформированы уровни, куда идёт тренд. M1 — точка входа.
-              Никогда не торгуем только на M1 без понимания старшего тайм-фрейма.
+
+          <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
+            <div className="text-purple-400 font-orbitron text-xs font-bold mb-2">Из жизни: метод Вайкоффа в трейдинге</div>
+            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+              Ричард Вайкофф в 1930-х годах описал, как «умные деньги» (крупные банки, фонды) накапливают позиции у ключевых уровней.
+              Сегодня крипто-трейдеры используют тот же принцип: круглые уровни BTC ($95K, $100K) — это зоны, где институционалы
+              выставляют лимитные ордера. Когда цена касается такого уровня, вероятность разворота резко возрастает — именно здесь и входят профессионалы.
             </p>
           </div>
         </div>
       )
     },
     {
-      title: "Определяем тренд через скользящие средние",
+      title: "Практический пример: анализ BTC/USD на M5",
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">
-            Открываем график BTC/USD M5 на Pocket Option. Включаем <span className="text-yellow-400 font-semibold">EMA 20 и EMA 50</span>. Смотрим взаиморасположение.
+            Разберём конкретную ситуацию шаг за шагом — так, как это делает профессиональный трейдер перед входом.
           </p>
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-            <svg viewBox="0 0 400 160" className="w-full h-40">
-              <defs>
-                <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.15"/>
-                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0"/>
-                </linearGradient>
-              </defs>
+            <div className="font-orbitron text-xs font-bold text-zinc-300 mb-3">Сценарий: BTC/USD, 14:35, M5</div>
+            <div className="space-y-2">
               {[
-                [30, 100, 90, 108], [55, 90, 82, 96], [80, 82, 75, 88], [105, 75, 70, 80],
-                [130, 70, 65, 74], [155, 65, 60, 70], [180, 62, 55, 66], [205, 55, 50, 60],
-                [230, 52, 46, 56], [255, 48, 43, 52], [280, 45, 40, 50], [305, 42, 37, 47],
-                [330, 38, 34, 42], [355, 35, 30, 40]
-              ].map(([x, open, close, high], i) => (
-                <g key={i}>
-                  <line x1={x + 10} y1={high} x2={x + 10} y2={close < open ? close : open} stroke={close < open ? "#ef4444" : "#22c55e"} strokeWidth="1"/>
-                  <rect x={x + 5} y={Math.min(open, close)} width="10" height={Math.abs(open - close) || 1} fill={close < open ? "#ef4444" : "#22c55e"} opacity="0.9"/>
-                </g>
+                { label: "Смотрим EMA", value: "EMA 20 = $96,420. EMA 50 = $96,180. EMA 20 выше → восходящий тренд ✓", ok: true },
+                { label: "Ищем уровень", value: "Ближайший уровень сопротивления: $96,600 (разворот был дважды 2 часа назад)", ok: true },
+                { label: "Позиция цены", value: "Цена на $96,580 — у уровня сопротивления. Это сигнал к PUT (отскок вниз)", ok: true },
+                { label: "Решение", value: "Ждём подтверждения RSI. Без него — не входим (смотри Шаг 2)", ok: null },
+              ].map((row, i) => (
+                <div key={i} className="flex gap-2 items-start">
+                  <div className={`text-xs shrink-0 mt-0.5 font-space-mono ${row.ok === true ? "text-green-400" : row.ok === false ? "text-red-400" : "text-yellow-400"}`}>
+                    {row.ok === true ? "✓" : row.ok === false ? "✗" : "→"}
+                  </div>
+                  <div className="text-xs font-space-mono">
+                    <span className="text-zinc-500">{row.label}: </span>
+                    <span className="text-zinc-300">{row.value}</span>
+                  </div>
+                </div>
               ))}
-              <polyline points="30,98 55,88 80,80 105,73 130,67 155,62 180,59 205,53 230,50 255,46 280,43 305,40 330,37 355,34"
-                fill="none" stroke="#eab308" strokeWidth="2" opacity="0.9"/>
-              <polyline points="30,105 55,100 80,95 105,88 130,82 155,76 180,71 205,66 230,62 255,58 280,54 305,51 330,47 355,44"
-                fill="none" stroke="#3b82f6" strokeWidth="2" opacity="0.9"/>
-              <text x="358" y="32" fontSize="8" fill="#eab308" fontFamily="monospace">EMA 20</text>
-              <text x="358" y="43" fontSize="8" fill="#3b82f6" fontFamily="monospace">EMA 50</text>
-              <text x="10" y="155" fontSize="8" fill="#52525b" fontFamily="monospace">EMA 20 ниже EMA 50 → нисходящий тренд → торгуем PUT</text>
-            </svg>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
-              <div className="text-green-400 font-orbitron text-xs font-bold mb-2">CALL (рост) — когда</div>
-              <ul className="text-zinc-400 text-xs font-space-mono space-y-1">
-                <li>→ EMA 20 выше EMA 50</li>
-                <li>→ Цена выше обеих MA</li>
-                <li>→ EMA 20 растёт вверх</li>
-              </ul>
-            </div>
-            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-              <div className="text-red-400 font-orbitron text-xs font-bold mb-2">PUT (падение) — когда</div>
-              <ul className="text-zinc-400 text-xs font-space-mono space-y-1">
-                <li>→ EMA 20 ниже EMA 50</li>
-                <li>→ Цена ниже обеих MA</li>
-                <li>→ EMA 20 падает вниз</li>
-              </ul>
             </div>
           </div>
-        </div>
-      )
-    },
-    {
-      title: "RSI подтверждает сигнал",
-      content: (
-        <div className="space-y-3">
-          <p className="text-gray-300 leading-relaxed">
-            После определения тренда — подтверждаем сигнал через <span className="text-purple-400 font-semibold">RSI (14)</span>.
-            Один индикатор = слабый сигнал. Два совпадающих = высокая вероятность.
-          </p>
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-            <svg viewBox="0 0 400 100" className="w-full h-24">
-              <rect x="0" y="0" width="400" height="100" fill="transparent"/>
-              <rect x="20" y="5" width="360" height="20" fill="#ef444408" stroke="#ef444420" strokeWidth="0.5" rx="2"/>
-              <rect x="20" y="55" width="360" height="20" fill="#22c55e08" stroke="#22c55e20" strokeWidth="0.5" rx="2"/>
-              <text x="385" y="18" fontSize="7" fill="#ef4444" fontFamily="monospace" textAnchor="end">70</text>
-              <text x="385" y="68" fontSize="7" fill="#22c55e" fontFamily="monospace" textAnchor="end">30</text>
-              <polyline
-                points="30,30 60,35 90,42 120,50 150,56 180,62 210,67 240,72 270,68 300,60 330,52 360,42"
-                fill="none" stroke="#a855f7" strokeWidth="2"/>
-              <circle cx="240" cy="72" r="4" fill="#ef4444" opacity="0.8"/>
-              <text x="240" y="85" fontSize="8" fill="#ef4444" textAnchor="middle" fontFamily="monospace">RSI=28 → перепродан</text>
-              <text x="20" y="95" fontSize="7" fill="#52525b" fontFamily="monospace">RSI входит в зону перепроданности при нисходящем тренде = сигнал скорого отскока</text>
-            </svg>
-          </div>
-          <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-3">
-            <div className="text-purple-400 font-orbitron text-xs font-bold mb-2">Правило использования RSI для бинарных опционов</div>
-            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">
-              RSI {'<'} 30 при нисходящем тренде = возможный отскок → PUT теряет силу, ждём разворота.
-              RSI {'>'} 70 при восходящем тренде = возможная коррекция → не открываем CALL, ждём откат.
-              Используйте RSI как <span className="text-white">фильтр входа</span>, не как самостоятельный сигнал.
+
+          <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+            <div className="text-green-400 font-orbitron text-xs font-bold mb-2">Из жизни: утренний ритуал профи-трейдера</div>
+            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+              Том Данте — известный трейдер с YouTube-каналом о Price Action — публично рассказывал о своей рутине:
+              каждое утро он 15 минут смотрит на дневные и часовые графики, рисует ключевые уровни на день.
+              И весь день он торгует только от этих уровней, не входя в «середине воздуха».
+              Его результат: из 10 сделок 7–8 прибыльных. Секрет — терпение и ожидание уровня.
             </p>
-          </div>
-        </div>
-      )
-    },
-    {
-      title: "Уровни поддержки и сопротивления: находим точку входа",
-      content: (
-        <div className="space-y-3">
-          <p className="text-gray-300 leading-relaxed">
-            Уровни — это зоны, где цена останавливается и разворачивается. На Pocket Option это критично:
-            нужна <span className="text-yellow-400 font-semibold">точка входа у уровня</span>, а не «посередине».
-          </p>
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-            <svg viewBox="0 0 400 150" className="w-full h-36">
-              <line x1="20" y1="30" x2="380" y2="30" stroke="#ef4444" strokeWidth="1" strokeDasharray="6,4" opacity="0.7"/>
-              <text x="383" y="33" fontSize="8" fill="#ef4444" fontFamily="monospace">Resistance</text>
-              <line x1="20" y1="110" x2="380" y2="110" stroke="#22c55e" strokeWidth="1" strokeDasharray="6,4" opacity="0.7"/>
-              <text x="383" y="113" fontSize="8" fill="#22c55e" fontFamily="monospace">Support</text>
-              <polyline
-                points="30,100 60,85 90,60 110,30 130,45 150,65 170,80 190,95 210,110 230,95 250,80 270,65 290,50 310,30 330,48 350,68"
-                fill="none" stroke="#60a5fa" strokeWidth="2"/>
-              <circle cx="110" cy="30" r="5" fill="#ef4444" opacity="0.8"/>
-              <text x="110" y="22" fontSize="8" fill="#ef4444" textAnchor="middle" fontFamily="monospace">PUT</text>
-              <circle cx="210" cy="110" r="5" fill="#22c55e" opacity="0.8"/>
-              <text x="210" y="125" fontSize="8" fill="#22c55e" textAnchor="middle" fontFamily="monospace">CALL</text>
-              <text x="200" y="145" fontSize="8" fill="#52525b" textAnchor="middle" fontFamily="monospace">Цена отбивается от уровней → открываем сделку на отбой</text>
-            </svg>
-          </div>
-          <div className="space-y-2">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-              <div className="text-yellow-400 font-orbitron text-xs font-bold mb-1">Как найти уровни на BTC</div>
-              <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">
-                Смотрим на M15/H1: где цена касалась одной точки 2+ раза и разворачивалась — это уровень.
-                Круглые числа (42000, 43000, 44000) — дополнительно усиливают уровень.
-              </p>
-            </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-              <div className="text-blue-400 font-orbitron text-xs font-bold mb-1">Стратегия «Отбой от уровня»</div>
-              <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">
-                Цена подходит к уровню → на M1 видим разворотную свечу (доджи, пин-бар) →
-                RSI показывает перекупленность/перепроданность у уровня → открываем сделку против движения.
-              </p>
-            </div>
           </div>
         </div>
       )
@@ -179,100 +148,184 @@ export const stepSignalFormation: PracticeStep = {
   id: "signal-formation",
   badge: "Шаг 2",
   color: "yellow",
-  icon: "Crosshair",
-  title: "Формирование сигнала: 3 подтверждения",
-  summary: "Хороший трейдер не открывает сделку по одному признаку. Ждём совпадения минимум трёх факторов — это называется «конфлюэнс».",
+  icon: "Zap",
+  title: "Формирование сигнала: конфлюэнс трёх факторов",
+  summary: "Профессионалы не торгуют по одному индикатору. Сигнал считается сильным, только когда тренд, уровень и RSI подтверждают друг друга.",
   sections: [
     {
-      title: "Метод конфлюэнса: почему нужно 3 подтверждения",
+      title: "RSI как подтверждающий фильтр",
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">
-            Конфлюэнс (confluence) — совпадение нескольких независимых сигналов в одной точке.
-            Чем больше факторов указывают в одном направлении — тем выше вероятность правильного прогноза.
+            RSI (Relative Strength Index) показывает, перекуплен или перепродан актив. Мы используем его <span className="text-yellow-400 font-semibold">только как фильтр</span>, а не как основной сигнал.
           </p>
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-            <div className="grid grid-cols-3 gap-3 text-center">
-              {[
-                { label: "1 сигнал", prob: "52%", color: "text-red-400", bg: "bg-red-500/10 border-red-500/30" },
-                { label: "2 сигнала", prob: "64%", color: "text-yellow-400", bg: "bg-yellow-500/10 border-yellow-500/30" },
-                { label: "3 сигнала", prob: "78%", color: "text-green-400", bg: "bg-green-500/10 border-green-500/30" },
-              ].map((item, i) => (
-                <div key={i} className={`border rounded-lg p-3 ${item.bg}`}>
-                  <div className="text-zinc-400 text-xs font-space-mono mb-1">{item.label}</div>
-                  <div className={`font-orbitron text-xl font-bold ${item.color}`}>{item.prob}</div>
-                  <div className="text-zinc-600 text-xs">вероятность</div>
-                </div>
-              ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+              <div className="text-red-400 font-orbitron text-xs font-bold mb-2">RSI {">"} 65 → Перекупленность</div>
+              <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">
+                Покупатели устали. Высокая вероятность разворота вниз. Открываем PUT (если совпадает с уровнем и трендом).
+              </p>
+            </div>
+            <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+              <div className="text-green-400 font-orbitron text-xs font-bold mb-2">RSI {"<"} 35 → Перепроданность</div>
+              <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">
+                Продавцы истощились. Высокая вероятность разворота вверх. Открываем CALL (если совпадает с уровнем и трендом).
+              </p>
             </div>
           </div>
-          <div className="space-y-2">
-            {[
-              { num: "01", title: "Тренд (EMA 20/50)", desc: "EMA 20 ниже EMA 50 → тренд нисходящий → смотрим PUT", color: "text-blue-400" },
-              { num: "02", title: "Уровень сопротивления", desc: "Цена приближается к уровню 44,000 — там было 3 отбоя за неделю", color: "text-yellow-400" },
-              { num: "03", title: "RSI перекуплен (72)", desc: "RSI выше 70 у уровня сопротивления при нисходящем тренде — сильный сигнал PUT", color: "text-red-400" },
-            ].map((item, i) => (
-              <div key={i} className="flex gap-3 bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-                <div className={`font-orbitron text-xs font-bold ${item.color} w-6 shrink-0`}>{item.num}</div>
-                <div>
-                  <div className={`font-orbitron text-xs font-bold mb-0.5 ${item.color}`}>{item.title}</div>
-                  <p className="text-zinc-400 text-xs font-space-mono">{item.desc}</p>
-                </div>
-              </div>
-            ))}
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3">
+            <p className="text-yellow-300 text-xs font-space-mono">
+              RSI от 35 до 65 — нейтральная зона. Профессионалы в ней не торгуют: нет явного сигнала.
+            </p>
+          </div>
+
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+            <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">Из жизни: Уэллс Уайлдер — создатель RSI</div>
+            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+              Джей Уэллс Уайлдер создал RSI в 1978 году и сам предупреждал: индикатор даёт сигнал только в трендовых условиях.
+              В боковике RSI будет ложно показывать перекупленность/перепроданность снова и снова.
+              Именно поэтому мы сначала определяем тренд через EMA, и лишь потом смотрим на RSI — так, как задумывал сам автор.
+            </p>
           </div>
         </div>
       )
     },
     {
-      title: "Реальный пример: BTC/USD, 14 февраля 2025",
+      title: "Принцип конфлюэнса: три подтверждения",
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">
-            Разбираем конкретную ситуацию. BTC торгуется около $97,500. На M5 формируется сигнал.
+            Конфлюэнс — это совпадение нескольких независимых факторов в одной точке. Чем больше факторов совпало, тем выше вероятность правильного прогноза.
           </p>
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-            <svg viewBox="0 0 400 180" className="w-full h-44">
-              <rect x="20" y="10" width="360" height="120" rx="4" fill="#18181b"/>
-              <line x1="20" y1="35" x2="380" y2="35" stroke="#ef4444" strokeWidth="1" strokeDasharray="4,3" opacity="0.6"/>
-              <text x="22" y="30" fontSize="7" fill="#ef4444" fontFamily="monospace">$97,500 — Сопротивление (3 касания)</text>
-              {[
-                [30, 100, 90, 105, 85], [52, 90, 80, 95, 76], [74, 80, 72, 84, 68],
-                [96, 72, 65, 76, 62], [118, 65, 58, 70, 54], [140, 58, 52, 62, 48],
-                [162, 52, 46, 56, 42], [184, 46, 40, 50, 37], [206, 40, 35, 43, 32],
-                [228, 37, 35, 42, 34], [250, 35, 33, 38, 31],
-              ].map(([x, open, close, high, low], i) => (
-                <g key={i}>
-                  <line x1={x + 9} y1={high} x2={x + 9} y2={low} stroke={close < open ? "#ef4444" : "#22c55e"} strokeWidth="1"/>
-                  <rect x={x + 3} y={Math.min(open, close)} width="12" height={Math.abs(open - close) || 2}
-                    fill={close < open ? "#ef4444" : "#22c55e"} opacity="0.85"/>
-                </g>
-              ))}
-              <polyline points="30,97 52,87 74,78 96,70 118,63 140,57 162,51 184,46 206,41 228,38 250,36"
-                fill="none" stroke="#eab308" strokeWidth="1.5" opacity="0.8"/>
-              <polyline points="30,110 52,102 74,94 96,86 118,79 140,72 162,66 184,60 206,54 228,50 250,47"
-                fill="none" stroke="#3b82f6" strokeWidth="1.5" opacity="0.8"/>
-              <polygon points="120,35 114,22 126,22" fill="#ef4444"/>
-              <text x="120" y="18" fontSize="8" fill="#ef4444" textAnchor="middle" fontFamily="monospace" fontWeight="bold">PUT</text>
-              <text x="356" y="50" fontSize="7" fill="#eab308" fontFamily="monospace" textAnchor="end">EMA20</text>
-              <text x="356" y="60" fontSize="7" fill="#3b82f6" fontFamily="monospace" textAnchor="end">EMA50</text>
-              <text x="200" y="170" fontSize="8" fill="#52525b" textAnchor="middle" fontFamily="monospace">3 подтверждения совпали → PUT на $97,500 → цена пошла вниз</text>
-            </svg>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="space-y-2">
             {[
-              { label: "Сигнал", value: "PUT", color: "text-red-400" },
-              { label: "Цена входа", value: "$97,500", color: "text-white" },
-              { label: "Экспирация", value: "5 минут", color: "text-blue-400" },
-              { label: "EMA", value: "20 < 50 ✓", color: "text-yellow-400" },
-              { label: "Уровень", value: "3 касания ✓", color: "text-yellow-400" },
-              { label: "RSI", value: "71 — ✓", color: "text-yellow-400" },
-            ].map((item, i) => (
-              <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-center">
-                <div className="text-zinc-500 text-xs font-space-mono">{item.label}</div>
-                <div className={`font-orbitron text-xs font-bold mt-0.5 ${item.color}`}>{item.value}</div>
+              {
+                factor: "Тренд (EMA 20/50)",
+                forCall: "EMA 20 выше EMA 50",
+                forPut: "EMA 20 ниже EMA 50",
+                weight: "Обязательно",
+                color: "text-blue-400",
+                border: "border-blue-500/30"
+              },
+              {
+                factor: "Уровень цены",
+                forCall: "Цена у поддержки",
+                forPut: "Цена у сопротивления",
+                weight: "Обязательно",
+                color: "text-purple-400",
+                border: "border-purple-500/30"
+              },
+              {
+                factor: "RSI фильтр",
+                forCall: "RSI < 35",
+                forPut: "RSI > 65",
+                weight: "Обязательно",
+                color: "text-yellow-400",
+                border: "border-yellow-500/30"
+              },
+            ].map((row, i) => (
+              <div key={i} className={`bg-zinc-900 border ${row.border} rounded-lg p-3`}>
+                <div className={`font-orbitron text-xs font-bold mb-2 ${row.color}`}>{row.factor} · {row.weight}</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="text-xs font-space-mono">
+                    <span className="text-green-400">CALL: </span>
+                    <span className="text-zinc-300">{row.forCall}</span>
+                  </div>
+                  <div className="text-xs font-space-mono">
+                    <span className="text-red-400">PUT: </span>
+                    <span className="text-zinc-300">{row.forPut}</span>
+                  </div>
+                </div>
               </div>
             ))}
+          </div>
+          <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-4">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-zinc-400 text-xs font-orbitron">Совпало факторов</span>
+              <span className="text-zinc-400 text-xs font-orbitron">Решение</span>
+            </div>
+            {[
+              { count: "3 из 3", decision: "Входим в сделку", color: "text-green-400", bg: "bg-green-500/10" },
+              { count: "2 из 3", decision: "Пропускаем", color: "text-yellow-400", bg: "bg-yellow-500/10" },
+              { count: "1 из 3", decision: "Не входим", color: "text-red-400", bg: "bg-red-500/10" },
+            ].map((row, i) => (
+              <div key={i} className={`flex justify-between items-center p-2 rounded-lg ${row.bg} mb-1`}>
+                <span className={`text-xs font-space-mono ${row.color}`}>{row.count}</span>
+                <span className={`text-xs font-orbitron font-bold ${row.color}`}>{row.decision}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4">
+            <div className="text-orange-400 font-orbitron text-xs font-bold mb-2">Из жизни: стратегия Марка Дугласа</div>
+            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+              Марк Дуглас, автор книги «Трейдинг в зоне», учил: профессионал ищет только те сделки, где рынок сам «кричит» о своём намерении.
+              Он называл это «высоковероятностными сетапами». В его методе — минимум 3 совпадающих условия перед входом.
+              «Когда рынок подходит к уровню, RSI в зоне перекупленности, и тренд подтверждает — это не совпадение. Это приглашение».
+            </p>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: "Разбор реального сетапа: пример конфлюэнса",
+      content: (
+        <div className="space-y-3">
+          <p className="text-gray-300 leading-relaxed">
+            Посмотрим на конкретный момент: BTC/USD, M5, 14:40. Проверяем все три фактора.
+          </p>
+          <div className="space-y-2">
+            {[
+              {
+                num: "01",
+                factor: "Тренд",
+                status: "Подтверждает PUT",
+                detail: "EMA 20 ($96,420) ниже EMA 50 ($96,580) — нисходящий тренд на M5",
+                ok: false,
+                color: "text-red-400",
+              },
+              {
+                num: "02",
+                factor: "Уровень",
+                status: "Цена у сопротивления",
+                detail: "BTC на $96,580 — это зона, где цена разворачивалась дважды за последние 2 часа",
+                ok: false,
+                color: "text-red-400",
+              },
+              {
+                num: "03",
+                factor: "RSI",
+                status: "RSI = 68 → Перекупленность",
+                detail: "RSI выше 65, подтверждает разворот вниз",
+                ok: false,
+                color: "text-red-400",
+              },
+            ].map((item, i) => (
+              <div key={i} className="flex gap-3 items-start bg-zinc-900 border border-zinc-800 rounded-lg p-3">
+                <div className={`font-orbitron text-xs font-bold ${item.color} w-6 shrink-0`}>{item.num}</div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-zinc-400 font-orbitron text-xs">{item.factor}:</span>
+                    <span className={`font-orbitron text-xs font-bold ${item.color}`}>{item.status}</span>
+                  </div>
+                  <p className="text-zinc-500 text-xs font-space-mono">{item.detail}</p>
+                </div>
+              </div>
+            ))}
+            <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-4">
+              <div className="text-red-400 font-orbitron text-xs font-bold mb-1">Итог: открываем PUT</div>
+              <p className="text-zinc-300 text-xs font-space-mono">Все 3 фактора совпали в сторону PUT. Ставка: 2% от депозита. Экспирация: 5 минут.</p>
+            </div>
+          </div>
+
+          <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+            <div className="text-green-400 font-orbitron text-xs font-bold mb-2">Из жизни: как торгует Стив Кленоу</div>
+            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+              Стив Кленоу — управляющий хедж-фонда Klenow Pattern Research — использует системный подход:
+              его алгоритмы открывают позицию только при совпадении сразу нескольких условий.
+              «Если один фактор говорит "войди", а другой молчит — это не сигнал, это желание заработать».
+              Именно поэтому профессионалы пропускают большинство движений рынка — они ждут только сильные сетапы.
+            </p>
           </div>
         </div>
       )

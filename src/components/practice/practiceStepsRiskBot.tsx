@@ -43,6 +43,16 @@ export const stepRiskManagement: PracticeStep = {
               <span className="text-white">Серия из 10 проигрышей при 55% Win Rate встречается в 0.25% случаев — это реально.</span>
             </p>
           </div>
+
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+            <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">Из жизни: правило 2% от Эда Сейкоты</div>
+            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+              Эд Сейкота — трейдер-легенда, превративший $5,000 в $15 млн за 12 лет — публично говорил,
+              что управление риском важнее любой стратегии входа: «Долгосрочное выживание полностью зависит от размера позиции».
+              Он никогда не рисковал более чем 2–3% на одну сделку, даже в периоды максимальной уверенности.
+              Именно это позволило ему пережить десятки кризисов без серьёзных потерь капитала.
+            </p>
+          </div>
         </div>
       )
     },
@@ -65,15 +75,56 @@ export const stepRiskManagement: PracticeStep = {
               <div className="text-green-400 font-orbitron text-xs font-bold mb-3">Дневной Take Profit</div>
               <div className="text-3xl font-orbitron font-bold text-green-400 mb-2">+10%</div>
               <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">
-                Заработали 10% за день → останавливаемся. Жадность после успеха — главная причина слива.
+                Заработали 10% за день → тоже стоп. Жадность убивает прибыль. Фиксируем и уходим.
               </p>
             </div>
           </div>
-          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3">
-            <div className="text-yellow-400 font-orbitron text-xs font-bold mb-2">Реальный кейс: дисциплина vs азарт</div>
-            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">
-              Максим за 2 часа поднял депозит с $500 до $548 (+9.6%). Ещё чуть-чуть до +10%. Решил продолжить.
-              Следующие 4 сделки — все проигрышные. Итог дня: $492 (-1.6%). <span className="text-white">Правило дневного TP существует именно для таких моментов.</span>
+
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
+            <div className="text-yellow-400 font-orbitron text-xs font-bold mb-2">Из жизни: правило Джорджа Сороса о потерях</div>
+            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+              Джордж Сорос — один из самых богатых трейдеров в истории — имел жёсткое правило:
+              если он чувствовал, что «не в форме» или рынок ведёт себя непредсказуемо, он просто переставал торговать.
+              «Не важно, правы вы или нет. Важно, сколько вы зарабатываете, когда правы, и сколько теряете, когда ошибаетесь».
+              Дневной лимит — это формализация того же принципа: плохой день заканчиваем заранее.
+            </p>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: "Журнал трейдера: как его вести",
+      content: (
+        <div className="space-y-3">
+          <p className="text-gray-300 leading-relaxed">
+            Журнал сделок — инструмент №1 для роста. Без него невозможно понять, что работает, а что нет.
+          </p>
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+            <div className="font-orbitron text-xs font-bold text-zinc-400 mb-3">Минимальная запись после каждой сделки</div>
+            <div className="space-y-2">
+              {[
+                { field: "Дата/время", example: "28.02.2026, 14:40", color: "text-blue-400" },
+                { field: "Инструмент", example: "BTC/USD, M5", color: "text-purple-400" },
+                { field: "Направление", example: "PUT", color: "text-red-400" },
+                { field: "Сигналы", example: "EMA нисход. + сопротивление $96,580 + RSI 68", color: "text-yellow-400" },
+                { field: "Ставка", example: "$20 (2% от $1,000)", color: "text-green-400" },
+                { field: "Результат", example: "Выигрыш / Проигрыш / сумма", color: "text-zinc-400" },
+              ].map((row, i) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <span className={`text-xs font-orbitron w-28 shrink-0 ${row.color}`}>{row.field}:</span>
+                  <span className="text-xs font-space-mono text-zinc-400">{row.example}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
+            <div className="text-purple-400 font-orbitron text-xs font-bold mb-2">Из жизни: журнал Ливермора и Далио</div>
+            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+              Джесси Ливермор — трейдер начала XX века, сделавший состояние на «чёрный четверг» 1929 года — вёл детальные дневники каждой сделки.
+              Рэй Далио, основатель Bridgewater Associates (крупнейший хедж-фонд в мире), до сих пор фиксирует гипотезы и их результаты.
+              Он называет это «петлёй обратной связи»: без записей ты не можешь учиться, потому что память субъективна — мозг «забывает» ошибки.
+              Ведение журнала — это то, что отличает профессионала от любителя на любом рынке.
             </p>
           </div>
         </div>
@@ -87,123 +138,167 @@ export const stepBotAutomation: PracticeStep = {
   badge: "Шаг 4",
   color: "purple",
   icon: "Bot",
-  title: "Автоматизация: бот делает всё за вас",
-  summary: "Когда стратегия проверена вручную и приносит результат — самое время автоматизировать. Бот не устаёт, не боится и не жадничает.",
+  title: "Автоматизация: когда нужен торговый бот",
+  summary: "Боты убирают эмоции из торговли и работают 24/7. Но они решают только часть задач — понимание рынка остаётся за человеком.",
   sections: [
     {
-      title: "Когда переходить к боту",
+      title: "Бот vs ручная торговля: что выбрать",
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">
-            Бот — это не замена знаниям, а инструмент автоматизации уже <span className="text-purple-400 font-semibold">проверенной стратегии</span>.
-            Если стратегия убыточна вручную — бот только быстрее сольёт депозит.
+            Бот — это инструмент, а не волшебная кнопка. Он хорош там, где нужна дисциплина и скорость реакции.
+            Плох там, где нужно принимать нестандартные решения.
           </p>
           <div className="space-y-2">
             {[
-              { check: true, text: "Торговали вручную 2–4 недели с Win Rate > 55%" },
-              { check: true, text: "Записали в журнал минимум 50 сделок" },
-              { check: true, text: "Правила входа чёткие и однозначные (не «по ощущению»)" },
-              { check: true, text: "Риск-менеджмент протестирован — ни разу не нарушили лимиты" },
-              { check: false, text: "НЕ автоматизируйте стратегию, которую сами не понимаете" },
-            ].map((item, i) => (
-              <div key={i} className={`flex items-center gap-3 p-2.5 rounded-lg border ${item.check ? "bg-zinc-900 border-zinc-800" : "bg-red-500/10 border-red-500/30"}`}>
-                <span className={`text-sm ${item.check ? "text-green-400" : "text-red-400"}`}>{item.check ? "✓" : "✗"}</span>
-                <span className="text-zinc-300 text-xs font-space-mono">{item.text}</span>
+              {
+                aspect: "Эмоции",
+                bot: "Торгует по правилам без страха и жадности",
+                human: "Может нарушить правила под давлением рынка",
+                winner: "bot",
+              },
+              {
+                aspect: "Скорость",
+                bot: "Реагирует за миллисекунды",
+                human: "Анализирует 5–30 секунд перед входом",
+                winner: "bot",
+              },
+              {
+                aspect: "Адаптация",
+                bot: "Не видит смену рыночного режима",
+                human: "Может подстроиться под новые условия",
+                winner: "human",
+              },
+              {
+                aspect: "Режим 24/7",
+                bot: "Работает постоянно без перерывов",
+                human: "Устаёт, теряет концентрацию",
+                winner: "bot",
+              },
+            ].map((row, i) => (
+              <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
+                <div className="text-zinc-400 font-orbitron text-xs mb-2">{row.aspect}</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className={`text-xs font-space-mono p-2 rounded ${row.winner === "bot" ? "bg-purple-500/20 text-purple-300" : "bg-zinc-800 text-zinc-400"}`}>
+                    <span className="font-bold">Бот: </span>{row.bot}
+                  </div>
+                  <div className={`text-xs font-space-mono p-2 rounded ${row.winner === "human" ? "bg-blue-500/20 text-blue-300" : "bg-zinc-800 text-zinc-400"}`}>
+                    <span className="font-bold">Человек: </span>{row.human}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
-        </div>
-      )
-    },
-    {
-      title: "Стратегия EMA+RSI в коде: Freqtrade",
-      content: (
-        <div className="space-y-3">
-          <p className="text-gray-300 leading-relaxed">
-            Наша стратегия (EMA 20/50 + RSI) переводится в код Freqtrade. Это именно та стратегия, которую мы анализировали вручную — теперь бот делает всё автоматически.
-          </p>
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-            <div className="text-green-400 font-space-mono text-xs font-bold mb-2 flex items-center gap-2">
-              <span className="text-zinc-600">#</span> btc_ema_rsi_strategy.py
-            </div>
-            <pre className="text-xs font-space-mono text-zinc-300 overflow-x-auto leading-relaxed">{`from freqtrade.strategy import IStrategy
-import pandas_ta as ta
-import pandas as pd
 
-class BTCEmaRsiStrategy(IStrategy):
-    """
-    BTC/USDT стратегия: EMA 20/50 + RSI 14
-    Вход LONG: EMA20 > EMA50, RSI < 70
-    """
-    timeframe = '5m'
-    stoploss = -0.02      # -2% стоп-лосс
-    minimal_roi = {"0": 0.015}  # +1.5% тейк-профит
-
-    def populate_indicators(self, df, metadata):
-        df['ema20'] = ta.ema(df['close'], length=20)
-        df['ema50'] = ta.ema(df['close'], length=50)
-        df['rsi']   = ta.rsi(df['close'], length=14)
-        return df
-
-    def populate_entry_trend(self, df, metadata):
-        df['enter_long'] = (
-            (df['ema20'] > df['ema50']) &  # тренд вверх
-            (df['rsi'] < 70)               # не перекуплен
-        ).astype(int)
-        return df
-
-    def populate_exit_trend(self, df, metadata):
-        df['exit_long'] = (
-            (df['ema20'] < df['ema50']) |  # тренд развернулся
-            (df['rsi'] > 75)               # перекуплен
-        ).astype(int)
-        return df`}</pre>
-          </div>
-          <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-3">
-            <div className="text-purple-400 font-orbitron text-xs font-bold mb-2">Что делает этот бот</div>
-            <ul className="text-zinc-400 text-xs font-space-mono space-y-1">
-              <li>→ Каждые 5 минут проверяет BTC/USDT на Binance</li>
-              <li>→ Покупает когда EMA20 {'>'} EMA50 и RSI {'<'} 70</li>
-              <li>→ Продаёт при +1.5% прибыли или -2% убытке</li>
-              <li>→ Ведёт журнал всех сделок автоматически</li>
-              <li>→ Никогда не нарушает правила входа</li>
-            </ul>
+          <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
+            <div className="text-purple-400 font-orbitron text-xs font-bold mb-2">Из жизни: как работает Renaissance Technologies</div>
+            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+              Medallion Fund от Renaissance Technologies — самый успешный хедж-фонд в истории (+66% годовых в среднем за 30 лет).
+              Он полностью алгоритмический: там работают математики и физики, а не традиционные трейдеры.
+              Но даже они постоянно вмешиваются вручную при смене рыночного режима. Чистая автоматизация работает лишь в стабильных условиях —
+              именно поэтому понимание рынка важнее любого алгоритма.
+            </p>
           </div>
         </div>
       )
     },
     {
-      title: "Бэктест: проверяем стратегию до запуска",
+      title: "DCA-бот: стратегия для крипто-рынка",
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">
-            Перед запуском с реальными деньгами — бэктест на исторических данных BTC. Это обязательный шаг из главы «Бэктестирование».
+            Dollar Cost Averaging (DCA) — покупка фиксированной суммы актива через равные интервалы времени.
+            Не нужно угадывать «дно» — стратегия усредняет цену автоматически.
           </p>
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-            <div className="text-yellow-400 font-space-mono text-xs font-bold mb-3">Результаты бэктеста: BTC/USDT M5, январь–март 2025</div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="font-orbitron text-xs font-bold text-zinc-400 mb-3">Пример DCA на BTC за 4 недели</div>
+            <div className="space-y-2">
               {[
-                { label: "Сделок", value: "183", color: "text-white" },
-                { label: "Win Rate", value: "61.2%", color: "text-green-400" },
-                { label: "Profit Factor", value: "1.74", color: "text-green-400" },
-                { label: "Макс. просадка", value: "8.3%", color: "text-yellow-400" },
-                { label: "Прибыль", value: "+34.7%", color: "text-green-400" },
-                { label: "Sharpe", value: "1.92", color: "text-blue-400" },
-                { label: "Avg. сделка", value: "+0.19%", color: "text-green-400" },
-                { label: "Худший месяц", value: "-4.1%", color: "text-red-400" },
-              ].map((m, i) => (
-                <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-center">
-                  <div className="text-zinc-500 text-xs font-space-mono">{m.label}</div>
-                  <div className={`font-orbitron font-bold text-sm mt-0.5 ${m.color}`}>{m.value}</div>
+                { week: "Неделя 1", price: "$94,000", amount: "$100", btc: "0.00106 BTC" },
+                { week: "Неделя 2", price: "$91,000", amount: "$100", btc: "0.00110 BTC" },
+                { week: "Неделя 3", price: "$96,500", amount: "$100", btc: "0.00104 BTC" },
+                { week: "Неделя 4", price: "$98,000", amount: "$100", btc: "0.00102 BTC" },
+              ].map((row, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs font-space-mono">
+                  <span className="text-zinc-500 w-20">{row.week}</span>
+                  <span className="text-zinc-400 w-20">{row.price}</span>
+                  <span className="text-white w-14">{row.amount}</span>
+                  <span className="text-green-400">{row.btc}</span>
                 </div>
               ))}
+              <div className="border-t border-zinc-800 pt-2 flex items-center gap-2 text-xs font-space-mono">
+                <span className="text-zinc-500 w-20">Итого</span>
+                <span className="text-yellow-400 w-20">Ср. $94,875</span>
+                <span className="text-white w-14">$400</span>
+                <span className="text-green-400 font-bold">0.00422 BTC</span>
+              </div>
             </div>
           </div>
-          <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3">
-            <div className="text-green-400 font-orbitron text-xs font-bold mb-2">Вывод: стратегия готова к запуску</div>
-            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">
-              Win Rate 61% {'>'} 55% ✓ &nbsp; Profit Factor 1.74 {'>'} 1.5 ✓ &nbsp; Просадка 8.3% {'<'} 15% ✓<br/>
-              Запускаем бота с 10% от планируемого капитала на 2 недели. Сравниваем с бэктестом. Если результаты совпадают — добавляем полный капитал.
+
+          <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+            <div className="text-green-400 font-orbitron text-xs font-bold mb-2">Из жизни: как инвестирует Майкл Сэйлор</div>
+            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+              Майкл Сэйлор, CEO MicroStrategy, публично применяет принцип DCA для корпоративных покупок биткоина.
+              Компания покупает BTC каждый квартал на фиксированную сумму — независимо от цены.
+              К 2024 году MicroStrategy накопила более 190,000 BTC со средней ценой покупки около $31,224.
+              При цене BTC выше $95K — это многократный рост. Систематичность важнее попытки поймать «идеальный момент».
+            </p>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: "Grid-бот: заработок на волатильности",
+      content: (
+        <div className="space-y-3">
+          <p className="text-gray-300 leading-relaxed">
+            Grid-бот выставляет сетку ордеров на покупку и продажу. Каждое колебание цены внутри диапазона приносит прибыль.
+            Идеален для боковых рынков, которые составляют 70% времени.
+          </p>
+          <div className="space-y-2">
+            {[
+              {
+                param: "Диапазон",
+                value: "$93,000 — $99,000",
+                desc: "Зона, где BTC торгуется в боковике",
+                color: "text-blue-400"
+              },
+              {
+                param: "Шаг сетки",
+                value: "$500 (12 уровней)",
+                desc: "Каждые $500 — ордер на покупку и продажу",
+                color: "text-purple-400"
+              },
+              {
+                param: "Прибыль с шага",
+                value: "0.5% за движение",
+                desc: "Бот зарабатывает на каждом полном качании цены",
+                color: "text-green-400"
+              },
+              {
+                param: "Риск",
+                value: "Выход из диапазона",
+                desc: "Если BTC уходит ниже $93K или выше $99K — бот останавливается",
+                color: "text-red-400"
+              },
+            ].map((row, i) => (
+              <div key={i} className="flex gap-3 items-start bg-zinc-900 border border-zinc-800 rounded-lg p-3">
+                <div className={`font-orbitron text-xs font-bold ${row.color} w-20 shrink-0`}>{row.param}</div>
+                <div>
+                  <div className="text-white text-xs font-space-mono font-bold mb-0.5">{row.value}</div>
+                  <p className="text-zinc-500 text-xs font-space-mono">{row.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+            <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">Из жизни: алгоритмы маркет-мейкеров</div>
+            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+              Крупные маркет-мейкеры (Citadel Securities, Virtu Financial) зарабатывают именно на сетке ордеров — выставляя bid и ask одновременно.
+              Они не угадывают направление: они зарабатывают на спреде и объёме.
+              Grid-бот — это доступная версия той же стратегии для розничного трейдера.
+              По данным Virtu Financial, компания была прибыльна в 1,237 из 1,238 торговых дней — именно благодаря этому подходу.
             </p>
           </div>
         </div>

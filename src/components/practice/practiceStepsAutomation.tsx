@@ -386,6 +386,245 @@ class RiskManager:
       )
     },
     {
+      title: "Pocket Option WebSocket API: подключение и отправка ордеров",
+      content: (
+        <div className="space-y-3">
+          <p className="text-gray-300 leading-relaxed">
+            Pocket Option имеет WebSocket API для автоматической торговли. Вот как подключить Python-бота
+            к реальному аккаунту и отправлять ордеры программно.
+          </p>
+
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
+            <div className="text-yellow-400 font-orbitron text-xs font-bold mb-2">Важно: демо-аккаунт сначала</div>
+            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+              Всегда тестируй бота на демо-аккаунте минимум 2 недели, прежде чем переключиться на реальные деньги.
+              Даже идеальный бэктест не гарантирует реального результата — слипаж, задержки сети, изменения в API.
+            </p>
+          </div>
+
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+            <div className="font-orbitron text-xs font-bold text-zinc-400 mb-3">Шаг 1: получаем session token из браузера</div>
+            <pre className="text-xs font-space-mono text-zinc-300 overflow-x-auto leading-relaxed whitespace-pre">{`# Pocket Option использует авторизацию через session token.
+# Как получить токен:
+# 1. Войди на pocketoption.com в Chrome/Firefox
+# 2. Открой DevTools → Application → Cookies
+# 3. Найди cookie с именем: ph_session или _ga_* 
+# 4. Либо: DevTools → Network → WS соединения → 
+#    найди headers Authorization или Bearer token
+
+SESSION_TOKEN = "твой_токен_из_браузера"  # Вставь сюда
+DEMO_MODE = True  # True = демо, False = реальный счёт`}</pre>
+          </div>
+
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+            <div className="font-orbitron text-xs font-bold text-zinc-400 mb-3">pocket_option_client.py</div>
+            <pre className="text-xs font-space-mono text-zinc-300 overflow-x-auto leading-relaxed whitespace-pre">{`import asyncio
+import json
+import websockets
+import time
+
+class PocketOptionClient:
+    """WebSocket-клиент для Pocket Option Traderoom API."""
+
+    WS_URL = "wss://api.pocketoption.com/socket.io/?EIO=4&transport=websocket"
+
+    def __init__(self, session_token: str, demo: bool = True):
+        self.token = session_token
+        self.demo = demo
+        self.ws = None
+        self.balance = 0.0
+        self.pending_orders = {}
+
+    async def connect(self):
+        """Устанавливает WebSocket-соединение с Pocket Option."""
+        headers = {
+            "Cookie": f"session={self.token}",
+            "Origin": "https://pocketoption.com",
+            "User-Agent": "Mozilla/5.0 (compatible; TradingBot/1.0)",
+        }
+        self.ws = await websockets.connect(
+            self.WS_URL,
+            extra_headers=headers,
+            ping_interval=20,
+            ping_timeout=30,
+        )
+        print("[PO] WebSocket подключён")
+
+        # Шаг 1: ответить на handshake Socket.IO
+        await self.ws.recv()       # "0{...}" — приветствие сервера
+        await self.ws.send("40")   # "40" — подтверждение подключения
+        response = await self.ws.recv()
+        print(f"[PO] Handshake: {response[:80]}")
+
+        # Шаг 2: авторизация с токеном
+        auth_payload = json.dumps({
+            "session": self.token,
+            "isDemo": 1 if self.demo else 0,
+            "uid": 0,
+        })
+        await self.ws.send(f'42["auth",{auth_payload}]')
+        auth_response = await self.ws.recv()
+        print(f"[PO] Auth ответ: {auth_response[:120]}")
+
+    async def open_order(
+        self,
+        asset: str,
+        direction: str,
+        amount: float,
+        expiration: int = 60,
+    ) -> dict:
+        """
+        Открывает бинарный опцион.
+        
+        asset       — 'BTCUSDT_otc' (OTC) или 'BTCUSDT' (реальный рынок)
+        direction   — 'call' или 'put'
+        amount      — ставка в USD (например 20.0)
+        expiration  — время экспирации в секундах (60, 120, 300...)
+        """
+        order_id = str(int(time.time() * 1000))  # уникальный ID
+        
+        order_payload = json.dumps({
+            "asset": asset,
+            "requestId": order_id,
+            "optionType": 100,          # 100 = турбо-опцион
+            "direction": direction,
+            "amount": amount,
+            "time": expiration,
+            "isDemo": 1 if self.demo else 0,
+        })
+        
+        await self.ws.send(f'42["openOrder",{order_payload}]')
+        print(f"[PO] Ордер отправлен: {direction.upper()} {asset} ${amount}")
+        
+        # Ждём подтверждение
+        response = await asyncio.wait_for(self.ws.recv(), timeout=10)
+        data = json.loads(response[2:])  # убираем "42" префикс
+        
+        return {
+            "order_id": order_id,
+            "status": data[0],
+            "response": data[1] if len(data) > 1 else {},
+        }
+
+    async def get_balance(self) -> float:
+        """Запрашивает текущий баланс аккаунта."""
+        await self.ws.send('42["getBalance",{}]')
+        response = await asyncio.wait_for(self.ws.recv(), timeout=5)
+        data = json.loads(response[2:])
+        balance = data[1].get("balance", 0)
+        self.balance = float(balance)
+        return self.balance
+
+    async def close(self):
+        """Закрывает WebSocket-соединение."""
+        if self.ws:
+            await self.ws.close()
+            print("[PO] Соединение закрыто")`}</pre>
+          </div>
+
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+            <div className="font-orbitron text-xs font-bold text-zinc-400 mb-3">main.py — главный цикл бота</div>
+            <pre className="text-xs font-space-mono text-zinc-300 overflow-x-auto leading-relaxed whitespace-pre">{`import asyncio
+import websockets
+import json
+from signal_engine import SignalEngine
+from risk_manager import RiskManager
+from pocket_option_client import PocketOptionClient
+from data_feed import BinanceDataFeed  # из предыдущего шага
+
+SESSION_TOKEN = "твой_токен"
+ASSET = "BTCUSDT_otc"  # BTC OTC на Pocket Option
+EXPIRY = 300           # 5 минут = 300 секунд
+
+async def run_bot():
+    # Инициализация компонентов
+    client = PocketOptionClient(SESSION_TOKEN, demo=True)
+    signal_engine = SignalEngine()
+    risk = RiskManager(deposit=1000.0)
+    feed = BinanceDataFeed()
+
+    await client.connect()
+    balance = await client.get_balance()
+    print(f"[BOT] Баланс: $" + f"{balance:.2f}" + " (Демо)")
+
+    close_prices = []
+
+    async def on_candle_close(prices: list):
+        """Вызывается при закрытии каждой M5-свечи."""
+        nonlocal close_prices
+        close_prices = prices
+
+        # 1. Получаем сигнал
+        result = signal_engine.get_signal(close_prices)
+        signal = result["signal"]
+        print(f"[SIGNAL] {signal} | RSI={result['rsi']} | Conf={result['confluence']}/3")
+
+        if signal == "WAIT":
+            return
+
+        # 2. Проверяем риск-менеджмент
+        allowed, reason = risk.is_trading_allowed()
+        if not allowed:
+            print(f"[RISK] Торговля запрещена: {reason}")
+            return
+
+        # 3. Определяем ставку
+        stake = risk.get_stake()
+        direction = signal.lower()  # "call" или "put"
+
+        # 4. Отправляем ордер
+        order = await client.open_order(
+            asset=ASSET,
+            direction=direction,
+            amount=stake,
+            expiration=EXPIRY,
+        )
+        print(f"[ORDER] ID={order['order_id']} Status={order['status']}")
+
+    # Запускаем поток данных с Binance
+    await feed.start(callback=on_candle_close)
+
+if __name__ == "__main__":
+    asyncio.run(run_bot())`}</pre>
+          </div>
+
+          <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-4">
+            <div className="font-orbitron text-xs font-bold text-zinc-400 mb-3">requirements.txt для установки зависимостей</div>
+            <pre className="text-xs font-space-mono text-zinc-300 overflow-x-auto leading-relaxed whitespace-pre">{`websockets>=11.0
+pandas>=2.0
+numpy>=1.24
+requests>=2.28
+python-dotenv>=1.0  # для хранения SESSION_TOKEN в .env файле`}</pre>
+            <div className="mt-3 text-zinc-500 text-xs font-space-mono">
+              Установка: <span className="text-zinc-300">pip install -r requirements.txt</span>
+            </div>
+          </div>
+
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+            <div className="text-red-400 font-orbitron text-xs font-bold mb-2">Безопасность: храни токен в .env</div>
+            <pre className="text-xs font-space-mono text-zinc-300 overflow-x-auto leading-relaxed whitespace-pre">{`# .env файл (НЕ загружай в GitHub!)
+SESSION_TOKEN=твой_секретный_токен_здесь
+
+# В коде читаем так:
+from dotenv import load_dotenv
+import os
+load_dotenv()
+SESSION_TOKEN = os.getenv("SESSION_TOKEN")`}</pre>
+          </div>
+
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+            <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">Из жизни: Renaissance Technologies и API-трейдинг</div>
+            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+              Медальон-фонд Джима Саймонса — самый прибыльный хедж-фонд в истории (+66% годовых до комиссий) —
+              работает исключительно через автоматические API-подключения к биржам. Ни один трейдер не нажимает
+              кнопки вручную. Цель — устранить человеческую эмоциональность и задержки. Тот же принцип
+              работает и для розничного трейдера: автоматизация исполнения убирает страх и жадность из уравнения.
+            </p>
+          </div>
+        </div>
+      )
+    },
+    {
       title: "Запуск и бэктест: проверяем стратегию до реальных денег",
       content: (
         <div className="space-y-3">

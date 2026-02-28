@@ -2,6 +2,7 @@ import React from "react"
 import {
   LaunchChecklist,
   MonitoringDashboard,
+  RiskCalculator,
 } from "./BotsCharts"
 import type { Chapter } from "./BotsChapterTypes"
 
@@ -100,6 +101,10 @@ export const chapterLaunch: Chapter = {
                 <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">{rule.desc}</p>
               </div>
             ))}
+          </div>
+          <div className="mt-2">
+            <p className="text-zinc-500 text-xs font-space-mono mb-3">Рассчитайте параметры для своего депозита:</p>
+            <RiskCalculator />
           </div>
         </div>
       )

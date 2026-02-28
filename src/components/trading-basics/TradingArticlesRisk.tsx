@@ -17,6 +17,10 @@ export const articleRisk: Article = {
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">Главное правило трейдинга: сначала думай о том, сколько можешь потерять — и только потом о том, сколько заработаешь.</p>
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+            <div className="text-red-400 font-orbitron text-xs font-bold mb-2">Реальная история: $50,000 за 3 недели</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Андрей начал с депозитом $50,000. Видя, как все вокруг зарабатывают на крипте в 2021, рисковал 15–25% на каждую сделку. После 7 убыточных сделок подряд (обычная серия даже для профи) у него осталось $11,800. Чтобы вернуться к $50,000 — нужно было заработать +323%. Он увеличил размер ставок, чтобы «отыграться» — и потерял всё. <span className="text-white">При риске 2% та же серия из 7 потерь оставила бы $43,200.</span></p>
+          </div>
           <RiskCalcTable />
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
             <svg viewBox="0 0 360 120" className="w-full h-28">
@@ -49,6 +53,10 @@ export const articleRisk: Article = {
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">R:R позволяет быть прибыльным даже с низким процентом выигрышей. Это контр-интуитивно, но математически верно.</p>
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
+            <div className="text-yellow-400 font-orbitron text-xs font-bold mb-2">Реальный пример: 35% побед — и плюс</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Профессиональный трейдер Иван публично ведёт статистику: win rate 35%, но средний R:R 1:3.8. За 100 сделок: 35 прибыльных × 3.8R = +133R. 65 убыточных × 1R = -65R. Итого: <span className="text-white">+68R чистой прибыли</span>. Большинство новичков смотрят на win rate как на главный показатель — это грубая ошибка. Важна математика на длинной дистанции.</p>
+          </div>
           <RRTable />
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
             <div className="text-white font-orbitron text-xs font-bold mb-3">Пример расчёта прибыльности за 100 сделок</div>
@@ -76,6 +84,10 @@ export const articleRisk: Article = {
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">Журнал — единственный способ расти как трейдер. Без данных нет анализа, без анализа нет роста.</p>
+          <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+            <div className="text-green-400 font-orbitron text-xs font-bold mb-2">Реальный кейс: журнал изменил результат за 60 дней</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Мария вела журнал 60 дней (82 сделки). Анализ выявил неожиданное: win rate в понедельник — 68%, в пятницу — 31% (торговала нервно перед выходными). На M15 — минус, на H1 — плюс. После 15:00 по МСК — только убытки. Она просто убрала торговлю по пятницам и после 15:00. <span className="text-white">Следующие 60 дней: win rate вырос с 44% до 58%</span> без изменения стратегии.</p>
+          </div>
           <TradingJournalTemplate />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">

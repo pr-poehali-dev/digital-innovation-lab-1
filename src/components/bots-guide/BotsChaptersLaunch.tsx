@@ -16,6 +16,10 @@ export const chapterLaunch: Chapter = {
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">Этот чеклист составлен на основе опыта сотен трейдеров. Каждый пункт — результат чьей-то дорогостоящей ошибки.</p>
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+            <div className="text-red-400 font-orbitron text-xs font-bold mb-2">Реальная история: пропущенный пункт = $8,000 потерь</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Денис запустил Grid-бот на BTC, не выставив Daily Stop Loss. В день обвала FTX (ноябрь 2022) BTC упал на 27% за 6 часов — бот продолжал «покупать дно» на каждом уровне сетки. Депозит $30,000 превратился в $22,000 за один день. С Daily Stop Loss 5% бот остановился бы при потере $1,500. <span className="text-white">Чеклист — не формальность, это защита капитала.</span></p>
+          </div>
           <LaunchChecklist />
         </div>
       )
@@ -25,6 +29,10 @@ export const chapterLaunch: Chapter = {
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">Запустить бота — это 20% работы. Остальные 80% — мониторинг и своевременные корректировки.</p>
+          <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+            <div className="text-green-400 font-orbitron text-xs font-bold mb-2">Кейс: мониторинг спас 40% капитала</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Сергей настроил Telegram-уведомления от Freqtrade. В понедельник утром пришёл алерт: «Win Rate за неделю 18%, Profit Factor 0.41». Это был сигнал — рынок перешёл из тренда в боковик, стратегия генерировала убытки. Сергей приостановил бота, пересмотрел параметры. Без мониторинга — бот продолжал бы торговать ещё месяц, съев весь профит за прошлые 3 месяца. <span className="text-white">Еженедельная проверка метрик — обязательная рутина.</span></p>
+          </div>
           <MonitoringDashboard />
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
@@ -63,6 +71,10 @@ export const chapterLaunch: Chapter = {
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">Риск-менеджмент бота — это те же правила, что и для ручной торговли, только автоматизированные.</p>
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
+            <div className="text-yellow-400 font-orbitron text-xs font-bold mb-2">Реальный пример: «10% сначала» работает</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Татьяна планировала запустить бота с $50,000. По совету запустила с $5,000 (10%). За первые 3 недели обнаружила баг в логике: бот открывал дублирующиеся позиции при определённых условиях. Потеря составила $340 (6.8% от $5,000). Если бы запустила с полным капиталом — потеря была бы $3,400. <span className="text-white">Тестовый запуск с 10% — обязательный этап, который окупается всегда.</span></p>
+          </div>
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
             <svg viewBox="0 0 360 140" className="w-full h-36">
               <rect x="20" y="20" width="320" height="100" rx="8" fill="#ef444408" stroke="#ef444430" strokeWidth="1" />

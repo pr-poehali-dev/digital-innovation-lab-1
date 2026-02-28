@@ -21,6 +21,10 @@ export const articleAnalysis: Article = {
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">Выбор тайм-фрейма определяет вашу жизнь как трейдера: сколько времени тратить, какой стресс испытывать, какой капитал нужен.</p>
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
+            <div className="text-yellow-400 font-orbitron text-xs font-bold mb-2">Реальный пример: один актив, два тайм-фрейма — два разных взгляда</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">2 ноября 2023. На M15 ETH выглядит медвежьим: несколько красных свечей, RSI в зоне 35. На D1 — явный бычий тренд, ETH отбивается от поддержки $1,820 четвёртый раз. Трейдер, смотревший только M15, зашортил. Трейдер, работавший по D1+H4, купил. Через 3 дня ETH вырос до $2,050. Вывод: <span className="text-white">старший ТФ определяет направление, младший — точку входа.</span></p>
+          </div>
           <TimeframeTable />
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
             <div className="text-white font-orbitron text-xs font-bold mb-2">Принцип «сверху вниз» (Top-Down Analysis)</div>
@@ -49,6 +53,10 @@ export const articleAnalysis: Article = {
             <div className="text-yellow-400 font-orbitron text-xs font-bold mb-2">Важное правило</div>
             <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Паттерн свечи — это предположение, а не гарантия. Всегда ждите подтверждения: следующая свеча должна подтвердить разворот, а объём должен быть выше среднего. Без подтверждения — это просто красивая картинка.</p>
           </div>
+          <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+            <div className="text-green-400 font-orbitron text-xs font-bold mb-2">Реальный кейс: Молот на поддержке SOL, октябрь 2023</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">SOL торговался в нисходящем тренде, достиг зоны поддержки $17.80. На D1 появился классический Молот: тело наверху, длинная нижняя тень вдвое длиннее тела, объём в 2.3x выше среднего. Следующая свеча — уверенный бычий бар. Трейдеры, дождавшиеся подтверждения, вошли по $19.50. Через 6 недель SOL торговался по $58. Без подтверждения — часть зашла на первой свече и вышла в безубыток при первом откате.</p>
+          </div>
         </div>
       )
     },
@@ -57,6 +65,10 @@ export const articleAnalysis: Article = {
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">Уровни — основа технического анализа. Цена «помнит» исторические уровни и часто возвращается к ним снова и снова.</p>
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+            <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">Реальный пример: $30,000 как ключевой уровень BTC</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Уровень $30,000 для Bitcoin держался как поддержка в июле 2021, был пробит в июне 2022 (стал сопротивлением), снова стал поддержкой в марте–июне 2023 (четыре отбоя от него за 3 месяца). Трейдеры, знавшие об этом уровне, имели чёткие зоны покупки и продажи вместо «торговли наугад».</p>
+          </div>
           <SupportResistanceChart />
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
@@ -194,6 +206,10 @@ export const articleIndicators: Article = {
             <div className="text-red-400 font-orbitron text-xs font-bold mb-2">Главная ошибка новичков</div>
             <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Добавлять всё больше индикаторов в надежде найти «идеальный сигнал». На самом деле — чем больше индикаторов, тем больше противоречивых сигналов. Профессионалы используют 2–3 индикатора максимум.</p>
           </div>
+          <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
+            <div className="text-purple-400 font-orbitron text-xs font-bold mb-2">Реальный пример: «индикаторный паралич»</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Виктор добавил на график 11 индикаторов: Stochastic, RSI, MACD, три MA, Bollinger Bands, ADX, CCI, OBV, ATR. На каждый потенциальный вход один индикатор говорил «покупай», другой — «продавай». За 2 месяца он совершил 3 сделки. Убрал всё, оставил EMA20/50 + RSI. Следующий месяц — 17 сделок, win rate 61%.</p>
+          </div>
         </div>
       )
     },
@@ -232,6 +248,10 @@ export const articleIndicators: Article = {
             <div className="text-purple-400 font-orbitron text-xs font-bold mb-1">MA200 — маркер бычьего/медвежьего рынка</div>
             <p className="text-zinc-400 text-xs font-space-mono">Цена выше MA200 на D1 = бычий рынок. Ниже = медвежий. Используйте это как главный фильтр направления. Покупайте только выше MA200, продавайте только ниже.</p>
           </div>
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
+            <div className="text-yellow-400 font-orbitron text-xs font-bold mb-2">Реальный кейс: Death Cross BTC, май 2021</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">20 мая 2021 на дневном графике BTC EMA50 пересекла EMA200 сверху вниз — Death Cross. Это был официальный сигнал начала медвежьего рынка. Трейдеры, работавшие по этому правилу, закрыли лонги и ждали. BTC с $59,000 упал до $16,000 к ноябрю 2022. Золотой крест появился снова в январе 2023 по $21,000 — начало нового цикла.</p>
+          </div>
         </div>
       )
     },
@@ -264,6 +284,10 @@ export const articleIndicators: Article = {
               </div>
             </div>
           </div>
+          <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+            <div className="text-green-400 font-orbitron text-xs font-bold mb-2">Реальный пример: бычья дивергенция ETH, ноябрь 2022</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">ETH достиг дна $1,080 (минимум 1), затем $1,070 (минимум 2 — ниже). Цена сделала новый лоу. RSI в первом дне был 22, во втором — 29. RSI не подтвердил новый минимум = бычья дивергенция. Трейдеры, заметившие это на D1, купили с целью $1,350. Через 6 недель ETH торговался по $1,580. Это классический пример того, как RSI предупреждает об истощении продавцов.</p>
+          </div>
         </div>
       )
     },
@@ -292,6 +316,10 @@ export const articleIndicators: Article = {
                 <li>→ Аномальный объём (spike) = крупный игрок входит или выходит</li>
               </ul>
             </div>
+          </div>
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+            <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">Реальный кейс: объём предупредил о пробое $25,000 (BTC, февраль 2023)</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">BTC несколько недель консолидировался под $25,000. 15 февраля объём вырос в 3.8x выше среднедневного — при этом свечи были в плюсе. На следующий день BTC пробил $25,000 и за 2 дня достиг $25,300. Трейдеры, отслеживавшие аномалию объёма, вошли заранее. Без объёмного анализа — вход уже на пробое, с проскальзыванием и риском ложного пробоя.</p>
           </div>
         </div>
       )

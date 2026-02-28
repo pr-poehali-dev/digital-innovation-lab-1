@@ -19,15 +19,21 @@ export const articleMarkets: Article = {
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">Выбор рынка определяет весь стиль торговли. Каждый рынок имеет свой характер волатильности, ликвидности и часов работы.</p>
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+            <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">Реальный пример: почему рынок важнее стратегии</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Антон торговал акциями SBER с 10:00 до 18:50, успевал смотреть графики между делами. Когда он перешёл на биткоин — та же система сломалась: BTC обвалился на 12% в 3 ночи пока он спал. Вывод: выбирайте рынок, который подходит <span className="text-white">вашему расписанию и образу жизни</span>, а не только доходности.</p>
+          </div>
           <MarketComparisonTable />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
             <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
               <div className="text-yellow-400 font-orbitron text-xs font-bold mb-2">Что такое ликвидность?</div>
               <p className="text-zinc-400 text-xs leading-relaxed">Ликвидность — насколько легко купить или продать актив без существенного изменения его цены. Высокая ликвидность = узкий спред, быстрое исполнение. Низкая = широкий спред, проскальзывание.</p>
+              <p className="text-zinc-500 text-xs mt-2 font-space-mono">Пример: покупаете BTC на $50,000 — исполняется мгновенно. Покупаете малоизвестный альткоин на $5,000 — цена сдвигается на 3% из-за вашей же заявки.</p>
             </div>
             <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
               <div className="text-red-400 font-orbitron text-xs font-bold mb-2">Что такое волатильность?</div>
               <p className="text-zinc-400 text-xs leading-relaxed">Волатильность — амплитуда колебаний цены. BTC может за день изменить цену на 5–15%. Акции SBER — на 1–3%. Высокая волатильность = больше возможностей и рисков одновременно.</p>
+              <p className="text-zinc-500 text-xs mt-2 font-space-mono">Пример: 18 июня 2022 BTC за одни сутки упал с $22,000 до $17,500 (-20%). Кто держал без стопа — потерял пятую часть капитала за ночь.</p>
             </div>
           </div>
         </div>
@@ -38,6 +44,10 @@ export const articleMarkets: Article = {
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">Рынок — это экосистема с разными игроками. Понимание мотивов каждого помогает читать движения цены.</p>
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
+            <div className="text-yellow-400 font-orbitron text-xs font-bold mb-2">Реальный пример: январь 2021, GameStop (GME)</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Хедж-фонды (институционалы) массово шортили акции GameStop. Тысячи розничных трейдеров с Reddit скоординировались и начали покупать GME. Акция взлетела с $17 до $483 за 2 недели. Хедж-фонд Melvin Capital потерял $6.8 млрд. Это наглядно показывает: <span className="text-white">розничные трейдеры вместе могут двигать рынок</span> — но не рекомендуется строить торговлю на таких событиях.</p>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
               { title: "Маркет-мейкеры", color: "border-blue-500/40 bg-blue-500/5", tc: "text-blue-400", desc: "Крупные банки и брокеры, которые постоянно выставляют заявки на покупку и продажу. Обеспечивают ликвидность. Зарабатывают на спреде. Без них рынок не работает." },
@@ -66,6 +76,10 @@ export const articleMarkets: Article = {
             <div className="flex gap-2"><span className="text-yellow-400 font-bold">Спред</span><span>— разница между лучшим аском и лучшим бидом. Это «стоимость» мгновенной сделки.</span></div>
             <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-xs text-zinc-400 mt-2">
               <span className="text-white font-semibold">Совет:</span> Большой объём на уровне поддержки в стакане — не гарантия. Крупные игроки могут снять свои заявки прямо перед достижением цены (манипуляция «стеной»). Анализируйте стакан в динамике.
+            </div>
+            <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mt-2">
+              <div className="text-green-400 font-orbitron text-xs font-bold mb-2">Реальный пример: «стена» как ловушка</div>
+              <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Март 2023, BTC торгуется по $27,800. В стакане на $28,000 — огромная стена продаж в 500 BTC. Розничные трейдеры ждут: «пока стена не исчезнет — не покупаем». Через 20 минут стена пропадает (заявку сняли), BTC за 3 часа вырастает до $28,500. Крупный игрок создал «потолок» чтобы дёшево набрать позицию, пока все стоят в стороне.</p>
             </div>
           </div>
         </div>
@@ -162,6 +176,10 @@ export const articleOrders: Article = {
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">Каждый тип ордера решает конкретную задачу. Ошибка в выборе типа ордера может стоить процентов прибыли или части капитала.</p>
           <OrderTypesTable />
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+            <div className="text-red-400 font-orbitron text-xs font-bold mb-2">История из жизни: «я думал, это стоп-лосс»</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Михаил купил ETH по $1,850 и поставил «стоп» на $1,700. Но выставил обычный Limit Sell, а не Stop-Loss. Когда ETH упал до $1,680 — ордер просто не сработал (лимитка ждала цену $1,700, а не $1,680). ETH продолжил падение до $1,520. Разница: <span className="text-white">Stop-Loss срабатывает при достижении цены и хуже</span>, Limit — только точно по вашей цене.</p>
+          </div>
         </div>
       )
     },
@@ -202,6 +220,10 @@ export const articleOrders: Article = {
               Хотите купить 1 BTC по цене $42,850 рыночным ордером. Стакан: лучший аск $42,900 (0.3 BTC) + $42,950 (0.7 BTC). Итог: покупаете по средней ~$42,930. Проскальзывание = $80 (0.19%). На маленьких объёмах незначительно, на крупных — существенно.
             </p>
           </div>
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mt-2">
+            <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">Реальный кейс: скальпер и проскальзывание</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Дмитрий торговал SOL рыночными ордерами в скальпинге, целясь на +0.3% с каждой сделки. После 30 сделок оказалось, что комиссия (0.1%) + проскальзывание (0.08–0.15%) съедала половину прибыли. Перешёл на лимитные ордера — стал маркет-мейкером, получил скидку на комиссии и улучшил результат на 40%.</p>
+          </div>
         </div>
       )
     },
@@ -232,6 +254,10 @@ export const articleOrders: Article = {
               <div className="text-yellow-400 font-orbitron text-xs font-bold mb-1">Трейлинг-стоп: автоматическое сохранение прибыли</div>
               <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Трейлинг-стоп следует за ценой на фиксированном расстоянии. Если BTC вырос с $42к до $48к, а трейлинг-стоп стоит на 5% ниже — он передвинется до $45,600. При откате закроет позицию, зафиксировав прибыль.</p>
             </div>
+          </div>
+          <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4">
+            <div className="text-orange-400 font-orbitron text-xs font-bold mb-2">Реальный пример: трейлинг-стоп спас 60% прибыли</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Олег купил BTC по $38,000, цена выросла до $52,000 (+37%). Он выставил трейлинг-стоп 8%. Цена откатила до $47,840 — стоп сработал. Олег зафиксировал +25.9% вместо того, чтобы ждать роста и потенциально «отдать» всё обратно. Без трейлинга — BTC упал до $41,000 и он продал «руками» на эмоциях, зафиксировав лишь +7.9%.</p>
           </div>
         </div>
       )

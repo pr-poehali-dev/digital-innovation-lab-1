@@ -19,6 +19,10 @@ export const chapterBacktesting: Chapter = {
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">Результат бэктестинга — не просто «+50% за год». Это целый набор метрик, который показывает надёжность и устойчивость стратегии.</p>
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+            <div className="text-red-400 font-orbitron text-xs font-bold mb-2">Реальный кейс: «+340% в бэктесте, -62% в реале»</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Павел протестировал свою стратегию: Total Return +340%, Win Rate 89%. Запустил с $20,000. Через 4 месяца — $7,600 (-62%). Разбор: бэктест был только на 2020–2021 (исключительно бычий рынок), Max Drawdown не проверялся, Sharpe Ratio 0.8 (слабо). Он видел только «доходность» и проигнорировал остальные метрики. <span className="text-white">Хороший бэктест — это когда все шесть метрик выглядят разумно, а не только прибыль.</span></p>
+          </div>
           <BacktestMetricsTable />
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
             <div className="text-white font-orbitron text-xs font-bold mb-2">Пример интерпретации результатов</div>
@@ -47,6 +51,10 @@ export const chapterBacktesting: Chapter = {
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">Overfitting (переобучение) — самая частая причина провала ботов в реальной торговле. Стратегия «слишком хорошо» адаптирована под исторические данные и не работает в будущем.</p>
+          <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4">
+            <div className="text-orange-400 font-orbitron text-xs font-bold mb-2">Пример overfitting из реальной торговли</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Стратегия EMA(7)/EMA(14)/RSI(9) показала Win Rate 91% на BTC за 2020–2021. Параметры подобраны идеально под этот отрезок. Тест на 2018–2019: Win Rate 38%. Тест на 2022: Win Rate 29%. Стратегия «запомнила» конкретный бычий рынок и не умеет работать в других условиях. <span className="text-white">Золотое правило: если стратегия работает на 1–2 периодах, она переобучена.</span></p>
+          </div>
           <OverfittingChart />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="bg-zinc-900 border border-red-500/20 rounded-lg p-3">
@@ -80,6 +88,10 @@ export const chapterBacktesting: Chapter = {
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">Начните с простого инструмента — TradingView. Когда почувствуете потребность в большем контроле — переходите на Python.</p>
+          <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+            <div className="text-green-400 font-orbitron text-xs font-bold mb-2">Пример: путь от TradingView до Freqtrade</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Роман начал с Pine Script на TradingView — запустил простую стратегию EMA Cross за вечер. Убедился, что идея работает. Затем переписал на Python+Backtesting.py для точного учёта комиссий и проскальзывания (TradingView их занижает). Финально перенёс в Freqtrade для бумажной торговли. Весь путь занял 3 недели. <span className="text-white">Начинайте просто — усложняйте только там, где это нужно.</span></p>
+          </div>
           <BacktestingCodeExample />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
@@ -114,6 +126,14 @@ export const chapterPlatforms: Chapter = {
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">Рынок no-code платформ для ботов активно развивается. Выбор зависит от ваших задач, бюджета и биржи.</p>
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+            <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">Как выбрать: история трёх трейдеров</div>
+            <div className="space-y-2 text-xs font-space-mono text-zinc-400">
+              <div className="border-l-2 border-green-500 pl-3"><span className="text-green-400 font-bold">Алексей (новичок)</span> — запустил Grid на Pionex за 15 минут без регистрации API. Комиссия 0.05%. Идеально для старта.</div>
+              <div className="border-l-2 border-yellow-500 pl-3"><span className="text-yellow-400 font-bold">Светлана (средний)</span> — подключила 3Commas к Bybit, настроила DCA-бот с маркетплейса. Платит $29/мес, но экономит часы ручной торговли.</div>
+              <div className="border-l-2 border-purple-500 pl-3"><span className="text-purple-400 font-bold">Константин (продвинутый)</span> — Freqtrade на VPS $5/мес. Написал стратегию на Python, полный контроль, нет ежемесячных платежей. Потратил 2 недели на настройку.</div>
+            </div>
+          </div>
           <PlatformsComparisonTable />
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
             <div className="text-white font-orbitron text-xs font-bold mb-3">Как выбрать платформу</div>

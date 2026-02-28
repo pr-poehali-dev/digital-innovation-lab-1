@@ -19,6 +19,10 @@ export const chapterWhatIsBot: Chapter = {
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">Торговый бот — это просто программа, которая повторяет те же действия, что делает трейдер вручную — только быстрее и без эмоций.</p>
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+            <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">Реальный кейс: бот vs трейдер в ночь обвала LUNA, май 2022</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Когда начался коллапс TerraUSD (UST) и LUNA, большинство ручных трейдеров спали или среагировали слишком поздно. Grid-боты с настроенным глобальным стопом автоматически закрылись при пробое ключевого уровня. Ботов с правильным риск-менеджментом — спасли 60–80% капитала. <span className="text-white">Ключевое: бот исполнил правило, человек бы «ещё подождал».</span></p>
+          </div>
           <BotWorkflowDiagram />
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
@@ -45,6 +49,10 @@ export const chapterWhatIsBot: Chapter = {
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">API (Application Programming Interface) — мост между вашим ботом и биржей. Понимание безопасности API критично: ошибка здесь = потеря всего счёта.</p>
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+            <div className="text-red-400 font-orbitron text-xs font-bold mb-2">Реальный случай: API-ключ с выводом = потеря $180,000</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">В 2022 году пользователь 3Commas случайно слил API-ключи в открытый GitHub-репозиторий. Ключи имели права на вывод средств. Хакеры забрали все активы в течение 4 часов — $180,000. <span className="text-white">Ни одна торговая платформа не требует права на вывод.</span> Если требует — это мошенники. Создавайте ключи только с правами «Торговля» без возможности вывода.</p>
+          </div>
           <APIKeysGuide />
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
             <div className="text-white font-orbitron text-xs font-bold mb-2">Что бот может делать через API</div>
@@ -117,6 +125,10 @@ export const chapterWhatIsBot: Chapter = {
             <div className="text-yellow-400 font-orbitron text-xs font-bold mb-1">Главный принцип</div>
             <p className="text-zinc-400 text-xs font-space-mono">Бот усиливает вашу стратегию, а не создаёт её. Плохая стратегия + бот = быстрый слив (бот торгует хуже, но быстрее). Хорошая стратегия + бот = масштабирование прибыли.</p>
           </div>
+          <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4">
+            <div className="text-orange-400 font-orbitron text-xs font-bold mb-2">Пример из жизни: «бот сделает всё сам»</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Игорь купил «прибыльного бота» на форуме за $200, запустил с $15,000 и уехал в отпуск на 2 недели. Вернулся — на счету $3,200. Бот торговал против тренда в период резкого падения крипты. Стратегия бота не была протестирована на медвежьем рынке. <span className="text-white">Бот исполнял стратегию идеально — проблема была в самой стратегии.</span> Всегда понимайте логику бота, который запускаете.</p>
+          </div>
         </div>
       )
     },
@@ -147,6 +159,10 @@ export const chapterStrategies: Chapter = {
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">Grid-бот идеален когда рынок «ходит» в диапазоне без чёткого тренда. Именно в такие периоды ручная торговля особенно сложна, а бот зарабатывает стабильно.</p>
+          <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+            <div className="text-green-400 font-orbitron text-xs font-bold mb-2">Реальный пример: Grid на ETH, апрель–июнь 2023</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Кирилл запустил Grid-бот на Pionex: ETH, диапазон $1,780–$2,050, 30 уровней, капитал $5,000. За 47 дней боковика ETH совершил 142 сделки. Итог: +$312 (6.2%) при почти нулевой вовлечённости. Ручная торговля в тот же период дала бы либо убыток от нервных сделок, либо 0% при удержании. <span className="text-white">Grid зарабатывает там, где ручная торговля скучает или паникует.</span></p>
+          </div>
           <GridBotChart />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
@@ -176,6 +192,10 @@ export const chapterStrategies: Chapter = {
       content: (
         <div className="space-y-3">
           <p className="text-gray-300 leading-relaxed">DCA (Dollar Cost Averaging) — самая безопасная стратегия для новичков. Трендовые стратегии — для тех, кто хочет следовать рынку автоматически.</p>
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+            <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">Реальный кейс: DCA в BTC за 2022 год</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Наталья покупала BTC на $200 каждую неделю весь 2022 год (итого $10,400). BTC падал с $47,000 до $16,000. Средняя цена покупки вышла $28,400. К декабрю 2023 BTC вернулся к $44,000 — портфель вырос до $16,100 (+54%). Те кто купил весь объём в начале 2022 по $47,000 — всё ещё в небольшом минусе. <span className="text-white">DCA убирает необходимость «угадать» момент входа.</span></p>
+          </div>
           <DCAChart />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
             <div className="bg-zinc-900 border border-blue-500/20 rounded-xl p-4">

@@ -494,7 +494,7 @@ class PocketOptionClient:
         })
         
         await self.ws.send(f'42["openOrder",{order_payload}]')
-        print(f"[PO] Ордер отправлен: {direction.upper()} {asset} ${amount}")
+        print(f"[PO] Ордер отправлен: {direction.upper()} {asset} $" + str(amount))
         
         # Ждём подтверждение
         response = await asyncio.wait_for(self.ws.recv(), timeout=10)

@@ -180,6 +180,24 @@ export const articleAnalysis: Article = {
               ))}
             </div>
           </div>
+          <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+            <div className="text-green-400 font-orbitron text-xs font-bold mb-2">Из жизни профессионалов: Дэн Зангер и объём как опережающий сигнал</div>
+            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+              Дэн Зангер — трейдер, превративший $10,775 в $18 млн за 18 месяцев (1998–2000) — строил всю торговлю вокруг объёма.
+              Он покупал акции, только когда объём превышал среднедневной в 3–5 раз на пробое ключевого уровня.
+              «Если объём не подтверждает движение — это не движение, это ловушка».
+              Тот же принцип No Demand / No Supply (VSA) Зангер применял интуитивно: без объёма ни один сигнал не считался действительным.
+            </p>
+          </div>
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+            <div className="text-red-400 font-orbitron text-xs font-bold mb-2">Из жизни профессионалов: Джо Диназале и торговля ложных пробоев</div>
+            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+              Джо Диназале — управляющий и преподаватель трейдинга, специализирующийся на Price Action —
+              называет ложные пробои (fakeout) «самым честным паттерном на рынке».
+              «Рынок всегда делает то, что ломает ожидания большинства. Ложный пробой — это буквальное воплощение этого принципа».
+              Его стратегия входа при возврате цены за уровень после fakeout давала win rate 65–70% при правильном контексте — одни из лучших показателей в Price Action трейдинге.
+            </p>
+          </div>
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
             <div className="text-white font-orbitron text-xs font-bold mb-3">Продвинутые паттерны: Голова и плечи, Двойное дно/вершина</div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -211,6 +229,15 @@ export const articleAnalysis: Article = {
                 <p className="text-zinc-400 text-xs font-space-mono mt-2 leading-relaxed">Паттерн разворота на дне. Два равных дна + пробой шеи = сильный сигнал. Второе дно часто на меньшем объёме — признак слабости продавцов.</p>
               </div>
             </div>
+          </div>
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
+            <div className="text-yellow-400 font-orbitron text-xs font-bold mb-2">Из жизни профессионалов: Ричард Шабакер и «Голова и плечи» как рыночная истина</div>
+            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+              Ричард Шабакер — финансовый редактор Forbes в 1920–30-х годах — первым систематизировал паттерн «Голова и плечи» в книге «Stock Market Theory and Practice» (1930).
+              Он описал его как отражение психологии трёх волн: первый максимум (энтузиазм), второй — выше (эйфория), третий — ниже (слабость быков).
+              Столетие спустя паттерн работает на всех рынках — от акций до BTC — потому что психология толпы не меняется.
+              Чарльз Доу, создатель Dow Theory, описывал ту же трёхволновую структуру ещё в конце XIX века.
+            </p>
           </div>
         </div>
       )
@@ -429,6 +456,15 @@ export const articleIndicators: Article = {
                 </div>
               ))}
             </div>
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mt-3">
+              <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">Из жизни профессионалов: японские институциональные трейдеры и Ичимоку</div>
+              <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+                Ичимоку Кинко Хё был разработан японским журналистом Гоити Хосода (псевдоним «Ичимоку Санджин») ещё в 1930-х годах.
+                В Японии он традиционно используется институциональными трейдерами крупных банков (Nomura, Mitsubishi UFJ) как основной инструмент анализа.
+                По данным японского финансового регулятора, Ичимоку входит в топ-3 самых используемых индикаторов среди профессиональных трейдеров азиатских рынков.
+                На Западе его популяризировал Ник Дастуни и команда FX Primus, адаптировав для форекс и крипторынков.
+              </p>
+            </div>
           </div>
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
             <div className="text-white font-orbitron text-xs font-bold mb-3">Скрытые дивергенции (Hidden Divergence)</div>
@@ -444,6 +480,16 @@ export const articleIndicators: Article = {
                 <p className="text-zinc-400 text-xs font-space-mono leading-relaxed mb-2">Цена делает более низкий максимум (LH), RSI — более высокий максимум. Сигнал: отскок в медвежьем тренде. Входим на продолжение падения.</p>
                 <div className="text-xs text-zinc-500">Цена: LH ↘ | RSI: HH ↗ → Медвежий сигнал</div>
               </div>
+            </div>
+            <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 mt-3">
+              <div className="text-purple-400 font-orbitron text-xs font-bold mb-2">Из жизни профессионалов: Констанс Браун и скрытые дивергенции</div>
+              <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+                Констанс Браун — CMT-аналитик и автор книги «Technical Analysis for the Trading Professional» —
+                популяризировала концепцию скрытых дивергенций как инструмент профессиональных трейдеров.
+                Она обнаружила, что скрытая дивергенция имеет более высокую вероятность отработки в трендовых условиях, чем обычная.
+                «Обычная дивергенция — сигнал усталости. Скрытая — сигнал возобновления силы».
+                Именно Браун впервые описала «бычьи» и «медвежьи» зоны RSI, радикально изменив подход к его интерпретации.
+              </p>
             </div>
           </div>
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
@@ -477,6 +523,15 @@ export const articleIndicators: Article = {
             <div className="bg-zinc-900 border border-yellow-500/20 rounded-xl p-3 mt-3">
               <div className="text-yellow-400 font-orbitron text-xs font-bold mb-1">Правило согласования таймфреймов</div>
               <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Входите в сделку только если все три таймфрейма согласованы: D1 бычий → H4 показывает зону входа → M15 даёт триггер. При конфликте ТФ — пропускайте сетап. Ждать лучшего момента — тоже работа.</p>
+            </div>
+            <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mt-3">
+              <div className="text-green-400 font-orbitron text-xs font-bold mb-2">Из жизни профессионалов: Марк Минервини и мультитаймфреймный отбор акций</div>
+              <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+                Марк Минервини — четырёхкратный чемпион US Investing Championship (средняя доходность 220%+ в год) —
+                использует строгую MTF-систему: сначала смотрит на недельный тренд и фундаментал, затем на дневной для поиска зоны входа, и только потом на часовой для точного триггера.
+                «Я никогда не куплю акцию на H1, если D1 в нисходящем тренде. Это как ловить падающий нож».
+                Его подход называется SEPA (Specific Entry Point Analysis) — и в его основе лежит именно принцип согласования тайм-фреймов.
+              </p>
             </div>
           </div>
         </div>

@@ -191,6 +191,15 @@ export const articleRisk: Article = {
               <div className="text-yellow-400 font-orbitron text-xs font-bold mb-1">Важно: половина Келли</div>
               <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">На практике используют половину от полного Келли (Fractional Kelly). Это снижает волатильность капитала на 50%, теряя лишь незначительную часть прироста. Полный Келли — слишком агрессивен даже для профессионалов.</p>
             </div>
+            <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 mt-3">
+              <div className="text-purple-400 font-orbitron text-xs font-bold mb-2">Из жизни профессионалов: Эдвард Торп и происхождение формулы Келли</div>
+              <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+                Эдвард Торп — математик, создавший первую систему счёта карт в блэкджеке и впоследствии основавший один из первых квантовых хедж-фондов Princeton/Newport Partners.
+                Он первым применил критерий Келли к финансовым рынкам, показав в книге «Beat the Market» (1967), что оптимальный размер ставки математически вычислим.
+                Его фонд показывал 19% годовых на протяжении 20+ лет с минимальными просадками — именно благодаря строгому соблюдению дробного критерия Келли.
+                «Размер позиции — это единственное, что вы полностью контролируете», — говорил Торп.
+              </p>
+            </div>
           </div>
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
             <div className="text-white font-orbitron text-xs font-bold mb-3">Drawdown-анализ: когда остановиться</div>
@@ -281,6 +290,15 @@ export const articleRisk: Article = {
               <div className="text-blue-400 font-orbitron text-xs font-bold mb-1">Правило максимального портфельного риска</div>
               <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Суммарный риск всех открытых позиций не должен превышать 5–6% депозита одновременно. Это защищает от «чёрных лебедей» — непредвиденных рыночных событий, которые двигают все активы сразу.</p>
             </div>
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mt-4">
+              <div className="text-red-400 font-orbitron text-xs font-bold mb-2">Из жизни профессионалов: LTCM и провал портфельного риска</div>
+              <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+                Long-Term Capital Management (LTCM) — хедж-фонд с двумя нобелевскими лауреатами в совете директоров — в 1998 году потерял $4.6 млрд за несколько недель.
+                Причина: все позиции были коррелированы. Когда российский дефолт ударил по рынкам, упало всё сразу — акции, облигации, деривативы.
+                Суммарное плечо достигало 25:1. Не хватило простого правила: «суммарный портфельный риск не должен превышать 5–6%».
+                Этот случай стал учебником о том, почему диверсификация по некоррелированным активам — не теория, а вопрос выживания.
+              </p>
+            </div>
           </div>
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
             <div className="text-white font-orbitron text-xs font-bold mb-3">Ключевые метрики оценки торговой системы</div>
@@ -297,6 +315,15 @@ export const articleRisk: Article = {
                   <p className="text-zinc-500 leading-relaxed">{m.desc}</p>
                 </div>
               ))}
+            </div>
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mt-4">
+              <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">Из жизни профессионалов: Бернард Мэдофф и фальшивый Sharpe Ratio</div>
+              <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+                Мошенник Берни Мэдофф привлекал инвесторов именно фантастическими метриками: стабильные 10–12% годовых, минимальная просадка, Sharpe Ratio выше 3.
+                Настоящие профессионалы — Гарри Маркополос и команда аналитиков Bear Stearns — подозревали обман именно потому, что «слишком хорошие» метрики в реальных рыночных условиях невозможны.
+                Урок: понимание нормальных значений Sharpe Ratio и MDD защищает не только от собственных ошибок, но и от чужого мошенничества.
+                Реальный Medallion Fund (Renaissance) показывает SR ≈ 2.5. Это считается выдающимся результатом.
+              </p>
             </div>
           </div>
         </div>

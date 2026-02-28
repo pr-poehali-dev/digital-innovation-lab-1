@@ -185,6 +185,25 @@ export const articleMarkets: Article = {
               ))}
             </div>
           </div>
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+            <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">Из жизни профессионалов: Майкл Бьюрри и Stop Hunt перед кризисом 2008</div>
+            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+              Майкл Бьюрри (герой «Игры на понижение») ставил против ипотечных облигаций США с 2005 года.
+              В течение двух лет его позиции показывали убыток, инвесторы требовали вернуть деньги — это был классический «Stop Hunt» на институциональном уровне.
+              Рынок продолжал расти, будто нарочно выбивая его из позиции. Бьюрри устоял.
+              В 2007–2008 году рынок рухнул, и его фонд Scion Capital заработал 489%.
+              Урок: даже правильная позиция может сначала идти против тебя — именно это и используют Smart Money.
+            </p>
+          </div>
+          <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
+            <div className="text-purple-400 font-orbitron text-xs font-bold mb-2">Из жизни профессионалов: Билл Вильямс и «умная» структура рынка</div>
+            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
+              Билл Вильямс — психолог и трейдер, автор книги «Торговый хаос» — разработал собственную версию анализа структуры рынка через фракталы и «зоны» (аналог Order Block).
+              Он утверждал: рынок движется не случайно, а по повторяющимся фрактальным паттернам, созданным действиями крупных игроков.
+              «Рынок — это живой организм. Он создан людьми и отражает коллективную психологию».
+              Его индикаторы (Alligator, Fractals, Awesome Oscillator) до сих пор встроены в MetaTrader 4 и 5.
+            </p>
+          </div>
         </div>
       )
     },

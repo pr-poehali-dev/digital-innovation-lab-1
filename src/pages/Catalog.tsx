@@ -129,6 +129,17 @@ const materials = [
     badge: "Инструмент",
     badgeColor: "bg-red-500/20 text-red-400",
   },
+  {
+    id: 12,
+    title: "BTC на Pocket Option: реальный разбор",
+    description: "Применяем всё с сайта на практике: анализ рынка, конфлюэнс сигналов, риск-менеджмент и автоматизация на одном кейсе.",
+    category: "Основы",
+    level: "Любой",
+    readTime: "15 мин",
+    href: "/practice",
+    badge: "Кейс",
+    badgeColor: "bg-green-500/20 text-green-400",
+  },
 ]
 
 const levelColor: Record<string, string> = {

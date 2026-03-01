@@ -140,12 +140,159 @@ export const articleRisk: Article = {
               </ul>
             </div>
           </div>
-          <div className="bg-zinc-900 border border-green-500/20 rounded-xl p-4">
-            <div className="text-green-400 font-orbitron text-xs font-bold mb-2">Инструменты для ведения журнала</div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-space-mono">
-              {["Notion", "Google Sheets", "Tradervue", "Edgewonk"].map(t => (
-                <div key={t} className="bg-zinc-950 rounded px-3 py-2 text-center text-zinc-300">{t}</div>
-              ))}
+          <div className="bg-zinc-950 border border-green-500/20 rounded-xl p-4 space-y-4">
+            <div>
+              <div className="text-green-400 font-orbitron text-xs font-bold mb-2">Инструменты для ведения журнала</div>
+              <p className="text-gray-300 text-sm leading-relaxed">Журнал сделок — главный инструмент роста трейдера. Без него невозможно понять, что работает, а что нет. Вот четыре подхода — от простого к профессиональному.</p>
+            </div>
+
+            {/* Google Sheets */}
+            <div className="border border-zinc-700 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-white font-orbitron text-xs font-bold">Google Sheets / Excel</div>
+                <span className="text-xs font-space-mono bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">Бесплатно</span>
+              </div>
+              <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Самый доступный вариант. Гибко настраивается под любой стиль торговли. Подходит для старта — можно сделать всё самому.</p>
+              <div className="bg-zinc-900 rounded-lg p-3 overflow-x-auto">
+                <div className="text-zinc-500 text-xs font-space-mono mb-2">Минимальный набор колонок:</div>
+                <table className="w-full text-xs font-space-mono min-w-[480px]">
+                  <thead>
+                    <tr className="border-b border-zinc-800">
+                      {["Дата", "Актив", "Вход", "Стоп", "Тейк", "Результат", "Причина входа", "Ошибки"].map(h => (
+                        <th key={h} className="text-left px-2 py-1 text-zinc-500 whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ["12.03", "BTC", "$82,400", "$80,900", "$85,000", "+$310", "Бычья дивергенция D1", "—"],
+                      ["13.03", "ETH", "$2,180", "$2,050", "$2,400", "−$130", "Уровень поддержки", "Вошёл без объёма"],
+                    ].map((row, i) => (
+                      <tr key={i} className="border-b border-zinc-800/50">
+                        {row.map((cell, j) => (
+                          <td key={j} className={`px-2 py-1.5 whitespace-nowrap ${cell.startsWith("+") ? "text-green-400" : cell.startsWith("−") ? "text-red-400" : "text-zinc-300"}`}>{cell}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex gap-4 text-xs font-space-mono">
+                <span className="text-green-400">✓ Полный контроль структуры</span>
+                <span className="text-green-400">✓ Бесплатно</span>
+                <span className="text-red-400">✗ Нет автоматики и графиков</span>
+              </div>
+            </div>
+
+            {/* Notion */}
+            <div className="border border-zinc-700 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-white font-orbitron text-xs font-bold">Notion</div>
+                <span className="text-xs font-space-mono bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">Бесплатно / от $10/мес</span>
+              </div>
+              <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Идеально для тех, кто хочет вести не только таблицу сделок, но и торговый план, разбор ошибок и заметки по рынку — всё в одном месте.</p>
+              <div className="bg-zinc-900 rounded-lg p-3 space-y-2">
+                <div className="text-zinc-500 text-xs font-space-mono mb-1">Что добавить в Notion сверх таблицы:</div>
+                {[
+                  ["Торговый план", "Правила входа, запрещённые ситуации, цели на неделю"],
+                  ["Разбор ошибок", "Что пошло не так — скрин + текст + эмоции в момент"],
+                  ["Недельный отчёт", "Win rate, средний RR, сколько сделок по плану"],
+                  ["Психологический дневник", "Настроение перед торговлей, причины импульсивных входов"],
+                ].map(([title, desc]) => (
+                  <div key={title} className="flex gap-2 items-start">
+                    <span className="text-blue-400 font-space-mono text-xs shrink-0">→</span>
+                    <span className="text-zinc-300 text-xs font-space-mono"><span className="text-white font-bold">{title}:</span> {desc}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-4 text-xs font-space-mono">
+                <span className="text-green-400">✓ Гибкость и визуальность</span>
+                <span className="text-green-400">✓ Всё в одном</span>
+                <span className="text-red-400">✗ Нет аналитики по сделкам</span>
+              </div>
+            </div>
+
+            {/* Tradervue */}
+            <div className="border border-zinc-700 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-white font-orbitron text-xs font-bold">Tradervue</div>
+                <span className="text-xs font-space-mono bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">от $29/мес</span>
+              </div>
+              <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Специализированный журнал трейдера с автоимпортом сделок из большинства брокеров. Строит статистику автоматически — без ручного ввода.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {[
+                  { label: "Автоимпорт", desc: "Загружает историю сделок из брокера одним файлом" },
+                  { label: "Статистика по времени", desc: "В какое время суток вы торгуете лучше всего" },
+                  { label: "Статистика по активам", desc: "Какие инструменты приносят прибыль, а какие — убыток" },
+                  { label: "Анализ ошибок", desc: "Паттерны убыточных сделок: что их объединяет" },
+                ].map(({ label, desc }) => (
+                  <div key={label} className="bg-zinc-900 rounded-lg p-2">
+                    <div className="text-yellow-400 text-xs font-space-mono font-bold mb-1">{label}</div>
+                    <div className="text-zinc-400 text-xs font-space-mono">{desc}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-4 text-xs font-space-mono">
+                <span className="text-green-400">✓ Автоматическая статистика</span>
+                <span className="text-green-400">✓ Импорт из брокера</span>
+                <span className="text-red-400">✗ Платный, нет крипто-брокеров</span>
+              </div>
+            </div>
+
+            {/* Edgewonk */}
+            <div className="border border-zinc-700 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-white font-orbitron text-xs font-bold">Edgewonk</div>
+                <span className="text-xs font-space-mono bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full">€169 раз и навсегда</span>
+              </div>
+              <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Самый глубокий аналитический журнал для серьёзных трейдеров. Акцент не просто на записи сделок, а на поиске вашего реального «эджа» — статистического преимущества.</p>
+              <div className="bg-zinc-900 rounded-lg p-3 space-y-2">
+                <div className="text-zinc-500 text-xs font-space-mono mb-1">Уникальные функции Edgewonk:</div>
+                {[
+                  ["Tilt Meter", "Определяет момент, когда вы начинаете торговать эмоционально — по паттернам поведения"],
+                  ["Trade Management Simulation", "Симулирует «что было бы», если бы вы двигали стоп иначе"],
+                  ["Custom Setups", "Статистика отдельно по каждому вашему паттерну входа"],
+                  ["R-Multiple анализ", "Гистограмма распределения соотношения прибыль/риск по всем сделкам"],
+                ].map(([title, desc]) => (
+                  <div key={title} className="flex gap-2 items-start">
+                    <span className="text-purple-400 font-space-mono text-xs shrink-0">→</span>
+                    <span className="text-zinc-300 text-xs font-space-mono"><span className="text-white font-bold">{title}:</span> {desc}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-4 text-xs font-space-mono">
+                <span className="text-green-400">✓ Самая глубокая аналитика</span>
+                <span className="text-green-400">✓ Разовая оплата</span>
+                <span className="text-red-400">✗ Требует времени на освоение</span>
+              </div>
+            </div>
+
+            {/* Сравнение */}
+            <div className="bg-zinc-900 rounded-xl p-3 overflow-x-auto">
+              <div className="text-zinc-400 font-orbitron text-xs font-bold mb-2">Что выбрать?</div>
+              <table className="w-full text-xs font-space-mono min-w-[380px]">
+                <thead>
+                  <tr className="border-b border-zinc-800">
+                    {["Инструмент", "Для кого", "Главный плюс"].map(h => (
+                      <th key={h} className="text-left px-2 py-2 text-zinc-500">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-800">
+                  {[
+                    ["Google Sheets", "Новичок, который только начинает", "Бесплатно, полный контроль"],
+                    ["Notion", "Тот, кто хочет структурировать всё мышление", "Торговый план + журнал + разбор"],
+                    ["Tradervue", "Акции/фьючерсы, нужна автоматика", "Импорт из брокера, готовые отчёты"],
+                    ["Edgewonk", "Серьёзный трейдер, ищет своё преимущество", "Психология + глубокая статистика"],
+                  ].map(([tool, who, plus]) => (
+                    <tr key={tool} className="hover:bg-zinc-800/50">
+                      <td className="px-2 py-2 text-white font-bold">{tool}</td>
+                      <td className="px-2 py-2 text-zinc-400">{who}</td>
+                      <td className="px-2 py-2 text-zinc-300">{plus}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

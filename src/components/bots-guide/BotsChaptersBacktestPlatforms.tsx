@@ -6,6 +6,7 @@ import {
   OverfittingChart,
   BacktestingCodeExample,
 } from "./BotsCharts"
+import { DeepPlatformsComparison, PlatformRadarChart } from "./charts/DeepPlatformsComparison"
 import type { Chapter } from "./BotsChapterTypes"
 
 export const chapterBacktesting: Chapter = {
@@ -234,10 +235,13 @@ export const chapterPlatforms: Chapter = {
   },
   sections: [
     {
-      title: "Полное сравнение платформ 2024",
+      title: "Глубокий анализ 10 платформ: интерактивное сравнение",
       content: (
-        <div className="space-y-3">
-          <p className="text-gray-300 leading-relaxed">Рынок no-code платформ для ботов активно развивается. Выбор зависит от ваших задач, бюджета и биржи.</p>
+        <div className="space-y-4">
+          <p className="text-gray-300 leading-relaxed">
+            Разобрали 10 популярных платформ для трейдинг-ботов — от полностью бесплатных до профессиональных open-source инструментов.
+            Нажмите на карточку, чтобы увидеть детальный разбор: биржи, стратегии, плюсы и минусы, кому подходит.
+          </p>
           <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
             <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">Как выбрать: история трёх трейдеров</div>
             <div className="space-y-2 text-xs font-space-mono text-zinc-400">
@@ -246,13 +250,27 @@ export const chapterPlatforms: Chapter = {
               <div className="border-l-2 border-purple-500 pl-3"><span className="text-purple-400 font-bold">Константин (продвинутый)</span> — Freqtrade на VPS $5/мес. Написал стратегию на Python, полный контроль, нет ежемесячных платежей. Потратил 2 недели на настройку.</div>
             </div>
           </div>
-          <PlatformsComparisonTable />
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-            <div className="text-white font-orbitron text-xs font-bold mb-3">Как выбрать платформу</div>
-            <div className="space-y-2 text-xs font-space-mono text-zinc-400">
-              <div className="flex gap-2"><span className="text-white flex-shrink-0">Новичок:</span><span>Pionex или Bybit Bot — бесплатно, встроено в биржу, нет проблем с API</span></div>
-              <div className="flex gap-2"><span className="text-white flex-shrink-0">Средний:</span><span>3Commas или Cryptohopper — DCA + Grid + marketplace стратегий</span></div>
-              <div className="flex gap-2"><span className="text-white flex-shrink-0">Продвинутый:</span><span>Freqtrade на своём сервере — полный контроль, Python, без ежемесячной платы</span></div>
+          <DeepPlatformsComparison />
+        </div>
+      )
+    },
+    {
+      title: "▲ Рейтинговое сравнение ТОП-5 по 5 критериям",
+      content: (
+        <div className="space-y-3">
+          <p className="text-gray-300 leading-relaxed">
+            Сравниваем ТОП-5 платформ по ключевым параметрам: простота, мощность, цена, надёжность и безопасность.
+            Нет универсального победителя — каждая выигрывает в своей нише.
+          </p>
+          <PlatformRadarChart />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-space-mono">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+              <div className="text-green-400 font-orbitron text-xs font-bold mb-2">Pionex — лидер по простоте и цене</div>
+              <p className="text-zinc-400 leading-relaxed">Набирает 10/10 сразу по двум критериям. Идеален для старта. Слабое место — функционал (5/10): нельзя писать собственные стратегии.</p>
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+              <div className="text-orange-400 font-orbitron text-xs font-bold mb-2">Freqtrade — лидер по мощности и безопасности</div>
+              <p className="text-zinc-400 leading-relaxed">Единственный с 10/10 по функционалу. Код у вас, не у стороннего сервиса — 10/10 безопасность. Цена входа: нужно знать Python.</p>
             </div>
           </div>
         </div>

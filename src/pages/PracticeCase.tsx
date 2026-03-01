@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { steps } from "@/components/practice/practiceSteps"
 import PracticeProgressBar from "@/components/practice/PracticeProgressBar"
 import PracticeStepCard from "@/components/practice/PracticeStepCard"
+import { Relevance2026Legend } from "@/components/Relevance2026Legend"
 
 const LS_KEY = "practice_opened_steps"
 
@@ -81,6 +82,8 @@ export default function PracticeCase() {
           </div>
 
           <PracticeProgressBar steps={steps} />
+
+          <Relevance2026Legend />
 
           <div className="space-y-10">
             {steps.map((step) => (

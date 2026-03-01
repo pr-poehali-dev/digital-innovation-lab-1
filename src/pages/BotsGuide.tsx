@@ -7,6 +7,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { chapters } from "@/components/bots-guide/BotsChapters"
 import BotsProgress from "@/components/bots-guide/BotsProgress"
 import { Relevance2026Badge } from "@/components/Relevance2026Badge"
+import { Relevance2026Legend } from "@/components/Relevance2026Legend"
 
 const STORAGE_KEY = "tradebase_chapters_bots"
 
@@ -47,6 +48,8 @@ export default function BotsGuide() {
           </div>
 
           <BotsProgress chapters={chapters} readChapters={readChapters} />
+
+          <Relevance2026Legend />
 
           <div className="space-y-12">
             {chapters.map((chapter) => {

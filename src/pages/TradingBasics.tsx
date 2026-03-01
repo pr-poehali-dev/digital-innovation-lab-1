@@ -7,6 +7,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { articles } from "@/components/trading-basics/TradingArticles"
 import TradingProgress from "@/components/trading-basics/TradingProgress"
 import { Relevance2026Badge } from "@/components/Relevance2026Badge"
+import { Relevance2026Legend } from "@/components/Relevance2026Legend"
 
 const STORAGE_KEY = "tradebase_chapters_basics"
 
@@ -51,6 +52,8 @@ export default function TradingBasics() {
             readChapters={readChapters}
             onToggle={toggleChapter}
           />
+
+          <Relevance2026Legend />
 
           <div className="space-y-12">
             {articles.map((article) => {

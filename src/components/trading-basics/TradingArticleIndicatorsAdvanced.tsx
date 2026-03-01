@@ -4,6 +4,7 @@ import { SectionIchimoku } from "./TradingArticleIndicatorsAdvanced/SectionIchim
 import { SectionHiddenDivergence } from "./TradingArticleIndicatorsAdvanced/SectionHiddenDivergence"
 import { SectionMTF } from "./TradingArticleIndicatorsAdvanced/SectionMTF"
 import { SectionAdaptiveMA } from "./TradingArticleIndicatorsAdvanced/SectionAdaptiveMA"
+import { SectionJMA } from "./TradingArticleIndicatorsAdvanced/SectionJMA"
 
 export const sectionIndicatorsAdvanced: Section = {
   title: "▲ Продвинутый уровень: Ичимоку, скрытые дивергенции и мультитаймфреймный анализ",
@@ -17,6 +18,7 @@ export const sectionIndicatorsAdvanced: Section = {
       <SectionHiddenDivergence />
       <SectionMTF />
       <SectionAdaptiveMA />
+      <SectionJMA />
     </div>
   )
 }

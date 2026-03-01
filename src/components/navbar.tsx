@@ -37,6 +37,9 @@ export function Navbar() {
               <a href="/practice" className="font-geist text-green-400 hover:text-green-300 transition-colors duration-200 font-semibold">
                 Практика
               </a>
+              <a href="/legends" className="font-geist text-yellow-400 hover:text-yellow-300 transition-colors duration-200 font-semibold">
+                🏆 Легенды
+              </a>
             </div>
           </div>
 
@@ -94,6 +97,13 @@ export function Navbar() {
                 onClick={() => setIsOpen(false)}
               >
                 Практика
+              </a>
+              <a
+                href="/legends"
+                className="block px-3 py-2 font-geist text-yellow-400 hover:text-yellow-300 font-semibold transition-colors duration-200"
+                onClick={() => setIsOpen(false)}
+              >
+                🏆 Легенды
               </a>
               <div className="px-3 py-2">
                 <Button className="w-full bg-red-500 hover:bg-red-600 text-white font-geist border-0">

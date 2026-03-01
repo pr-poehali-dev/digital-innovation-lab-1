@@ -3,6 +3,7 @@ import { SectionRisk1Percent } from "./TradingArticlesRisk/SectionRisk1Percent"
 import { SectionRiskRR } from "./TradingArticlesRisk/SectionRiskRR"
 import { SectionRiskJournal } from "./TradingArticlesRisk/SectionRiskJournal"
 import { SectionRiskAdvanced } from "./TradingArticlesRisk/SectionRiskAdvanced"
+import { LegendQuote } from "@/components/LegendQuote"
 
 export const articleRisk: Article = {
   id: "riskmanagement",
@@ -92,6 +93,23 @@ print(f"Размер позиции: {size} BTC")  # → 0.133333 BTC`,
     {
       title: "▲ Продвинутый уровень: формула Келли, Drawdown-анализ и портфельный риск",
       content: <SectionRiskAdvanced />,
+    },
+    {
+      title: "🏆 Легенды о риск-менеджменте",
+      content: (
+        <div className="space-y-1">
+          <LegendQuote
+            avatar="🏆" name="Пол Тюдор Джонс" rank="#2" legendId="tudor" color="zinc"
+            quote="Самое важное — это управление деньгами, управление деньгами и ещё раз управление деньгами."
+            context="Джонс никогда не рисковал более 1% на сделку за 45 лет карьеры. Его правило R:R 5:1 позволяет ошибаться 4 раза из 5 — и всё равно оставаться прибыльным."
+          />
+          <LegendQuote
+            avatar="📈" name="Джесси Ливермор" rank="#1" legendId="livermore" color="yellow"
+            quote="Проигравший усредняет убытки. Победитель наращивает прибыль."
+            context="Ливермор потерял всё состояние несколько раз — всегда из-за нарушения правил риска. Его жёсткий стоп 10% от входа — прямой предшественник современного правила 2%."
+          />
+        </div>
+      ),
     },
   ],
 }

@@ -10,6 +10,7 @@ import Catalog from "./pages/Catalog";
 import BotsGuide from "./pages/BotsGuide";
 import BotBuilder from "./pages/BotBuilder";
 import PracticeCase from "./pages/PracticeCase";
+import Legends from "./pages/Legends";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/bots-guide" element={<BotsGuide />} />
           <Route path="/bot-builder" element={<BotBuilder />} />
           <Route path="/practice" element={<PracticeCase />} />
+          <Route path="/legends" element={<Legends />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

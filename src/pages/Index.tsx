@@ -9,6 +9,7 @@ import { FAQSection } from "@/components/faq-section"
 import { CTASection } from "@/components/cta-section"
 import { CatalogPreview } from "@/components/catalog-preview"
 import { CourseProgressSection } from "@/components/CourseProgressSection"
+import { LegendsTeaser } from "@/components/legends-teaser"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 
@@ -29,6 +30,7 @@ export default function Index() {
         </section>
         <CatalogPreview />
         <CourseProgressSection />
+        <LegendsTeaser />
         <TestimonialsSection />
         <section id="faq">
           <FAQSection />

@@ -4,6 +4,7 @@ import { SectionFearGreed } from "./TradingArticlesPsychology/SectionFearGreed"
 import { SectionFOMO } from "./TradingArticlesPsychology/SectionFOMO"
 import { SectionTradingPlan } from "./TradingArticlesPsychology/SectionTradingPlan"
 import { SectionNeuroscience } from "./TradingArticlesPsychology/SectionNeuroscience"
+import { LegendQuote } from "@/components/LegendQuote"
 
 export const articlePsychology: Article = {
   id: "psychology",
@@ -69,6 +70,23 @@ export const articlePsychology: Article = {
     {
       title: "▲ Продвинутый уровень: нейронаука трейдинга и состояние потока",
       content: <SectionNeuroscience />,
+    },
+    {
+      title: "🏆 Легенды о психологии трейдинга",
+      content: (
+        <div className="space-y-1">
+          <LegendQuote
+            avatar="📈" name="Джесси Ливермор" rank="#1" legendId="livermore" color="yellow"
+            quote="Величайшим врагом трейдера является он сам."
+            context="Ливермор описал все классические психологические ловушки в 1923 году — задолго до появления психологии трейдинга как науки. Он потерял состояние несколько раз из-за игнорирования собственных правил."
+          />
+          <LegendQuote
+            avatar="⚡" name="Ларри Вильямс" rank="#3" legendId="williams" color="orange"
+            quote="Дисциплина — единственное конкурентное преимущество розничного трейдера."
+            context="Вильямс говорил: большинство проигрывают не потому что не знают стратегию, а потому что не следуют ей. Именно поэтому он одним из первых начал использовать компьютеры — убрать человека из уравнения."
+          />
+        </div>
+      ),
     },
   ],
 }

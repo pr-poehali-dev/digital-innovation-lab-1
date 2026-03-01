@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { Badge } from "@/components/ui/badge"
@@ -6,8 +6,44 @@ import { steps } from "@/components/practice/practiceSteps"
 import PracticeProgressBar from "@/components/practice/PracticeProgressBar"
 import PracticeStepCard from "@/components/practice/PracticeStepCard"
 
+const LS_KEY = "practice_opened_steps"
+
+function loadOpened(): string[] {
+  try {
+    const raw = localStorage.getItem(LS_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function saveOpened(ids: string[]) {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(ids))
+  } catch (_) {
+    // ignore
+  }
+}
+
 export default function PracticeCase() {
   const [open, setOpen] = useState<string[]>([])
+  const [openedSteps, setOpenedSteps] = useState<string[]>([])
+
+  useEffect(() => {
+    setOpenedSteps(loadOpened())
+  }, [])
+
+  function handleOpenChange(ids: string[]) {
+    setOpen(ids)
+    // Фиксируем все шаги, которые пользователь хоть раз открыл
+    const newOpened = Array.from(new Set([...openedSteps, ...ids]))
+    setOpenedSteps(newOpened)
+    saveOpened(newOpened)
+  }
+
+  const done = openedSteps.length
+  const total = steps.length
+  const pct = Math.round((done / total) * 100)
 
   return (
     <div className="dark min-h-screen bg-black">
@@ -25,6 +61,25 @@ export default function PracticeCase() {
             </p>
           </div>
 
+          {/* Мини-прогресс */}
+          <div className="mb-8 bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-4 flex items-center gap-4">
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-zinc-500 text-xs font-space-mono">Прогресс курса</span>
+                <span className="font-orbitron text-xs font-bold text-white">{done}/{total} шагов</span>
+              </div>
+              <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-green-500 transition-all duration-500"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+            <div className={`font-orbitron text-lg font-bold shrink-0 ${pct === 100 ? "text-green-400" : "text-zinc-400"}`}>
+              {pct}%
+            </div>
+          </div>
+
           <PracticeProgressBar steps={steps} />
 
           <div className="space-y-10">
@@ -33,7 +88,7 @@ export default function PracticeCase() {
                 key={step.id}
                 step={step}
                 open={open}
-                onOpenChange={setOpen}
+                onOpenChange={handleOpenChange}
               />
             ))}
           </div>

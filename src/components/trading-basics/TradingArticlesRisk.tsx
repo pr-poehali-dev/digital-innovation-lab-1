@@ -177,17 +177,24 @@ export const articleRisk: Article = {
                   </tbody>
                 </table>
               </div>
-              <a
-                href="https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms/copy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 hover:bg-green-500/20 transition-colors rounded-lg px-4 py-2.5 w-fit"
-              >
-                <svg viewBox="0 0 24 24" className="w-4 h-4 fill-green-400 shrink-0">
-                  <path d="M19 3H5C3.9 3 3 3.9 3 5v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/>
-                </svg>
-                <span className="text-green-400 font-space-mono text-xs font-bold">Скопировать шаблон журнала в Google Sheets →</span>
-              </a>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <a
+                  href="/trading-journal-template.csv"
+                  download="trading-journal-template.csv"
+                  className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 hover:bg-green-500/20 transition-colors rounded-lg px-4 py-2.5 w-fit"
+                >
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-green-400 shrink-0">
+                    <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11zm-6 7h14v2H5z"/>
+                  </svg>
+                  <span className="text-green-400 font-space-mono text-xs font-bold">Скачать шаблон журнала (.csv) →</span>
+                </a>
+                <div className="flex items-center gap-2 bg-zinc-800 rounded-lg px-3 py-2.5 w-fit">
+                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-zinc-400 shrink-0">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                  </svg>
+                  <span className="text-zinc-400 font-space-mono text-xs">Открыть через Google Sheets: Файл → Импорт</span>
+                </div>
+              </div>
               <div className="flex gap-4 text-xs font-space-mono">
                 <span className="text-green-400">✓ Полный контроль структуры</span>
                 <span className="text-green-400">✓ Бесплатно</span>

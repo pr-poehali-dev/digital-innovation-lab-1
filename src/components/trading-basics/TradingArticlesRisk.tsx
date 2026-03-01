@@ -177,6 +177,17 @@ export const articleRisk: Article = {
                   </tbody>
                 </table>
               </div>
+              <a
+                href="https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms/copy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 hover:bg-green-500/20 transition-colors rounded-lg px-4 py-2.5 w-fit"
+              >
+                <svg viewBox="0 0 24 24" className="w-4 h-4 fill-green-400 shrink-0">
+                  <path d="M19 3H5C3.9 3 3 3.9 3 5v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/>
+                </svg>
+                <span className="text-green-400 font-space-mono text-xs font-bold">Скопировать шаблон журнала в Google Sheets →</span>
+              </a>
               <div className="flex gap-4 text-xs font-space-mono">
                 <span className="text-green-400">✓ Полный контроль структуры</span>
                 <span className="text-green-400">✓ Бесплатно</span>

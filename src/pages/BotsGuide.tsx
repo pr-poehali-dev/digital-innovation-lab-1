@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { chapters } from "@/components/bots-guide/BotsChapters"
 import BotsProgress from "@/components/bots-guide/BotsProgress"
+import { Relevance2026Badge } from "@/components/Relevance2026Badge"
 
 const STORAGE_KEY = "tradebase_chapters_bots"
 
@@ -74,6 +75,7 @@ export default function BotsGuide() {
                         {chapter.title}
                       </CardTitle>
                       <p className="text-gray-400 leading-relaxed mt-2">{chapter.summary}</p>
+                      {chapter.relevance2026 && <Relevance2026Badge data={chapter.relevance2026} />}
                     </CardHeader>
                     <CardContent>
                       <Accordion type="multiple" className="w-full">

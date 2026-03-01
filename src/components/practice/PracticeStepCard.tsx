@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import Icon from "@/components/ui/icon"
 import { colorMap, borderMap, type PracticeStep } from "./practiceSteps"
+import { Relevance2026Badge } from "@/components/Relevance2026Badge"
 
 type Props = {
   step: PracticeStep
@@ -23,6 +24,7 @@ export default function PracticeStepCard({ step, open, onOpenChange }: Props) {
             {step.title}
           </CardTitle>
           <p className="text-gray-400 leading-relaxed mt-2">{step.summary}</p>
+          {step.relevance2026 && <Relevance2026Badge data={step.relevance2026} />}
         </CardHeader>
         <CardContent>
           <Accordion

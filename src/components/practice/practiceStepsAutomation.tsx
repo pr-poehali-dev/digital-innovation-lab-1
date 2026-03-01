@@ -13,6 +13,14 @@ export const stepAutomation: PracticeStep = {
   icon: "Code2",
   title: "Автоматизация: торговый бот для BTC/USDT на Pocket Option",
   summary: "Полный разбор: как написать торгового бота на Python, подключить его к Pocket Option через WebSocket и запустить стратегию EMA+RSI без ручного вмешательства.",
+  relevance2026: {
+    score: 95,
+    label: "Практический максимум",
+    aiImpact: 82,
+    botImpact: 100,
+    aiNote: "Python + ИИ-библиотеки (pandas-ta, LangChain для news-анализа) стали стандартом в 2026. Архитектура бота из этого шага совместима с интеграцией ИИ-сигналов.",
+    botNote: "WebSocket-подход и стратегия EMA+RSI, описанные здесь — живая рабочая схема. Боты с похожей архитектурой показывают стабильный win rate 56–62% в 2025-2026.",
+  },
   sections: [
     {
       title: "Архитектура бота: из чего состоит система",

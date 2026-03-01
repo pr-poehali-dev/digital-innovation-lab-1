@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 import type { Relevance2026 } from "@/components/Relevance2026Badge"
+import type { AIBotInsight } from "@/components/AIBotInsightBlock"
 
 export type PracticeStep = {
   id: string
@@ -10,6 +11,7 @@ export type PracticeStep = {
   summary: string
   sections: { title: string; content: ReactNode }[]
   relevance2026?: Relevance2026
+  aibotInsight?: AIBotInsight
 }
 
 export const colorMap: Record<string, string> = {

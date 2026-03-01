@@ -8,6 +8,7 @@ import { articles } from "@/components/trading-basics/TradingArticles"
 import TradingProgress from "@/components/trading-basics/TradingProgress"
 import { Relevance2026Badge } from "@/components/Relevance2026Badge"
 import { Relevance2026Legend } from "@/components/Relevance2026Legend"
+import { AIBotInsightBlock } from "@/components/AIBotInsightBlock"
 
 const STORAGE_KEY = "tradebase_chapters_basics"
 
@@ -83,6 +84,7 @@ export default function TradingBasics() {
                       </CardTitle>
                       <p className="text-gray-400 leading-relaxed mt-2">{article.summary}</p>
                       {article.relevance2026 && <Relevance2026Badge data={article.relevance2026} />}
+                      {article.aibotInsight && <AIBotInsightBlock data={article.aibotInsight} />}
                     </CardHeader>
                     <CardContent>
                       <Accordion type="multiple" className="w-full">

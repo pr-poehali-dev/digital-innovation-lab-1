@@ -4,6 +4,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import Icon from "@/components/ui/icon"
 import { colorMap, borderMap, type PracticeStep } from "./practiceSteps"
 import { Relevance2026Badge } from "@/components/Relevance2026Badge"
+import { AIBotInsightBlock } from "@/components/AIBotInsightBlock"
 
 type Props = {
   step: PracticeStep
@@ -25,6 +26,7 @@ export default function PracticeStepCard({ step, open, onOpenChange }: Props) {
           </CardTitle>
           <p className="text-gray-400 leading-relaxed mt-2">{step.summary}</p>
           {step.relevance2026 && <Relevance2026Badge data={step.relevance2026} />}
+          {step.aibotInsight && <AIBotInsightBlock data={step.aibotInsight} />}
         </CardHeader>
         <CardContent>
           <Accordion

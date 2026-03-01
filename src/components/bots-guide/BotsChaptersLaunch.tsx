@@ -51,7 +51,7 @@ export const chapterLaunch: Chapter = {
 
     # 1. Проверка минимального баланса
     if balance < config['min_balance']:
-        errors.append(f"Баланс {balance} USDT < минимума {config['min_balance']} USDT")
+        errors.append("Баланс " + str(balance) + " USDT < минимума " + str(config['min_balance']) + " USDT")
 
     # 2. Daily Stop Loss установлен
     if not config.get('daily_stop_loss'):
@@ -63,11 +63,11 @@ export const chapterLaunch: Chapter = {
 
     # 4. Размер позиции не более 10% депозита
     if config['position_size_pct'] > 10:
-        errors.append(f"Размер позиции {config['position_size_pct']}% > 10% — слишком рискованно")
+        errors.append("Размер позиции " + str(config['position_size_pct']) + "% > 10% — слишком рискованно")
 
     if errors:
         print("🚫 Чеклист не пройден:")
-        for e in errors: print(f"  - {e}")
+        for e in errors: print("  - " + e)
         return False
 
     print("✅ Все проверки пройдены — можно запускать")

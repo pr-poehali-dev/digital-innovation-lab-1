@@ -54,7 +54,7 @@ export const stepRiskManagement: PracticeStep = {
     def can_trade(self):
         """Проверяет, можно ли открывать новые сделки"""
         if self.daily_loss >= self.balance * self.daily_limit_pct:
-            print(f"⛔ Дневной лимит достигнут: -{self.daily_loss:.2f} USDT. Торговля остановлена.")
+            print("⛔ Дневной лимит достигнут: -" + str(round(self.daily_loss, 2)) + " USDT. Торговля остановлена.")
             return False
         return True
 

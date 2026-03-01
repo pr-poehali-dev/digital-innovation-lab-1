@@ -55,7 +55,7 @@ def get_trend(df):
 
 # Пример использования:
 trend = get_trend(btc_df)
-print(f"BTC/USDT тренд: {trend}")`,
+print("BTC/USDT тренд: " + trend)`,
     },
     comparison: {
       human: "Смотрит на график 2–3 минуты, оценивает «на глаз»",

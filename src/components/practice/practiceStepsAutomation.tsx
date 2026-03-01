@@ -3,6 +3,8 @@ import { SectionArchitecture } from "./practiceStepsAutomation/SectionArchitectu
 import { SectionSignalEngine, SectionDataFeed } from "./practiceStepsAutomation/SectionSignalEngine"
 import { SectionRiskManager, SectionPocketOptionAPI } from "./practiceStepsAutomation/SectionRiskAndPocketOption"
 import { SectionBacktest } from "./practiceStepsAutomation/SectionBacktest"
+import { SectionThreeConfirmationsBot } from "./practiceStepsAutomation/SectionThreeConfirmationsBot"
+import { SectionDeployAndMonitor } from "./practiceStepsAutomation/SectionDeployAndMonitor"
 
 export const stepAutomation: PracticeStep = {
   id: "automation",
@@ -35,6 +37,14 @@ export const stepAutomation: PracticeStep = {
     {
       title: "Запуск и бэктест: проверяем стратегию до реальных денег",
       content: <SectionBacktest />,
+    },
+    {
+      title: "Готовый бот «Три подтверждения»: полный код",
+      content: <SectionThreeConfirmationsBot />,
+    },
+    {
+      title: "Деплой на VPS и мониторинг: бот работает 24/7",
+      content: <SectionDeployAndMonitor />,
     },
   ],
 }

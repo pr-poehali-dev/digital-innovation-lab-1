@@ -1,12 +1,12 @@
 import React from "react"
-import {
-  OrderBookChart,
-  RiskCalcTable,
-  RRTable,
-  MarketComparisonTable,
-  OrderTypesTable,
-} from "./TradingCharts"
 import type { Article } from "./TradingArticleTypes"
+import { SectionMarketTypes } from "./TradingArticlesMarketsOrders/SectionMarketTypes"
+import { SectionMarketParticipants } from "./TradingArticlesMarketsOrders/SectionMarketParticipants"
+import { SectionSmartMoney } from "./TradingArticlesMarketsOrders/SectionSmartMoney"
+import { SectionOrderTypes } from "./TradingArticlesMarketsOrders/SectionOrderTypes"
+import { SectionMarketVsLimit } from "./TradingArticlesMarketsOrders/SectionMarketVsLimit"
+import { SectionStopOrders } from "./TradingArticlesMarketsOrders/SectionStopOrders"
+import { SectionAdvancedOrders } from "./TradingArticlesMarketsOrders/SectionAdvancedOrders"
 
 export const articleMarkets: Article = {
   id: "markets",
@@ -16,198 +16,17 @@ export const articleMarkets: Article = {
   sections: [
     {
       title: "Основные типы рынков и их сравнение",
-      content: (
-        <div className="space-y-3">
-          <p className="text-gray-300 leading-relaxed">Выбор рынка определяет весь стиль торговли. Каждый рынок имеет свой характер волатильности, ликвидности и часов работы.</p>
-          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
-            <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">Реальный пример: почему рынок важнее стратегии</div>
-            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Антон торговал акциями SBER с 10:00 до 18:50, успевал смотреть графики между делами. Когда он перешёл на биткоин — та же система сломалась: BTC обвалился на 12% в 3 ночи пока он спал. Вывод: выбирайте рынок, который подходит <span className="text-white">вашему расписанию и образу жизни</span>, а не только доходности.</p>
-          </div>
-          <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
-            <div className="text-purple-400 font-orbitron text-xs font-bold mb-2">Из жизни профессионалов: Стэнли Дракенмиллер и выбор рынка</div>
-            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
-              Стэнли Дракенмиллер — один из самых успешных трейдеров в истории, средняя доходность 30% годовых за 30 лет —
-              говорил, что его главным конкурентным преимуществом была готовность переключаться между рынками:
-              «Я торговал акциями, валютами, облигациями, сырьём — в зависимости от того, где было наибольшее движение».
-              Он понимал: нет «лучшего» рынка навсегда — есть рынок, который лучше подходит тебе прямо сейчас.
-            </p>
-          </div>
-          <MarketComparisonTable />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-              <div className="text-yellow-400 font-orbitron text-xs font-bold mb-2">Что такое ликвидность?</div>
-              <p className="text-zinc-400 text-xs leading-relaxed">Ликвидность — насколько легко купить или продать актив без существенного изменения его цены. Высокая ликвидность = узкий спред, быстрое исполнение. Низкая = широкий спред, проскальзывание.</p>
-              <p className="text-zinc-500 text-xs mt-2 font-space-mono">Пример: покупаете BTC на $50,000 — исполняется мгновенно. Покупаете малоизвестный альткоин на $5,000 — цена сдвигается на 3% из-за вашей же заявки.</p>
-            </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-              <div className="text-red-400 font-orbitron text-xs font-bold mb-2">Что такое волатильность?</div>
-              <p className="text-zinc-400 text-xs leading-relaxed">Волатильность — амплитуда колебаний цены. BTC может за день изменить цену на 5–15%. Акции SBER — на 1–3%. Высокая волатильность = больше возможностей и рисков одновременно.</p>
-              <p className="text-zinc-500 text-xs mt-2 font-space-mono">Пример: 18 июня 2022 BTC за одни сутки упал с $22,000 до $17,500 (-20%). Кто держал без стопа — потерял пятую часть капитала за ночь.</p>
-            </div>
-          </div>
-        </div>
-      )
+      content: <SectionMarketTypes />,
     },
     {
       title: "Участники рынка и их роли",
-      content: (
-        <div className="space-y-3">
-          <p className="text-gray-300 leading-relaxed">Рынок — это экосистема с разными игроками. Понимание мотивов каждого помогает читать движения цены.</p>
-          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
-            <div className="text-yellow-400 font-orbitron text-xs font-bold mb-2">Реальный пример: январь 2021, GameStop (GME)</div>
-            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Хедж-фонды (институционалы) массово шортили акции GameStop. Тысячи розничных трейдеров с Reddit скоординировались и начали покупать GME. Акция взлетела с $17 до $483 за 2 недели. Хедж-фонд Melvin Capital потерял $6.8 млрд. Это наглядно показывает: <span className="text-white">розничные трейдеры вместе могут двигать рынок</span> — но не рекомендуется строить торговлю на таких событиях.</p>
-          </div>
-          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
-            <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">Из жизни профессионалов: Пол Тюдор Джонс и понимание игроков</div>
-            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
-              Пол Тюдор Джонс — легендарный макро-трейдер, предсказавший крах 1987 года и заработавший 200% за тот год —
-              всегда изучал, кто находится «по другую сторону его сделки».
-              «Я думаю о рынке как о большом аукционе. Чтобы выиграть, нужно понять, кто продаёт и почему».
-              Именно понимание мотивов разных участников рынка позволило ему открыть короткую позицию на весь рынок акций за несколько недель до краха Чёрного понедельника.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {[
-              { title: "Маркет-мейкеры", color: "border-blue-500/40 bg-blue-500/5", tc: "text-blue-400", desc: "Крупные банки и брокеры, которые постоянно выставляют заявки на покупку и продажу. Обеспечивают ликвидность. Зарабатывают на спреде. Без них рынок не работает." },
-              { title: "Институционалы", color: "border-purple-500/40 bg-purple-500/5", tc: "text-purple-400", desc: "Хедж-фонды, банки, пенсионные фонды. Торгуют миллиардами — их сделки буквально двигают рынок. Часто используют алгоритмы и ИИ." },
-              { title: "Розничные трейдеры", color: "border-yellow-500/40 bg-yellow-500/5", tc: "text-yellow-400", desc: "Частные лица с небольшим капиталом. Это мы с вами. Составляем меньшую часть объёма, но в сумме влияем на настроения рынка." },
-              { title: "Алгоритмы (HFT)", color: "border-red-500/40 bg-red-500/5", tc: "text-red-400", desc: "Высокочастотные торговые боты. Совершают тысячи сделок в секунду. Обеспечивают около 70% объёма на американских биржах. Конкурировать с ними в скорости невозможно." },
-            ].map((p, i) => (
-              <div key={i} className={`border rounded-lg p-3 ${p.color}`}>
-                <div className={`font-orbitron text-xs font-bold mb-1 ${p.tc}`}>{p.title}</div>
-                <p className="text-zinc-400 text-xs leading-relaxed">{p.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )
-    },
-    {
-      title: "Стакан ордеров (Order Book) — как читать",
-      content: (
-        <div className="space-y-3">
-          <p className="text-gray-300 leading-relaxed">Order Book — главный инструмент понимания текущего баланса спроса и предложения. Именно здесь видно, где стоят крупные игроки.</p>
-          <OrderBookChart />
-          <div className="space-y-2 text-sm text-zinc-300 leading-relaxed">
-            <div className="flex gap-2"><span className="text-green-400 font-bold">Биды (зелёные)</span><span>— заявки на покупку. Чем выше цена — тем меньше желающих покупать.</span></div>
-            <div className="flex gap-2"><span className="text-red-400 font-bold">Аски (красные)</span><span>— заявки на продажу. Стена продаж выше рынка тормозит рост цены.</span></div>
-            <div className="flex gap-2"><span className="text-yellow-400 font-bold">Спред</span><span>— разница между лучшим аском и лучшим бидом. Это «стоимость» мгновенной сделки.</span></div>
-            <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-xs text-zinc-400 mt-2">
-              <span className="text-white font-semibold">Совет:</span> Большой объём на уровне поддержки в стакане — не гарантия. Крупные игроки могут снять свои заявки прямо перед достижением цены (манипуляция «стеной»). Анализируйте стакан в динамике.
-            </div>
-            <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mt-2">
-              <div className="text-green-400 font-orbitron text-xs font-bold mb-2">Реальный пример: «стена» как ловушка</div>
-              <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Март 2023, BTC торгуется по $27,800. В стакане на $28,000 — огромная стена продаж в 500 BTC. Розничные трейдеры ждут: «пока стена не исчезнет — не покупаем». Через 20 минут стена пропадает (заявку сняли), BTC за 3 часа вырастает до $28,500. Крупный игрок создал «потолок» чтобы дёшево набрать позицию, пока все стоят в стороне.</p>
-            </div>
-            <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4 mt-2">
-              <div className="text-orange-400 font-orbitron text-xs font-bold mb-2">Из жизни профессионалов: Питер Линч о чтении рыночного «настроения»</div>
-              <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
-                Питер Линч — управляющий фондом Magellan Fund (Fidelity), показавший 29% годовых за 13 лет —
-                анализировал не только цифры, но и поведение участников рынка.
-                Он говорил: «Когда таксисты начинают давать советы по акциям — пора продавать».
-                Именно массовое поведение розничных участников создаёт «стены» и ловушки в стакане, которые умные игроки используют для набора позиций.
-              </p>
-            </div>
-          </div>
-        </div>
-      )
+      content: <SectionMarketParticipants />,
     },
     {
       title: "▲ Продвинутый уровень: Smart Money и структура рынка (ICT)",
-      content: (
-        <div className="space-y-4">
-          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex gap-2 items-center">
-            <span className="text-red-400 text-lg">⚠</span>
-            <p className="text-red-300 text-xs font-space-mono">Этот раздел для продвинутых трейдеров. Концепции основаны на методологии ICT (Inner Circle Trader) и SMC (Smart Money Concepts).</p>
-          </div>
-          <p className="text-gray-300 leading-relaxed">Smart Money — это крупные институциональные игроки (банки, фонды), которые двигают рынок. Их задача: набрать позицию по лучшей цене, не показывая намерений. Для этого они создают ловушки для розничных трейдеров.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {[
-              { title: "Stop Hunt (Охота за стопами)", color: "border-red-500/40 bg-red-500/5", tc: "text-red-400", desc: "Цена намеренно пробивает очевидные уровни поддержки/сопротивления, выбивает стоп-лоссы большинства розничных трейдеров — и разворачивается. Это не случайность, это ликвидность для Smart Money." },
-              { title: "Fair Value Gap (FVG)", color: "border-blue-500/40 bg-blue-500/5", tc: "text-blue-400", desc: "Разрыв в ценовом диапазоне из трёх свечей, где не было двустороннего обмена. Рынок часто возвращается заполнить FVG перед продолжением тренда. Мощная зона для входа." },
-              { title: "Order Block (OB)", color: "border-purple-500/40 bg-purple-500/5", tc: "text-purple-400", desc: "Последняя бычья/медвежья свеча перед импульсным движением. Место накопления позиций Smart Money. Цена часто возвращается к OB для добора позиции." },
-            ].map((item, i) => (
-              <div key={i} className={`border rounded-xl p-3 ${item.color}`}>
-                <div className={`font-orbitron text-xs font-bold mb-2 ${item.tc}`}>{item.title}</div>
-                <p className="text-zinc-400 text-xs leading-relaxed">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-            <div className="text-white font-orbitron text-xs font-bold mb-3">Структура рынка (Market Structure)</div>
-            <svg viewBox="0 0 360 120" className="w-full h-28">
-              <polyline points="20,100 60,80 80,90 120,55 140,70 190,30 210,45 250,20 280,35 320,15" fill="none" stroke="#e5e7eb" strokeWidth="1.5" />
-              {[[120,55],[190,30],[250,20]].map(([x,y],i) => (
-                <g key={i}>
-                  <circle cx={x} cy={y} r="4" fill="#22c55e" />
-                  <text x={x} y={y-8} fontSize="7" fill="#22c55e" textAnchor="middle" fontFamily="monospace">HH</text>
-                </g>
-              ))}
-              {[[80,90],[140,70],[210,45]].map(([x,y],i) => (
-                <g key={i}>
-                  <circle cx={x} cy={y} r="4" fill="#60a5fa" />
-                  <text x={x} y={y+14} fontSize="7" fill="#60a5fa" textAnchor="middle" fontFamily="monospace">HL</text>
-                </g>
-              ))}
-              <text x="180" y="115" fontSize="8" fill="#52525b" textAnchor="middle" fontFamily="monospace">Бычий тренд: HH (Higher High) + HL (Higher Low)</text>
-            </svg>
-            <div className="grid grid-cols-2 gap-3 mt-3">
-              <div className="bg-zinc-900 rounded-lg p-3">
-                <div className="text-green-400 font-orbitron text-xs font-bold mb-1">Бычья структура</div>
-                <p className="text-zinc-400 text-xs font-space-mono">HH + HL — каждый максимум и минимум выше предыдущего. Торгуем только лонги на HL.</p>
-              </div>
-              <div className="bg-zinc-900 rounded-lg p-3">
-                <div className="text-red-400 font-orbitron text-xs font-bold mb-1">Медвежья структура</div>
-                <p className="text-zinc-400 text-xs font-space-mono">LH + LL — каждый максимум и минимум ниже предыдущего. Торгуем только шорты на LH.</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-zinc-900 border border-yellow-500/20 rounded-xl p-4">
-            <div className="text-yellow-400 font-orbitron text-xs font-bold mb-2">Смена структуры (BOS / CHoCH)</div>
-            <div className="space-y-2 text-xs font-space-mono text-zinc-400">
-              <div className="flex gap-2 items-start"><span className="text-blue-400 font-bold shrink-0">BOS</span><span>(Break of Structure) — пробой предыдущего HH или LL. Подтверждает продолжение тренда. Используется для входа в направлении доминирующей структуры.</span></div>
-              <div className="flex gap-2 items-start"><span className="text-orange-400 font-bold shrink-0">CHoCH</span><span>(Change of Character) — первый признак смены тренда. Цена впервые пробивает структуру против тренда. Сигнал к переходу к нейтралитету или развороту.</span></div>
-            </div>
-          </div>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-            <div className="text-white font-orbitron text-xs font-bold mb-2">Манипуляция перед движением: схема Wyckoff</div>
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs font-space-mono">
-              {[
-                { n: "1. Накопление", c: "text-blue-400", d: "Smart Money накапливают позицию в боковике. Объём растёт, цена не двигается. Большинство думает «ничего не происходит»." },
-                { n: "2. Разметка (Markup)", c: "text-green-400", d: "Импульсный рост после накопления. FOMO-трейдеры входят на хаях. Smart Money продолжают добирать." },
-                { n: "3. Распределение", c: "text-yellow-400", d: "Боковик на вершине. Smart Money тихо выходят из позиций, перекладывая их на розничных покупателей." },
-                { n: "4. Уценка (Markdown)", c: "text-red-400", d: "Резкое падение. Розничные трейдеры держат убытки. Smart Money откупают внизу — цикл повторяется." },
-              ].map((s, i) => (
-                <div key={i} className="bg-zinc-950 rounded-lg p-2">
-                  <div className={`font-bold mb-1 ${s.c}`}>{s.n}</div>
-                  <p className="text-zinc-500 leading-relaxed">{s.d}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
-            <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">Из жизни профессионалов: Майкл Бьюрри и Stop Hunt перед кризисом 2008</div>
-            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
-              Майкл Бьюрри (герой «Игры на понижение») ставил против ипотечных облигаций США с 2005 года.
-              В течение двух лет его позиции показывали убыток, инвесторы требовали вернуть деньги — это был классический «Stop Hunt» на институциональном уровне.
-              Рынок продолжал расти, будто нарочно выбивая его из позиции. Бьюрри устоял.
-              В 2007–2008 году рынок рухнул, и его фонд Scion Capital заработал 489%.
-              Урок: даже правильная позиция может сначала идти против тебя — именно это и используют Smart Money.
-            </p>
-          </div>
-          <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
-            <div className="text-purple-400 font-orbitron text-xs font-bold mb-2">Из жизни профессионалов: Билл Вильямс и «умная» структура рынка</div>
-            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
-              Билл Вильямс — психолог и трейдер, автор книги «Торговый хаос» — разработал собственную версию анализа структуры рынка через фракталы и «зоны» (аналог Order Block).
-              Он утверждал: рынок движется не случайно, а по повторяющимся фрактальным паттернам, созданным действиями крупных игроков.
-              «Рынок — это живой организм. Он создан людьми и отражает коллективную психологию».
-              Его индикаторы (Alligator, Fractals, Awesome Oscillator) до сих пор встроены в MetaTrader 4 и 5.
-            </p>
-          </div>
-        </div>
-      )
+      content: <SectionSmartMoney />,
     },
-  ]
+  ],
 }
 
 export const articleOrders: Article = {
@@ -218,204 +37,21 @@ export const articleOrders: Article = {
   sections: [
     {
       title: "Полная таблица типов ордеров",
-      content: (
-        <div className="space-y-3">
-          <p className="text-gray-300 leading-relaxed">Каждый тип ордера решает конкретную задачу. Ошибка в выборе типа ордера может стоить процентов прибыли или части капитала.</p>
-          <OrderTypesTable />
-          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
-            <div className="text-red-400 font-orbitron text-xs font-bold mb-2">История из жизни: «я думал, это стоп-лосс»</div>
-            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Михаил купил ETH по $1,850 и поставил «стоп» на $1,700. Но выставил обычный Limit Sell, а не Stop-Loss. Когда ETH упал до $1,680 — ордер просто не сработал (лимитка ждала цену $1,700, а не $1,680). ETH продолжил падение до $1,520. Разница: <span className="text-white">Stop-Loss срабатывает при достижении цены и хуже</span>, Limit — только точно по вашей цене.</p>
-          </div>
-          <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
-            <div className="text-purple-400 font-orbitron text-xs font-bold mb-2">Из жизни профессионалов: Ларри Вильямс и точность исполнения</div>
-            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
-              Ларри Вильямс — трейдер, превративший $10,000 в $1,147,000 за один год в реальном чемпионате по торговле (1987) —
-              утверждал, что понимание типов ордеров дало ему несправедливое преимущество над конкурентами.
-              Он активно использовал стоп-ордера не только как защиту, но и как инструмент входа:
-              покупал стоп-бай выше ключевого уровня, чтобы войти только при подтверждении пробоя — не гадая заранее.
-            </p>
-          </div>
-        </div>
-      )
+      content: <SectionOrderTypes />,
     },
     {
       title: "Рыночный vs Лимитный: что выбрать",
-      content: (
-        <div className="space-y-3">
-          <p className="text-gray-300 leading-relaxed">Главный выбор каждого трейдера при входе в сделку — скорость или точность цены.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-zinc-900 border border-red-500/30 rounded-xl p-4">
-              <div className="text-red-400 font-orbitron font-bold mb-2">Market Order</div>
-              <div className="space-y-1 text-xs text-zinc-400 font-space-mono">
-                <div>✓ Мгновенное исполнение</div>
-                <div>✓ 100% вероятность сделки</div>
-                <div>✗ Проскальзывание в неликвиде</div>
-                <div>✗ Нет контроля цены</div>
-              </div>
-              <div className="mt-3 bg-zinc-950 rounded p-2 text-xs text-zinc-500">
-                <span className="text-white">Используйте:</span> При срочном закрытии позиции, торговле топ-ликвидными активами (BTC, SBER, AAPL)
-              </div>
-            </div>
-            <div className="bg-zinc-900 border border-green-500/30 rounded-xl p-4">
-              <div className="text-green-400 font-orbitron font-bold mb-2">Limit Order</div>
-              <div className="space-y-1 text-xs text-zinc-400 font-space-mono">
-                <div>✓ Точная цена входа</div>
-                <div>✓ Нет проскальзывания</div>
-                <div>✓ Maker-скидка на комиссию</div>
-                <div>✗ Может не исполниться</div>
-              </div>
-              <div className="mt-3 bg-zinc-950 rounded p-2 text-xs text-zinc-500">
-                <span className="text-white">Используйте:</span> Вход на откате, выход на TP, любая работа «по уровням»
-              </div>
-            </div>
-          </div>
-          <div className="bg-zinc-900 border border-yellow-500/20 rounded-xl p-4 mt-2">
-            <div className="text-yellow-400 font-orbitron text-xs font-bold mb-2">Пример расчёта проскальзывания</div>
-            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">
-              Хотите купить 1 BTC по цене $42,850 рыночным ордером. Стакан: лучший аск $42,900 (0.3 BTC) + $42,950 (0.7 BTC). Итог: покупаете по средней ~$42,930. Проскальзывание = $80 (0.19%). На маленьких объёмах незначительно, на крупных — существенно.
-            </p>
-          </div>
-          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mt-2">
-            <div className="text-blue-400 font-orbitron text-xs font-bold mb-2">Реальный кейс: скальпер и проскальзывание</div>
-            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Дмитрий торговал SOL рыночными ордерами в скальпинге, целясь на +0.3% с каждой сделки. После 30 сделок оказалось, что комиссия (0.1%) + проскальзывание (0.08–0.15%) съедала половину прибыли. Перешёл на лимитные ордера — стал маркет-мейкером, получил скидку на комиссии и улучшил результат на 40%.</p>
-          </div>
-          <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mt-2">
-            <div className="text-green-400 font-orbitron text-xs font-bold mb-2">Из жизни профессионалов: Сим Уи Ли и лимитные ордера</div>
-            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
-              Профессиональные маркет-мейкеры (такие как команды Jump Trading или Optiver) строят весь бизнес на лимитных ордерах:
-              они постоянно стоят и на покупке, и на продаже, зарабатывая спред. По данным Virtu Financial (публичная компания),
-              использование исключительно лимитных ордеров позволяет им быть прибыльными в 99%+ торговых дней.
-              Для розничного трейдера урок один: лимитный ордер — это терпение, которое буквально конвертируется в деньги.
-            </p>
-          </div>
-        </div>
-      )
+      content: <SectionMarketVsLimit />,
     },
     {
       title: "Стоп-ордера: защита капитала",
-      content: (
-        <div className="space-y-3">
-          <p className="text-gray-300 leading-relaxed">Стоп-ордера — это ваша страховка. Профессионалы всегда ставят стопы до входа в сделку, а не после.</p>
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-            <svg viewBox="0 0 360 120" className="w-full h-28">
-              <polyline points="20,80 80,75 120,60 160,55 200,65 240,50 270,40 290,30" fill="none" stroke="#e5e7eb" strokeWidth="2" />
-              <circle cx="120" cy="60" r="4" fill="#60a5fa" />
-              <text x="125" y="55" fontSize="8" fill="#60a5fa" fontFamily="monospace">ВХОД $100</text>
-              <line x1="20" y1="90" x2="340" y2="90" stroke="#ef4444" strokeWidth="1" strokeDasharray="5,3" />
-              <text x="250" y="87" fontSize="8" fill="#ef4444" fontFamily="monospace">STOP-LOSS $93 (-7%)</text>
-              <line x1="20" y1="20" x2="340" y2="20" stroke="#22c55e" strokeWidth="1" strokeDasharray="5,3" />
-              <text x="245" y="17" fontSize="8" fill="#22c55e" fontFamily="monospace">TAKE-PROFIT $121 (+21%)</text>
-              <line x1="350" y1="20" x2="350" y2="90" stroke="#a78bfa" strokeWidth="1" />
-              <text x="310" y="58" fontSize="8" fill="#a78bfa" fontFamily="monospace">R:R = 1:3</text>
-            </svg>
-          </div>
-          <div className="space-y-2 text-sm">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-              <div className="text-red-400 font-orbitron text-xs font-bold mb-1">Где ставить Stop-Loss?</div>
-              <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">За последний значимый уровень поддержки/сопротивления, за тень последней свечи, или фиксированный % от входа. Не ставьте стоп «на круглых числах» — там его часто выбивают намеренно.</p>
-            </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-              <div className="text-yellow-400 font-orbitron text-xs font-bold mb-1">Трейлинг-стоп: автоматическое сохранение прибыли</div>
-              <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Трейлинг-стоп следует за ценой на фиксированном расстоянии. Если BTC вырос с $42к до $48к, а трейлинг-стоп стоит на 5% ниже — он передвинется до $45,600. При откате закроет позицию, зафиксировав прибыль.</p>
-            </div>
-          </div>
-          <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4">
-            <div className="text-orange-400 font-orbitron text-xs font-bold mb-2">Реальный пример: трейлинг-стоп спас 60% прибыли</div>
-            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Олег купил BTC по $38,000, цена выросла до $52,000 (+37%). Он выставил трейлинг-стоп 8%. Цена откатила до $47,840 — стоп сработал. Олег зафиксировал +25.9% вместо того, чтобы ждать роста и потенциально «отдать» всё обратно. Без трейлинга — BTC упал до $41,000 и он продал «руками» на эмоциях, зафиксировав лишь +7.9%.</p>
-          </div>
-          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
-            <div className="text-yellow-400 font-orbitron text-xs font-bold mb-2">Из жизни профессионалов: Николас Дарвас и метод «стоп всегда»</div>
-            <p className="text-zinc-300 text-xs font-space-mono leading-relaxed">
-              Николас Дарвас — танцор по профессии, заработавший $2 млн на фондовом рынке в 1950-х —
-              стал легендой именно благодаря системной расстановке стопов. Он торговал из разных стран мира, получая только телеграммы с котировками.
-              Без возможности следить за рынком постоянно, он разработал «коробочный метод»: покупал при пробое, всегда ставил трейлинг-стоп.
-              Его книга «Как я заработал $2,000,000 на фондовом рынке» показывает: стоп-приказы — не трусость, а система.
-            </p>
-          </div>
-        </div>
-      )
+      content: <SectionStopOrders />,
     },
     {
       title: "▲ Продвинутый уровень: OCO, фьючерсы и продвинутые типы ордеров",
-      content: (
-        <div className="space-y-4">
-          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex gap-2 items-center">
-            <span className="text-red-400 text-lg">⚠</span>
-            <p className="text-red-300 text-xs font-space-mono">Продвинутый раздел. Требует понимания базовых типов ордеров и принципов маржинальной торговли.</p>
-          </div>
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-            <div className="text-white font-orbitron text-xs font-bold mb-3">OCO (One Cancels the Other)</div>
-            <p className="text-gray-300 text-sm leading-relaxed mb-3">Пара ордеров: при исполнении одного второй автоматически отменяется. Позволяет одновременно зафиксировать прибыль или ограничить убыток без ручного контроля.</p>
-            <div className="bg-zinc-900 rounded-xl p-3">
-              <svg viewBox="0 0 360 100" className="w-full h-24">
-                <line x1="30" y1="50" x2="330" y2="50" stroke="#e5e7eb" strokeWidth="1.5" />
-                <circle cx="180" cy="50" r="5" fill="#60a5fa" />
-                <text x="180" y="42" fontSize="8" fill="#60a5fa" textAnchor="middle" fontFamily="monospace">ПОЗИЦИЯ $100</text>
-                <line x1="30" y1="25" x2="330" y2="25" stroke="#22c55e" strokeWidth="1" strokeDasharray="5,3" />
-                <text x="60" y="20" fontSize="8" fill="#22c55e" fontFamily="monospace">TP: $115 (+15%)</text>
-                <line x1="30" y1="78" x2="330" y2="78" stroke="#ef4444" strokeWidth="1" strokeDasharray="5,3" />
-                <text x="60" y="92" fontSize="8" fill="#ef4444" fontFamily="monospace">SL: $93 (-7%)</text>
-                <text x="280" y="52" fontSize="8" fill="#a78bfa" fontFamily="monospace">OCO</text>
-                <line x1="320" y1="25" x2="320" y2="78" stroke="#a78bfa" strokeWidth="1" />
-                <text x="270" y="90" fontSize="7" fill="#52525b" fontFamily="monospace">Сработает одно — другое отменится</text>
-              </svg>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-              <div className="bg-zinc-900 rounded-lg p-3">
-                <div className="text-green-400 font-orbitron text-xs font-bold mb-1">Применение</div>
-                <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Входите в сделку и сразу выставляете OCO: если цена достигает TP — позиция закрывается с прибылью, SL-ордер отменяется. Если цена падает до SL — убыток зафиксирован, TP отменён.</p>
-              </div>
-              <div className="bg-zinc-900 rounded-lg p-3">
-                <div className="text-blue-400 font-orbitron text-xs font-bold mb-1">Где доступно</div>
-                <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">Bybit, Binance Futures, OKX — все крупные биржи поддерживают OCO. На споте — иногда ограничено. Всегда проверяйте исполнение в тестовой сети перед реальными деньгами.</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-            <div className="text-white font-orbitron text-xs font-bold mb-3">Фьючерсы: лонг, шорт и ликвидация</div>
-            <p className="text-gray-300 text-sm leading-relaxed mb-3">Фьючерсные контракты позволяют торговать с кредитным плечом и открывать позиции на падение (шорт) без владения активом. Высокий потенциал прибыли = высокий риск ликвидации.</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {[
-                { title: "Плечо (Leverage)", color: "text-yellow-400", bc: "border-yellow-500/30 bg-yellow-500/5", desc: "10x плечо: 1000$ управляет позицией 10 000$. Прибыль и убыток умножаются на 10. Движение против вас на 10% = потеря всего депозита (ликвидация)." },
-                { title: "Шорт (Short)", color: "text-red-400", bc: "border-red-500/30 bg-red-500/5", desc: "Продаёте актив, которого у вас нет (берёте в долг у биржи). Зарабатываете на падении цены. При росте — убыток. Риск шорта теоретически неограничен." },
-                { title: "Ликвидация", color: "text-orange-400", bc: "border-orange-500/30 bg-orange-500/5", desc: "Биржа принудительно закрывает позицию при достижении уровня ликвидации. Вы теряете весь маржинальный залог. Никогда не торгуйте без стопа на фьючерсах." },
-              ].map((item, i) => (
-                <div key={i} className={`border rounded-xl p-3 ${item.bc}`}>
-                  <div className={`font-orbitron text-xs font-bold mb-1 ${item.color}`}>{item.title}</div>
-                  <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">{item.desc}</p>
-                </div>
-              ))}
-            </div>
-            <div className="bg-zinc-900 border border-red-500/20 rounded-xl p-3 mt-3">
-              <div className="text-red-400 font-orbitron text-xs font-bold mb-1">Формула цены ликвидации (лонг):</div>
-              <code className="text-green-400 font-space-mono text-xs block bg-zinc-950 rounded p-2 mt-1">
-                Цена ликвидации = Цена входа × (1 - 1/Плечо + Ставка обслуживания)
-              </code>
-              <p className="text-zinc-500 text-xs font-space-mono mt-2">Пример: Лонг BTC по $50,000 с плечом 10x → ликвидация ≈ $45,500 (падение ~9%)</p>
-            </div>
-          </div>
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-            <div className="text-white font-orbitron text-xs font-bold mb-3">Алгоритм выставления ордеров: профессиональный чеклист</div>
-            <div className="space-y-2">
-              {[
-                { n: "1", text: "Определяю направление на D1/H4 (только по тренду или чёткая зона разворота)", color: "text-blue-400" },
-                { n: "2", text: "Нахожу точку входа на H1/M15 — ближе к уровню или OB, не в середине движения", color: "text-blue-400" },
-                { n: "3", text: "Ставлю лимитный ордер на уровень, а не рыночный — экономлю на комиссии и цене", color: "text-green-400" },
-                { n: "4", text: "Сразу выставляю SL за ближайшую структуру (не в процентах вслепую)", color: "text-red-400" },
-                { n: "5", text: "Рассчитываю размер позиции: риск 1% депо / размер стопа в $ = количество единиц", color: "text-yellow-400" },
-                { n: "6", text: "Выставляю TP или переношу в OCO. Ухожу от экрана. Не слежу каждую минуту.", color: "text-purple-400" },
-              ].map((step, i) => (
-                <div key={i} className="flex items-start gap-3 bg-zinc-900 rounded-lg px-3 py-2">
-                  <span className={`font-orbitron font-bold text-sm shrink-0 ${step.color}`}>{step.n}</span>
-                  <span className="text-zinc-300 text-xs font-space-mono leading-relaxed">{step.text}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )
+      content: <SectionAdvancedOrders />,
     },
-  ]
+  ],
 }
 
 export const articlesMarketsOrders: Article[] = [articleMarkets, articleOrders]

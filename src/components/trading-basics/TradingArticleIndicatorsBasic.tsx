@@ -250,10 +250,18 @@ export const sectionRSI: Section = {
             </div>
           </div>
         </div>
-      </div>
-      <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
-        <div className="text-green-400 font-orbitron text-xs font-bold mb-2">Реальный пример: бычья дивергенция ETH, ноябрь 2022</div>
-        <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">ETH достиг дна $1,080 (минимум 1), затем $1,070 (минимум 2 — ниже). Цена сделала новый лоу. RSI в первом дне был 22, во втором — 29. RSI не подтвердил новый минимум = бычья дивергенция. Трейдеры, заметившие это на D1, купили с целью $1,350. Через 6 недель ETH торговался по $1,580. Это классический пример того, как RSI предупреждает об истощении продавцов.</p>
+
+        {/* Реальные примеры */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3">
+            <div className="text-green-400 font-orbitron text-xs font-bold mb-2">Реальный пример: бычья дивергенция ETH, ноябрь 2022</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">ETH достиг дна $1,080 (минимум 1), затем $1,070 (минимум 2 — ниже). Цена сделала новый лоу. RSI в первом дне был 22, во втором — 29. RSI не подтвердил новый минимум = бычья дивергенция. Трейдеры, заметившие это на D1, купили с целью $1,350. Через 6 недель ETH торговался по $1,580.</p>
+          </div>
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3">
+            <div className="text-red-400 font-orbitron text-xs font-bold mb-2">Реальный пример: медвежья дивергенция BTC, ноябрь 2021</div>
+            <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">BTC достиг пика $61,800 (максимум 1), затем $69,000 (максимум 2 — выше). Цена сделала новый хай. RSI на первом пике был 78, на втором — 68. RSI не подтвердил новый максимум = медвежья дивергенция. Трейдеры, заметившие это на W1, закрыли лонги. Через 2 месяца BTC торговался по $33,000 — падение на 52%.</p>
+          </div>
+        </div>
       </div>
       <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
         <div className="text-red-400 font-orbitron text-xs font-bold mb-2">Из жизни профессионалов: Эндрю Кардвелл и «позитивный» RSI</div>

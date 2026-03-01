@@ -4,6 +4,7 @@ import { SectionFearGreed } from "./TradingArticlesPsychology/SectionFearGreed"
 import { SectionFOMO } from "./TradingArticlesPsychology/SectionFOMO"
 import { SectionTradingPlan } from "./TradingArticlesPsychology/SectionTradingPlan"
 import { SectionNeuroscience } from "./TradingArticlesPsychology/SectionNeuroscience"
+import { SectionAdaptiveMAMind } from "./TradingArticlesPsychology/SectionAdaptiveMAMind"
 import { LegendQuote } from "@/components/LegendQuote"
 
 export const articlePsychology: Article = {
@@ -66,6 +67,10 @@ export const articlePsychology: Article = {
     {
       title: "Торговый план: как создать и почему он работает",
       content: <SectionTradingPlan />,
+    },
+    {
+      title: "▲ Адаптивные MA как психологический инструмент",
+      content: <SectionAdaptiveMAMind />,
     },
     {
       title: "▲ Продвинутый уровень: нейронаука трейдинга и состояние потока",

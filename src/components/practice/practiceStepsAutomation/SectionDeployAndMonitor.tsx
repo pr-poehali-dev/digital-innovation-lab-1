@@ -37,13 +37,14 @@ losses = (df["result"] == "LOSS").sum()
 pnl    = df["pnl"].sum()
 wr     = wins / total * 100 if total > 0 else 0
 
-print(f"{'─'*40}")
-print(f"  Всего сделок : {total}")
-print(f"  Победы       : {wins}")
-print(f"  Поражения    : {losses}")
-print(f"  Win Rate     : {wr:.1f}%")
-print(f"  Итого P&L    : {pnl:+.2f}$")
-print(f"{'─'*40}")
+print("─"*40)
+print("  Всего сделок : " + str(total))
+print("  Победы       : " + str(wins))
+print("  Поражения    : " + str(losses))
+print("  Win Rate     : " + str(round(wr, 1)) + "%")
+sign = "+" if pnl >= 0 else ""
+print("  Итого P&L    : " + sign + str(round(pnl, 2)) + "$")
+print("─"*40)
 
 # Последние 5 сделок
 print("\\nПоследние 5 сделок:")

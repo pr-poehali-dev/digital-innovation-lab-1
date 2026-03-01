@@ -18,11 +18,11 @@ class RiskManager:
         # 1. Дневной стоп-лосс
         daily_loss = self.daily_pnl / self.deposit
         if daily_loss <= -self.daily_loss_pct:
-            return False, f"Дневной стоп: {daily_loss*100:.1f}%"
+            return False, "Дневной стоп: " + str(round(daily_loss*100, 1)) + "%"
 
         # 2. Дневной тейк-профит
         if daily_loss >= 0.10:
-            return False, f"Дневной тейк: +{daily_loss*100:.1f}%"
+            return False, "Дневной тейк: +" + str(round(daily_loss*100, 1)) + "%"
 
         # 3. Запрещённые часы (высокая волатильность)
         now = datetime.utcnow().time()
@@ -43,7 +43,8 @@ class RiskManager:
         else:
             self.daily_pnl -= stake
         self.trades_today += 1
-        print(f"PnL за день: {self.daily_pnl:+.2f} | Сделок: {self.trades_today}")`
+        sign = "+" if self.daily_pnl >= 0 else ""
+        print("PnL за день: " + sign + str(round(self.daily_pnl, 2)) + " | Сделок: " + str(self.trades_today))`
 
 const riskChecks = [
   { check: "Сигнал валиден?", condition: "confluence == 3", pass: "CALL или PUT", fail: "WAIT — ждём", color: "text-blue-400" },
@@ -83,7 +84,7 @@ class PocketOptionClient:
     async def connect(self):
         """Устанавливает WebSocket-соединение с Pocket Option."""
         headers = {
-            "Cookie": f"session={self.token}",
+            "Cookie": "session=" + self.token,
             "Origin": "https://pocketoption.com",
             "User-Agent": "Mozilla/5.0 (compatible; TradingBot/1.0)",
         }
@@ -99,7 +100,7 @@ class PocketOptionClient:
         await self.ws.recv()       # "0{...}" — приветствие сервера
         await self.ws.send("40")   # "40" — подтверждение подключения
         response = await self.ws.recv()
-        print(f"[PO] Handshake: {response[:80]}")
+        print("[PO] Handshake: " + str(response[:80]))
 
         # Шаг 2: авторизация с токеном
         auth_payload = json.dumps({
@@ -107,9 +108,9 @@ class PocketOptionClient:
             "isDemo": 1 if self.demo else 0,
             "uid": 0,
         })
-        await self.ws.send(f'42["auth",{auth_payload}]')
+        await self.ws.send('42["auth",' + auth_payload + ']')
         auth_response = await self.ws.recv()
-        print(f"[PO] Auth ответ: {auth_response[:120]}")
+        print("[PO] Auth ответ: " + str(auth_response[:120]))
 
     async def open_order(
         self,
@@ -138,8 +139,8 @@ class PocketOptionClient:
             "isDemo": 1 if self.demo else 0,
         })
         
-        await self.ws.send(f'42["openOrder",{order_payload}]')
-        print(f"[PO] Ордер отправлен: {direction.upper()} {asset} $" + str(amount))
+        await self.ws.send('42["openOrder",' + order_payload + ']')
+        print("[PO] Ордер отправлен: " + direction.upper() + " " + asset + " $" + str(amount))
         
         # Ждём подтверждение
         response = await asyncio.wait_for(self.ws.recv(), timeout=10)
@@ -187,7 +188,7 @@ async def run_bot():
 
     await client.connect()
     balance = await client.get_balance()
-    print(f"[BOT] Баланс: $" + f"{balance:.2f}" + " (Демо)")
+    print("[BOT] Баланс: $" + str(round(balance, 2)) + " (Демо)")
 
     close_prices = []
 
@@ -199,7 +200,7 @@ async def run_bot():
         # 1. Получаем сигнал
         result = signal_engine.get_signal(close_prices)
         signal = result["signal"]
-        print(f"[SIGNAL] {signal} | RSI={result['rsi']} | Conf={result['confluence']}/3")
+        print("[SIGNAL] " + signal + " | RSI=" + str(result['rsi']) + " | Conf=" + str(result['confluence']) + "/3")
 
         if signal == "WAIT":
             return
@@ -207,7 +208,7 @@ async def run_bot():
         # 2. Проверяем риск-менеджмент
         allowed, reason = risk.is_trading_allowed()
         if not allowed:
-            print(f"[RISK] Торговля запрещена: {reason}")
+            print("[RISK] Торговля запрещена: " + reason)
             return
 
         # 3. Определяем ставку
@@ -221,7 +222,7 @@ async def run_bot():
             amount=stake,
             expiration=EXPIRY,
         )
-        print(f"[ORDER] ID={order['order_id']} Status={order['status']}")
+        print("[ORDER] ID=" + str(order['order_id']) + " Status=" + str(order['status']))
 
     # Запускаем поток данных с Binance
     await feed.start(callback=on_candle_close)

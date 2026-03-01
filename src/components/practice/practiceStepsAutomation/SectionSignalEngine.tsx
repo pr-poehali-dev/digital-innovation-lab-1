@@ -92,8 +92,8 @@ class DataFeed:
         self.close_prices = deque(maxlen=max_candles)
         self.engine = SignalEngine()
         self.url = (
-            f"wss://stream.binance.com:9443/ws/"
-            f"{symbol}@kline_{interval}"
+            "wss://stream.binance.com:9443/ws/"
+            + symbol + "@kline_" + interval
         )
 
     async def on_message(self, data: dict):
@@ -104,7 +104,7 @@ class DataFeed:
 
         if is_closed:
             self.close_prices.append(close_price)
-            print(f"Новая свеча M5: {close_price}")
+            print("Новая свеча M5: " + str(close_price))
 
             # Генерируем сигнал на закрытой свече
             if len(self.close_prices) >= 60:
@@ -112,8 +112,8 @@ class DataFeed:
                 signal = result["signal"]
 
                 if signal != "WAIT":
-                    print(f"СИГНАЛ: {signal} | RSI: {result['rsi']}"
-                          f" | Конфлюэнс: {result['confluence']}/3")
+                    print("СИГНАЛ: " + signal + " | RSI: " + str(result['rsi'])
+                          + " | Конфлюэнс: " + str(result['confluence']) + "/3")
                     # Здесь вызываем Risk Manager → Executor
                     await self.on_signal(result)
 
@@ -123,7 +123,7 @@ class DataFeed:
 
     async def run(self):
         """Запускает поток данных."""
-        print(f"Подключение к Binance WS: {self.symbol} {self.interval}")
+        print("Подключение к Binance WS: " + self.symbol + " " + self.interval)
         async with websockets.connect(self.url) as ws:
             async for raw in ws:
                 data = json.loads(raw)

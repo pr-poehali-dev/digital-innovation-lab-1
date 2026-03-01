@@ -53,9 +53,9 @@ def run_backtest(closes: list, deposit=1000, payout=0.82):
 
     total = wins + losses
     win_rate = wins / total * 100 if total > 0 else 0
-    print(f"Сделок: {total} | Win Rate: {win_rate:.1f}%")
-    print(f"Начальный депозит: $" + str(deposit) + " -> Итог: $" + f"{balance:.2f}")
-    print(f"Прибыль: " + f"{(balance - deposit) / deposit * 100:.1f}" + "%")
+    print("Сделок: " + str(total) + " | Win Rate: " + str(round(win_rate, 1)) + "%")
+    print("Начальный депозит: $" + str(deposit) + " -> Итог: $" + str(round(balance, 2)))
+    print("Прибыль: " + str(round((balance - deposit) / deposit * 100, 1)) + "%")
     return pd.DataFrame(trades)
 
 # Запуск

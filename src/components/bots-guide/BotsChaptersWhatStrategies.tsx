@@ -233,7 +233,7 @@ def dca_buy():
     ticker = exchange.fetch_ticker('BTC/USDT')
     btc_amount = 100 / ticker['last']  # сколько BTC за 100 USDT
     order = exchange.create_market_buy_order('BTC/USDT', round(btc_amount, 6))
-    print(f"DCA покупка: {btc_amount:.6f} BTC по ${ticker['last']}")
+    print(f"DCA покупка: {btc_amount:.6f} BTC по $" + str(ticker['last']))
 
 # Запускаем каждую пятницу в 12:00
 schedule.every().friday.at("12:00").do(dca_buy)

@@ -4,6 +4,7 @@ export { colorMap, borderMap } from "./practiceStepTypes"
 import { stepMarketAnalysis, stepSignalFormation } from "./practiceStepsMarketSignal"
 import { stepRiskManagement, stepBotAutomation } from "./practiceStepsRiskBot"
 import { stepAutomation } from "./practiceStepsAutomation"
+import { stepMistakes } from "./practiceStepsMistakes"
 import { stepFullChecklist } from "./practiceStepsChecklist"
 import type { PracticeStep } from "./practiceStepTypes"
 
@@ -13,5 +14,6 @@ export const steps: PracticeStep[] = [
   stepRiskManagement,
   stepBotAutomation,
   stepAutomation,
+  stepMistakes,
   stepFullChecklist,
 ]

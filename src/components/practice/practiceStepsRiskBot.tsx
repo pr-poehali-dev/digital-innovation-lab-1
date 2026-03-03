@@ -8,7 +8,7 @@ import { SectionPlatformsComparison } from "./practiceStepsRiskBot/SectionPlatfo
 
 export const stepRiskManagement: PracticeStep = {
   id: "risk-management",
-  badge: "Шаг 3",
+  badge: "Шаг 4",
   color: "red",
   icon: "Shield",
   title: "Риск-менеджмент: сколько ставить на сделку",
@@ -80,7 +80,7 @@ export const stepRiskManagement: PracticeStep = {
 
 export const stepBotAutomation: PracticeStep = {
   id: "bot-automation",
-  badge: "Шаг 4",
+  badge: "Шаг 5",
   color: "purple",
   icon: "Bot",
   title: "Автоматизация: когда нужен торговый бот",

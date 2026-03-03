@@ -8,7 +8,7 @@ import { SectionDeployAndMonitor } from "./practiceStepsAutomation/SectionDeploy
 
 export const stepAutomation: PracticeStep = {
   id: "automation",
-  badge: "Шаг 5",
+  badge: "Шаг 6",
   color: "purple",
   icon: "Code2",
   title: "Автоматизация: торговый бот для BTC/USDT на Pocket Option",

@@ -202,7 +202,7 @@ print("BTC/USDT тренд: " + trend)`,
 
 export const stepSignalFormation: PracticeStep = {
   id: "signal-formation",
-  badge: "Шаг 2",
+  badge: "Шаг 3",
   color: "yellow",
   icon: "Zap",
   title: "Формирование сигнала: конфлюэнс трёх факторов",

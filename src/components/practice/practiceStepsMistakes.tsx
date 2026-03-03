@@ -432,7 +432,7 @@ const SectionSelfDiagnosis = () => (
 // ─── Экспорт шага ─────────────────────────────────────────────────────────────
 export const stepMistakes: PracticeStep = {
   id: "mistakes",
-  badge: "Шаг 6",
+  badge: "Шаг 7",
   color: "red",
   icon: "AlertTriangle",
   title: "Типичные ошибки: почему 80% трейдеров сливают депозит",

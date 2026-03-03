@@ -68,9 +68,9 @@ export const stepRiskManagement: PracticeStep = {
     },
   },
   sections: [
-    { title: "Правило 2% на Pocket Option", content: SectionRiskRule2 },
-    { title: "Дневной лимит: когда останавливаться", content: SectionDailyLimit },
-    { title: "Журнал трейдера: как его вести", content: SectionTraderJournal },
-    { title: "Шпаргалка: риск-менеджмент — всё в одном", content: SectionRiskCheatsheet },
+    { title: "Правило 2% на Pocket Option", content: <SectionRiskRule2 /> },
+    { title: "Дневной лимит: когда останавливаться", content: <SectionDailyLimit /> },
+    { title: "Журнал трейдера: как его вести", content: <SectionTraderJournal /> },
+    { title: "Шпаргалка: риск-менеджмент — всё в одном", content: <SectionRiskCheatsheet /> },
   ],
 }

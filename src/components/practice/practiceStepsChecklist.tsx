@@ -48,10 +48,10 @@ export const stepFullChecklist: PracticeStep = {
     },
   },
   sections: [
-    { title: "Сводка курса: 6 шагов к системной торговле", content: SectionCourseSummary },
-    { title: "Алгоритм принятия решения за 5 минут", content: SectionDecisionAlgorithm },
-    { title: "Главная ошибка новичков: торговля без системы", content: SectionNoSystemMistake },
-    { title: "Связь разделов сайта: как всё работает вместе", content: SectionSiteMap },
-    { title: "Ваш следующий шаг: карта роста трейдера", content: SectionGrowthMap },
+    { title: "Сводка курса: 6 шагов к системной торговле", content: <SectionCourseSummary /> },
+    { title: "Алгоритм принятия решения за 5 минут", content: <SectionDecisionAlgorithm /> },
+    { title: "Главная ошибка новичков: торговля без системы", content: <SectionNoSystemMistake /> },
+    { title: "Связь разделов сайта: как всё работает вместе", content: <SectionSiteMap /> },
+    { title: "Ваш следующий шаг: карта роста трейдера", content: <SectionGrowthMap /> },
   ],
 }

@@ -71,8 +71,8 @@ print(f"Режим BTC: {regime}")`,
     },
   },
   sections: [
-    { title: "4 режима рынка: как называть и как узнать", content: SectionMarketRegimes4 },
-    { title: "Как определить режим за 30 секунд", content: SectionRegimeDetection },
-    { title: "Какую стратегию выбрать в каждом режиме", content: SectionRegimeStrategies },
+    { title: "4 режима рынка: как называть и как узнать", content: <SectionMarketRegimes4 /> },
+    { title: "Как определить режим за 30 секунд", content: <SectionRegimeDetection /> },
+    { title: "Какую стратегию выбрать в каждом режиме", content: <SectionRegimeStrategies /> },
   ],
 }

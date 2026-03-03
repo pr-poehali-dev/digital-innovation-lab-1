@@ -51,9 +51,9 @@ export const stepMistakes: PracticeStep = {
     },
   },
   sections: [
-    { title: "10 типичных ошибок трейдера: причины и решения", content: SectionTopMistakes },
-    { title: "Психология: FOMO, избегание потерь и самоуверенность", content: SectionPsychology },
-    { title: "Ошибки в автоматизации: типичные баги торговых ботов", content: SectionBotMistakes },
-    { title: "Самодиагностика: еженедельный аудит трейдера", content: SectionSelfDiagnosis },
+    { title: "10 типичных ошибок трейдера: причины и решения", content: <SectionTopMistakes /> },
+    { title: "Психология: FOMO, избегание потерь и самоуверенность", content: <SectionPsychology /> },
+    { title: "Ошибки в автоматизации: типичные баги торговых ботов", content: <SectionBotMistakes /> },
+    { title: "Самодиагностика: еженедельный аудит трейдера", content: <SectionSelfDiagnosis /> },
   ],
 }

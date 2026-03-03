@@ -90,6 +90,6 @@ export const stepAutomation: PracticeStep = {
       title: "Деплой на VPS и мониторинг: бот работает 24/7",
       content: <SectionDeployAndMonitor />,
     },
-    { title: "Шпаргалка: архитектура бота — всё в одном", content: SectionBotCheatsheet },
+    { title: "Шпаргалка: архитектура бота — всё в одном", content: <SectionBotCheatsheet /> },
   ],
 }

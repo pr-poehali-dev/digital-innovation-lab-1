@@ -121,7 +121,6 @@ export const SectionSetupBreakdown = (
           factor: "Тренд",
           status: "Подтверждает PUT",
           detail: "EMA 20 ($96,420) ниже EMA 50 ($96,580) — нисходящий тренд на M5",
-          ok: false,
           color: "text-red-400",
         },
         {
@@ -129,7 +128,6 @@ export const SectionSetupBreakdown = (
           factor: "Уровень",
           status: "Цена у сопротивления",
           detail: "BTC на $96,580 — это зона, где цена разворачивалась дважды за последние 2 часа",
-          ok: false,
           color: "text-red-400",
         },
         {
@@ -137,7 +135,6 @@ export const SectionSetupBreakdown = (
           factor: "RSI",
           status: "RSI = 68 → Перекупленность",
           detail: "RSI выше 65, подтверждает разворот вниз",
-          ok: false,
           color: "text-red-400",
         },
       ].map((item, i) => (
@@ -177,41 +174,17 @@ export const SectionSetupBreakdown = (
           <thead>
             <tr className="border-b border-zinc-800">
               <th className="text-left px-3 py-2 text-zinc-500 font-normal">Инструмент</th>
-              <th className="text-left px-3 py-2 text-zinc-500 font-normal">Что смотрим</th>
-              <th className="text-left px-3 py-2 text-zinc-500 font-normal">CALL</th>
-              <th className="text-left px-3 py-2 text-zinc-500 font-normal">PUT</th>
+              <th className="text-left px-3 py-2 text-zinc-500 font-normal">Что показывает</th>
+              <th className="text-left px-3 py-2 text-zinc-500 font-normal">CALL сигнал</th>
+              <th className="text-left px-3 py-2 text-zinc-500 font-normal">PUT сигнал</th>
             </tr>
           </thead>
           <tbody>
             {[
-              {
-                tool: "EMA 20/50",
-                color: "text-blue-400",
-                what: "Направление тренда",
-                call: "EMA 20 > EMA 50",
-                put: "EMA 20 < EMA 50",
-              },
-              {
-                tool: "Уровни",
-                color: "text-purple-400",
-                what: "Поддержка / сопротивление",
-                call: "Цена у поддержки",
-                put: "Цена у сопротивления",
-              },
-              {
-                tool: "RSI (14)",
-                color: "text-yellow-400",
-                what: "Перекупленность / перепроданность",
-                call: "RSI < 35",
-                put: "RSI > 65",
-              },
-              {
-                tool: "Конфлюэнс",
-                color: "text-green-400",
-                what: "Совпадение факторов",
-                call: "3 из 3 → входим",
-                put: "2 из 3 → пропускаем",
-              },
+              { tool: "EMA 20/50", color: "text-blue-400", what: "Направление тренда", call: "EMA 20 > EMA 50", put: "EMA 20 < EMA 50" },
+              { tool: "Уровни", color: "text-purple-400", what: "Поддержка / сопротивление", call: "Цена у поддержки", put: "Цена у сопротивления" },
+              { tool: "RSI (14)", color: "text-yellow-400", what: "Перекупленность / перепроданность", call: "RSI < 35", put: "RSI > 65" },
+              { tool: "Конфлюэнс", color: "text-green-400", what: "Совпадение факторов", call: "3 из 3 → входим", put: "2 из 3 → пропускаем" },
             ].map((row, i) => (
               <tr key={i} className="border-b border-zinc-800/50 last:border-0 hover:bg-zinc-900/50 transition-colors">
                 <td className={`px-3 py-2.5 font-bold ${row.color}`}>{row.tool}</td>

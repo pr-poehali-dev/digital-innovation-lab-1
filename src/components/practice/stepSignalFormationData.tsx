@@ -3,7 +3,7 @@ import {
   SectionRsiFilter,
   SectionConfluencePrinciple,
   SectionSetupBreakdown,
-} from "./SectionRsiConfluence"
+} from "./practiceStepsMarketSignal/SectionRsiConfluence"
 
 export const stepSignalFormation: PracticeStep = {
   id: "signal-formation",

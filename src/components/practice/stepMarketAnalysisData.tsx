@@ -3,7 +3,7 @@ import {
   SectionEmaTrend,
   SectionSupportResistance,
   SectionBtcPracticalExample,
-} from "./SectionEmaSignals"
+} from "./practiceStepsMarketAnalysis/SectionEmaSignals"
 
 export const stepMarketAnalysis: PracticeStep = {
   id: "market-analysis",

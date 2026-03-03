@@ -438,6 +438,63 @@ export const stepSignalFormation: PracticeStep = {
               Именно поэтому профессионалы пропускают большинство движений рынка — они ждут только сильные сетапы.
             </p>
           </div>
+
+          <div className="bg-zinc-950 border border-zinc-700 rounded-xl overflow-hidden">
+            <div className="bg-zinc-900 px-4 py-2.5 border-b border-zinc-800">
+              <span className="font-orbitron text-xs font-bold text-white">Шпаргалка: анализ рынка — всё в одном</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs font-space-mono">
+                <thead>
+                  <tr className="border-b border-zinc-800">
+                    <th className="text-left px-3 py-2 text-zinc-500 font-normal">Инструмент</th>
+                    <th className="text-left px-3 py-2 text-zinc-500 font-normal">Что смотрим</th>
+                    <th className="text-left px-3 py-2 text-zinc-500 font-normal">CALL</th>
+                    <th className="text-left px-3 py-2 text-zinc-500 font-normal">PUT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    {
+                      tool: "EMA 20/50",
+                      color: "text-blue-400",
+                      what: "Направление тренда",
+                      call: "EMA 20 > EMA 50",
+                      put: "EMA 20 < EMA 50",
+                    },
+                    {
+                      tool: "Уровни",
+                      color: "text-purple-400",
+                      what: "Поддержка / сопротивление",
+                      call: "Цена у поддержки",
+                      put: "Цена у сопротивления",
+                    },
+                    {
+                      tool: "RSI (14)",
+                      color: "text-yellow-400",
+                      what: "Перекупленность / перепроданность",
+                      call: "RSI < 35",
+                      put: "RSI > 65",
+                    },
+                    {
+                      tool: "Конфлюэнс",
+                      color: "text-green-400",
+                      what: "Совпадение факторов",
+                      call: "3 из 3 → входим",
+                      put: "2 из 3 → пропускаем",
+                    },
+                  ].map((row, i) => (
+                    <tr key={i} className="border-b border-zinc-800/50 last:border-0 hover:bg-zinc-900/50 transition-colors">
+                      <td className={`px-3 py-2.5 font-bold ${row.color}`}>{row.tool}</td>
+                      <td className="px-3 py-2.5 text-zinc-400">{row.what}</td>
+                      <td className="px-3 py-2.5 text-green-400">{row.call}</td>
+                      <td className="px-3 py-2.5 text-red-400">{row.put}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )
     }

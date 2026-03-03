@@ -75,6 +75,67 @@ export const stepRiskManagement: PracticeStep = {
     { title: "Правило 2% на Pocket Option", content: <SectionRiskRule2 /> },
     { title: "Дневной лимит: когда останавливаться", content: <SectionDailyLimit /> },
     { title: "Журнал трейдера: как его вести", content: <SectionTraderJournal /> },
+    {
+      title: "Шпаргалка: риск-менеджмент — всё в одном",
+      content: (
+        <div className="bg-zinc-950 border border-zinc-700 rounded-xl overflow-hidden">
+          <div className="bg-zinc-900 px-4 py-2.5 border-b border-zinc-800">
+            <span className="font-orbitron text-xs font-bold text-white">Правила риск-менеджмента</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs font-space-mono">
+              <thead>
+                <tr className="border-b border-zinc-800">
+                  <th className="text-left px-3 py-2 text-zinc-500 font-normal">Правило</th>
+                  <th className="text-left px-3 py-2 text-zinc-500 font-normal">Цифра</th>
+                  <th className="text-left px-3 py-2 text-zinc-500 font-normal">Пример ($500)</th>
+                  <th className="text-left px-3 py-2 text-zinc-500 font-normal">Что будет без него</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  {
+                    rule: "Размер сделки",
+                    color: "text-red-400",
+                    value: "2% от баланса",
+                    example: "$10 на сделку",
+                    risk: "Одна потеря обнулит депозит",
+                  },
+                  {
+                    rule: "Дневной стоп",
+                    color: "text-orange-400",
+                    value: "5% потерь → стоп",
+                    example: "$25 в минус → конец дня",
+                    risk: "Эмоциональный слив после нескольких неудач",
+                  },
+                  {
+                    rule: "Серия потерь",
+                    color: "text-yellow-400",
+                    value: "3 подряд → пауза",
+                    example: "3 убытка → перерыв 2 часа",
+                    risk: "«Отыгрыш» — главная причина слива",
+                  },
+                  {
+                    rule: "Журнал",
+                    color: "text-blue-400",
+                    value: "Каждая сделка",
+                    example: "Дата, сигнал, итог, причина",
+                    risk: "Не видишь паттерны своих ошибок",
+                  },
+                ].map((row, i) => (
+                  <tr key={i} className="border-b border-zinc-800/50 last:border-0 hover:bg-zinc-900/50 transition-colors">
+                    <td className={`px-3 py-2.5 font-bold ${row.color}`}>{row.rule}</td>
+                    <td className="px-3 py-2.5 text-zinc-300">{row.value}</td>
+                    <td className="px-3 py-2.5 text-zinc-400">{row.example}</td>
+                    <td className="px-3 py-2.5 text-red-400/70">{row.risk}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ),
+    },
   ],
 }
 
@@ -127,5 +188,66 @@ export const stepBotAutomation: PracticeStep = {
     { title: "Grid-бот: заработок на волатильности", content: <SectionGridBot /> },
     { title: "Pocket Option: лучшая идея для бота «Три подтверждения»", content: <SectionPocketOption /> },
     { title: "Сравнение платформ: Pocket Option vs 3Commas vs Pionex", content: <SectionPlatformsComparison /> },
+    {
+      title: "Шпаргалка: какой бот выбрать и когда",
+      content: (
+        <div className="bg-zinc-950 border border-zinc-700 rounded-xl overflow-hidden">
+          <div className="bg-zinc-900 px-4 py-2.5 border-b border-zinc-800">
+            <span className="font-orbitron text-xs font-bold text-white">Стратегии автоматизации — всё в одном</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs font-space-mono">
+              <thead>
+                <tr className="border-b border-zinc-800">
+                  <th className="text-left px-3 py-2 text-zinc-500 font-normal">Тип бота</th>
+                  <th className="text-left px-3 py-2 text-zinc-500 font-normal">Режим рынка</th>
+                  <th className="text-left px-3 py-2 text-zinc-500 font-normal">Платформа</th>
+                  <th className="text-left px-3 py-2 text-zinc-500 font-normal">Когда НЕ использовать</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  {
+                    type: "Grid-бот",
+                    color: "text-blue-400",
+                    regime: "Боковик (флэт)",
+                    platform: "Pionex, 3Commas",
+                    avoid: "В сильном тренде — убыток",
+                  },
+                  {
+                    type: "DCA-бот",
+                    color: "text-green-400",
+                    regime: "Долгосрочный тренд",
+                    platform: "3Commas, вручную",
+                    avoid: "При высокой волатильности",
+                  },
+                  {
+                    type: "Сигнальный бот",
+                    color: "text-purple-400",
+                    regime: "Тренд",
+                    platform: "Pocket Option (Python)",
+                    avoid: "В боковике — много ложных сигналов",
+                  },
+                  {
+                    type: "Ручная торговля",
+                    color: "text-yellow-400",
+                    regime: "Любой",
+                    platform: "Pocket Option",
+                    avoid: "При эмоциональном состоянии",
+                  },
+                ].map((row, i) => (
+                  <tr key={i} className="border-b border-zinc-800/50 last:border-0 hover:bg-zinc-900/50 transition-colors">
+                    <td className={`px-3 py-2.5 font-bold ${row.color}`}>{row.type}</td>
+                    <td className="px-3 py-2.5 text-zinc-300">{row.regime}</td>
+                    <td className="px-3 py-2.5 text-zinc-400">{row.platform}</td>
+                    <td className="px-3 py-2.5 text-red-400/70">{row.avoid}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ),
+    },
   ],
 }

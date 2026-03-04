@@ -109,9 +109,7 @@ export default function BotsGuide() {
           <div className="mt-16 text-center">
             <p className="text-gray-400 mb-4 font-space-mono">Хотите создать своего бота прямо сейчас?</p>
             <a
-              href="https://minemoneymaker.ru"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/bot-builder"
               className="inline-block bg-red-500 hover:bg-red-600 text-white font-orbitron px-8 py-3 rounded-md transition-colors"
             >
               Открыть конструктор ботов →

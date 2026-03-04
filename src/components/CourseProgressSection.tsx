@@ -101,7 +101,9 @@ export function CourseProgressSection() {
             return (
               <a
                 key={step.id}
-                href="/practice"
+                href="https://minemoneymaker.ru"
+                target="_blank"
+                rel="noopener noreferrer"
                 className={`group relative flex flex-col gap-2 rounded-xl p-4 border transition-all duration-200
                   ${isDone
                     ? `${c.bg} ${c.border} hover:opacity-90`
@@ -141,7 +143,9 @@ export function CourseProgressSection() {
                 <span className="text-green-400 font-orbitron text-sm font-bold">🎯 Отличная работа! Курс завершён</span>
               </div>
               <a
-                href="/bot-builder"
+                href="https://minemoneymaker.ru"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-400 text-black font-orbitron font-bold px-6 py-3 rounded-xl transition-colors text-sm"
               >
                 Создать бота
@@ -150,7 +154,9 @@ export function CourseProgressSection() {
             </div>
           ) : done === 0 ? (
             <a
-              href="/practice"
+              href="https://minemoneymaker.ru"
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-2 bg-white hover:bg-zinc-100 text-black font-orbitron font-bold px-8 py-3 rounded-xl transition-colors"
             >
               Начать курс
@@ -158,7 +164,9 @@ export function CourseProgressSection() {
             </a>
           ) : (
             <a
-              href="/practice"
+              href="https://minemoneymaker.ru"
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white font-orbitron font-bold px-8 py-3 rounded-xl transition-colors border border-zinc-700"
             >
               Продолжить курс

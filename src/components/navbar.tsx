@@ -31,12 +31,6 @@ export function Navbar() {
               <a href="/bots-guide" className="font-geist text-white hover:text-red-500 transition-colors duration-200">
                 Боты
               </a>
-              <a href="/bot-builder" className="font-geist text-white hover:text-red-500 transition-colors duration-200">
-                Конструктор
-              </a>
-              <a href="/practice" className="font-geist text-green-400 hover:text-green-300 transition-colors duration-200 font-semibold">
-                Практика
-              </a>
               <a href="/legends" className="font-geist text-yellow-400 hover:text-yellow-300 transition-colors duration-200 font-semibold">
                 🏆 Легенды
               </a>
@@ -83,20 +77,6 @@ export function Navbar() {
                 onClick={() => setIsOpen(false)}
               >
                 Боты
-              </a>
-              <a
-                href="/bot-builder"
-                className="block px-3 py-2 font-geist text-white hover:text-red-500 transition-colors duration-200"
-                onClick={() => setIsOpen(false)}
-              >
-                Конструктор
-              </a>
-              <a
-                href="/practice"
-                className="block px-3 py-2 font-geist text-green-400 hover:text-green-300 font-semibold transition-colors duration-200"
-                onClick={() => setIsOpen(false)}
-              >
-                Практика
               </a>
               <a
                 href="/legends"

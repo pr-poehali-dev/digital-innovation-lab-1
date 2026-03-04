@@ -19,13 +19,13 @@ export function CTASection() {
                 Основы трейдинга
               </Button>
             </a>
-            <a href="/bot-builder">
+            <a href="https://minemoneymaker.ru" target="_blank" rel="noopener noreferrer">
               <Button
                 size="lg"
                 variant="outline"
                 className="border-primary text-primary hover:bg-primary hover:text-primary-foreground text-lg px-8 py-4 bg-transparent"
               >
-                Конструктор ботов
+                Конструктор ботов →
               </Button>
             </a>
           </div>

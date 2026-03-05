@@ -24,6 +24,7 @@ export default function BotBuilder() {
   const [poGenerated, setPoGenerated] = useState(false)
   const [poCopied, setPoCopied] = useState(false)
   const poCodeRef = useRef<HTMLDivElement>(null)
+  const cryptoCodeRef = useRef<HTMLDivElement>(null)
 
   // Crypto (original) state
   const [config, setConfig] = useState<BotConfig>(DEFAULT_CONFIG)
@@ -49,6 +50,9 @@ export default function BotBuilder() {
   const handleGenerate = () => {
     setCode(generateCode(config))
     setGenerated(true)
+    setTimeout(() => {
+      cryptoCodeRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    }, 100)
   }
 
   const handleCopy = () => {
@@ -609,7 +613,7 @@ export default function BotBuilder() {
                 onGenerate={handleGenerate}
               />
 
-              <div className="space-y-4">
+              <div className="space-y-4" ref={cryptoCodeRef}>
                 <Card className="bg-zinc-900 border-red-500/20 h-full">
                   <CardHeader className="flex flex-row items-center justify-between gap-2">
                     <CardTitle className="font-orbitron text-white text-lg">Python-код бота</CardTitle>

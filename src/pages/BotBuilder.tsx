@@ -15,6 +15,7 @@ type Tab = "pocket_option" | "crypto"
 export default function BotBuilder() {
   const [tab, setTab] = useState<Tab>("pocket_option")
   const [sessionGuideOpen, setSessionGuideOpen] = useState(false)
+  const [strategyGuideOpen, setStrategyGuideOpen] = useState(false)
 
   // Pocket Option state
   const [poConfig, setPoConfig] = useState<POBotConfig>(PO_DEFAULT_CONFIG)
@@ -227,6 +228,209 @@ export default function BotBuilder() {
                           </div>
                         </div>
                       </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Strategy Guide */}
+              <div className="mb-6">
+                <button
+                  onClick={() => setStrategyGuideOpen((v) => !v)}
+                  className="w-full flex items-center justify-between bg-zinc-900 border border-zinc-700 hover:border-zinc-500 rounded-xl px-5 py-3.5 transition-all duration-200 group"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-yellow-400 text-lg">🧭</span>
+                    <div className="text-left">
+                      <p className="text-white font-orbitron text-sm font-semibold">Какую стратегию выбрать?</p>
+                      <p className="text-zinc-500 font-space-mono text-xs">Сравнение стратегий и советы для новичков</p>
+                    </div>
+                  </div>
+                  <Icon
+                    name={strategyGuideOpen ? "ChevronUp" : "ChevronDown"}
+                    size={18}
+                    className="text-zinc-400 group-hover:text-zinc-200 transition-colors flex-shrink-0"
+                  />
+                </button>
+
+                {strategyGuideOpen && (
+                  <div className="mt-2 bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden">
+                    <div className="p-5 space-y-5">
+
+                      {/* Recommendation for beginners */}
+                      <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+                        <div className="flex gap-3">
+                          <span className="text-2xl flex-shrink-0">👶</span>
+                          <div>
+                            <p className="text-green-400 font-orbitron text-sm font-semibold mb-1">Новичку — начинать отсюда</p>
+                            <p className="text-zinc-300 font-space-mono text-xs leading-relaxed">
+                              Если вы только начинаете — выбирайте <span className="text-green-400 font-bold">EMA Пересечение</span>. 
+                              Это самая понятная и предсказуемая стратегия с минимальным риском. 
+                              Она даёт чёткий сигнал и не требует сложных настроек.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Strategy comparison cards */}
+                      <div className="space-y-3">
+
+                        {/* EMA Cross */}
+                        <div className="border border-green-500/30 bg-green-500/5 rounded-xl p-4">
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-green-400 font-orbitron font-bold text-sm">EMA Пересечение</span>
+                              <span className="text-xs bg-green-500/20 text-green-400 border border-green-500/30 px-2 py-0.5 rounded-full font-space-mono">Новичкам</span>
+                            </div>
+                            <div className="flex gap-1">
+                              {["🟢","🟢","⚫","⚫","⚫"].map((d,i) => <span key={i} className="text-xs">{d}</span>)}
+                            </div>
+                          </div>
+                          <p className="text-zinc-400 font-space-mono text-xs leading-relaxed mb-3">
+                            Бот ждёт, когда быстрая линия EMA пересечёт медленную. Пересечение снизу вверх — покупаем CALL (ждём рост). Сверху вниз — PUT (ждём падение). Сигналов немного, но они надёжные.
+                          </p>
+                          <div className="grid grid-cols-3 gap-2 text-xs font-space-mono">
+                            <div className="bg-zinc-800 rounded-lg p-2 text-center">
+                              <p className="text-zinc-500 mb-0.5">Сигналов/день</p>
+                              <p className="text-white font-bold">5–15</p>
+                            </div>
+                            <div className="bg-zinc-800 rounded-lg p-2 text-center">
+                              <p className="text-zinc-500 mb-0.5">Winrate (прим.)</p>
+                              <p className="text-green-400 font-bold">55–65%</p>
+                            </div>
+                            <div className="bg-zinc-800 rounded-lg p-2 text-center">
+                              <p className="text-zinc-500 mb-0.5">Риск</p>
+                              <p className="text-green-400 font-bold">Низкий</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* RSI */}
+                        <div className="border border-blue-500/30 bg-blue-500/5 rounded-xl p-4">
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-blue-400 font-orbitron font-bold text-sm">RSI Разворот</span>
+                              <span className="text-xs bg-zinc-700 text-zinc-300 border border-zinc-600 px-2 py-0.5 rounded-full font-space-mono">Универсальная</span>
+                            </div>
+                            <div className="flex gap-1">
+                              {["🟡","🟡","🟡","⚫","⚫"].map((d,i) => <span key={i} className="text-xs">{d}</span>)}
+                            </div>
+                          </div>
+                          <p className="text-zinc-400 font-space-mono text-xs leading-relaxed mb-3">
+                            RSI измеряет «усталость» рынка. Когда рынок сильно вырос — RSI выше 70 (перекупленность), ждём разворот вниз → PUT. Упал ниже 30 (перепроданность) → CALL. Хорошо работает на флете и OTC-парах.
+                          </p>
+                          <div className="grid grid-cols-3 gap-2 text-xs font-space-mono">
+                            <div className="bg-zinc-800 rounded-lg p-2 text-center">
+                              <p className="text-zinc-500 mb-0.5">Сигналов/день</p>
+                              <p className="text-white font-bold">10–25</p>
+                            </div>
+                            <div className="bg-zinc-800 rounded-lg p-2 text-center">
+                              <p className="text-zinc-500 mb-0.5">Winrate (прим.)</p>
+                              <p className="text-yellow-400 font-bold">52–60%</p>
+                            </div>
+                            <div className="bg-zinc-800 rounded-lg p-2 text-center">
+                              <p className="text-zinc-500 mb-0.5">Риск</p>
+                              <p className="text-yellow-400 font-bold">Средний</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Candle patterns */}
+                        <div className="border border-yellow-500/30 bg-yellow-500/5 rounded-xl p-4">
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-yellow-400 font-orbitron font-bold text-sm">Паттерны свечей</span>
+                              <span className="text-xs bg-zinc-700 text-zinc-300 border border-zinc-600 px-2 py-0.5 rounded-full font-space-mono">Опытным</span>
+                            </div>
+                            <div className="flex gap-1">
+                              {["🟡","🟡","🟡","⚫","⚫"].map((d,i) => <span key={i} className="text-xs">{d}</span>)}
+                            </div>
+                          </div>
+                          <p className="text-zinc-400 font-space-mono text-xs leading-relaxed mb-3">
+                            Бот ищет японские паттерны: молот, поглощение, доджи. Когда находит разворотную фигуру — открывает опцион. Сигналов меньше, но они бывают очень точными. Лучше работает на таймфрейме 5 минут.
+                          </p>
+                          <div className="grid grid-cols-3 gap-2 text-xs font-space-mono">
+                            <div className="bg-zinc-800 rounded-lg p-2 text-center">
+                              <p className="text-zinc-500 mb-0.5">Сигналов/день</p>
+                              <p className="text-white font-bold">3–10</p>
+                            </div>
+                            <div className="bg-zinc-800 rounded-lg p-2 text-center">
+                              <p className="text-zinc-500 mb-0.5">Winrate (прим.)</p>
+                              <p className="text-yellow-400 font-bold">55–68%</p>
+                            </div>
+                            <div className="bg-zinc-800 rounded-lg p-2 text-center">
+                              <p className="text-zinc-500 mb-0.5">Риск</p>
+                              <p className="text-yellow-400 font-bold">Средний</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Support/Resistance */}
+                        <div className="border border-purple-500/30 bg-purple-500/5 rounded-xl p-4">
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-purple-400 font-orbitron font-bold text-sm">Поддержка / Сопротивление</span>
+                              <span className="text-xs bg-zinc-700 text-zinc-300 border border-zinc-600 px-2 py-0.5 rounded-full font-space-mono">Опытным</span>
+                            </div>
+                            <div className="flex gap-1">
+                              {["🟡","🟡","🟡","🟡","⚫"].map((d,i) => <span key={i} className="text-xs">{d}</span>)}
+                            </div>
+                          </div>
+                          <p className="text-zinc-400 font-space-mono text-xs leading-relaxed mb-3">
+                            Бот находит ключевые ценовые уровни — «потолки» и «полы» рынка. Когда цена подходит к уровню, открывает опцион в сторону отбоя. Требует достаточно данных (минимум 30 свечей) для точного определения уровней.
+                          </p>
+                          <div className="grid grid-cols-3 gap-2 text-xs font-space-mono">
+                            <div className="bg-zinc-800 rounded-lg p-2 text-center">
+                              <p className="text-zinc-500 mb-0.5">Сигналов/день</p>
+                              <p className="text-white font-bold">2–8</p>
+                            </div>
+                            <div className="bg-zinc-800 rounded-lg p-2 text-center">
+                              <p className="text-zinc-500 mb-0.5">Winrate (прим.)</p>
+                              <p className="text-purple-400 font-bold">58–70%</p>
+                            </div>
+                            <div className="bg-zinc-800 rounded-lg p-2 text-center">
+                              <p className="text-zinc-500 mb-0.5">Риск</p>
+                              <p className="text-yellow-400 font-bold">Средний</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Martingale */}
+                        <div className="border border-red-500/40 bg-red-500/5 rounded-xl p-4">
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-red-400 font-orbitron font-bold text-sm">Мартингейл</span>
+                              <span className="text-xs bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-0.5 rounded-full font-space-mono">⚠️ Опасно</span>
+                            </div>
+                            <div className="flex gap-1">
+                              {["🔴","🔴","🔴","🔴","🔴"].map((d,i) => <span key={i} className="text-xs">{d}</span>)}
+                            </div>
+                          </div>
+                          <p className="text-zinc-400 font-space-mono text-xs leading-relaxed mb-3">
+                            После каждого проигрыша ставка умножается на заданный коэффициент. Идея: рано или поздно выигрыш окупит все потери. На практике — серия из 5–7 убытков подряд может уничтожить весь депозит. Не рекомендуем новичкам.
+                          </p>
+                          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                            <p className="text-red-400 font-space-mono text-xs">
+                              Пример: ставка $10 с множителем ×2.1 за 6 шагов вырастет до <span className="font-bold text-red-300">$96</span>. При 7-м проигрыше подряд — $202. При нулевом балансе бот остановится.
+                            </p>
+                          </div>
+                        </div>
+
+                      </div>
+
+                      {/* Tips */}
+                      <div className="bg-zinc-800 rounded-xl p-4 space-y-2">
+                        <p className="text-white font-orbitron text-xs font-semibold mb-2">💡 Советы по выбору</p>
+                        <ul className="text-zinc-400 font-space-mono text-xs space-y-1.5">
+                          <li>• Начинайте с <span className="text-green-400">EMA Пересечение</span> на EUR/USD OTC — самый стабильный старт</li>
+                          <li>• Для OTC-пар лучше работают RSI и EMA — рынок менее волатильный</li>
+                          <li>• Экспирация 1–3 минуты подходит для скальпинговых стратегий</li>
+                          <li>• Экспирация 5–15 минут — для паттернов свечей и уровней</li>
+                          <li>• Всегда тестируйте на демо-счёте минимум 50 сделок перед реальными деньгами</li>
+                          <li>• Мартингейл можно добавить к любой стратегии, но делайте это осторожно</li>
+                        </ul>
+                      </div>
+
                     </div>
                   </div>
                 )}

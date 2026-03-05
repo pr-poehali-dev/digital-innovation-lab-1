@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { BotConfig, DEFAULT_CONFIG, generateCode } from "@/components/bot-builder/BotBuilderTypes"
 import BotBuilderForm from "@/components/bot-builder/BotBuilderForm"
-import { POBotConfig, PO_DEFAULT_CONFIG, generatePOCode } from "@/components/bot-builder/PocketOptionBotTypes"
+import { POBotConfig, PO_DEFAULT_CONFIG, generatePOCode, generatePOComboCode } from "@/components/bot-builder/PocketOptionBotTypes"
 import PocketOptionBotForm from "@/components/bot-builder/PocketOptionBotForm"
 import TradeJournal from "@/components/bot-builder/TradeJournal"
 import Icon from "@/components/ui/icon"
@@ -31,7 +31,8 @@ export default function BotBuilder() {
   const [copied, setCopied] = useState(false)
 
   const handlePOGenerate = () => {
-    setPoCode(generatePOCode(poConfig))
+    const code = poConfig.comboMode ? generatePOComboCode(poConfig) : generatePOCode(poConfig)
+    setPoCode(code)
     setPoGenerated(true)
   }
 

@@ -79,6 +79,21 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
     }
   }
 
+  const exportCSV = () => {
+    const header = "Время,Актив,Направление,Ставка,Результат,Профит"
+    const rows = trades.map((t) =>
+      [t.time, t.asset, t.direction, t.bet, t.won ? "WIN" : "LOSS", t.profit.toFixed(2)].join(",")
+    )
+    const csv = [header, ...rows].join("\n")
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `trade_journal_${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   // Stats
   const total = trades.length
   const wins = trades.filter((t) => t.won).length
@@ -107,13 +122,22 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
             <span>📋</span> Журнал сделок
           </CardTitle>
           {total > 0 && (
-            <button
-              onClick={clearAll}
-              className="text-zinc-600 hover:text-red-400 transition-colors"
-              title="Очистить журнал"
-            >
-              <Icon name="Trash2" size={14} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={exportCSV}
+                className="text-zinc-500 hover:text-green-400 transition-colors"
+                title="Экспорт в CSV"
+              >
+                <Icon name="FileDown" size={14} />
+              </button>
+              <button
+                onClick={clearAll}
+                className="text-zinc-600 hover:text-red-400 transition-colors"
+                title="Очистить журнал"
+              >
+                <Icon name="Trash2" size={14} />
+              </button>
+            </div>
           )}
         </div>
       </CardHeader>

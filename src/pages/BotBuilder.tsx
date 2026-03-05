@@ -550,7 +550,7 @@ export default function BotBuilder() {
                         </div>
                       )}
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-4">
                       {poGenerated ? (
                         <pre className="bg-black rounded-lg p-4 text-xs text-green-400 font-space-mono overflow-auto max-h-[700px] whitespace-pre-wrap leading-relaxed border border-zinc-800">
                           {poCode}
@@ -562,42 +562,29 @@ export default function BotBuilder() {
                           <p className="text-zinc-600 font-space-mono text-xs">Настройте параметры и нажмите «Сгенерировать»</p>
                         </div>
                       )}
-                    </CardContent>
-                  </Card>
-
-                  {poGenerated && (
-                    <div className="space-y-3">
-                      <Card className="bg-zinc-900 border-yellow-500/20">
-                        <CardContent className="pt-4">
-                          <div className="flex gap-3">
-                            <span className="text-yellow-400 text-xl">⚠️</span>
+                      {poGenerated && (
+                        <div className="space-y-3">
+                          <div className="flex gap-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-3">
+                            <span className="text-yellow-400 text-lg">⚠️</span>
                             <div>
-                              <p className="text-yellow-400 font-orbitron text-sm font-semibold mb-1">Перед запуском</p>
+                              <p className="text-yellow-400 font-orbitron text-xs font-semibold mb-1">Перед запуском</p>
                               <ul className="text-zinc-400 font-space-mono text-xs space-y-1">
-                                <li>• Сохраните Session ID из браузера в переменную окружения <span className="text-red-400">PO_SESSION_ID</span></li>
-                                <li>• Сначала протестируйте на демо-счёте Pocket Option</li>
-                                <li>• Не запускайте с реальным депозитом без проверки</li>
+                                <li>• Сохраните Session ID в переменную окружения <span className="text-red-400">PO_SESSION_ID</span></li>
+                                <li>• Сначала протестируйте на демо-счёте</li>
                                 <li>• Установите зависимости: <span className="text-green-400">pip install requests</span></li>
                               </ul>
                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card className="bg-zinc-900 border-zinc-700">
-                        <CardContent className="pt-4">
-                          <p className="text-zinc-400 font-orbitron text-xs font-semibold mb-2">Запуск бота</p>
-                          <pre className="bg-black rounded-lg p-3 text-xs text-green-400 font-space-mono border border-zinc-800">
-{`# Установка зависимостей
-pip install requests
-
-# Запуск
-PO_SESSION_ID="ваш_session_id" python bot.py`}
-                          </pre>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
+                          <div className="bg-zinc-800/50 rounded-lg p-3 border border-zinc-700">
+                            <p className="text-zinc-400 font-orbitron text-xs font-semibold mb-2">Запуск бота</p>
+                            <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800">
+{`PO_SESSION_ID="ваш_session_id" python bot.py`}
+                            </pre>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </div>
 
                 {/* Trade Journal — 3rd column */}

@@ -129,6 +129,131 @@ function StrategyCard({
   )
 }
 
+// ===== AI Comment component =====
+type CommentLevel = "good" | "warn" | "danger" | "info"
+function AIComment({ level, text }: { level: CommentLevel; text: string }) {
+  const styles: Record<CommentLevel, string> = {
+    good:   "bg-green-500/10 border-green-500/25 text-green-400",
+    warn:   "bg-yellow-500/10 border-yellow-500/25 text-yellow-400",
+    danger: "bg-red-500/10 border-red-500/25 text-red-400",
+    info:   "bg-blue-500/10 border-blue-500/25 text-blue-400",
+  }
+  const icons: Record<CommentLevel, string> = {
+    good: "✅", warn: "⚠️", danger: "🚨", info: "💡",
+  }
+  return (
+    <div className={`flex gap-2 px-3 py-2 rounded-lg border text-xs font-space-mono leading-relaxed ${styles[level]}`}>
+      <span className="flex-shrink-0 mt-0.5">{icons[level]}</span>
+      <span>{text}</span>
+    </div>
+  )
+}
+
+// ===== Asset/Expiry comment =====
+function assetExpiryComment(asset: string, expiry: POExpiry, strategy: POStrategy, comboMode: boolean, comboStrategies: POStrategy[]): { level: CommentLevel; text: string } | null {
+  const strats = comboMode ? comboStrategies : [strategy]
+  const isOTC = asset.includes("OTC")
+  const expNum = Number(expiry)
+  const hasCandle = strats.includes("candle_pattern")
+  const hasSR = strats.includes("support_resistance")
+  const hasEMA = strats.includes("ema_cross")
+  const hasRSI = strats.includes("rsi_reversal")
+
+  if (expNum === 1 && (hasCandle || hasSR)) {
+    return { level: "warn", text: "Паттерны свечей и уровни плохо работают на экспирации 1 мин — слишком мало данных для формирования сигнала. Рекомендуем 5–15 мин." }
+  }
+  if (expNum >= 5 && strats.includes("martingale") && !comboMode) {
+    return { level: "warn", text: "Мартингейл на 5+ минутах означает долгое ожидание результата каждой сделки. Депозит рискует не выдержать серию убытков." }
+  }
+  if (!isOTC && expNum <= 2) {
+    return { level: "warn", text: "На реальных парах (не OTC) короткая экспирация 1–2 мин сильно зависит от спреда и волатильности. OTC-активы стабильнее для скальпинга." }
+  }
+  if (isOTC && (hasEMA || hasRSI) && expNum <= 3) {
+    return { level: "good", text: "Отличный выбор! OTC-активы со стратегиями RSI/EMA на 1–3 минуты — классическое сочетание для Pocket Option." }
+  }
+  if (hasCandle && hasSR && expNum >= 5) {
+    return { level: "good", text: "Паттерны свечей + уровни на 5–15 мин — высокоточное сочетание. Сигналов будет мало, но каждый — взвешенный вход." }
+  }
+  if (asset.includes("Gold") && expNum >= 5) {
+    return { level: "info", text: "Gold OTC хорошо реагирует на уровни поддержки/сопротивления. Если не выбрана эта стратегия — добавьте для повышения точности." }
+  }
+  return null
+}
+
+// ===== Bet comment =====
+function betComment(cfg: POBotConfig): { level: CommentLevel; text: string } | null {
+  const { betAmount, betPercent, takeProfitUsd, stopLossUsd, dailyLimit, martingaleEnabled, martingaleMultiplier, martingaleSteps } = cfg
+
+  if (betPercent && betAmount > 10) {
+    return { level: "danger", text: `${betAmount}% от баланса — очень агрессивно. Рекомендуем не более 2–5% на сделку. При серии убытков депозит быстро сгорит.` }
+  }
+  if (betPercent && betAmount <= 2) {
+    return { level: "good", text: `${betAmount}% от баланса — консервативный размер. Хороший выбор для долгосрочной торговли.` }
+  }
+  if (!betPercent && takeProfitUsd < betAmount * 3) {
+    return { level: "warn", text: `TP = $${takeProfitUsd} при ставке $${betAmount} — соотношение низкое. Рекомендуем TP не менее чем в 3–5 раз выше ставки.` }
+  }
+  if (stopLossUsd < betAmount * 2) {
+    return { level: "warn", text: `Stop Loss $${stopLossUsd} покроет менее 2 проигрышных сделок подряд при ставке $${betAmount}. Увеличьте SL или снизьте ставку.` }
+  }
+  if (martingaleEnabled) {
+    const maxBet = betAmount * Math.pow(martingaleMultiplier, martingaleSteps - 1)
+    if (maxBet > stopLossUsd * 0.6) {
+      return { level: "danger", text: `При мартингейле ×${martingaleMultiplier} за ${martingaleSteps} шагов максимальная ставка достигнет $${maxBet.toFixed(0)}, что превышает 60% вашего SL. Это критично.` }
+    }
+    return { level: "warn", text: `С мартингейлом максимальная ставка на шаге ${martingaleSteps}: $${maxBet.toFixed(0)}. Убедитесь, что депозит покрывает полную серию.` }
+  }
+  if (dailyLimit > 30 && !betPercent) {
+    return { level: "warn", text: `${dailyLimit} сделок/день при фиксированной ставке — высокая нагрузка на депозит. Рекомендуем лимит 10–20 сделок.` }
+  }
+  if (takeProfitUsd >= betAmount * 5 && stopLossUsd <= betAmount * 3) {
+    return { level: "good", text: "Хорошее соотношение риск/доходность. TP значительно превышает SL." }
+  }
+  return null
+}
+
+// ===== Indicator comment =====
+function indicatorComment(cfg: POBotConfig): { level: CommentLevel; text: string } | null {
+  const { rsiPeriod, rsiOverbought, rsiOversold, emaFast, emaSlow, expiry, strategy, comboMode, comboStrategies } = cfg
+  const strats = comboMode ? comboStrategies : [strategy]
+  const expNum = Number(expiry)
+
+  if (strats.includes("rsi_reversal")) {
+    if (rsiOverbought - rsiOversold < 30) {
+      return { level: "danger", text: `Зона нейтральности RSI (${rsiOversold}–${rsiOverbought}) слишком узкая — будет много ложных сигналов. Стандарт: 30/70 или жёстче 20/80.` }
+    }
+    if (rsiPeriod < 9 && expNum <= 2) {
+      return { level: "warn", text: `RSI(${rsiPeriod}) на ${expiry} мин очень чувствителен к шуму. Попробуйте период 9–14 для более чистых сигналов.` }
+    }
+    if (rsiPeriod >= 14 && expNum <= 2 && !strats.includes("ema_cross")) {
+      return { level: "info", text: `RSI(${rsiPeriod}) на короткой экспирации немного запаздывает. Период 7–9 даст более быстрые сигналы для 1–2 минут.` }
+    }
+  }
+
+  if (strats.includes("ema_cross")) {
+    if (emaFast >= emaSlow) {
+      return { level: "danger", text: `Быстрая EMA(${emaFast}) ≥ медленной EMA(${emaSlow}) — это ошибка. Быстрая EMA должна быть меньше медленной.` }
+    }
+    if (emaSlow - emaFast < 5) {
+      return { level: "warn", text: `Разница между EMA(${emaFast}) и EMA(${emaSlow}) всего ${emaSlow - emaFast} — сигналы будут часто ложными. Рекомендуем разницу минимум 8–12.` }
+    }
+    if (emaFast === 9 && emaSlow === 21) {
+      return { level: "good", text: "EMA 9/21 — классическое проверенное сочетание для бинарных опционов. Хороший выбор." }
+    }
+    if (emaFast <= 5 && expNum >= 5) {
+      return { level: "warn", text: `EMA(${emaFast}) очень быстрая для экспирации ${expiry} мин — будет давать преждевременные сигналы. Попробуйте EMA 9–12.` }
+    }
+  }
+
+  if (strats.includes("rsi_reversal") && strats.includes("ema_cross")) {
+    if (rsiOverbought === 70 && rsiOversold === 30 && emaFast === 9 && emaSlow === 21) {
+      return { level: "good", text: "Стандартные параметры RSI + EMA — надёжный вариант. Можно попробовать RSI 20/80 для снижения ложных сигналов в AND-режиме." }
+    }
+  }
+
+  return null
+}
+
 export default function PocketOptionBotForm({ config, onChange, onGenerate }: Props) {
   const set = (patch: Partial<POBotConfig>) => onChange({ ...config, ...patch })
   const [detailOpen, setDetailOpen] = useState<Record<string, boolean>>({})
@@ -459,6 +584,10 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
             </div>
             <p className="text-zinc-600 text-xs font-space-mono mt-1">{PO_EXPIRY_LABELS[config.expiry]}</p>
           </div>
+          {(() => {
+            const c = assetExpiryComment(config.asset, config.expiry, config.strategy, config.comboMode, config.comboStrategies)
+            return c ? <AIComment level={c.level} text={c.text} /> : null
+          })()}
         </CardContent>
       </Card>
 
@@ -516,6 +645,10 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
             </div>
             <Switch checked={config.autoRestart} onCheckedChange={(v) => set({ autoRestart: v })} />
           </div>
+          {(() => {
+            const c = betComment(config)
+            return c ? <AIComment level={c.level} text={c.text} /> : null
+          })()}
         </CardContent>
       </Card>
 
@@ -582,6 +715,10 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
                 <Input type="number" value={config.rsiOversold} onChange={(e) => set({ rsiOversold: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-green-400 font-space-mono text-sm" />
               </div>
             </div>
+            {(() => {
+              const c = indicatorComment(config)
+              return c ? <AIComment level={c.level} text={c.text} /> : null
+            })()}
           </CardContent>
         </Card>
       )}
@@ -601,6 +738,10 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
                 <Input type="number" value={config.emaSlow} onChange={(e) => set({ emaSlow: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-blue-400 font-space-mono text-sm" />
               </div>
             </div>
+            {(() => {
+              const c = indicatorComment(config)
+              return c ? <AIComment level={c.level} text={c.text} /> : null
+            })()}
           </CardContent>
         </Card>
       )}
@@ -637,6 +778,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
                     <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Быстрая EMA</Label>
                     <Input type="number" value={config.emaFast} onChange={(e) => set({ emaFast: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-green-400 font-space-mono text-xs h-8" />
                   </div>
+                  
                   <div>
                     <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Медленная EMA</Label>
                     <Input type="number" value={config.emaSlow} onChange={(e) => set({ emaSlow: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-blue-400 font-space-mono text-xs h-8" />
@@ -644,6 +786,10 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
                 </div>
               </div>
             )}
+            {(() => {
+              const c = indicatorComment(config)
+              return c ? <AIComment level={c.level} text={c.text} /> : null
+            })()}
           </CardContent>
         </Card>
       )}

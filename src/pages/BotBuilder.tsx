@@ -51,6 +51,29 @@ export default function BotBuilder() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  // Download .py file
+  const handlePODownload = () => {
+    const filename = `pocket_option_bot_${poConfig.strategy}.py`
+    const blob = new Blob([poCode], { type: "text/x-python" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleCryptoDownload = () => {
+    const filename = `crypto_bot_${config.type}.py`
+    const blob = new Blob([code], { type: "text/x-python" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   // Share config via URL
   const [shareCopied, setShareCopied] = useState(false)
 
@@ -500,17 +523,29 @@ export default function BotBuilder() {
                 {/* Code output */}
                 <div className="space-y-4">
                   <Card className="bg-zinc-900 border-red-500/20 h-full">
-                    <CardHeader className="flex flex-row items-center justify-between">
+                    <CardHeader className="flex flex-row items-center justify-between gap-2">
                       <CardTitle className="font-orbitron text-white text-lg">Python-код бота</CardTitle>
                       {poGenerated && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handlePOCopy}
-                          className="border-red-500/40 text-red-400 hover:bg-red-500/10 font-space-mono text-xs"
-                        >
-                          {poCopied ? "Скопировано ✓" : "Копировать"}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handlePOCopy}
+                            className="border-red-500/40 text-red-400 hover:bg-red-500/10 font-space-mono text-xs"
+                          >
+                            <Icon name="Copy" size={12} className="mr-1" />
+                            {poCopied ? "Скопировано ✓" : "Копировать"}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handlePODownload}
+                            className="border-green-500/40 text-green-400 hover:bg-green-500/10 font-space-mono text-xs"
+                          >
+                            <Icon name="Download" size={12} className="mr-1" />
+                            .py
+                          </Button>
+                        </div>
                       )}
                     </CardHeader>
                     <CardContent>
@@ -577,17 +612,29 @@ PO_SESSION_ID="ваш_session_id" python bot.py`}
 
               <div className="space-y-4">
                 <Card className="bg-zinc-900 border-red-500/20 h-full">
-                  <CardHeader className="flex flex-row items-center justify-between">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2">
                     <CardTitle className="font-orbitron text-white text-lg">Python-код бота</CardTitle>
                     {generated && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleCopy}
-                        className="border-red-500/40 text-red-400 hover:bg-red-500/10 font-space-mono text-xs"
-                      >
-                        {copied ? "Скопировано ✓" : "Копировать"}
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCopy}
+                          className="border-red-500/40 text-red-400 hover:bg-red-500/10 font-space-mono text-xs"
+                        >
+                          <Icon name="Copy" size={12} className="mr-1" />
+                          {copied ? "Скопировано ✓" : "Копировать"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCryptoDownload}
+                          className="border-green-500/40 text-green-400 hover:bg-green-500/10 font-space-mono text-xs"
+                        >
+                          <Icon name="Download" size={12} className="mr-1" />
+                          .py
+                        </Button>
+                      </div>
                     )}
                   </CardHeader>
                   <CardContent>

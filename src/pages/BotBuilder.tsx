@@ -677,7 +677,7 @@ PO_SESSION_ID="ваш_session_id" python bot.py`}</pre>
                       </div>
                     )}
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-4">
                     {generated ? (
                       <pre className="bg-black rounded-lg p-4 text-xs text-green-400 font-space-mono overflow-auto max-h-[700px] whitespace-pre-wrap leading-relaxed border border-zinc-800">
                         {code}
@@ -689,27 +689,56 @@ PO_SESSION_ID="ваш_session_id" python bot.py`}</pre>
                         <p className="text-zinc-600 font-space-mono text-xs">Настройте параметры и нажмите «Сгенерировать»</p>
                       </div>
                     )}
-                  </CardContent>
-                </Card>
+                    {generated && (
+                      <div className="space-y-3 border-t border-zinc-800 pt-4">
+                        <p className="text-white font-orbitron text-sm font-semibold">Как запустить бота</p>
 
-                {generated && (
-                  <Card className="bg-zinc-900 border-yellow-500/20">
-                    <CardContent className="pt-4">
-                      <div className="flex gap-3">
-                        <span className="text-yellow-400 text-xl">⚠️</span>
-                        <div>
-                          <p className="text-yellow-400 font-orbitron text-sm font-semibold mb-1">Важно перед запуском</p>
-                          <ul className="text-zinc-400 font-space-mono text-xs space-y-1">
-                            <li>• Сначала протестируйте на Paper Trading</li>
-                            <li>• Не храните API ключи в коде — используйте переменные окружения</li>
-                            <li>• Начинайте с минимального депозита</li>
-                            <li>• Изучите <a href="/bots-guide" className="text-red-400 underline">гайд по ботам</a> перед стартом</li>
-                          </ul>
+                        <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-1">
+                          <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 1 — Скачайте файл</p>
+                          <p className="text-zinc-400 font-space-mono text-xs">Нажмите кнопку <span className="text-green-400">.py</span> выше — файл <span className="text-white">bot.py</span> сохранится на ваш компьютер.</p>
+                        </div>
+
+                        <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-2">
+                          <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 2 — Установите Python</p>
+                          <p className="text-zinc-400 font-space-mono text-xs">Если Python не установлен — скачайте с <a href="https://python.org/downloads" target="_blank" rel="noreferrer" className="text-blue-400 underline">python.org</a> (версия 3.10+). При установке отметьте <span className="text-white">«Add to PATH»</span>.</p>
+                        </div>
+
+                        <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-2">
+                          <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 3 — Установите зависимости</p>
+                          <p className="text-zinc-400 font-space-mono text-xs mb-1">Откройте терминал в папке с файлом и выполните:</p>
+                          <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`pip install requests ccxt`}</pre>
+                        </div>
+
+                        <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-2">
+                          <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 4 — Получите API-ключи биржи</p>
+                          <p className="text-zinc-400 font-space-mono text-xs">Зайдите в личный кабинет вашей биржи (Binance, Bybit и др.) → раздел <span className="text-white">API Management</span> → создайте ключ с правами на торговлю. Скопируйте <span className="text-red-400">API Key</span> и <span className="text-red-400">Secret Key</span>.</p>
+                        </div>
+
+                        <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-2">
+                          <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 5 — Запустите бота</p>
+                          <p className="text-zinc-400 font-space-mono text-xs mb-1">Передайте ключи через переменные окружения:</p>
+                          <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`# Windows (PowerShell)
+$env:API_KEY="ваш_api_key"
+$env:API_SECRET="ваш_secret"
+python bot.py
+
+# Mac / Linux
+API_KEY="ваш_api_key" API_SECRET="ваш_secret" python bot.py`}</pre>
+                        </div>
+
+                        <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-1">
+                          <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 6 — Сначала тестовая сеть</p>
+                          <p className="text-zinc-400 font-space-mono text-xs">Большинство бирж предоставляют <span className="text-white">Testnet / Paper Trading</span> — используйте его минимум 1–2 дня. Убедитесь что стратегия работает корректно до пополнения реального счёта.</p>
+                        </div>
+
+                        <div className="flex gap-2 bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-3">
+                          <span className="text-yellow-400 text-base shrink-0">⚠️</span>
+                          <p className="text-yellow-400/80 font-space-mono text-xs">Никогда не храните API-ключи в коде. Не давайте ключам права на вывод средств — только торговля. Начинайте с минимального депозита.</p>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
+                    )}
+                  </CardContent>
+                </Card>
               </div>
             </div>
           )}

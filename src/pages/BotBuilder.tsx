@@ -8,6 +8,7 @@ import { BotConfig, DEFAULT_CONFIG, generateCode } from "@/components/bot-builde
 import BotBuilderForm from "@/components/bot-builder/BotBuilderForm"
 import { POBotConfig, PO_DEFAULT_CONFIG, generatePOCode } from "@/components/bot-builder/PocketOptionBotTypes"
 import PocketOptionBotForm from "@/components/bot-builder/PocketOptionBotForm"
+import TradeJournal from "@/components/bot-builder/TradeJournal"
 import Icon from "@/components/ui/icon"
 
 type Tab = "pocket_option" | "crypto"
@@ -512,7 +513,7 @@ export default function BotBuilder() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Form */}
                 <PocketOptionBotForm
                   config={poConfig}
@@ -597,6 +598,12 @@ PO_SESSION_ID="ваш_session_id" python bot.py`}
                     </div>
                   )}
                 </div>
+
+                {/* Trade Journal — 3rd column */}
+                <TradeJournal
+                  defaultAsset={poConfig.asset}
+                  defaultBet={poConfig.betAmount}
+                />
               </div>
             </>
           )}

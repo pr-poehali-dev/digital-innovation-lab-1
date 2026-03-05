@@ -149,6 +149,90 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
 
   const strategies = Object.keys(PO_STRATEGIES) as POStrategy[]
 
+  const PRESETS: {
+    id: string
+    name: string
+    emoji: string
+    desc: string
+    tag: string
+    tagColor: string
+    strategies: POStrategy[]
+    logic: POComboLogic
+    expiry: POExpiry
+    tip: string
+  }[] = [
+    {
+      id: "flat_filter",
+      name: "Флет-фильтр",
+      emoji: "🎯",
+      desc: "RSI + EMA — двойное подтверждение для торговли в боковике",
+      tag: "Новичкам",
+      tagColor: "bg-green-500/20 text-green-400 border-green-500/30",
+      strategies: ["rsi_reversal", "ema_cross"],
+      logic: "AND",
+      expiry: "3",
+      tip: "Лучше работает на EUR/USD OTC и GBP/USD OTC в спокойный рынок",
+    },
+    {
+      id: "reversal_pro",
+      name: "Разворот Про",
+      emoji: "🔄",
+      desc: "Паттерны свечей + Уровни + RSI — три подтверждения разворота",
+      tag: "Опытным",
+      tagColor: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+      strategies: ["candle_pattern", "support_resistance", "rsi_reversal"],
+      logic: "AND",
+      expiry: "5",
+      tip: "Мало сигналов, но очень высокая точность. Подходит для Gold OTC",
+    },
+    {
+      id: "trend_catch",
+      name: "Ловец тренда",
+      emoji: "🏄",
+      desc: "EMA + Поддержка/Сопротивление — вход по тренду с подтверждением уровня",
+      tag: "Универсальный",
+      tagColor: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+      strategies: ["ema_cross", "support_resistance"],
+      logic: "AND",
+      expiry: "5",
+      tip: "Отлично работает на USD/JPY OTC при выраженном тренде",
+    },
+    {
+      id: "signal_hunter",
+      name: "Охотник за сигналами",
+      emoji: "⚡",
+      desc: "RSI + EMA + Паттерны — широкий охват, сигнал при любом совпадении",
+      tag: "Активный",
+      tagColor: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+      strategies: ["rsi_reversal", "ema_cross", "candle_pattern"],
+      logic: "OR",
+      expiry: "1",
+      tip: "Много сигналов для активной торговли. Рекомендуем строгий Stop Loss",
+    },
+    {
+      id: "precision",
+      name: "Снайпер",
+      emoji: "🎯",
+      desc: "Все 4 стратегии AND — максимальная фильтрация, только лучшие входы",
+      tag: "Высший класс",
+      tagColor: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+      strategies: ["rsi_reversal", "ema_cross", "candle_pattern", "support_resistance"],
+      logic: "AND",
+      expiry: "5",
+      tip: "1–3 сигнала в день. Каждый вход максимально взвешен",
+    },
+  ]
+
+  const applyPreset = (preset: typeof PRESETS[number]) => {
+    onChange({
+      ...config,
+      comboMode: true,
+      comboStrategies: preset.strategies,
+      comboLogic: preset.logic,
+      expiry: preset.expiry,
+    })
+  }
+
   return (
     <div className="space-y-5">
 
@@ -232,6 +316,63 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
                 ⚡ OR — мягкий фильтр: больше сигналов, выше активность
               </div>
             )}
+
+            {/* Presets */}
+            <div>
+              <p className="text-zinc-500 font-space-mono text-xs mb-2">⚡ Быстрые пресеты</p>
+              <div className="space-y-2">
+                {PRESETS.map((preset) => {
+                  const isActive =
+                    preset.strategies.length === config.comboStrategies.length &&
+                    preset.strategies.every((s) => config.comboStrategies.includes(s)) &&
+                    preset.logic === config.comboLogic
+                  return (
+                    <button
+                      key={preset.id}
+                      onClick={() => applyPreset(preset)}
+                      className={`w-full text-left p-3 rounded-xl border transition-all duration-150
+                        ${isActive
+                          ? "border-red-500/60 bg-red-500/10"
+                          : "border-zinc-700 bg-zinc-800/40 hover:border-zinc-500 hover:bg-zinc-800/70"
+                        }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="text-xl flex-shrink-0 mt-0.5">{preset.emoji}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className={`font-orbitron text-sm font-semibold ${isActive ? "text-white" : "text-zinc-200"}`}>
+                              {preset.name}
+                            </span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full border font-space-mono ${preset.tagColor}`}>
+                              {preset.tag}
+                            </span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded font-space-mono border
+                              ${preset.logic === "AND" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"}`}>
+                              {preset.logic}
+                            </span>
+                          </div>
+                          <p className="text-zinc-400 font-space-mono text-xs leading-snug mb-1.5">{preset.desc}</p>
+                          <div className="flex flex-wrap gap-1 mb-1.5">
+                            {preset.strategies.map((s) => (
+                              <span key={s} className="bg-zinc-700/60 text-zinc-300 text-xs font-space-mono px-1.5 py-0.5 rounded">
+                                {PO_STRATEGIES[s].icon} {PO_STRATEGIES[s].label}
+                              </span>
+                            ))}
+                            <span className="text-zinc-600 text-xs font-space-mono px-1.5 py-0.5">· {preset.expiry} мин</span>
+                          </div>
+                          {isActive && (
+                            <p className="text-zinc-500 font-space-mono text-xs italic">💡 {preset.tip}</p>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="border-t border-zinc-800 mt-3 pt-3">
+                <p className="text-zinc-500 font-space-mono text-xs mb-2">Или настройте вручную:</p>
+              </div>
+            </div>
 
             {/* Strategy cards with checkboxes */}
             <div className="space-y-2">

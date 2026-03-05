@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { Badge } from "@/components/ui/badge"
@@ -51,6 +51,46 @@ export default function BotBuilder() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  // Share config via URL
+  const [shareCopied, setShareCopied] = useState(false)
+
+  const handleShare = () => {
+    const params = new URLSearchParams()
+    Object.entries(poConfig).forEach(([k, v]) => params.set(k, String(v)))
+    const url = `${window.location.origin}/bot-builder?${params.toString()}`
+    navigator.clipboard.writeText(url)
+    setShareCopied(true)
+    setTimeout(() => setShareCopied(false), 2500)
+  }
+
+  // Load config from URL on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (!params.has("strategy")) return
+    setPoConfig((prev) => ({
+      ...prev,
+      strategy: (params.get("strategy") as POBotConfig["strategy"]) ?? prev.strategy,
+      asset: params.get("asset") ?? prev.asset,
+      expiry: (params.get("expiry") as POBotConfig["expiry"]) ?? prev.expiry,
+      betAmount: Number(params.get("betAmount") ?? prev.betAmount),
+      betPercent: params.get("betPercent") === "true",
+      martingaleEnabled: params.get("martingaleEnabled") === "true",
+      martingaleMultiplier: Number(params.get("martingaleMultiplier") ?? prev.martingaleMultiplier),
+      martingaleSteps: Number(params.get("martingaleSteps") ?? prev.martingaleSteps),
+      takeProfitUsd: Number(params.get("takeProfitUsd") ?? prev.takeProfitUsd),
+      stopLossUsd: Number(params.get("stopLossUsd") ?? prev.stopLossUsd),
+      dailyLimit: Number(params.get("dailyLimit") ?? prev.dailyLimit),
+      rsiPeriod: Number(params.get("rsiPeriod") ?? prev.rsiPeriod),
+      rsiOverbought: Number(params.get("rsiOverbought") ?? prev.rsiOverbought),
+      rsiOversold: Number(params.get("rsiOversold") ?? prev.rsiOversold),
+      emaFast: Number(params.get("emaFast") ?? prev.emaFast),
+      emaSlow: Number(params.get("emaSlow") ?? prev.emaSlow),
+      useOTC: params.get("useOTC") === "true",
+      autoRestart: params.get("autoRestart") === "true",
+    }))
+    setTab("pocket_option")
+  }, [])
+
   return (
     <div className="dark min-h-screen bg-black">
       <Navbar />
@@ -101,19 +141,32 @@ export default function BotBuilder() {
                   <p className="text-red-400 font-orbitron font-bold text-sm mb-1">Бинарные опционы — Pocket Option</p>
                   <p className="text-zinc-400 font-space-mono text-xs">Стратегии для OTC-рынка: RSI, EMA, паттерны свечей, мартингейл</p>
                 </div>
-                <div className="flex gap-4 text-xs font-space-mono">
-                  <div className="text-center">
-                    <p className="text-green-400 font-bold text-lg">5</p>
-                    <p className="text-zinc-500">стратегий</p>
+                <div className="flex items-center gap-4">
+                  <div className="flex gap-4 text-xs font-space-mono">
+                    <div className="text-center">
+                      <p className="text-green-400 font-bold text-lg">5</p>
+                      <p className="text-zinc-500">стратегий</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-blue-400 font-bold text-lg">OTC</p>
+                      <p className="text-zinc-500">активы</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-yellow-400 font-bold text-lg">1-15</p>
+                      <p className="text-zinc-500">мин экспир.</p>
+                    </div>
                   </div>
-                  <div className="text-center">
-                    <p className="text-blue-400 font-bold text-lg">OTC</p>
-                    <p className="text-zinc-500">активы</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-yellow-400 font-bold text-lg">1-15</p>
-                    <p className="text-zinc-500">мин экспир.</p>
-                  </div>
+                  <button
+                    onClick={handleShare}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-orbitron text-xs font-bold transition-all duration-200
+                      ${shareCopied
+                        ? "bg-green-500/20 border-green-500/40 text-green-400"
+                        : "bg-zinc-800 border-zinc-600 text-zinc-300 hover:border-zinc-400 hover:text-white"
+                      }`}
+                  >
+                    <Icon name={shareCopied ? "Check" : "Share2"} size={13} />
+                    {shareCopied ? "Скопировано!" : "Поделиться"}
+                  </button>
                 </div>
               </div>
 

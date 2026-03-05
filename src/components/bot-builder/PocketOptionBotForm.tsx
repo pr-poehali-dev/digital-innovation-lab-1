@@ -212,45 +212,71 @@ function betComment(cfg: POBotConfig): { level: CommentLevel; text: string } | n
   return null
 }
 
+// ===== Indicator comments — always return at least one comment =====
+function rsiComment(cfg: POBotConfig): { level: CommentLevel; text: string } {
+  const { rsiPeriod, rsiOverbought, rsiOversold, expiry } = cfg
+  const expNum = Number(expiry)
+  const gap = rsiOverbought - rsiOversold
+
+  if (rsiOverbought <= rsiOversold) {
+    return { level: "danger", text: `Уровень перекупленности (${rsiOverbought}) должен быть выше перепроданности (${rsiOversold}). Исправьте значения.` }
+  }
+  if (gap < 30) {
+    return { level: "danger", text: `Зона нейтральности RSI (${rsiOversold}–${rsiOverbought}) слишком узкая — будет много ложных сигналов. Стандарт: 30/70 или жёстче 20/80.` }
+  }
+  if (rsiPeriod < 9 && expNum <= 2) {
+    return { level: "warn", text: `RSI(${rsiPeriod}) на ${expiry} мин очень чувствителен к шуму рынка. Попробуйте период 9–14 для более чистых сигналов.` }
+  }
+  if (rsiPeriod >= 14 && expNum <= 2) {
+    return { level: "info", text: `RSI(${rsiPeriod}) на экспирации ${expiry} мин немного запаздывает. Период 7–9 даст более быстрые сигналы для скальпинга.` }
+  }
+  if (rsiPeriod >= 14 && expNum >= 5) {
+    return { level: "good", text: `RSI(${rsiPeriod}) хорошо подходит для экспирации ${expiry} мин — достаточно данных для чёткого сигнала.` }
+  }
+  if (gap >= 50) {
+    return { level: "info", text: `RSI ${rsiOversold}/${rsiOverbought} — жёсткие уровни. Сигналов будет мало, но каждый — при экстремальном состоянии рынка.` }
+  }
+  if (rsiOverbought === 70 && rsiOversold === 30) {
+    return { level: "good", text: `RSI(${rsiPeriod}) со стандартными уровнями 30/70 — надёжный классический вариант для OTC-рынка.` }
+  }
+  return { level: "good", text: `RSI(${rsiPeriod}): уровни ${rsiOversold}/${rsiOverbought}, зона нейтральности ${gap} пп — параметры в норме.` }
+}
+
+function emaComment(cfg: POBotConfig): { level: CommentLevel; text: string } {
+  const { emaFast, emaSlow, expiry } = cfg
+  const expNum = Number(expiry)
+  const diff = emaSlow - emaFast
+
+  if (emaFast >= emaSlow) {
+    return { level: "danger", text: `Быстрая EMA(${emaFast}) ≥ медленной EMA(${emaSlow}) — это ошибка конфигурации. Быстрая EMA всегда должна быть меньше медленной.` }
+  }
+  if (diff < 5) {
+    return { level: "danger", text: `Разница между EMA(${emaFast}) и EMA(${emaSlow}) всего ${diff} — сигналы будут слишком частыми и ложными. Рекомендуем разницу минимум 8–12.` }
+  }
+  if (diff < 8) {
+    return { level: "warn", text: `Разница EMA(${emaFast})/EMA(${emaSlow}) = ${diff} — немного мала. Рекомендуем увеличить до 9/21 или 5/20 для снижения ложных пересечений.` }
+  }
+  if (emaFast <= 5 && expNum >= 5) {
+    return { level: "warn", text: `EMA(${emaFast}) очень быстрая для экспирации ${expiry} мин — будет давать преждевременные сигналы. Попробуйте EMA 9–12.` }
+  }
+  if (emaFast === 9 && emaSlow === 21) {
+    return { level: "good", text: `EMA 9/21 — классическое проверенное сочетание для бинарных опционов. Отличный выбор для экспирации ${expiry} мин.` }
+  }
+  if (emaFast === 5 && emaSlow === 20) {
+    return { level: "good", text: `EMA 5/20 — агрессивное сочетание для коротких таймфреймов. Хорошо подходит для экспирации 1–2 мин.` }
+  }
+  if (emaFast === 12 && emaSlow === 26) {
+    return { level: "good", text: `EMA 12/26 — основа классического MACD. Надёжно для экспирации 5–15 мин.` }
+  }
+  if (expNum <= 2 && emaFast >= 12) {
+    return { level: "warn", text: `EMA(${emaFast}) медленновата для экспирации ${expiry} мин — сигналы будут запаздывать. Попробуйте EMA 5–9.` }
+  }
+  return { level: "good", text: `EMA(${emaFast})/EMA(${emaSlow}): разница ${diff} пп, параметры корректны для экспирации ${expiry} мин.` }
+}
+
 // ===== Indicator comment =====
 function indicatorComment(cfg: POBotConfig): { level: CommentLevel; text: string } | null {
-  const { rsiPeriod, rsiOverbought, rsiOversold, emaFast, emaSlow, expiry, strategy, comboMode, comboStrategies } = cfg
-  const strats = comboMode ? comboStrategies : [strategy]
-  const expNum = Number(expiry)
-
-  if (strats.includes("rsi_reversal")) {
-    if (rsiOverbought - rsiOversold < 30) {
-      return { level: "danger", text: `Зона нейтральности RSI (${rsiOversold}–${rsiOverbought}) слишком узкая — будет много ложных сигналов. Стандарт: 30/70 или жёстче 20/80.` }
-    }
-    if (rsiPeriod < 9 && expNum <= 2) {
-      return { level: "warn", text: `RSI(${rsiPeriod}) на ${expiry} мин очень чувствителен к шуму. Попробуйте период 9–14 для более чистых сигналов.` }
-    }
-    if (rsiPeriod >= 14 && expNum <= 2 && !strats.includes("ema_cross")) {
-      return { level: "info", text: `RSI(${rsiPeriod}) на короткой экспирации немного запаздывает. Период 7–9 даст более быстрые сигналы для 1–2 минут.` }
-    }
-  }
-
-  if (strats.includes("ema_cross")) {
-    if (emaFast >= emaSlow) {
-      return { level: "danger", text: `Быстрая EMA(${emaFast}) ≥ медленной EMA(${emaSlow}) — это ошибка. Быстрая EMA должна быть меньше медленной.` }
-    }
-    if (emaSlow - emaFast < 5) {
-      return { level: "warn", text: `Разница между EMA(${emaFast}) и EMA(${emaSlow}) всего ${emaSlow - emaFast} — сигналы будут часто ложными. Рекомендуем разницу минимум 8–12.` }
-    }
-    if (emaFast === 9 && emaSlow === 21) {
-      return { level: "good", text: "EMA 9/21 — классическое проверенное сочетание для бинарных опционов. Хороший выбор." }
-    }
-    if (emaFast <= 5 && expNum >= 5) {
-      return { level: "warn", text: `EMA(${emaFast}) очень быстрая для экспирации ${expiry} мин — будет давать преждевременные сигналы. Попробуйте EMA 9–12.` }
-    }
-  }
-
-  if (strats.includes("rsi_reversal") && strats.includes("ema_cross")) {
-    if (rsiOverbought === 70 && rsiOversold === 30 && emaFast === 9 && emaSlow === 21) {
-      return { level: "good", text: "Стандартные параметры RSI + EMA — надёжный вариант. Можно попробовать RSI 20/80 для снижения ложных сигналов в AND-режиме." }
-    }
-  }
-
+  // kept for backwards compat — not used directly anymore
   return null
 }
 
@@ -739,10 +765,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
                 <Input type="number" value={config.rsiOversold} onChange={(e) => set({ rsiOversold: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-green-400 font-space-mono text-sm" />
               </div>
             </div>
-            {(() => {
-              const c = indicatorComment(config)
-              return c ? <AIComment level={c.level} text={c.text} /> : null
-            })()}
+            <AIComment {...rsiComment(config)} />
           </CardContent>
         </Card>
       )}
@@ -762,10 +785,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
                 <Input type="number" value={config.emaSlow} onChange={(e) => set({ emaSlow: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-blue-400 font-space-mono text-sm" />
               </div>
             </div>
-            {(() => {
-              const c = indicatorComment(config)
-              return c ? <AIComment level={c.level} text={c.text} /> : null
-            })()}
+            <AIComment {...emaComment(config)} />
           </CardContent>
         </Card>
       )}
@@ -776,7 +796,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
           <CardHeader className="pb-3"><CardTitle className="font-orbitron text-white text-base">Параметры индикаторов</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             {config.comboStrategies.includes("rsi_reversal") && (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <p className="text-blue-400 font-space-mono text-xs font-semibold">RSI</p>
                 <div className="grid grid-cols-3 gap-2">
                   <div>
@@ -792,28 +812,25 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
                     <Input type="number" value={config.rsiOversold} onChange={(e) => set({ rsiOversold: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-green-400 font-space-mono text-xs h-8" />
                   </div>
                 </div>
+                <AIComment {...rsiComment(config)} />
               </div>
             )}
             {config.comboStrategies.includes("ema_cross") && (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <p className="text-green-400 font-space-mono text-xs font-semibold">EMA</p>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Быстрая EMA</Label>
                     <Input type="number" value={config.emaFast} onChange={(e) => set({ emaFast: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-green-400 font-space-mono text-xs h-8" />
                   </div>
-                  
                   <div>
                     <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Медленная EMA</Label>
                     <Input type="number" value={config.emaSlow} onChange={(e) => set({ emaSlow: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-blue-400 font-space-mono text-xs h-8" />
                   </div>
                 </div>
+                <AIComment {...emaComment(config)} />
               </div>
             )}
-            {(() => {
-              const c = indicatorComment(config)
-              return c ? <AIComment level={c.level} text={c.text} /> : null
-            })()}
           </CardContent>
         </Card>
       )}

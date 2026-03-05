@@ -114,6 +114,28 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
   const winrateColor = winrate >= 60 ? "text-green-400" : winrate >= 50 ? "text-yellow-400" : "text-red-400"
   const profitColor = totalProfit >= 0 ? "text-green-400" : "text-red-400"
 
+  // Mini chart: cumulative profit over last 20 trades (oldest → newest)
+  const chartTrades = [...trades].reverse().slice(-20)
+  const chartPoints = (() => {
+    if (chartTrades.length < 2) return null
+    const W = 240, H = 56, pad = 4
+    let cumulative = 0
+    const values = chartTrades.map((t) => { cumulative += t.profit; return cumulative })
+    const min = Math.min(0, ...values)
+    const max = Math.max(0, ...values)
+    const range = max - min || 1
+    const pts = values.map((v, i) => {
+      const x = pad + (i / (values.length - 1)) * (W - pad * 2)
+      const y = H - pad - ((v - min) / range) * (H - pad * 2)
+      return { x, y, v }
+    })
+    const zeroY = H - pad - ((0 - min) / range) * (H - pad * 2)
+    const polyline = pts.map((p) => `${p.x},${p.y}`).join(" ")
+    const fill = `${pts[0].x},${zeroY} ` + polyline + ` ${pts[pts.length - 1].x},${zeroY}`
+    const lastPositive = values[values.length - 1] >= 0
+    return { pts, polyline, fill, zeroY, lastPositive, W, H, final: values[values.length - 1] }
+  })()
+
   return (
     <Card className="bg-zinc-900 border-zinc-700">
       <CardHeader className="pb-3">
@@ -169,6 +191,64 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
             </p>
           </div>
         </div>
+
+        {/* Mini chart */}
+        {chartPoints && (
+          <div className="bg-zinc-800/60 rounded-xl p-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-zinc-500 font-space-mono text-xs">Кривая профита (последние {chartTrades.length} сделок)</p>
+              <p className={`font-orbitron font-bold text-xs ${chartPoints.lastPositive ? "text-green-400" : "text-red-400"}`}>
+                {chartPoints.final >= 0 ? "+" : ""}{chartPoints.final.toFixed(2)}$
+              </p>
+            </div>
+            <svg
+              viewBox={`0 0 ${chartPoints.W} ${chartPoints.H}`}
+              className="w-full"
+              style={{ height: 56 }}
+              preserveAspectRatio="none"
+            >
+              {/* Zero line */}
+              <line
+                x1={4} y1={chartPoints.zeroY}
+                x2={chartPoints.W - 4} y2={chartPoints.zeroY}
+                stroke="#3f3f46" strokeWidth="1" strokeDasharray="3 3"
+              />
+              {/* Fill area */}
+              <polygon
+                points={chartPoints.fill}
+                fill={chartPoints.lastPositive ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)"}
+              />
+              {/* Line */}
+              <polyline
+                points={chartPoints.polyline}
+                fill="none"
+                stroke={chartPoints.lastPositive ? "#22c55e" : "#ef4444"}
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
+              {/* Dots for win/loss */}
+              {chartPoints.pts.map((p, i) => (
+                <circle
+                  key={i}
+                  cx={p.x} cy={p.y} r="2"
+                  fill={chartTrades[i].won ? "#22c55e" : "#ef4444"}
+                />
+              ))}
+              {/* Last point highlight */}
+              {(() => {
+                const last = chartPoints.pts[chartPoints.pts.length - 1]
+                return (
+                  <circle
+                    cx={last.x} cy={last.y} r="3.5"
+                    fill={chartPoints.lastPositive ? "#22c55e" : "#ef4444"}
+                    stroke="#18181b" strokeWidth="1.5"
+                  />
+                )
+              })()}
+            </svg>
+          </div>
+        )}
 
         {/* Streak indicator */}
         {streak.count >= 2 && (

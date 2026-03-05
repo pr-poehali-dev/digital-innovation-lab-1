@@ -517,28 +517,52 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
               })}
             </div>
 
-            {config.comboStrategies.length >= 2 && (
-              <div className="bg-zinc-800 rounded-xl px-4 py-3 text-xs font-space-mono space-y-1">
-                <p className="text-zinc-400 font-semibold mb-1.5">Предварительная оценка комбо:</p>
-                {config.comboLogic === "AND" ? (
-                  <>
-                    <p className="text-zinc-500">
-                      • Сигналов/день: ~{Math.max(2, Math.min(...config.comboStrategies.filter(s=>s!=="martingale").map(s => parseInt(PO_STRATEGIES[s].signalsPerDay))))}
-                    </p>
-                    <p className="text-green-400">• Качество сигналов: Высокое (все совпадают)</p>
-                    <p className="text-zinc-500">• Риск ложных входов: Низкий</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-zinc-500">
-                      • Сигналов/день: ~{config.comboStrategies.filter(s=>s!=="martingale").reduce((a,s) => a + parseInt(PO_STRATEGIES[s].signalsPerDay), 0)}
-                    </p>
-                    <p className="text-yellow-400">• Качество сигналов: Среднее (голосование)</p>
-                    <p className="text-zinc-500">• Риск ложных входов: Средний</p>
-                  </>
-                )}
-              </div>
-            )}
+            {config.comboStrategies.length >= 2 && (() => {
+              const active = config.comboStrategies.filter(s => s !== "martingale")
+              // Parse "10–25" → [10, 25]
+              const ranges = active.map(s => {
+                const parts = PO_STRATEGIES[s].signalsPerDay.replace("–", "-").split("-").map(Number)
+                return { min: parts[0], max: parts[parts.length - 1] }
+              })
+              const risks = active.map(s => PO_STRATEGIES[s].risk)
+              const hasHigh = risks.includes("Высокий")
+              const hasMed  = risks.includes("Средний")
+
+              let sigMin: number, sigMax: number, qualityText: string, qualityColor: string, falseRisk: string, falseColor: string
+
+              if (config.comboLogic === "AND") {
+                // AND → bottleneck (минимальные сигналы из всех стратегий)
+                sigMin = Math.max(1, Math.min(...ranges.map(r => r.min)))
+                sigMax = Math.max(2, Math.min(...ranges.map(r => r.max)))
+                qualityText = active.length >= 3 ? "Очень высокое (все 3+ совпадают)" : "Высокое (оба подтверждают)"
+                qualityColor = "text-green-400"
+                falseRisk = active.length >= 3 ? "Очень низкий" : "Низкий"
+                falseColor = "text-green-400"
+              } else {
+                // OR → сумма, но перекрытие ~30%
+                sigMin = Math.round(ranges.reduce((a, r) => a + r.min, 0) * 0.7)
+                sigMax = Math.round(ranges.reduce((a, r) => a + r.max, 0) * 0.7)
+                qualityText = active.length >= 3 ? "Среднее (большинство голосов)" : "Среднее (хватает одного)"
+                qualityColor = "text-yellow-400"
+                falseRisk = hasHigh ? "Высокий" : hasMed ? "Средний" : "Низкий"
+                falseColor = hasHigh ? "text-red-400" : hasMed ? "text-yellow-400" : "text-green-400"
+              }
+
+              const winrateMin = Math.round(active.reduce((a, s) => a + parseInt(PO_STRATEGIES[s].winrateEst), 0) / active.length)
+              const winrateBonus = config.comboLogic === "AND" ? Math.min(8, active.length * 3) : 0
+              const estWinrate = `${winrateMin + winrateBonus}–${winrateMin + winrateBonus + 8}%`
+
+              return (
+                <div className="bg-zinc-800 rounded-xl px-4 py-3 text-xs font-space-mono space-y-1.5">
+                  <p className="text-zinc-300 font-semibold mb-2">📊 Оценка текущего комбо ({active.length} стратегии, {config.comboLogic}):</p>
+                  <p className="text-zinc-500">• Стратегии: <span className="text-zinc-300">{active.map(s => PO_STRATEGIES[s].label).join(", ")}</span></p>
+                  <p className="text-zinc-500">• Сигналов/день: <span className="text-white">~{sigMin}–{sigMax}</span></p>
+                  <p className="text-zinc-500">• Расчётный winrate: <span className={config.comboLogic === "AND" ? "text-green-400" : "text-yellow-400"}>{estWinrate}</span></p>
+                  <p className="text-zinc-500">• Качество сигналов: <span className={qualityColor}>{qualityText}</span></p>
+                  <p className="text-zinc-500">• Риск ложных входов: <span className={falseColor}>{falseRisk}</span></p>
+                </div>
+              )
+            })()}
           </CardContent>
         </Card>
       )}

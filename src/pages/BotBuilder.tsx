@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { Badge } from "@/components/ui/badge"
@@ -23,6 +23,7 @@ export default function BotBuilder() {
   const [poCode, setPoCode] = useState("")
   const [poGenerated, setPoGenerated] = useState(false)
   const [poCopied, setPoCopied] = useState(false)
+  const poCodeRef = useRef<HTMLDivElement>(null)
 
   // Crypto (original) state
   const [config, setConfig] = useState<BotConfig>(DEFAULT_CONFIG)
@@ -34,6 +35,9 @@ export default function BotBuilder() {
     const code = poConfig.comboMode ? generatePOComboCode(poConfig) : generatePOCode(poConfig)
     setPoCode(code)
     setPoGenerated(true)
+    setTimeout(() => {
+      poCodeRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    }, 100)
   }
 
   const handlePOCopy = () => {
@@ -523,7 +527,7 @@ export default function BotBuilder() {
                 />
 
                 {/* Code output */}
-                <div className="space-y-4">
+                <div className="space-y-4" ref={poCodeRef}>
                   <Card className="bg-zinc-900 border-red-500/20 h-full">
                     <CardHeader className="flex flex-row items-center justify-between gap-2">
                       <CardTitle className="font-orbitron text-white text-lg">Python-код бота</CardTitle>
@@ -577,7 +581,7 @@ export default function BotBuilder() {
                           </div>
                           <div className="bg-zinc-800/50 rounded-lg p-3 border border-zinc-700">
                             <p className="text-zinc-400 font-orbitron text-xs font-semibold mb-2">Запуск бота</p>
-                            <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800">
+                            <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">
 {`PO_SESSION_ID="ваш_session_id" python bot.py`}
                             </pre>
                           </div>

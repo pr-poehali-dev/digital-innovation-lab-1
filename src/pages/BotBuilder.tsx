@@ -8,11 +8,13 @@ import { BotConfig, DEFAULT_CONFIG, generateCode } from "@/components/bot-builde
 import BotBuilderForm from "@/components/bot-builder/BotBuilderForm"
 import { POBotConfig, PO_DEFAULT_CONFIG, generatePOCode } from "@/components/bot-builder/PocketOptionBotTypes"
 import PocketOptionBotForm from "@/components/bot-builder/PocketOptionBotForm"
+import Icon from "@/components/ui/icon"
 
 type Tab = "pocket_option" | "crypto"
 
 export default function BotBuilder() {
   const [tab, setTab] = useState<Tab>("pocket_option")
+  const [sessionGuideOpen, setSessionGuideOpen] = useState(false)
 
   // Pocket Option state
   const [poConfig, setPoConfig] = useState<POBotConfig>(PO_DEFAULT_CONFIG)
@@ -112,6 +114,122 @@ export default function BotBuilder() {
                     <p className="text-zinc-500">мин экспир.</p>
                   </div>
                 </div>
+              </div>
+
+              {/* Session ID Guide */}
+              <div className="mb-6">
+                <button
+                  onClick={() => setSessionGuideOpen((v) => !v)}
+                  className="w-full flex items-center justify-between bg-zinc-900 border border-zinc-700 hover:border-zinc-500 rounded-xl px-5 py-3.5 transition-all duration-200 group"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-blue-400 text-lg">🔑</span>
+                    <div className="text-left">
+                      <p className="text-white font-orbitron text-sm font-semibold">Как получить Session ID из Pocket Option?</p>
+                      <p className="text-zinc-500 font-space-mono text-xs">Пошаговая инструкция — займёт 1 минуту</p>
+                    </div>
+                  </div>
+                  <Icon
+                    name={sessionGuideOpen ? "ChevronUp" : "ChevronDown"}
+                    size={18}
+                    className="text-zinc-400 group-hover:text-zinc-200 transition-colors flex-shrink-0"
+                  />
+                </button>
+
+                {sessionGuideOpen && (
+                  <div className="mt-2 bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden">
+                    <div className="p-5 space-y-5">
+
+                      {/* Intro */}
+                      <p className="text-zinc-400 font-space-mono text-xs leading-relaxed">
+                        Session ID — это ключ вашей сессии в Pocket Option. Бот использует его, чтобы открывать сделки от вашего имени. Вот как его найти:
+                      </p>
+
+                      {/* Steps */}
+                      <div className="space-y-3">
+                        {[
+                          {
+                            step: "1",
+                            icon: "🌐",
+                            title: "Откройте Pocket Option в браузере",
+                            desc: "Перейдите на сайт pocketoption.com и войдите в свой аккаунт.",
+                            color: "border-blue-500/40 bg-blue-500/5",
+                          },
+                          {
+                            step: "2",
+                            icon: "🛠️",
+                            title: "Откройте DevTools",
+                            desc: "Нажмите F12 (или Ctrl+Shift+I на Windows / Cmd+Option+I на Mac). Откроется панель разработчика.",
+                            color: "border-zinc-600 bg-zinc-800/40",
+                          },
+                          {
+                            step: "3",
+                            icon: "📂",
+                            title: "Перейдите во вкладку «Application»",
+                            desc: 'В верхней панели DevTools найдите вкладку "Application" (Приложение). Если не видно — нажмите на стрелку ">>" в правой части панели.',
+                            color: "border-zinc-600 bg-zinc-800/40",
+                          },
+                          {
+                            step: "4",
+                            icon: "🍪",
+                            title: "Найдите Cookies",
+                            desc: 'В левом меню разверните раздел "Cookies" → кликните на "https://pocketoption.com".',
+                            color: "border-zinc-600 bg-zinc-800/40",
+                          },
+                          {
+                            step: "5",
+                            icon: "🔍",
+                            title: "Найдите ci_session",
+                            desc: 'В таблице найдите строку с именем "ci_session". Скопируйте значение из колонки "Value" — это и есть ваш Session ID.',
+                            color: "border-green-500/40 bg-green-500/5",
+                          },
+                          {
+                            step: "6",
+                            icon: "💻",
+                            title: "Передайте Session ID боту",
+                            desc: "Сохраните значение в переменную окружения перед запуском бота.",
+                            color: "border-red-500/40 bg-red-500/5",
+                            code: "export PO_SESSION_ID=\"вставьте_значение_ci_session_сюда\"\npython bot.py",
+                          },
+                        ].map(({ step, icon, title, desc, color, code }) => (
+                          <div key={step} className={`flex gap-4 p-4 rounded-xl border ${color}`}>
+                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center font-orbitron font-bold text-xs text-zinc-300">
+                              {step}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span>{icon}</span>
+                                <p className="text-white font-orbitron text-sm font-semibold">{title}</p>
+                              </div>
+                              <p className="text-zinc-400 font-space-mono text-xs leading-relaxed">{desc}</p>
+                              {code && (
+                                <pre className="mt-2 bg-black rounded-lg p-3 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-auto whitespace-pre-wrap">
+                                  {code}
+                                </pre>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Warning */}
+                      <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
+                        <div className="flex gap-3">
+                          <span className="text-yellow-400 text-lg flex-shrink-0">⚠️</span>
+                          <div className="space-y-1">
+                            <p className="text-yellow-400 font-orbitron text-xs font-semibold">Важно о безопасности</p>
+                            <ul className="text-zinc-400 font-space-mono text-xs space-y-1">
+                              <li>• Session ID — как пароль. Никому его не передавайте</li>
+                              <li>• Сессия истекает через некоторое время — нужно будет получить новую</li>
+                              <li>• Не записывайте Session ID в файл бота — используйте только переменные окружения</li>
+                              <li>• При смене пароля или выходе из аккаунта Session ID станет недействительным</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

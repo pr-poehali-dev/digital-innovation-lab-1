@@ -12,6 +12,7 @@ import Legends from "./pages/Legends";
 import PracticeCase from "./pages/PracticeCase";
 import BotBuilder from "./pages/BotBuilder";
 import Payment from "./pages/Payment";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import AccessGate from "./components/AccessGate";
 
@@ -29,6 +30,7 @@ const App = () => (
           <Route path="/bots-guide" element={<BotsGuide />} />
           <Route path="/legends" element={<Legends />} />
           <Route path="/payment" element={<Payment />} />
+          <Route path="/admin" element={<Admin />} />
           <Route path="/trading-basics" element={<AccessGate><TradingBasics /></AccessGate>} />
           <Route path="/practice" element={<AccessGate><PracticeCase /></AccessGate>} />
           <Route path="/bot-builder" element={<AccessGate><BotBuilder /></AccessGate>} />

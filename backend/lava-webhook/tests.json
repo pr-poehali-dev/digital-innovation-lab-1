@@ -1,0 +1,13 @@
+{
+  "tests": [
+    {
+      "name": "Non-success status ignored",
+      "method": "POST",
+      "path": "/",
+      "body": {"status": "pending", "order_id": "test123", "invoice_id": "inv123", "amount": "2000", "credited": "2000", "shop_id": "shop1", "sign": ""},
+      "expectedStatus": 200,
+      "expectedBody": {"ok": true},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "tests": [
+    {
+      "name": "Invalid key",
+      "method": "POST",
+      "path": "/",
+      "body": {"key": "INVALIDKEY123"},
+      "expectedStatus": 200,
+      "expectedBody": {"valid": false},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

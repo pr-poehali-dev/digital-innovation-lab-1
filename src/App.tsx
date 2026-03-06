@@ -11,7 +11,9 @@ import BotsGuide from "./pages/BotsGuide";
 import Legends from "./pages/Legends";
 import PracticeCase from "./pages/PracticeCase";
 import BotBuilder from "./pages/BotBuilder";
+import Payment from "./pages/Payment";
 import NotFound from "./pages/NotFound";
+import AccessGate from "./components/AccessGate";
 
 const queryClient = new QueryClient();
 
@@ -24,11 +26,12 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/catalog" element={<Catalog />} />
-          <Route path="/trading-basics" element={<TradingBasics />} />
           <Route path="/bots-guide" element={<BotsGuide />} />
           <Route path="/legends" element={<Legends />} />
-          <Route path="/practice" element={<PracticeCase />} />
-          <Route path="/bot-builder" element={<BotBuilder />} />
+          <Route path="/payment" element={<Payment />} />
+          <Route path="/trading-basics" element={<AccessGate><TradingBasics /></AccessGate>} />
+          <Route path="/practice" element={<AccessGate><PracticeCase /></AccessGate>} />
+          <Route path="/bot-builder" element={<AccessGate><BotBuilder /></AccessGate>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -1,16 +1,31 @@
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Menu, X } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
+  const navigate = useNavigate()
+  const clickCount = useRef(0)
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function handleLogoClick() {
+    clickCount.current += 1
+    if (clickTimer.current) clearTimeout(clickTimer.current)
+    if (clickCount.current >= 5) {
+      clickCount.current = 0
+      navigate('/admin')
+      return
+    }
+    clickTimer.current = setTimeout(() => { clickCount.current = 0 }, 2000)
+  }
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-[9999] bg-black/95 backdrop-blur-md border-b border-red-500/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 cursor-pointer select-none" onClick={handleLogoClick}>
             <h1 className="font-orbitron text-xl font-bold text-white">
               Trade<span className="text-red-500">Base</span>
             </h1>

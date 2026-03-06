@@ -1,14 +1,11 @@
 import json
 import os
-import hashlib
-import hmac
-import uuid
 import urllib.request
 import urllib.error
 
 
 def handler(event: dict, context) -> dict:
-    """Создание платёжной ссылки через Lava.ru API"""
+    """Создание платёжной ссылки через Lava.top API"""
     if event.get('httpMethod') == 'OPTIONS':
         return {
             'statusCode': 200,
@@ -23,31 +20,31 @@ def handler(event: dict, context) -> dict:
 
     headers = {'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json'}
 
-    shop_id = os.environ.get('LAVA_SHOP_ID', '')
-    secret_key = os.environ.get('LAVA_SECRET_KEY', '')
+    api_key = os.environ.get('LAVA_SECRET_KEY', '')
+    offer_id = os.environ.get('LAVA_SHOP_ID', '')
 
-    if not shop_id or not secret_key:
+    if not api_key or not offer_id:
         return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': 'Lava not configured'})}
 
-    order_id = str(uuid.uuid4())
+    body = json.loads(event.get('body') or '{}')
+    email = body.get('email', '[email protected]')
 
     payload = {
-        'shopId': shop_id,
-        'sum': 2000,
-        'orderId': order_id,
-        'comment': 'Доступ к TradeBase',
+        'email': email,
+        'offerId': offer_id,
+        'currency': 'RUB',
+        'buyerLanguage': 'RU',
     }
 
     body_str = json.dumps(payload, ensure_ascii=False)
-    signature = hmac.new(secret_key.encode('utf-8'), body_str.encode('utf-8'), hashlib.sha256).hexdigest()
 
     req = urllib.request.Request(
-        'https://api.lava.ru/business/invoice/create',
+        'https://gate.lava.top/api/v2/invoice',
         data=body_str.encode('utf-8'),
         headers={
             'Content-Type': 'application/json',
-            'Signature': signature,
             'Accept': 'application/json',
+            'X-Api-Key': api_key,
         },
         method='POST',
     )
@@ -59,10 +56,10 @@ def handler(event: dict, context) -> dict:
         error_body = e.read().decode()
         return {'statusCode': 502, 'headers': headers, 'body': json.dumps({'error': f'Lava API error {e.code}', 'detail': error_body})}
 
-    pay_url = result.get('data', {}).get('url', '')
+    pay_url = result.get('paymentUrl', '')
 
     return {
         'statusCode': 200,
         'headers': headers,
-        'body': json.dumps({'url': pay_url, 'order_id': order_id}),
+        'body': json.dumps({'url': pay_url}),
     }

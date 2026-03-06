@@ -2,10 +2,12 @@ import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Menu, X } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { useAccess } from "@/hooks/use-access"
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const navigate = useNavigate()
+  const { hasAccess } = useAccess()
   const clickCount = useRef(0)
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -60,7 +62,15 @@ export function Navbar() {
 
           {/* CTA Button */}
           <div className="hidden md:block">
-            <Button className="bg-red-500 hover:bg-red-600 text-white font-geist border-0">Начать обучение</Button>
+            {hasAccess ? (
+              <Button className="bg-red-500 hover:bg-red-600 text-white font-geist border-0" onClick={() => navigate('/trading-basics')}>
+                Начать обучение
+              </Button>
+            ) : (
+              <Button className="bg-red-500 hover:bg-red-600 text-white font-geist border-0 animate-pulse" onClick={() => navigate('/payment')}>
+                🔑 Получить доступ — 2 000 ₽
+              </Button>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -121,9 +131,15 @@ export function Navbar() {
                 🏆 Легенды
               </a>
               <div className="px-3 py-2">
-                <Button className="w-full bg-red-500 hover:bg-red-600 text-white font-geist border-0">
-                  Начать обучение
-                </Button>
+                {hasAccess ? (
+                  <Button className="w-full bg-red-500 hover:bg-red-600 text-white font-geist border-0" onClick={() => { navigate('/trading-basics'); setIsOpen(false) }}>
+                    Начать обучение
+                  </Button>
+                ) : (
+                  <Button className="w-full bg-red-500 hover:bg-red-600 text-white font-geist border-0" onClick={() => { navigate('/payment'); setIsOpen(false) }}>
+                    🔑 Получить доступ — 2 000 ₽
+                  </Button>
+                )}
               </div>
             </div>
           </div>

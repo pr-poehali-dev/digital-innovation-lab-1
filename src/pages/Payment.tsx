@@ -30,8 +30,7 @@ export default function Payment() {
   }
 
   function handlePay() {
-    const payUrl = `https://lava.ru/pay?shop=${LAVA_SHOP_ID}&amount=2000&currency=RUB&description=Доступ к платформе`;
-    window.open(payUrl, '_blank');
+    window.open('https://app.lava.top/products/2ca1bd64-0350-4566-9a72-3838d0b8810f', '_blank');
   }
 
   if (activated || hasAccess) {

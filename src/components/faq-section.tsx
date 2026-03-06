@@ -3,55 +3,70 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 export function FAQSection() {
   const faqs = [
     {
-      question: "Для кого предназначена эта база знаний?",
+      question: "Для кого этот курс?",
       answer:
-        "База подойдёт как новичкам, только начинающим изучать трейдинг, так и опытным трейдерам, желающим систематизировать знания или освоить алгоритмическую торговлю. Материалы структурированы по уровням сложности.",
+        "Для всех — от полных новичков до трейдеров с опытом. Новичкам помогут разобраться в основах без лишней воды. Опытным — систематизировать знания и освоить алгоритмическую торговлю.",
     },
     {
-      question: "Нужно ли уметь программировать для работы с торговыми ботами?",
+      question: "Нужно ли уметь программировать для работы с ботами?",
       answer:
-        "Не обязательно. В базе есть материалы как для программистов, так и для тех, кто хочет использовать готовые решения без кода. Мы рассматриваем no-code платформы и конструкторы ботов.",
+        "Нет. Конструктор ботов генерирует готовый Python-код автоматически — просто выбираешь параметры и скачиваешь. Если хочешь разобраться глубже — в курсе есть материалы по Python для трейдинга.",
     },
     {
-      question: "Какие рынки охватывает база знаний?",
+      question: "Какие рынки охватывает курс?",
       answer:
-        "База охватывает криптовалютный рынок, фондовый рынок и форекс. Принципы трейдинга и алгоритмической торговли универсальны, а конкретные примеры приводятся для каждого рынка.",
+        "Криптовалютный рынок, фондовый и форекс. Принципы управления рисками и алгоритмической торговли универсальны — примеры есть для каждого рынка.",
+    },
+    {
+      question: "Как оплатить доступ?",
+      answer:
+        "Оплата через Lava.ru — принимаются банковские карты (Visa, Mastercard, Мир) и СБП. Оплата безопасная, данные карты не хранятся. После оплаты ключ доступа придёт на твою почту автоматически.",
+    },
+    {
+      question: "Что такое ключ доступа и как его использовать?",
+      answer:
+        "После оплаты на твой email придёт уникальный код из 16 символов. Введи его на странице «Получить доступ» или прямо в закрытом разделе сайта — и доступ откроется навсегда.",
+    },
+    {
+      question: "Доступ — разовый или по подписке?",
+      answer:
+        "Разовый платёж 2 000 ₽ — и доступ навсегда. Никаких ежемесячных списаний. Все обновления курса тоже входят в эту цену.",
+    },
+    {
+      question: "Что делать если ключ не пришёл на email?",
+      answer:
+        "Проверь папку «Спам». Если там тоже нет — напиши нам в поддержку, пришли номер заказа и мы вышлем ключ вручную.",
     },
     {
       question: "Как часто обновляется контент?",
       answer:
-        "Материалы регулярно пополняются и обновляются. Мы отслеживаем изменения на рынках, появление новых инструментов и платформ, добавляем актуальные кейсы и разборы стратегий.",
-    },
-    {
-      question: "Есть ли готовые стратегии для торговых ботов?",
-      answer:
-        "Да, в базе представлены описания популярных алгоритмических стратегий: скальпинг, grid-trading, арбитраж, следование тренду и другие. Для каждой — объяснение логики, плюсы, минусы и условия применения.",
-    },
-    {
-      question: "С чего начать, если я полный новичок?",
-      answer:
-        "Рекомендуем начать с раздела «Основы трейдинга» — он написан простым языком и закладывает необходимый фундамент. После этого выбирайте направление: ручная торговля или боты.",
+        "Регулярно. Мы добавляем новые кейсы, разборы стратегий и обновляем материалы по мере изменений на рынках. Всё это доступно без доплат.",
     },
   ]
 
   return (
-    <section className="py-24 bg-black">
+    <section className="py-24 bg-zinc-950" id="faq">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
+          <p className="text-red-400 text-sm font-medium uppercase tracking-widest mb-3 font-orbitron">FAQ</p>
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 font-orbitron">Частые вопросы</h2>
-          <p className="text-xl text-gray-300 max-w-3xl mx-auto font-space-mono">
-            Ответы на популярные вопросы о базе знаний, её содержании и о том, как начать торговать.
+          <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+            Всё что нужно знать перед покупкой доступа
           </p>
         </div>
 
-        <div className="max-w-4xl mx-auto">
-          <Accordion type="single" collapsible className="w-full">
+        <div className="max-w-3xl mx-auto">
+          <Accordion type="single" collapsible className="w-full space-y-3">
             {faqs.map((faq, index) => (
-              <AccordionItem key={index} value={`item-${index}`} className="border-red-500/20 mb-4">
-                <AccordionTrigger className="text-left text-lg font-semibold text-white hover:text-red-400 font-orbitron px-6 py-4">
+              <AccordionItem
+                key={index}
+                value={`item-${index}`}
+                className="bg-zinc-900 border border-zinc-800 rounded-xl px-2 hover:border-red-500/30 transition-colors"
+              >
+                <AccordionTrigger className="text-left text-base font-semibold text-white hover:text-red-400 font-orbitron px-4 py-4 hover:no-underline">
                   {faq.question}
                 </AccordionTrigger>
-                <AccordionContent className="text-gray-300 leading-relaxed px-6 pb-4 font-space-mono">
+                <AccordionContent className="text-gray-400 leading-relaxed px-4 pb-4 text-sm">
                   {faq.answer}
                 </AccordionContent>
               </AccordionItem>

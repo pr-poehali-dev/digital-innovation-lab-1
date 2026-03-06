@@ -5,7 +5,7 @@ import urllib.error
 
 
 def handler(event: dict, context) -> dict:
-    """Создание платёжной ссылки через Lava.top API"""
+    """Создание платёжной ссылки через Lava.top API v2"""
     if event.get('httpMethod') == 'OPTIONS':
         return {
             'statusCode': 200,

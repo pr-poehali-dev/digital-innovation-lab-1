@@ -1,6 +1,7 @@
 import json
 import os
 import hashlib
+import hmac
 import secrets
 import string
 import smtplib
@@ -14,20 +15,10 @@ def generate_key(length=16):
     return ''.join(secrets.choice(alphabet) for _ in range(length))
 
 
-def verify_signature(data: dict, secret: str) -> bool:
-    """Верификация подписи от Lava.ru"""
-    sign = data.get('sign', '')
-    fields = [
-        str(data.get('invoice_id', '')),
-        str(data.get('order_id', '')),
-        str(data.get('status', '')),
-        str(data.get('amount', '')),
-        str(data.get('credited', '')),
-        str(data.get('shop_id', '')),
-    ]
-    sign_str = ':'.join(fields) + secret
-    expected = hashlib.sha256(sign_str.encode()).hexdigest()
-    return sign == expected
+def verify_signature(body_raw: str, secret: str, signature: str) -> bool:
+    """Верификация подписи от Lava.top"""
+    expected = hmac.new(secret.encode('utf-8'), body_raw.encode('utf-8'), hashlib.sha256).hexdigest()
+    return expected == signature
 
 
 def send_key_email(to_email: str, key: str):
@@ -46,17 +37,29 @@ def send_key_email(to_email: str, key: str):
 
     html = f"""
     <html>
-    <body style="font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px;">
-      <div style="max-width: 480px; margin: 0 auto; background: #fff; border-radius: 16px; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-        <h2 style="color: #111; margin-bottom: 8px;">Оплата прошла успешно!</h2>
-        <p style="color: #555; margin-bottom: 24px;">Спасибо за покупку. Вот ваш ключ доступа:</p>
-        <div style="background: #f0f0f0; border-radius: 10px; padding: 20px; text-align: center; margin-bottom: 24px;">
-          <span style="font-family: monospace; font-size: 22px; font-weight: bold; letter-spacing: 3px; color: #111;">{key}</span>
+    <body style="font-family: Arial, sans-serif; background: #0a0a0a; padding: 40px 20px;">
+      <div style="max-width: 500px; margin: 0 auto;">
+        <div style="text-align: center; margin-bottom: 32px;">
+          <span style="font-size: 28px; font-weight: 900; color: #fff; letter-spacing: 2px;">TRADE<span style="color: #ef4444;">BASE</span></span>
         </div>
-        <p style="color: #555; font-size: 14px; margin-bottom: 16px;">
-          Перейдите на сайт, нажмите <strong>«Получить доступ»</strong> и введите этот ключ.
-        </p>
-        <p style="color: #aaa; font-size: 12px;">Храните ключ в надёжном месте — он даёт постоянный доступ к платформе.</p>
+        <div style="background: #18181b; border-radius: 16px; padding: 40px; border: 1px solid #27272a;">
+          <div style="width: 48px; height: 48px; background: rgba(239,68,68,0.15); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 24px;">
+            <span style="font-size: 24px;">✅</span>
+          </div>
+          <h2 style="color: #fff; margin: 0 0 8px 0; font-size: 22px;">Оплата прошла успешно!</h2>
+          <p style="color: #a1a1aa; margin: 0 0 28px 0; font-size: 15px;">Спасибо за покупку. Вот твой ключ доступа к платформе:</p>
+          <div style="background: #09090b; border: 1px solid #3f3f46; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 28px;">
+            <p style="color: #71717a; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; margin: 0 0 10px 0;">Ключ доступа</p>
+            <span style="font-family: monospace; font-size: 24px; font-weight: bold; letter-spacing: 4px; color: #ef4444;">{key}</span>
+          </div>
+          <div style="background: rgba(239,68,68,0.08); border-left: 3px solid #ef4444; border-radius: 4px; padding: 14px 16px; margin-bottom: 28px;">
+            <p style="color: #fca5a5; font-size: 13px; margin: 0;">Перейди на сайт → нажми <strong>«Получить доступ»</strong> → введи этот ключ</p>
+          </div>
+          <div style="border-top: 1px solid #27272a; padding-top: 20px;">
+            <p style="color: #52525b; font-size: 12px; margin: 0;">Храни ключ в надёжном месте — он даёт постоянный доступ к платформе без дополнительной оплаты.</p>
+          </div>
+        </div>
+        <p style="color: #3f3f46; font-size: 12px; text-align: center; margin-top: 24px;">© 2026 TradeBase · Если есть вопросы — ответь на это письмо</p>
       </div>
     </body>
     </html>
@@ -70,24 +73,27 @@ def send_key_email(to_email: str, key: str):
 
 
 def handler(event: dict, context) -> dict:
-    """Webhook от Lava.ru — получение уведомления об успешной оплате, выдача ключа и отправка на email"""
+    """Webhook от Lava.top — получение уведомления об успешной оплате, выдача ключа и отправка на email"""
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': {'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '86400'}, 'body': ''}
 
-    body = json.loads(event.get('body') or '{}')
+    body_raw = event.get('body') or '{}'
+    body = json.loads(body_raw)
 
     headers = {'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json'}
 
     secret = os.environ.get('LAVA_SECRET_KEY', '')
-    if secret and not verify_signature(body, secret):
+    signature = (event.get('headers') or {}).get('x-signature', '')
+    if secret and signature and not verify_signature(body_raw, secret, signature):
         return {'statusCode': 403, 'headers': headers, 'body': json.dumps({'error': 'Invalid signature'})}
 
+    # Lava.top формат: {"status": "success", "buyerEmail": "...", "contractId": "..."}
     status = body.get('status')
     if status != 'success':
         return {'statusCode': 200, 'headers': headers, 'body': json.dumps({'ok': True, 'message': 'Not a success event'})}
 
-    order_id = body.get('order_id', '')
-    email = body.get('email', '') or body.get('buyer_email', '')
+    order_id = body.get('contractId', '') or body.get('orderId', '') or body.get('order_id', '')
+    email = body.get('buyerEmail', '') or body.get('email', '') or body.get('buyer_email', '')
 
     conn = psycopg2.connect(os.environ['DATABASE_URL'])
     cur = conn.cursor()

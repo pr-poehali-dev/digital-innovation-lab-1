@@ -54,7 +54,11 @@ def handler(event: dict, context) -> dict:
             result = json.loads(resp.read().decode())
     except urllib.error.HTTPError as e:
         error_body = e.read().decode()
+        print(f'Lava error {e.code}: {error_body}')
         return {'statusCode': 502, 'headers': headers, 'body': json.dumps({'error': f'Lava API error {e.code}', 'detail': error_body})}
+    except Exception as e:
+        print(f'Unexpected error: {e}')
+        return {'statusCode': 500, 'headers': headers, 'body': json.dumps({'error': str(e)})}
 
     pay_url = result.get('paymentUrl', '')
 

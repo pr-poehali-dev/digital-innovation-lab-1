@@ -589,8 +589,15 @@ export default function BotBuilder() {
                           {/* Step 3 */}
                           <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-2">
                             <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 3 — Установите зависимости</p>
-                            <p className="text-zinc-400 font-space-mono text-xs mb-1">Откройте терминал (cmd / PowerShell / Terminal) в папке с файлом и выполните:</p>
+                            <p className="text-zinc-400 font-space-mono text-xs font-semibold text-white mb-1">Как открыть терминал в папке с файлом (Windows):</p>
+                            <ol className="text-zinc-400 font-space-mono text-xs space-y-1 ml-2 list-decimal list-inside">
+                              <li>Откройте папку <span className="text-white">Загрузки</span> в Проводнике (где лежит bot.py)</li>
+                              <li>Зажмите <span className="text-white">Shift</span> и кликните <span className="text-white">правой кнопкой мыши</span> на пустом месте в папке</li>
+                              <li>Выберите <span className="text-green-400">«Открыть окно PowerShell здесь»</span> (или «Открыть в терминале»)</li>
+                              <li>В открывшемся окне вставьте команду и нажмите <span className="text-white">Enter</span>:</li>
+                            </ol>
                             <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`pip install requests`}</pre>
+                            <p className="text-zinc-500 font-space-mono text-xs">Увидите <span className="text-green-400">Successfully installed</span> — готово, переходите к шагу 4.</p>
                           </div>
 
                           {/* Step 4 */}
@@ -705,8 +712,15 @@ PO_SESSION_ID="ваш_session_id" python bot.py`}</pre>
 
                         <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-2">
                           <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 3 — Установите зависимости</p>
-                          <p className="text-zinc-400 font-space-mono text-xs mb-1">Откройте терминал в папке с файлом и выполните:</p>
+                          <p className="text-zinc-400 font-space-mono text-xs font-semibold text-white mb-1">Как открыть терминал в папке с файлом (Windows):</p>
+                          <ol className="text-zinc-400 font-space-mono text-xs space-y-1 ml-2 list-decimal list-inside">
+                            <li>Откройте папку <span className="text-white">Загрузки</span> в Проводнике (где лежит bot.py)</li>
+                            <li>Зажмите <span className="text-white">Shift</span> и кликните <span className="text-white">правой кнопкой мыши</span> на пустом месте в папке</li>
+                            <li>Выберите <span className="text-green-400">«Открыть окно PowerShell здесь»</span> (или «Открыть в терминале»)</li>
+                            <li>В открывшемся окне вставьте команду и нажмите <span className="text-white">Enter</span>:</li>
+                          </ol>
                           <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`pip install requests ccxt`}</pre>
+                          <p className="text-zinc-500 font-space-mono text-xs">Увидите <span className="text-green-400">Successfully installed</span> — готово, переходите к шагу 4.</p>
                         </div>
 
                         <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-2">

@@ -606,12 +606,37 @@ export default function BotBuilder() {
                           {/* Step 4 */}
                           <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-2">
                             <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 4 — Получите Session ID</p>
-                            <p className="text-zinc-400 font-space-mono text-xs">Войдите в <a href="https://pocketoption.com" target="_blank" rel="noreferrer" className="text-blue-400 underline">pocketoption.com</a> в браузере. Откройте DevTools:</p>
-                            <ul className="text-zinc-400 font-space-mono text-xs space-y-0.5 ml-2">
-                              <li>• <span className="text-white">Chrome/Edge:</span> F12 → Application → Cookies → найдите <span className="text-red-400">ci_session</span></li>
-                              <li>• <span className="text-white">Firefox:</span> F12 → Storage → Cookies → <span className="text-red-400">ci_session</span></li>
-                            </ul>
-                            <p className="text-zinc-500 font-space-mono text-xs">Скопируйте значение — это и есть ваш Session ID.</p>
+                            <p className="text-zinc-400 font-space-mono text-xs">Войдите в <a href="https://pocketoption.com" target="_blank" rel="noreferrer" className="text-blue-400 underline">pocketoption.com</a> и следуйте инструкции для вашего браузера:</p>
+                            <div className="space-y-2">
+                              <div className="bg-black/40 rounded p-2">
+                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-1">Chrome / Edge</p>
+                                <ol className="text-zinc-500 font-space-mono text-xs space-y-0.5 ml-2 list-decimal list-inside">
+                                  <li>Нажмите <span className="text-white">F12</span> (или правая кнопка → «Просмотр кода»)</li>
+                                  <li>Вкладка <span className="text-white">Application</span> (Приложение)</li>
+                                  <li>Слева: <span className="text-white">Cookies → pocketoption.com</span></li>
+                                  <li>Найдите строку <span className="text-red-400">ci_session</span> → скопируйте значение из колонки <span className="text-white">Value</span></li>
+                                </ol>
+                              </div>
+                              <div className="bg-black/40 rounded p-2">
+                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-1">Opera / Opera GX</p>
+                                <ol className="text-zinc-500 font-space-mono text-xs space-y-0.5 ml-2 list-decimal list-inside">
+                                  <li>Нажмите <span className="text-white">F12</span> или <span className="text-white">Ctrl+Shift+I</span></li>
+                                  <li>Вкладка <span className="text-white">Application</span> (если не видно — нажмите <span className="text-white">&gt;&gt;</span> в панели вкладок)</li>
+                                  <li>Слева: <span className="text-white">Cookies → pocketoption.com</span></li>
+                                  <li>Найдите строку <span className="text-red-400">ci_session</span> → скопируйте значение из колонки <span className="text-white">Value</span></li>
+                                </ol>
+                              </div>
+                              <div className="bg-black/40 rounded p-2">
+                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-1">Firefox</p>
+                                <ol className="text-zinc-500 font-space-mono text-xs space-y-0.5 ml-2 list-decimal list-inside">
+                                  <li>Нажмите <span className="text-white">F12</span></li>
+                                  <li>Вкладка <span className="text-white">Хранилище</span> (Storage)</li>
+                                  <li>Слева: <span className="text-white">Куки → pocketoption.com</span></li>
+                                  <li>Найдите строку <span className="text-red-400">ci_session</span> → скопируйте значение</li>
+                                </ol>
+                              </div>
+                            </div>
+                            <p className="text-zinc-500 font-space-mono text-xs">Значение выглядит как длинный набор букв и цифр — это и есть ваш Session ID.</p>
                           </div>
 
                           {/* Step 5 */}

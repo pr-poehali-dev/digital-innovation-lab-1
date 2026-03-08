@@ -717,13 +717,47 @@ export default function BotBuilder() {
 
                 {/* Bot 2 Form (dual mode only) */}
                 {dualMode && (
-                  <div>
-                    <p className="text-blue-400 font-orbitron text-xs font-bold mb-3 uppercase tracking-wider">🤖 Бот 2</p>
+                  <div className="space-y-4">
+                    <p className="text-blue-400 font-orbitron text-xs font-bold uppercase tracking-wider">🤖 Бот 2</p>
                     <PocketOptionBotForm
                       config={poConfig2}
                       onChange={setPoConfig2}
                       onGenerate={handlePOGenerate}
                     />
+                    {/* Telegram for Bot 2 */}
+                    <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-blue-400">✈️</span>
+                        <p className="text-white font-orbitron text-xs font-semibold">Telegram для Бота 2</p>
+                        <span className="text-zinc-500 font-space-mono text-xs">— необязательно</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <p className="text-zinc-500 font-space-mono text-xs mb-1">Bot Token</p>
+                          <input
+                            type="text"
+                            value={poConfig2.tgToken}
+                            onChange={(e) => setPoConfig2((p) => ({ ...p, tgToken: e.target.value }))}
+                            placeholder="1234567890:AAF..."
+                            className="w-full bg-black border border-zinc-700 focus:border-blue-500/60 rounded-lg px-3 py-2 text-blue-300 font-space-mono text-xs outline-none transition-colors placeholder:text-zinc-600"
+                          />
+                        </div>
+                        <div>
+                          <p className="text-zinc-500 font-space-mono text-xs mb-1">Chat ID</p>
+                          <input
+                            type="text"
+                            value={poConfig2.tgChatId}
+                            onChange={(e) => setPoConfig2((p) => ({ ...p, tgChatId: e.target.value }))}
+                            placeholder="123456789"
+                            className="w-full bg-black border border-zinc-700 focus:border-blue-500/60 rounded-lg px-3 py-2 text-blue-300 font-space-mono text-xs outline-none transition-colors placeholder:text-zinc-600"
+                          />
+                        </div>
+                      </div>
+                      {poConfig2.tgToken && poConfig2.tgChatId
+                        ? <div className="flex items-center gap-2 text-blue-400 font-space-mono text-xs"><Icon name="CheckCircle" size={12} />Telegram подключён для Бота 2</div>
+                        : <p className="text-zinc-600 font-space-mono text-xs">Можно использовать тот же бот и chat id что и для Бота 1</p>
+                      }
+                    </div>
                   </div>
                 )}
 

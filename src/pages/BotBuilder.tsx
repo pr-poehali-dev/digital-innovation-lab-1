@@ -251,32 +251,32 @@ export default function BotBuilder() {
                           },
                           {
                             step: "3",
-                            icon: "📂",
-                            title: "Перейдите во вкладку «Application»",
-                            desc: 'В верхней панели DevTools найдите вкладку "Application" (Приложение). Если не видно — нажмите на стрелку ">>" в правой части панели.',
+                            icon: "📡",
+                            title: "Перейдите во вкладку «Network» → «WS»",
+                            desc: 'В верхней панели DevTools нажмите "Network" (Сеть). В строке фильтра выберите "WS" (WebSocket).',
                             color: "border-zinc-600 bg-zinc-800/40",
                           },
                           {
                             step: "4",
-                            icon: "🍪",
-                            title: "Найдите Cookies",
-                            desc: 'В левом меню разверните раздел "Cookies" → кликните на "https://po-fcm.com".',
+                            icon: "🔄",
+                            title: "Обновите страницу F5",
+                            desc: "Нажмите F5 — страница перезагрузится и в списке появятся WebSocket-соединения.",
                             color: "border-zinc-600 bg-zinc-800/40",
                           },
                           {
                             step: "5",
                             icon: "🔍",
-                            title: "Найдите ci_session",
-                            desc: 'В таблице найдите строку с именем "ci_session". Скопируйте значение из колонки "Value" — это и есть ваш Session ID.',
+                            title: "Найдите сообщение 42[\"auth\",...]",
+                            desc: 'Кликните на соединение в списке → вкладка "Messages". Найдите сообщение начинающееся с 42["auth", — скопируйте его целиком.',
                             color: "border-green-500/40 bg-green-500/5",
                           },
                           {
                             step: "6",
                             icon: "💻",
-                            title: "Передайте Session ID боту",
-                            desc: "Сохраните значение в переменную окружения перед запуском бота.",
+                            title: "Запустите бота в PowerShell",
+                            desc: "Вставьте скопированное сообщение как значение переменной. Внешние кавычки — одинарные, внутри — двойные.",
                             color: "border-red-500/40 bg-red-500/5",
-                            code: "export PO_SESSION_ID=\"вставьте_значение_ci_session_сюда\"\npython bot.py",
+                            code: `$env:PO_SESSION_ID='42["auth",{"session":"вставьте_сюда","isDemo":1,"uid":123456,"platform":2}]'; python bot.py`,
                           },
                         ].map(({ step, icon, title, desc, color, code }) => (
                           <div key={step} className={`flex gap-4 p-4 rounded-xl border ${color}`}>
@@ -611,24 +611,27 @@ export default function BotBuilder() {
                           {/* Step 4 */}
                           <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-2">
                             <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 4 — Получите Session ID</p>
-                            <p className="text-zinc-400 font-space-mono text-xs">Войдите в <a href="https://po-fcm.com/ru" target="_blank" rel="noreferrer" className="text-blue-400 underline">po-fcm.com/ru</a> и следуйте инструкции для вашего браузера:</p>
+                            <p className="text-zinc-400 font-space-mono text-xs">Войдите в <a href="https://po-fcm.com/ru" target="_blank" rel="noreferrer" className="text-blue-400 underline">po-fcm.com/ru</a>. Session ID — это WebSocket-сообщение авторизации. Вот как его найти:</p>
                             <div className="space-y-2">
                               <div className="bg-black/40 rounded p-2">
-                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-1">Chrome / Edge</p>
+                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-1">Chrome / Edge / Opera</p>
                                 <ol className="text-zinc-500 font-space-mono text-xs space-y-0.5 ml-2 list-decimal list-inside">
-                                  <li>Нажмите <span className="text-white">F12</span> (или правая кнопка → «Просмотр кода»)</li>
-                                  <li>Вкладка <span className="text-white">Application</span> (Приложение)</li>
-                                  <li>Слева: <span className="text-white">Cookies → po-fcm.com</span></li>
-                                  <li>Найдите строку <span className="text-red-400">ci_session</span> → скопируйте значение из колонки <span className="text-white">Value</span></li>
+                                  <li>Нажмите <span className="text-white">F12</span> — откроется DevTools</li>
+                                  <li>Вкладка <span className="text-white">Network</span> (Сеть)</li>
+                                  <li>В фильтре выберите <span className="text-white">WS</span> (WebSocket)</li>
+                                  <li>Обновите страницу <span className="text-white">F5</span></li>
+                                  <li>Нажмите на соединение в списке → вкладка <span className="text-white">Messages</span></li>
+                                  <li>Найдите сообщение начинающееся с <span className="text-red-400">42["auth",</span> → скопируйте его целиком</li>
                                 </ol>
                               </div>
                               <div className="bg-black/40 rounded p-2">
-                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-1">Opera / Opera GX</p>
+                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-1">Firefox</p>
                                 <ol className="text-zinc-500 font-space-mono text-xs space-y-0.5 ml-2 list-decimal list-inside">
-                                  <li>Нажмите <span className="text-white">F12</span> или <span className="text-white">Ctrl+Shift+I</span></li>
-                                  <li>Вкладка <span className="text-white">Application</span> (если не видно — нажмите <span className="text-white">&gt;&gt;</span> в панели вкладок)</li>
-                                  <li>Слева: <span className="text-white">Cookies → po-fcm.com</span></li>
-                                  <li>Найдите строку <span className="text-red-400">ci_session</span> → скопируйте значение из колонки <span className="text-white">Value</span></li>
+                                  <li>Нажмите <span className="text-white">F12</span></li>
+                                  <li>Вкладка <span className="text-white">Сеть</span> → фильтр <span className="text-white">WS</span></li>
+                                  <li>Обновите страницу <span className="text-white">F5</span></li>
+                                  <li>Кликните на WS-соединение → <span className="text-white">Ответ</span></li>
+                                  <li>Найдите сообщение <span className="text-red-400">42["auth",...]</span> → скопируйте целиком</li>
                                 </ol>
                               </div>
                               <div className="bg-black/40 rounded p-2">
@@ -641,25 +644,25 @@ export default function BotBuilder() {
                                 </ol>
                               </div>
                             </div>
-                            <p className="text-zinc-500 font-space-mono text-xs">Значение выглядит как длинный набор букв и цифр — это и есть ваш Session ID.</p>
+                            <p className="text-zinc-500 font-space-mono text-xs">Сообщение выглядит так: <span className="text-green-400">42["auth",{"{"}{"\"session\""}:{"\"abc123...\""},{"\"isDemo\""}:1,...{"}"}]</span> — скопируйте его целиком.</p>
                           </div>
 
                           {/* Step 5 */}
                           <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-2">
                             <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 5 — Запустите бота</p>
-                            <p className="text-zinc-400 font-space-mono text-xs font-semibold text-white mb-1">Как открыть терминал (если закрыли после шага 3):</p>
+                            <p className="text-zinc-400 font-space-mono text-xs">Положите <span className="text-white">bot.py</span> в папку <span className="text-white">PocketOptionAPI-main</span> (туда же, где делали <span className="text-green-400">pip install .</span>).</p>
+                            <p className="text-zinc-400 font-space-mono text-xs font-semibold">Как открыть терминал в нужной папке:</p>
                             <ol className="text-zinc-400 font-space-mono text-xs space-y-1 ml-2 list-decimal list-inside">
-                              <li>Откройте папку с файлом <span className="text-white">bot.py</span> в Проводнике</li>
-                              <li>Зажмите <span className="text-white">Shift</span> → правая кнопка мыши на пустом месте</li>
-                              <li>Выберите <span className="text-green-400">«Открыть окно PowerShell здесь»</span></li>
+                              <li>Откройте папку <span className="text-white">PocketOptionAPI-main</span> в Проводнике</li>
+                              <li>В адресной строке проводника напечатайте <span className="text-green-400">powershell</span> → Enter</li>
                             </ol>
-                            <p className="text-zinc-400 font-space-mono text-xs mt-1 mb-1">Вставьте команду целиком — замените <span className="text-red-400">ваш_session_id</span> на скопированный в шаге 4 ID и нажмите <span className="text-white">Enter</span>:</p>
-                            <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`$env:PO_SESSION_ID="ваш_session_id"; python bot.py`}</pre>
-                            <p className="text-zinc-500 font-space-mono text-xs">Если всё верно — в терминале появятся логи бота и он начнёт работать. Не закрывайте окно PowerShell — бот остановится.</p>
-                            <div className="flex gap-2 bg-green-500/5 border border-green-500/20 rounded p-2">
-                              <span className="text-green-400 shrink-0">💡</span>
-                              <p className="text-green-400/80 font-space-mono text-xs">Хотите запустить на <span className="text-white">демо-счёте</span>? Переключитесь на демо в Pocket Option, затем возьмите Session ID с той же страницы — бот автоматически будет торговать на демо.</p>
+                            <p className="text-zinc-400 font-space-mono text-xs mt-1 mb-1">Вставьте команду — замените значение на скопированное в шаге 4 сообщение и нажмите <span className="text-white">Enter</span>:</p>
+                            <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`$env:PO_SESSION_ID='42["auth",{"session":"вставьте_сюда","isDemo":1,"uid":123456,"platform":2}]'; python bot.py`}</pre>
+                            <div className="bg-blue-500/5 border border-blue-500/20 rounded p-2 space-y-1">
+                              <p className="text-blue-400 font-space-mono text-xs font-semibold">⚠️ Важно про кавычки:</p>
+                              <p className="text-zinc-400 font-space-mono text-xs">Внешние кавычки — <span className="text-white">одинарные</span> <span className="text-yellow-400">'...'</span>, внутри — двойные. Не меняйте их местами!</p>
                             </div>
+                            <p className="text-zinc-500 font-space-mono text-xs">Если всё верно — в терминале появятся логи бота и он начнёт работать. Не закрывайте окно PowerShell — бот остановится.</p>
                           </div>
 
                           {/* Errors */}

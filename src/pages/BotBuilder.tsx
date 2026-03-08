@@ -702,7 +702,7 @@ export default function BotBuilder() {
                             <div className="bg-black/40 rounded p-2 space-y-1">
                               <p className="text-green-400 font-space-mono text-xs font-semibold">Как переключиться на демо в Pocket Option:</p>
                               <ol className="text-zinc-400 font-space-mono text-xs space-y-1 ml-2 list-decimal list-inside">
-                                <li>Войдите на <a href="https://po-fcm.com/ru" target="_blank" rel="noreferrer" className="text-blue-400 underline">po-fcm.com/ru</a></li>
+                                <li>Войдите на <a href="https://po-fcm.com/ru/cabinet/demo-quick-high-low/" target="_blank" rel="noreferrer" className="text-blue-400 underline">po-fcm.com — Демо счёт</a></li>
                                 <li>В правом верхнем углу кликните на <span className="text-white">баланс</span></li>
                                 <li>Выберите <span className="text-green-400">«Демо-счёт»</span> — там уже есть $10 000 виртуальных</li>
                                 <li>Получите Session ID именно с этой страницы (шаг 4) и запускайте бота</li>

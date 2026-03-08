@@ -632,6 +632,29 @@ export default function BotBuilder() {
                             </div>
                           </div>
 
+                          {/* Errors */}
+                          <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 space-y-2">
+                            <p className="text-red-400 font-orbitron text-xs font-semibold">❓ Бот выдал ошибку — что делать</p>
+                            <div className="space-y-2">
+                              <div className="bg-black/40 rounded p-2">
+                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-0.5">«python не является внутренней командой»</p>
+                                <p className="text-zinc-500 font-space-mono text-xs">Python не установлен или не добавлен в PATH. Переустановите Python с <a href="https://python.org/downloads" target="_blank" rel="noreferrer" className="text-blue-400 underline">python.org</a> и обязательно отметьте <span className="text-white">«Add to PATH»</span>.</p>
+                              </div>
+                              <div className="bg-black/40 rounded p-2">
+                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-0.5">«No module named 'requests'»</p>
+                                <p className="text-zinc-500 font-space-mono text-xs">Зависимости не установились. Вернитесь к шагу 3 и выполните <span className="text-green-400">pip install requests</span> заново.</p>
+                              </div>
+                              <div className="bg-black/40 rounded p-2">
+                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-0.5">«Invalid session» или «Unauthorized»</p>
+                                <p className="text-zinc-500 font-space-mono text-xs">Session ID устарел или скопирован неверно. Зайдите в Pocket Option заново, не выходя из аккаунта — и повторите шаг 4.</p>
+                              </div>
+                              <div className="bg-black/40 rounded p-2">
+                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-0.5">Терминал сразу закрылся</p>
+                                <p className="text-zinc-500 font-space-mono text-xs">Запустите через PowerShell (не двойным кликом по файлу) — так увидите текст ошибки.</p>
+                              </div>
+                            </div>
+                          </div>
+
                           {/* Step 6 */}
                           <div className="rounded-lg border border-green-500/30 bg-green-500/5 p-3 space-y-2">
                             <p className="text-green-400 font-orbitron text-xs font-semibold">Шаг 6 — Сначала демо-счёт</p>

@@ -18,13 +18,19 @@ export default function BotBuilder() {
   const [sessionGuideOpen, setSessionGuideOpen] = useState(false)
   const [strategyGuideOpen, setStrategyGuideOpen] = useState(false)
 
-  // Pocket Option state
+  // Pocket Option state — Bot 1
   const [poConfig, setPoConfig] = useState<POBotConfig>(PO_DEFAULT_CONFIG)
   const [poCode, setPoCode] = useState("")
   const [poGenerated, setPoGenerated] = useState(false)
   const [poCopied, setPoCopied] = useState(false)
   const poCodeRef = useRef<HTMLDivElement>(null)
   const cryptoCodeRef = useRef<HTMLDivElement>(null)
+
+  // Pocket Option state — Bot 2
+  const [dualMode, setDualMode] = useState(false)
+  const [poConfig2, setPoConfig2] = useState<POBotConfig>({ ...PO_DEFAULT_CONFIG, strategy: "ema_cross", betAmount: 1 })
+  const [poCode2, setPoCode2] = useState("")
+  const [dualDownloaded, setDualDownloaded] = useState(false)
 
   // Crypto (original) state
   const [config, setConfig] = useState<BotConfig>(DEFAULT_CONFIG)
@@ -35,10 +41,30 @@ export default function BotBuilder() {
   const handlePOGenerate = () => {
     const code = poConfig.comboMode ? generatePOComboCode(poConfig) : generatePOCode(poConfig)
     setPoCode(code)
+    if (dualMode) {
+      const code2 = poConfig2.comboMode ? generatePOComboCode(poConfig2) : generatePOCode(poConfig2)
+      setPoCode2(code2)
+    }
     setPoGenerated(true)
     setTimeout(() => {
       poCodeRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
     }, 100)
+  }
+
+  const handleDualDownload = () => {
+    const download = (content: string, filename: string) => {
+      const blob = new Blob([content], { type: "text/x-python" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+    }
+    download(poCode, `bot1_${poConfig.strategy}.py`)
+    setTimeout(() => download(poCode2, `bot2_${poConfig2.strategy}.py`), 300)
+    setDualDownloaded(true)
+    setTimeout(() => setDualDownloaded(false), 3000)
   }
 
   const handlePOCopy = () => {
@@ -522,14 +548,56 @@ export default function BotBuilder() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Form */}
-                <PocketOptionBotForm
-                  config={poConfig}
-                  onChange={setPoConfig}
-                  onGenerate={handlePOGenerate}
-                />
+              {/* Dual mode toggle */}
+              <div className="mb-6">
+                <button
+                  onClick={() => setDualMode((v) => !v)}
+                  className={`w-full flex items-center justify-between rounded-xl px-5 py-3.5 transition-all duration-200 border group ${
+                    dualMode
+                      ? "bg-purple-500/10 border-purple-500/40 hover:border-purple-400"
+                      : "bg-zinc-900 border-zinc-700 hover:border-zinc-500"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg">⚡</span>
+                    <div className="text-left">
+                      <p className={`font-orbitron text-sm font-semibold ${dualMode ? "text-purple-300" : "text-white"}`}>
+                        Режим двух ботов {dualMode ? "— включён" : ""}
+                      </p>
+                      <p className="text-zinc-500 font-space-mono text-xs">Настройте 2 разные стратегии и скачайте оба файла сразу</p>
+                    </div>
+                  </div>
+                  <div className={`w-10 h-5 rounded-full transition-all duration-200 flex items-center px-0.5 ${dualMode ? "bg-purple-500" : "bg-zinc-700"}`}>
+                    <div className={`w-4 h-4 rounded-full bg-white transition-all duration-200 ${dualMode ? "translate-x-5" : "translate-x-0"}`} />
+                  </div>
+                </button>
+              </div>
 
+              <div className={`grid gap-8 ${dualMode ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1 lg:grid-cols-3"}`}>
+                {/* Bot 1 Form */}
+                <div className={dualMode ? "" : "lg:col-span-1"}>
+                  {dualMode && <p className="text-purple-400 font-orbitron text-xs font-bold mb-3 uppercase tracking-wider">🤖 Бот 1</p>}
+                  <PocketOptionBotForm
+                    config={poConfig}
+                    onChange={setPoConfig}
+                    onGenerate={handlePOGenerate}
+                  />
+                </div>
+
+                {/* Bot 2 Form (dual mode only) */}
+                {dualMode && (
+                  <div>
+                    <p className="text-blue-400 font-orbitron text-xs font-bold mb-3 uppercase tracking-wider">🤖 Бот 2</p>
+                    <PocketOptionBotForm
+                      config={poConfig2}
+                      onChange={setPoConfig2}
+                      onGenerate={handlePOGenerate}
+                    />
+                  </div>
+                )}
+
+                {!dualMode && (
+                  <>
                 {/* Code output */}
                 <div className="space-y-4" ref={poCodeRef}>
                   <Card className="bg-zinc-900 border-red-500/20 h-full">
@@ -730,6 +798,59 @@ export default function BotBuilder() {
                   defaultAsset={poConfig.asset}
                   defaultBet={poConfig.betAmount}
                 />
+                  </>
+                )}
+
+                {/* Dual mode: code output + download both */}
+                {dualMode && poGenerated && (
+                  <div className="lg:col-span-2 space-y-4" ref={poCodeRef}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Card className="bg-zinc-900 border-purple-500/20">
+                        <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                          <CardTitle className="font-orbitron text-white text-sm">🤖 Бот 1 — {poConfig.strategy}</CardTitle>
+                          <Button variant="outline" size="sm" onClick={handlePOCopy} className="border-zinc-600 text-zinc-300 hover:bg-zinc-800 font-space-mono text-xs">
+                            <Icon name="Copy" size={12} className="mr-1" />
+                            {poCopied ? "✓" : "Копировать"}
+                          </Button>
+                        </CardHeader>
+                        <CardContent>
+                          <pre className="bg-black rounded-lg p-3 text-xs text-green-400 font-space-mono overflow-auto max-h-80 whitespace-pre-wrap border border-zinc-800">{poCode}</pre>
+                        </CardContent>
+                      </Card>
+                      <Card className="bg-zinc-900 border-blue-500/20">
+                        <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                          <CardTitle className="font-orbitron text-white text-sm">🤖 Бот 2 — {poConfig2.strategy}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <pre className="bg-black rounded-lg p-3 text-xs text-blue-300 font-space-mono overflow-auto max-h-80 whitespace-pre-wrap border border-zinc-800">{poCode2}</pre>
+                        </CardContent>
+                      </Card>
+                    </div>
+                    <Button
+                      onClick={handleDualDownload}
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white font-orbitron font-bold py-3"
+                    >
+                      <Icon name={dualDownloaded ? "Check" : "Download"} size={16} className="mr-2" />
+                      {dualDownloaded ? "Скачано! Открой 2 окна PowerShell" : "Скачать оба файла (bot1.py + bot2.py)"}
+                    </Button>
+                    {dualDownloaded && (
+                      <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 space-y-2">
+                        <p className="text-purple-300 font-orbitron text-sm font-semibold">Как запустить оба бота одновременно:</p>
+                        <div className="space-y-2">
+                          <div className="bg-black/40 rounded p-2">
+                            <p className="text-zinc-400 font-space-mono text-xs mb-1">Окно PowerShell 1 (bot1.py):</p>
+                            <pre className="text-green-400 font-space-mono text-xs whitespace-pre-wrap break-all">{`$env:PO_SESSION_ID='42["auth",{"session":"ваш_session","isDemo":1,"uid":123456,"platform":2}]'; python bot1_${poConfig.strategy}.py`}</pre>
+                          </div>
+                          <div className="bg-black/40 rounded p-2">
+                            <p className="text-zinc-400 font-space-mono text-xs mb-1">Окно PowerShell 2 (bot2.py):</p>
+                            <pre className="text-blue-300 font-space-mono text-xs whitespace-pre-wrap break-all">{`$env:PO_SESSION_ID='42["auth",{"session":"ваш_session","isDemo":1,"uid":123456,"platform":2}]'; python bot2_${poConfig2.strategy}.py`}</pre>
+                          </div>
+                        </div>
+                        <p className="text-zinc-500 font-space-mono text-xs">Session ID — одинаковый в обоих командах. Оба бота будут торговать на одном счёте параллельно.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </>
           )}

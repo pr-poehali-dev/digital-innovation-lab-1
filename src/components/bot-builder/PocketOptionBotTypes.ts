@@ -440,6 +440,7 @@ async def main():
     print("Подключение к Pocket Option...")
     client = AsyncPocketOptionClient(SESSION_ID, is_demo=IS_DEMO, enable_logging=False)
     await client.connect()
+    await asyncio.sleep(3)
 
     balance = await get_balance(client)
     print("=" * 50)

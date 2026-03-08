@@ -762,7 +762,15 @@ export default function BotBuilder() {
                               <li>В адресной строке проводника напечатайте <span className="text-green-400">powershell</span> → Enter</li>
                               <li>Выполните команду:</li>
                             </ol>
-                            <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`pip install .`}</pre>
+                            <div className="relative">
+                              <pre className="bg-black rounded p-2 pr-24 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`pip install .`}</pre>
+                              <button
+                                onClick={() => copyCmd("pip install .", "pip1")}
+                                className={`absolute right-2 top-2 px-2 py-1 rounded text-xs font-space-mono font-bold transition-all ${copiedCmd === "pip1" ? "bg-green-500/30 text-green-300" : "bg-zinc-700 text-zinc-300 hover:bg-zinc-600"}`}
+                              >
+                                {copiedCmd === "pip1" ? "✓" : "Копировать"}
+                              </button>
+                            </div>
                             <p className="text-zinc-500 font-space-mono text-xs">Увидите <span className="text-green-400">Successfully installed</span> — готово, переходите к шагу 4.</p>
                             <div className="bg-yellow-500/5 border border-yellow-500/20 rounded p-2">
                               <p className="text-yellow-400/80 font-space-mono text-xs">Видите сообщение <span className="text-white">«new version of pip available»</span>? Это не ошибка — можно проигнорировать.</p>

@@ -577,7 +577,8 @@ export default function BotBuilder() {
                           {/* Step 1 */}
                           <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-1">
                             <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 1 — Скачайте файл</p>
-                            <p className="text-zinc-400 font-space-mono text-xs">Нажмите кнопку <span className="text-green-400">.py</span> выше — файл <span className="text-white">bot.py</span> сохранится на ваш компьютер.</p>
+                            <p className="text-zinc-400 font-space-mono text-xs">Нажмите кнопку <span className="text-green-400">.py</span> выше — файл сохранится на ваш компьютер.</p>
+                            <p className="text-zinc-400 font-space-mono text-xs">Переименуйте скачанный файл в <span className="text-white">bot.py</span> (правая кнопка → <span className="text-green-400">«Переименовать»</span>).</p>
                           </div>
 
                           {/* Step 2 */}

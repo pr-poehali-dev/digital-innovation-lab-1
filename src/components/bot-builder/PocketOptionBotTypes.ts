@@ -25,6 +25,8 @@ export interface POBotConfig {
   emaSlow: number
   useOTC: boolean
   autoRestart: boolean
+  tgToken: string
+  tgChatId: string
 }
 
 export interface StrategyMeta {
@@ -188,6 +190,8 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   emaSlow: 21,
   useOTC: true,
   autoRestart: false,
+  tgToken: "",
+  tgChatId: "",
 }
 
 // Helper to avoid TS template literal conflicts with Python f-strings
@@ -374,6 +378,22 @@ if not SESSION_ID:
     print('  $env:PO_SESSION_ID="ваш_session_id"; python bot.py')
     exit(1)
 
+# ===== TELEGRAM =====
+TG_TOKEN   = "${cfg.tgToken}"
+TG_CHAT_ID = "${cfg.tgChatId}"
+TG_ENABLED = bool(TG_TOKEN and TG_CHAT_ID)
+
+def tg(text):
+    if not TG_ENABLED:
+        return
+    try:
+        import urllib.request, urllib.parse
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+        data = urllib.parse.urlencode({"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
+        urllib.request.urlopen(url, data, timeout=5)
+    except Exception as e:
+        print(f"[TG] Ошибка: {e}")
+
 # ===== СОСТОЯНИЕ =====
 total_profit = 0.0
 trades_today = 0
@@ -448,10 +468,13 @@ async def main():
     print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин")
     print(f"  Баланс: {round(balance, 2)} USD | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
     print("=" * 50 + "\\n")
+    tg(f"🤖 <b>Бот запущен</b>\\nСтратегия: ${strategyLabel}\\nАктив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} USD | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
 
     while True:
         if total_profit >= TAKE_PROFIT:
-            print("[TP] Take Profit достигнут: +" + str(round(total_profit, 2)) + " USD")
+            msg = f"[TP] Take Profit достигнут: +{round(total_profit, 2)} USD"
+            print(msg)
+            tg(f"✅ <b>Take Profit достигнут!</b>\\n+{total_profit:.2f} USD за сессию")
             if AUTO_RESTART:
                 total_profit = 0
                 trades_today = 0
@@ -460,7 +483,9 @@ async def main():
             break
 
         if total_profit <= -STOP_LOSS:
-            print("[SL] Stop Loss достигнут: " + str(round(total_profit, 2)) + " USD")
+            msg = f"[SL] Stop Loss достигнут: {round(total_profit, 2)} USD"
+            print(msg)
+            tg(f"🛑 <b>Stop Loss достигнут!</b>\\n{total_profit:.2f} USD за сессию")
             if AUTO_RESTART:
                 total_profit = 0
                 trades_today = 0
@@ -470,6 +495,7 @@ async def main():
 
         if trades_today >= DAILY_LIMIT:
             print(f"[LIMIT] Дневной лимит {DAILY_LIMIT} сделок исчерпан")
+            tg(f"⚠️ <b>Дневной лимит исчерпан</b>\\n{DAILY_LIMIT} сделок | Итог: {total_profit:.2f} USD")
             break
 
         candles, prices = await get_candles_data(client)
@@ -486,6 +512,8 @@ async def main():
             else:
                 bet = current_bet
 
+            emoji = "📈" if signal == "CALL" else "📉"
+            tg(f"{emoji} <b>Сделка открыта</b>\\n{signal} | {bet} USD | {ASSET} | {EXPIRY_SEC//60} мин")
             order_id = await place_trade(client, signal, bet)
             if order_id:
                 won, profit = await check_result(client, order_id)
@@ -499,6 +527,10 @@ async def main():
                     "won": won,
                     "profit": profit,
                 })
+                wins  = sum(1 for t in trade_log if t["won"])
+                wr    = wins / len(trade_log) * 100
+                res_emoji = "✅" if won else "❌"
+                tg(f"{res_emoji} <b>{'Выигрыш' if won else 'Проигрыш'}</b>\\nПрофит: {profit:+.2f} USD\\nСессия: {total_profit:+.2f} USD | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
                 print_stats()
         else:
             ts = datetime.now().strftime("%H:%M:%S")
@@ -697,6 +729,22 @@ if not SESSION_ID:
     print('  $env:PO_SESSION_ID="ваш_session_id"; python bot.py')
     exit(1)
 
+# ===== TELEGRAM =====
+TG_TOKEN   = "${cfg.tgToken}"
+TG_CHAT_ID = "${cfg.tgChatId}"
+TG_ENABLED = bool(TG_TOKEN and TG_CHAT_ID)
+
+def tg(text):
+    if not TG_ENABLED:
+        return
+    try:
+        import urllib.request, urllib.parse
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+        data = urllib.parse.urlencode({"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
+        urllib.request.urlopen(url, data, timeout=5)
+    except Exception as e:
+        print(f"[TG] Ошибка: {e}")
+
 # ===== СОСТОЯНИЕ =====
 total_profit = 0.0
 trades_today = 0
@@ -768,20 +816,24 @@ async def main():
     print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин | Баланс: {balance:.2f} USD")
     print("  TP: " + str(TAKE_PROFIT) + " | SL: " + str(STOP_LOSS) + " | Лимит: " + str(DAILY_LIMIT))
     print("=" * 55 + "\\n")
+    tg(f"🤖 <b>КОМБО-Бот запущен</b>\\n${labels} (${cfg.comboLogic})\\nАктив: {ASSET} | {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} USD | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
 
     while True:
         if total_profit >= TAKE_PROFIT:
             print(f"[TP] +{total_profit:.2f} USD")
+            tg(f"✅ <b>Take Profit достигнут!</b>\\n+{total_profit:.2f} USD за сессию")
             if AUTO_RESTART:
                 total_profit = 0; trades_today = 0; await asyncio.sleep(300); continue
             break
         if total_profit <= -STOP_LOSS:
             print(f"[SL] {total_profit:.2f} USD")
+            tg(f"🛑 <b>Stop Loss достигнут!</b>\\n{total_profit:.2f} USD за сессию")
             if AUTO_RESTART:
                 total_profit = 0; trades_today = 0; await asyncio.sleep(300); continue
             break
         if trades_today >= DAILY_LIMIT:
             print(f"[LIMIT] Лимит {DAILY_LIMIT} сделок исчерпан")
+            tg(f"⚠️ <b>Дневной лимит исчерпан</b>\\n{DAILY_LIMIT} сделок | Итог: {total_profit:.2f} USD")
             break
 
         candles, prices = await get_candles_data(client)
@@ -797,6 +849,8 @@ async def main():
                 bet = round(balance * (BASE_BET / 100), 2)
             else:
                 bet = current_bet
+            emoji = "📈" if signal == "CALL" else "📉"
+            tg(f"{emoji} <b>Комбо-сделка</b>\\n{signal} | {bet} USD | {ASSET}")
             order_id = await place_trade(client, signal, bet)
             if order_id:
                 won, profit = await check_result(client, order_id)
@@ -804,6 +858,10 @@ async def main():
                 trades_today += 1
                 current_bet   = adjust_bet(won)
                 trade_log.append({"won": won, "profit": profit})
+                wins = sum(1 for t in trade_log if t["won"])
+                wr   = wins / len(trade_log) * 100
+                res_emoji = "✅" if won else "❌"
+                tg(f"{res_emoji} <b>{'Выигрыш' if won else 'Проигрыш'}</b>\\n{profit:+.2f} USD | Сессия: {total_profit:+.2f} USD | WR: {wr:.0f}%")
                 print_stats()
         else:
             ts = datetime.now().strftime("%H:%M:%S")

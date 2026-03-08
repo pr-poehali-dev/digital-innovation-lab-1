@@ -239,37 +239,75 @@ export default function BotBuilder() {
                 </div>
               </div>
 
-              {/* Session ID Input */}
-              <div className="mb-6 bg-zinc-900 border border-zinc-700 rounded-xl p-4 space-y-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-green-400">🔑</span>
-                  <p className="text-white font-orbitron text-sm font-semibold">Вставьте ваш Session ID</p>
-                  <span className="text-zinc-500 font-space-mono text-xs">— команды запуска сгенерируются автоматически</span>
-                </div>
-                <div className="relative">
-                  <input
-                    type={sessionIdVisible ? "text" : "password"}
-                    value={sessionId}
-                    onChange={(e) => setSessionId(e.target.value)}
-                    placeholder='42["auth",{"session":"...","isDemo":1,"uid":...,"platform":2}]'
-                    className="w-full bg-black border border-zinc-700 focus:border-green-500/60 rounded-lg px-4 py-3 text-green-400 font-space-mono text-xs outline-none transition-colors placeholder:text-zinc-600 pr-20"
-                  />
-                  <button
-                    onClick={() => setSessionIdVisible((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 font-space-mono text-xs transition-colors"
-                  >
-                    {sessionIdVisible ? "скрыть" : "показать"}
-                  </button>
-                </div>
-                {sessionId && (
-                  <div className="flex items-center gap-2 text-green-400 font-space-mono text-xs">
-                    <Icon name="CheckCircle" size={13} />
-                    Session ID сохранён — команды запуска обновлены ниже
+              {/* Session ID + Telegram Input */}
+              <div className="mb-6 bg-zinc-900 border border-zinc-700 rounded-xl p-4 space-y-4">
+
+                {/* Session ID */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-green-400">🔑</span>
+                    <p className="text-white font-orbitron text-sm font-semibold">Session ID</p>
+                    <span className="text-zinc-500 font-space-mono text-xs">— команды запуска сгенерируются автоматически</span>
                   </div>
-                )}
-                {!sessionId && (
-                  <p className="text-zinc-600 font-space-mono text-xs">Как получить: DevTools (F12) → Network → WS → Messages → найдите сообщение <span className="text-zinc-400">42["auth",...]</span> → скопируйте целиком</p>
-                )}
+                  <div className="relative">
+                    <input
+                      type={sessionIdVisible ? "text" : "password"}
+                      value={sessionId}
+                      onChange={(e) => setSessionId(e.target.value)}
+                      placeholder='42["auth",{"session":"...","isDemo":1,"uid":...,"platform":2}]'
+                      className="w-full bg-black border border-zinc-700 focus:border-green-500/60 rounded-lg px-4 py-3 text-green-400 font-space-mono text-xs outline-none transition-colors placeholder:text-zinc-600 pr-20"
+                    />
+                    <button
+                      onClick={() => setSessionIdVisible((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 font-space-mono text-xs transition-colors"
+                    >
+                      {sessionIdVisible ? "скрыть" : "показать"}
+                    </button>
+                  </div>
+                  {sessionId
+                    ? <div className="flex items-center gap-2 text-green-400 font-space-mono text-xs"><Icon name="CheckCircle" size={13} />Session ID сохранён</div>
+                    : <p className="text-zinc-600 font-space-mono text-xs">DevTools (F12) → Network → WS → Messages → сообщение <span className="text-zinc-400">42["auth",...]</span></p>
+                  }
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-zinc-800" />
+
+                {/* Telegram */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-400">✈️</span>
+                    <p className="text-white font-orbitron text-sm font-semibold">Telegram уведомления</p>
+                    <span className="text-zinc-500 font-space-mono text-xs">— необязательно</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <p className="text-zinc-500 font-space-mono text-xs mb-1">Bot Token (от @BotFather)</p>
+                      <input
+                        type="text"
+                        value={poConfig.tgToken}
+                        onChange={(e) => setPoConfig((p) => ({ ...p, tgToken: e.target.value }))}
+                        placeholder="1234567890:AAF..."
+                        className="w-full bg-black border border-zinc-700 focus:border-blue-500/60 rounded-lg px-3 py-2 text-blue-300 font-space-mono text-xs outline-none transition-colors placeholder:text-zinc-600"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-zinc-500 font-space-mono text-xs mb-1">Chat ID (ваш Telegram ID)</p>
+                      <input
+                        type="text"
+                        value={poConfig.tgChatId}
+                        onChange={(e) => setPoConfig((p) => ({ ...p, tgChatId: e.target.value }))}
+                        placeholder="123456789"
+                        className="w-full bg-black border border-zinc-700 focus:border-blue-500/60 rounded-lg px-3 py-2 text-blue-300 font-space-mono text-xs outline-none transition-colors placeholder:text-zinc-600"
+                      />
+                    </div>
+                  </div>
+                  {poConfig.tgToken && poConfig.tgChatId
+                    ? <div className="flex items-center gap-2 text-blue-400 font-space-mono text-xs"><Icon name="CheckCircle" size={13} />Telegram подключён — уведомления будут вшиты в бота</div>
+                    : <p className="text-zinc-600 font-space-mono text-xs">Как получить: <a href="https://t.me/BotFather" target="_blank" rel="noreferrer" className="text-blue-400 underline">@BotFather</a> → /newbot → Token. Chat ID: <a href="https://t.me/userinfobot" target="_blank" rel="noreferrer" className="text-blue-400 underline">@userinfobot</a></p>
+                  }
+                </div>
+
               </div>
 
               {/* Session ID Guide */}

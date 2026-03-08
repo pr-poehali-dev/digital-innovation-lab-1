@@ -592,17 +592,18 @@ export default function BotBuilder() {
                           {/* Step 3 */}
                           <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-2">
                             <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 3 — Установите зависимости</p>
-                            <p className="text-zinc-400 font-space-mono text-xs font-semibold text-white mb-1">Как открыть терминал в папке с файлом (Windows):</p>
+                            <p className="text-zinc-400 font-space-mono text-xs">Библиотека Pocket Option устанавливается вручную — через ZIP с GitHub:</p>
                             <ol className="text-zinc-400 font-space-mono text-xs space-y-1 ml-2 list-decimal list-inside">
-                              <li>Откройте папку <span className="text-white">Загрузки</span> в Проводнике (где лежит bot.py)</li>
-                              <li>Зажмите <span className="text-white">Shift</span> и кликните <span className="text-white">правой кнопкой мыши</span> на пустом месте в папке</li>
-                              <li>Выберите <span className="text-green-400">«Открыть окно PowerShell здесь»</span> (или «Открыть в терминале»)</li>
-                              <li>В открывшемся окне вставьте команду и нажмите <span className="text-white">Enter</span>:</li>
+                              <li>Скачайте ZIP-архив: <a href="https://github.com/ChipaDevTeam/PocketOptionAPI/archive/refs/heads/main.zip" target="_blank" rel="noreferrer" className="text-blue-400 underline">github.com/ChipaDevTeam/PocketOptionAPI</a></li>
+                              <li>Распакуйте архив (правая кнопка → <span className="text-white">«Извлечь всё»</span>)</li>
+                              <li>Зайдите в распакованную папку <span className="text-white">PocketOptionAPI-main</span></li>
+                              <li>В адресной строке проводника напечатайте <span className="text-green-400">powershell</span> → Enter</li>
+                              <li>Выполните команду:</li>
                             </ol>
-                            <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`pip install pocketoptionapi`}</pre>
+                            <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`pip install .`}</pre>
                             <p className="text-zinc-500 font-space-mono text-xs">Увидите <span className="text-green-400">Successfully installed</span> — готово, переходите к шагу 4.</p>
                             <div className="bg-yellow-500/5 border border-yellow-500/20 rounded p-2">
-                              <p className="text-yellow-400/80 font-space-mono text-xs">Видите сообщение <span className="text-white">«new version of pip available»</span>? Это не ошибка — просто pip предлагает обновить себя. Можно проигнорировать и идти дальше.</p>
+                              <p className="text-yellow-400/80 font-space-mono text-xs">Видите сообщение <span className="text-white">«new version of pip available»</span>? Это не ошибка — можно проигнорировать.</p>
                             </div>
                           </div>
 
@@ -670,7 +671,7 @@ export default function BotBuilder() {
                               </div>
                               <div className="bg-black/40 rounded p-2">
                                 <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-0.5">«No module named 'pocketoptionapi'»</p>
-                                <p className="text-zinc-500 font-space-mono text-xs">Зависимости не установились. Вернитесь к шагу 3 и выполните <span className="text-green-400">pip install pocketoptionapi</span> заново.</p>
+                                <p className="text-zinc-500 font-space-mono text-xs">Зависимости не установились. Вернитесь к шагу 3 — скачайте ZIP и выполните <span className="text-green-400">pip install .</span> в папке PocketOptionAPI-main.</p>
                               </div>
                               <div className="bg-black/40 rounded p-2">
                                 <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-0.5">«Invalid session» или «Unauthorized»</p>

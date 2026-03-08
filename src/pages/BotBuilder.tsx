@@ -26,6 +26,10 @@ export default function BotBuilder() {
   const poCodeRef = useRef<HTMLDivElement>(null)
   const cryptoCodeRef = useRef<HTMLDivElement>(null)
 
+  // Session ID input
+  const [sessionId, setSessionId] = useState("")
+  const [sessionIdVisible, setSessionIdVisible] = useState(false)
+
   // Pocket Option state — Bot 2
   const [dualMode, setDualMode] = useState(false)
   const [poConfig2, setPoConfig2] = useState<POBotConfig>({ ...PO_DEFAULT_CONFIG, strategy: "ema_cross", betAmount: 1 })
@@ -226,6 +230,39 @@ export default function BotBuilder() {
                     {shareCopied ? "Скопировано!" : "Поделиться"}
                   </button>
                 </div>
+              </div>
+
+              {/* Session ID Input */}
+              <div className="mb-6 bg-zinc-900 border border-zinc-700 rounded-xl p-4 space-y-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-green-400">🔑</span>
+                  <p className="text-white font-orbitron text-sm font-semibold">Вставьте ваш Session ID</p>
+                  <span className="text-zinc-500 font-space-mono text-xs">— команды запуска сгенерируются автоматически</span>
+                </div>
+                <div className="relative">
+                  <input
+                    type={sessionIdVisible ? "text" : "password"}
+                    value={sessionId}
+                    onChange={(e) => setSessionId(e.target.value)}
+                    placeholder='42["auth",{"session":"...","isDemo":1,"uid":...,"platform":2}]'
+                    className="w-full bg-black border border-zinc-700 focus:border-green-500/60 rounded-lg px-4 py-3 text-green-400 font-space-mono text-xs outline-none transition-colors placeholder:text-zinc-600 pr-20"
+                  />
+                  <button
+                    onClick={() => setSessionIdVisible((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 font-space-mono text-xs transition-colors"
+                  >
+                    {sessionIdVisible ? "скрыть" : "показать"}
+                  </button>
+                </div>
+                {sessionId && (
+                  <div className="flex items-center gap-2 text-green-400 font-space-mono text-xs">
+                    <Icon name="CheckCircle" size={13} />
+                    Session ID сохранён — команды запуска обновлены ниже
+                  </div>
+                )}
+                {!sessionId && (
+                  <p className="text-zinc-600 font-space-mono text-xs">Как получить: DevTools (F12) → Network → WS → Messages → найдите сообщение <span className="text-zinc-400">42["auth",...]</span> → скопируйте целиком</p>
+                )}
               </div>
 
               {/* Session ID Guide */}
@@ -774,11 +811,13 @@ export default function BotBuilder() {
                               <li>В адресной строке проводника напечатайте <span className="text-green-400">powershell</span> → Enter</li>
                             </ol>
                             <p className="text-zinc-400 font-space-mono text-xs mt-1 mb-1">Скопируйте сообщение <span className="text-red-400">42["auth",...]</span> целиком из DevTools и вставьте в команду вместо <span className="text-yellow-400">ТВОЁ_СООБЩЕНИЕ</span>:</p>
-                            <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`$env:PO_SESSION_ID='ТВОЁ_СООБЩЕНИЕ_42auth_ЦЕЛИКОМ'; python bot.py`}</pre>
-                            <div className="bg-green-500/5 border border-green-500/20 rounded p-2 space-y-1">
-                              <p className="text-green-400 font-space-mono text-xs font-semibold">✅ Пример правильной команды:</p>
-                              <pre className="text-zinc-400 font-space-mono text-xs whitespace-pre-wrap break-all">{`$env:PO_SESSION_ID='42["auth",{"session":"sr9kblg2dp...","isDemo":1,"uid":108599173,"platform":2}]'; python bot.py`}</pre>
-                            </div>
+                            <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`$env:PO_SESSION_ID='${sessionId || "ВСТАВЬТЕ_СООБЩЕНИЕ_42auth_В_ПОЛЕ_ВЫШЕ"}'; python bot.py`}</pre>
+                            {sessionId && (
+                              <div className="flex items-center gap-2 text-green-400 font-space-mono text-xs">
+                                <Icon name="CheckCircle" size={12} />
+                                Команда готова — скопируйте и запустите в PowerShell
+                              </div>
+                            )}
                             <p className="text-zinc-500 font-space-mono text-xs">Если всё верно — в терминале появятся логи бота и он начнёт работать. Не закрывайте окно PowerShell — бот остановится.</p>
                           </div>
 
@@ -885,20 +924,28 @@ export default function BotBuilder() {
                     {dualDownloaded && (
                       <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 space-y-2">
                         <p className="text-purple-300 font-orbitron text-sm font-semibold">Как запустить оба бота одновременно:</p>
-                        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded p-2 mb-2">
-                          <p className="text-yellow-400 font-space-mono text-xs">⚠️ Сначала скопируй своё сообщение <span className="text-white">42["auth",...]</span> из DevTools → Network → WS → Messages. Замени <span className="text-yellow-300">ТВОЁ_СООБЩЕНИЕ</span> в обеих командах.</p>
-                        </div>
+                        {!sessionId && (
+                          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded p-2 mb-2">
+                            <p className="text-yellow-400 font-space-mono text-xs">⚠️ Вставьте Session ID в поле <span className="text-white">🔑 выше</span> — команды сгенерируются автоматически</p>
+                          </div>
+                        )}
+                        {sessionId && (
+                          <div className="flex items-center gap-2 text-green-400 font-space-mono text-xs mb-2">
+                            <Icon name="CheckCircle" size={12} />
+                            Session ID подставлен — скопируйте команды и запустите в двух окнах PowerShell
+                          </div>
+                        )}
                         <div className="space-y-2">
                           <div className="bg-black/40 rounded p-2">
                             <p className="text-zinc-400 font-space-mono text-xs mb-1">Окно PowerShell 1:</p>
-                            <pre className="text-green-400 font-space-mono text-xs whitespace-pre-wrap break-all">{`$env:PO_SESSION_ID='ТВОЁ_СООБЩЕНИЕ_42auth_ЦЕЛИКОМ'; python bot1_${poConfig.strategy}.py`}</pre>
+                            <pre className="text-green-400 font-space-mono text-xs whitespace-pre-wrap break-all">{`$env:PO_SESSION_ID='${sessionId || "ВСТАВЬТЕ_SESSION_ID_В_ПОЛЕ_ВЫШЕ"}'; python bot1_${poConfig.strategy}.py`}</pre>
                           </div>
                           <div className="bg-black/40 rounded p-2">
                             <p className="text-zinc-400 font-space-mono text-xs mb-1">Окно PowerShell 2:</p>
-                            <pre className="text-blue-300 font-space-mono text-xs whitespace-pre-wrap break-all">{`$env:PO_SESSION_ID='ТВОЁ_СООБЩЕНИЕ_42auth_ЦЕЛИКОМ'; python bot2_${poConfig2.strategy}.py`}</pre>
+                            <pre className="text-blue-300 font-space-mono text-xs whitespace-pre-wrap break-all">{`$env:PO_SESSION_ID='${sessionId || "ВСТАВЬТЕ_SESSION_ID_В_ПОЛЕ_ВЫШЕ"}'; python bot2_${poConfig2.strategy}.py`}</pre>
                           </div>
                         </div>
-                        <p className="text-zinc-500 font-space-mono text-xs">Одно и то же сообщение вставляй в оба окна. Оба бота будут торговать на одном счёте параллельно.</p>
+                        <p className="text-zinc-500 font-space-mono text-xs">Оба бота будут торговать на одном счёте параллельно.</p>
                       </div>
                     )}
                   </div>

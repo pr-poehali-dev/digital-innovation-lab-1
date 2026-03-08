@@ -598,6 +598,9 @@ export default function BotBuilder() {
                             </ol>
                             <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`pip install requests`}</pre>
                             <p className="text-zinc-500 font-space-mono text-xs">Увидите <span className="text-green-400">Successfully installed</span> — готово, переходите к шагу 4.</p>
+                            <div className="bg-yellow-500/5 border border-yellow-500/20 rounded p-2">
+                              <p className="text-yellow-400/80 font-space-mono text-xs">Видите сообщение <span className="text-white">«new version of pip available»</span>? Это не ошибка — просто pip предлагает обновить себя. Можно проигнорировать и идти дальше.</p>
+                            </div>
                           </div>
 
                           {/* Step 4 */}
@@ -721,6 +724,9 @@ PO_SESSION_ID="ваш_session_id" python bot.py`}</pre>
                           </ol>
                           <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`pip install requests ccxt`}</pre>
                           <p className="text-zinc-500 font-space-mono text-xs">Увидите <span className="text-green-400">Successfully installed</span> — готово, переходите к шагу 4.</p>
+                          <div className="bg-yellow-500/5 border border-yellow-500/20 rounded p-2">
+                            <p className="text-yellow-400/80 font-space-mono text-xs">Видите сообщение <span className="text-white">«new version of pip available»</span>? Это не ошибка — просто pip предлагает обновить себя. Можно проигнорировать и идти дальше.</p>
+                          </div>
                         </div>
 
                         <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-2">

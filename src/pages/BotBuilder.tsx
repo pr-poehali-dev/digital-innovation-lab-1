@@ -18,6 +18,21 @@ export default function BotBuilder() {
   const [sessionGuideOpen, setSessionGuideOpen] = useState(false)
   const [strategyGuideOpen, setStrategyGuideOpen] = useState(false)
   const [tgGuideOpen, setTgGuideOpen] = useState(false)
+  const [tgTestStatus, setTgTestStatus] = useState<"idle" | "sending" | "ok" | "error">("idle")
+
+  const sendTgTest = async () => {
+    if (!poConfig.tgToken || !poConfig.tgChatId) return
+    setTgTestStatus("sending")
+    try {
+      const text = encodeURIComponent("🤖 Тест TradeBase Bot\n\nПодключение работает! Уведомления о торгах будут приходить сюда.\n\n✅ ВЫИГРЫШ +2.5 USD\n❌ ПРОИГРЫШ -1.0 USD\n🛑 Stop Loss достигнут\n✅ Take Profit достигнут")
+      const res = await fetch(`https://api.telegram.org/bot${poConfig.tgToken}/sendMessage?chat_id=${poConfig.tgChatId}&text=${text}&parse_mode=HTML`)
+      const data = await res.json()
+      setTgTestStatus(data.ok ? "ok" : "error")
+    } catch {
+      setTgTestStatus("error")
+    }
+    setTimeout(() => setTgTestStatus("idle"), 4000)
+  }
 
   // Pocket Option state — Bot 1
   const [poConfig, setPoConfig] = useState<POBotConfig>(PO_DEFAULT_CONFIG)
@@ -304,7 +319,22 @@ export default function BotBuilder() {
                     </div>
                   </div>
                   {poConfig.tgToken && poConfig.tgChatId
-                    ? <div className="flex items-center gap-2 text-blue-400 font-space-mono text-xs"><Icon name="CheckCircle" size={13} />Telegram подключён — уведомления будут вшиты в бота</div>
+                    ? <div className="flex items-center gap-3 flex-wrap">
+                        <div className="flex items-center gap-2 text-blue-400 font-space-mono text-xs"><Icon name="CheckCircle" size={13} />Telegram подключён — уведомления будут вшиты в бота</div>
+                        <button
+                          onClick={sendTgTest}
+                          disabled={tgTestStatus === "sending"}
+                          className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-space-mono font-bold border transition-all ${
+                            tgTestStatus === "ok" ? "bg-green-500/20 border-green-500/40 text-green-400" :
+                            tgTestStatus === "error" ? "bg-red-500/20 border-red-500/40 text-red-400" :
+                            tgTestStatus === "sending" ? "bg-zinc-700 border-zinc-600 text-zinc-400" :
+                            "bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20"
+                          }`}
+                        >
+                          <Icon name={tgTestStatus === "ok" ? "Check" : tgTestStatus === "error" ? "X" : "Send"} size={11} />
+                          {tgTestStatus === "sending" ? "Отправка..." : tgTestStatus === "ok" ? "Пришло!" : tgTestStatus === "error" ? "Ошибка — проверьте токен" : "Отправить тест"}
+                        </button>
+                      </div>
                     : (
                       <button
                         onClick={() => setTgGuideOpen((v) => !v)}

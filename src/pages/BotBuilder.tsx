@@ -299,9 +299,9 @@ export default function BotBuilder() {
                             step: "6",
                             icon: "💻",
                             title: "Запустите бота в PowerShell",
-                            desc: "Вставьте скопированное сообщение как значение переменной. Внешние кавычки — одинарные, внутри — двойные.",
+                            desc: 'Скопируйте сообщение 42["auth",...] целиком из DevTools и вставьте вместо ТВОЁ_СООБЩЕНИЕ_42auth_ЦЕЛИКОМ:',
                             color: "border-red-500/40 bg-red-500/5",
-                            code: `$env:PO_SESSION_ID='42["auth",{"session":"вставьте_сюда","isDemo":1,"uid":123456,"platform":2}]'; python bot.py`,
+                            code: `$env:PO_SESSION_ID='ТВОЁ_СООБЩЕНИЕ_42auth_ЦЕЛИКОМ'; python bot.py`,
                           },
                         ].map(({ step, icon, title, desc, color, code }) => (
                           <div key={step} className={`flex gap-4 p-4 rounded-xl border ${color}`}>
@@ -773,11 +773,11 @@ export default function BotBuilder() {
                               <li>Откройте папку <span className="text-white">PocketOptionAPI-main</span> в Проводнике</li>
                               <li>В адресной строке проводника напечатайте <span className="text-green-400">powershell</span> → Enter</li>
                             </ol>
-                            <p className="text-zinc-400 font-space-mono text-xs mt-1 mb-1">Вставьте команду — замените значение на скопированное в шаге 4 сообщение и нажмите <span className="text-white">Enter</span>:</p>
-                            <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`$env:PO_SESSION_ID='42["auth",{"session":"вставьте_сюда","isDemo":1,"uid":123456,"platform":2}]'; python bot.py`}</pre>
-                            <div className="bg-blue-500/5 border border-blue-500/20 rounded p-2 space-y-1">
-                              <p className="text-blue-400 font-space-mono text-xs font-semibold">⚠️ Важно про кавычки:</p>
-                              <p className="text-zinc-400 font-space-mono text-xs">Внешние кавычки — <span className="text-white">одинарные</span> <span className="text-yellow-400">'...'</span>, внутри — двойные. Не меняйте их местами!</p>
+                            <p className="text-zinc-400 font-space-mono text-xs mt-1 mb-1">Скопируйте сообщение <span className="text-red-400">42["auth",...]</span> целиком из DevTools и вставьте в команду вместо <span className="text-yellow-400">ТВОЁ_СООБЩЕНИЕ</span>:</p>
+                            <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`$env:PO_SESSION_ID='ТВОЁ_СООБЩЕНИЕ_42auth_ЦЕЛИКОМ'; python bot.py`}</pre>
+                            <div className="bg-green-500/5 border border-green-500/20 rounded p-2 space-y-1">
+                              <p className="text-green-400 font-space-mono text-xs font-semibold">✅ Пример правильной команды:</p>
+                              <pre className="text-zinc-400 font-space-mono text-xs whitespace-pre-wrap break-all">{`$env:PO_SESSION_ID='42["auth",{"session":"sr9kblg2dp...","isDemo":1,"uid":108599173,"platform":2}]'; python bot.py`}</pre>
                             </div>
                             <p className="text-zinc-500 font-space-mono text-xs">Если всё верно — в терминале появятся логи бота и он начнёт работать. Не закрывайте окно PowerShell — бот остановится.</p>
                           </div>
@@ -885,17 +885,20 @@ export default function BotBuilder() {
                     {dualDownloaded && (
                       <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 space-y-2">
                         <p className="text-purple-300 font-orbitron text-sm font-semibold">Как запустить оба бота одновременно:</p>
+                        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded p-2 mb-2">
+                          <p className="text-yellow-400 font-space-mono text-xs">⚠️ Сначала скопируй своё сообщение <span className="text-white">42["auth",...]</span> из DevTools → Network → WS → Messages. Замени <span className="text-yellow-300">ТВОЁ_СООБЩЕНИЕ</span> в обеих командах.</p>
+                        </div>
                         <div className="space-y-2">
                           <div className="bg-black/40 rounded p-2">
-                            <p className="text-zinc-400 font-space-mono text-xs mb-1">Окно PowerShell 1 (bot1.py):</p>
-                            <pre className="text-green-400 font-space-mono text-xs whitespace-pre-wrap break-all">{`$env:PO_SESSION_ID='42["auth",{"session":"ваш_session","isDemo":1,"uid":123456,"platform":2}]'; python bot1_${poConfig.strategy}.py`}</pre>
+                            <p className="text-zinc-400 font-space-mono text-xs mb-1">Окно PowerShell 1:</p>
+                            <pre className="text-green-400 font-space-mono text-xs whitespace-pre-wrap break-all">{`$env:PO_SESSION_ID='ТВОЁ_СООБЩЕНИЕ_42auth_ЦЕЛИКОМ'; python bot1_${poConfig.strategy}.py`}</pre>
                           </div>
                           <div className="bg-black/40 rounded p-2">
-                            <p className="text-zinc-400 font-space-mono text-xs mb-1">Окно PowerShell 2 (bot2.py):</p>
-                            <pre className="text-blue-300 font-space-mono text-xs whitespace-pre-wrap break-all">{`$env:PO_SESSION_ID='42["auth",{"session":"ваш_session","isDemo":1,"uid":123456,"platform":2}]'; python bot2_${poConfig2.strategy}.py`}</pre>
+                            <p className="text-zinc-400 font-space-mono text-xs mb-1">Окно PowerShell 2:</p>
+                            <pre className="text-blue-300 font-space-mono text-xs whitespace-pre-wrap break-all">{`$env:PO_SESSION_ID='ТВОЁ_СООБЩЕНИЕ_42auth_ЦЕЛИКОМ'; python bot2_${poConfig2.strategy}.py`}</pre>
                           </div>
                         </div>
-                        <p className="text-zinc-500 font-space-mono text-xs">Session ID — одинаковый в обоих командах. Оба бота будут торговать на одном счёте параллельно.</p>
+                        <p className="text-zinc-500 font-space-mono text-xs">Одно и то же сообщение вставляй в оба окна. Оба бота будут торговать на одном счёте параллельно.</p>
                       </div>
                     )}
                   </div>

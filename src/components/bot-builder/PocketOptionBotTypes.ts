@@ -334,7 +334,7 @@ def adjust_bet(won):
 """
 Pocket Option Bot — ${strategyLabel}
 Актив: ${cfg.asset} | Экспирация: ${cfg.expiry} мин
-Ставка: ${S}${cfg.betAmount}${cfg.betPercent ? "%" : " USD"} | Стратегия: ${strategyLabel}
+Ставка: ${cfg.betAmount}${cfg.betPercent ? "%" : " USD"} | Стратегия: ${strategyLabel}
 Сгенерировано: TradeBase Bot Builder
 """
 
@@ -370,6 +370,8 @@ session.headers.update({
     "Content-Type": "application/json",
     "User-Agent": "Mozilla/5.0",
 })
+
+S = "$"  # Символ доллара для вывода
 
 # ===== СОСТОЯНИЕ =====
 total_profit = 0.0
@@ -421,7 +423,7 @@ def check_result(trade_id):
         profit = float(result.get("profit", 0))
         won    = profit > 0
         status = "ВЫИГРЫШ" if won else "ПРОИГРЫШ"
-        print(f"[RESULT] {status} | Профит: {S}{profit:.2f}")
+        print(f"[RESULT] {status} | Профит: " + str(round(profit, 2)) + " USD")
         return won, profit
     except Exception as e:
         print("[ERROR] Не удалось получить результат:", e)
@@ -439,7 +441,7 @@ def print_stats():
     wins     = sum(1 for t in trade_log if t["won"])
     total    = len(trade_log)
     winrate  = (wins / total * 100) if total else 0
-    print(f"\\n[STATS] {wins}/{total} сделок | Winrate: {winrate:.1f}% | Сессия: {S}{total_profit:.2f}\\n")
+    print(f"\\n[STATS] {wins}/{total} сделок | Winrate: {winrate:.1f}% | Сессия: " + str(round(total_profit, 2)) + " USD\\n")
 
 def main():
     global total_profit, trades_today, current_bet
@@ -447,13 +449,13 @@ def main():
     print("=" * 50)
     print("  Pocket Option Bot — " + "${strategyLabel}")
     print("  Актив:", ASSET, "| Экспирация:", EXPIRY_MIN, "мин")
-    print(f"  TP: {S}{TAKE_PROFIT} | SL: {S}{STOP_LOSS} | Лимит: {DAILY_LIMIT} сделок")
+    print("  TP: " + str(TAKE_PROFIT) + " | SL: " + str(STOP_LOSS) + " | Лимит: " + str(DAILY_LIMIT) + " сделок")
     print("=" * 50 + "\\n")
 
     while True:
         # Проверка лимитов
         if total_profit >= TAKE_PROFIT:
-            print(f"[TP] Take Profit достигнут: +{S}{total_profit:.2f}")
+            print("[TP] Take Profit достигнут: +" + str(round(total_profit, 2)) + " USD")
             if AUTO_RESTART:
                 total_profit = 0
                 trades_today = 0
@@ -462,7 +464,7 @@ def main():
             break
 
         if total_profit <= -STOP_LOSS:
-            print(f"[SL] Stop Loss достигнут: {S}{total_profit:.2f}")
+            print("[SL] Stop Loss достигнут: " + str(round(total_profit, 2)) + " USD")
             if AUTO_RESTART:
                 total_profit = 0
                 trades_today = 0
@@ -662,7 +664,7 @@ def get_combined_signal(prices, candles):
 Pocket Option КОМБО-Бот
 Стратегии: ${labels}
 Логика: ${cfg.comboLogic} (${logicWord})
-Актив: ${cfg.asset} | Экспирация: ${cfg.expiry} мин | Ставка: ${S}${cfg.betAmount}
+Актив: ${cfg.asset} | Экспирация: ${cfg.expiry} мин | Ставка: $$${cfg.betAmount}
 Сгенерировано: TradeBase Bot Builder
 """
 
@@ -691,6 +693,8 @@ session.headers.update({
     "Content-Type": "application/json",
     "User-Agent": "Mozilla/5.0",
 })
+
+S = "$"  # Символ доллара для вывода
 
 # ===== СОСТОЯНИЕ =====
 total_profit = 0.0
@@ -759,7 +763,7 @@ def main():
     print("  КОМБО-Бот: ${labels}")
     print("  Логика: ${cfg.comboLogic} — ${logicWord}")
     print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_MIN} мин")
-    print(f"  TP: {S}{cfg.takeProfitUsd} | SL: {S}{cfg.stopLossUsd} | Лимит: {DAILY_LIMIT}")
+    print("  TP: " + str(TAKE_PROFIT) + " | SL: " + str(STOP_LOSS) + " | Лимит: " + str(DAILY_LIMIT))
     print("=" * 55 + "\\n")
 
     while True:

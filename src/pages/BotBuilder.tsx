@@ -64,7 +64,6 @@ export default function BotBuilder() {
     download(poCode, `bot1_${poConfig.strategy}.py`)
     setTimeout(() => download(poCode2, `bot2_${poConfig2.strategy}.py`), 300)
     setDualDownloaded(true)
-    setTimeout(() => setDualDownloaded(false), 3000)
   }
 
   const handlePOCopy = () => {

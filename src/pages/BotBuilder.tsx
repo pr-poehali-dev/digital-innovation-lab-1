@@ -239,7 +239,7 @@ export default function BotBuilder() {
                             step: "1",
                             icon: "🌐",
                             title: "Откройте Pocket Option в браузере",
-                            desc: "Перейдите на сайт pocketoption.com и войдите в свой аккаунт.",
+                            desc: "Перейдите на сайт po-fcm.com/ru и войдите в свой аккаунт.",
                             color: "border-blue-500/40 bg-blue-500/5",
                           },
                           {
@@ -260,7 +260,7 @@ export default function BotBuilder() {
                             step: "4",
                             icon: "🍪",
                             title: "Найдите Cookies",
-                            desc: 'В левом меню разверните раздел "Cookies" → кликните на "https://pocketoption.com".',
+                            desc: 'В левом меню разверните раздел "Cookies" → кликните на "https://po-fcm.com".',
                             color: "border-zinc-600 bg-zinc-800/40",
                           },
                           {
@@ -611,14 +611,14 @@ export default function BotBuilder() {
                           {/* Step 4 */}
                           <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-2">
                             <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 4 — Получите Session ID</p>
-                            <p className="text-zinc-400 font-space-mono text-xs">Войдите в <a href="https://pocketoption.com" target="_blank" rel="noreferrer" className="text-blue-400 underline">pocketoption.com</a> и следуйте инструкции для вашего браузера:</p>
+                            <p className="text-zinc-400 font-space-mono text-xs">Войдите в <a href="https://po-fcm.com/ru" target="_blank" rel="noreferrer" className="text-blue-400 underline">po-fcm.com/ru</a> и следуйте инструкции для вашего браузера:</p>
                             <div className="space-y-2">
                               <div className="bg-black/40 rounded p-2">
                                 <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-1">Chrome / Edge</p>
                                 <ol className="text-zinc-500 font-space-mono text-xs space-y-0.5 ml-2 list-decimal list-inside">
                                   <li>Нажмите <span className="text-white">F12</span> (или правая кнопка → «Просмотр кода»)</li>
                                   <li>Вкладка <span className="text-white">Application</span> (Приложение)</li>
-                                  <li>Слева: <span className="text-white">Cookies → pocketoption.com</span></li>
+                                  <li>Слева: <span className="text-white">Cookies → po-fcm.com</span></li>
                                   <li>Найдите строку <span className="text-red-400">ci_session</span> → скопируйте значение из колонки <span className="text-white">Value</span></li>
                                 </ol>
                               </div>
@@ -627,7 +627,7 @@ export default function BotBuilder() {
                                 <ol className="text-zinc-500 font-space-mono text-xs space-y-0.5 ml-2 list-decimal list-inside">
                                   <li>Нажмите <span className="text-white">F12</span> или <span className="text-white">Ctrl+Shift+I</span></li>
                                   <li>Вкладка <span className="text-white">Application</span> (если не видно — нажмите <span className="text-white">&gt;&gt;</span> в панели вкладок)</li>
-                                  <li>Слева: <span className="text-white">Cookies → pocketoption.com</span></li>
+                                  <li>Слева: <span className="text-white">Cookies → po-fcm.com</span></li>
                                   <li>Найдите строку <span className="text-red-400">ci_session</span> → скопируйте значение из колонки <span className="text-white">Value</span></li>
                                 </ol>
                               </div>
@@ -636,7 +636,7 @@ export default function BotBuilder() {
                                 <ol className="text-zinc-500 font-space-mono text-xs space-y-0.5 ml-2 list-decimal list-inside">
                                   <li>Нажмите <span className="text-white">F12</span></li>
                                   <li>Вкладка <span className="text-white">Хранилище</span> (Storage)</li>
-                                  <li>Слева: <span className="text-white">Куки → pocketoption.com</span></li>
+                                  <li>Слева: <span className="text-white">Куки → po-fcm.com</span></li>
                                   <li>Найдите строку <span className="text-red-400">ci_session</span> → скопируйте значение</li>
                                 </ol>
                               </div>
@@ -702,7 +702,7 @@ export default function BotBuilder() {
                             <div className="bg-black/40 rounded p-2 space-y-1">
                               <p className="text-green-400 font-space-mono text-xs font-semibold">Как переключиться на демо в Pocket Option:</p>
                               <ol className="text-zinc-400 font-space-mono text-xs space-y-1 ml-2 list-decimal list-inside">
-                                <li>Войдите на <a href="https://pocketoption.com" target="_blank" rel="noreferrer" className="text-blue-400 underline">pocketoption.com</a></li>
+                                <li>Войдите на <a href="https://po-fcm.com/ru" target="_blank" rel="noreferrer" className="text-blue-400 underline">po-fcm.com/ru</a></li>
                                 <li>В правом верхнем углу кликните на <span className="text-white">баланс</span></li>
                                 <li>Выберите <span className="text-green-400">«Демо-счёт»</span> — там уже есть $10 000 виртуальных</li>
                                 <li>Получите Session ID именно с этой страницы (шаг 4) и запускайте бота</li>

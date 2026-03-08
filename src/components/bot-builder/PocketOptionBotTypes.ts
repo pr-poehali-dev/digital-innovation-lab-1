@@ -329,6 +329,12 @@ def adjust_bet(won):
     return BASE_BET
 `
 
+  const assetSymbol = cfg.asset
+    .replace("/", "")
+    .replace(" (OTC)", "_otc")
+    .replace(" (otc)", "_otc")
+    .toLowerCase()
+
   return (
 `#!/usr/bin/env python3
 """
@@ -337,32 +343,31 @@ Pocket Option Bot — ${strategyLabel}
 Ставка: ${cfg.betAmount}${cfg.betPercent ? "%" : " USD"} | Стратегия: ${strategyLabel}
 Сгенерировано: TradeBase Bot Builder
 
-Установка зависимостей:
-    pip install pocketoptionapi
+Установка зависимостей (из папки PocketOptionAPI-main):
+    pip install .
 """
 
-import time
-import os
 import asyncio
+import os
 from datetime import datetime
-from pocketoptionapi.stable_api import PocketOption
+from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
 
 # ===== НАСТРОЙКИ =====
-ASSET       = "${cfg.asset}"
-EXPIRY_MIN  = ${cfg.expiry}              # Экспирация опциона (минуты)
-BASE_BET    = ${cfg.betAmount}           # Базовая ставка USD
-BET_PERCENT = ${cfg.betPercent ? "True" : "False"}         # True = % от баланса
+ASSET        = "${assetSymbol}"
+EXPIRY_SEC   = ${String(parseInt(cfg.expiry) * 60)}             # Экспирация в секундах
+BASE_BET     = ${cfg.betAmount}          # Базовая ставка USD
+BET_PERCENT  = ${cfg.betPercent ? "True" : "False"}        # True = % от баланса
+IS_DEMO      = True                      # False = реальный счёт
 
-TAKE_PROFIT = ${cfg.takeProfitUsd}       # Стоп профит (USD за сессию)
-STOP_LOSS   = ${cfg.stopLossUsd}         # Стоп лосс (USD за сессию)
-DAILY_LIMIT = ${cfg.dailyLimit}          # Макс. сделок в день
-AUTO_RESTART= ${cfg.autoRestart ? "True" : "False"}        # Перезапуск после TP/SL
+TAKE_PROFIT  = ${cfg.takeProfitUsd}      # Стоп профит (USD за сессию)
+STOP_LOSS    = ${cfg.stopLossUsd}        # Стоп лосс (USD за сессию)
+DAILY_LIMIT  = ${cfg.dailyLimit}         # Макс. сделок в день
+AUTO_RESTART = ${cfg.autoRestart ? "True" : "False"}       # Перезапуск после TP/SL
 
 MARTINGALE       = ${cfg.martingaleEnabled ? "True" : "False"}
 MARTINGALE_MULT  = ${cfg.martingaleMultiplier}
 MARTINGALE_STEPS = ${cfg.martingaleSteps}
 
-# Session ID из Pocket Option (DevTools → Cookie → ci_session)
 SESSION_ID = os.environ.get("PO_SESSION_ID", "")
 if not SESSION_ID:
     print("[ERROR] Не задан PO_SESSION_ID. Запустите бота командой:")
@@ -376,52 +381,52 @@ trade_log    = []
 ${martingaleBlock}
 ${strategyFunctions[cfg.strategy]}
 
-def get_candles(api, count=50):
-    """Получение свечей через pocketoptionapi"""
+async def get_candles_data(client):
+    """Получение свечей"""
     try:
-        candles_raw = api.get_candles(ASSET, EXPIRY_MIN * 60, count, time.time())
-        candles = [(c["open"], c["max"], c["min"], c["close"]) for c in candles_raw]
-        prices  = [c[3] for c in candles]
+        raw = await client.get_candles(asset=ASSET, timeframe=EXPIRY_SEC)
+        candles = [(c.open, c.high, c.low, c.close) for c in raw]
+        prices  = [c.close for c in raw]
         return candles, prices
     except Exception as e:
-        print("[ERROR] Не удалось получить свечи:", e)
+        print(f"[ERROR] Свечи: {e}")
         return [], []
 
-def place_trade(api, direction, amount):
-    """Открытие бинарного опциона"""
+async def place_trade(client, direction, amount):
+    """Открытие опциона"""
     try:
-        status, trade_id = api.buy(amount, ASSET, direction.lower(), EXPIRY_MIN * 60)
-        if status:
-            print(f"[TRADE] {direction} | {amount} USD | {EXPIRY_MIN} мин | ID: {trade_id}")
-            return trade_id
-        else:
-            print("[ERROR] Сделка не открылась. Проверьте баланс и Session ID.")
-            return None
+        dir_val = OrderDirection.CALL if direction == "CALL" else OrderDirection.PUT
+        order = await client.place_order(asset=ASSET, amount=amount, direction=dir_val, duration=EXPIRY_SEC)
+        print(f"[TRADE] {direction} | {amount} USD | {EXPIRY_SEC//60} мин | ID: {order.order_id}")
+        return order.order_id
     except Exception as e:
-        print("[ERROR] Ошибка при открытии сделки:", e)
+        print(f"[ERROR] Сделка: {e}")
         return None
 
-def check_result(api, trade_id):
-    """Ожидание результата сделки"""
-    print(f"[WAIT] Ожидаем результат {EXPIRY_MIN} мин...")
-    time.sleep(EXPIRY_MIN * 60 + 3)
+async def check_result(client, order_id):
+    """Ожидание результата"""
+    print(f"[WAIT] Ожидаем результат {EXPIRY_SEC//60} мин...")
+    await asyncio.sleep(EXPIRY_SEC + 5)
     try:
-        result = api.check_win_v3(trade_id)
-        profit = float(result) if result else 0.0
-        won    = profit > 0
-        status = "ВЫИГРЫШ" if won else "ПРОИГРЫШ"
-        print(f"[RESULT] {status} | Профит: {round(profit, 2)} USD")
-        return won, profit
+        result = await client.check_order_result(order_id)
+        if result:
+            profit = float(result.profit) if hasattr(result, "profit") else 0.0
+            won    = profit > 0
+            status = "ВЫИГРЫШ" if won else "ПРОИГРЫШ"
+            print(f"[RESULT] {status} | Профит: {round(profit, 2)} USD")
+            return won, profit
+        return False, 0.0
     except Exception as e:
-        print("[ERROR] Не удалось получить результат:", e)
-        return False, 0
+        print(f"[ERROR] Результат: {e}")
+        return False, 0.0
 
-def get_balance(api):
+async def get_balance(client):
     """Текущий баланс"""
     try:
-        return api.get_balance()
+        b = await client.get_balance()
+        return float(b.amount) if hasattr(b, "amount") else float(b)
     except:
-        return 0
+        return 0.0
 
 def print_stats():
     wins    = sum(1 for t in trade_log if t["won"])
@@ -429,23 +434,17 @@ def print_stats():
     winrate = (wins / total * 100) if total else 0
     print(f"\\n[STATS] {wins}/{total} сделок | Winrate: {winrate:.1f}% | Сессия: {round(total_profit, 2)} USD\\n")
 
-def main():
+async def main():
     global total_profit, trades_today, current_bet
 
     print("Подключение к Pocket Option...")
-    api = PocketOption(SESSION_ID, demo=${cfg.betPercent ? "True" : "False"})
-    api.connect()
-    time.sleep(5)
+    client = AsyncPocketOptionClient(SESSION_ID, is_demo=IS_DEMO, enable_logging=False)
+    await client.connect()
 
-    if not api.check_connect():
-        print("[ERROR] Не удалось подключиться. Проверьте Session ID — он должен быть актуальным.")
-        print("Зайдите в Pocket Option, НЕ выходя из аккаунта, скопируйте ci_session заново.")
-        exit(1)
-
-    balance = get_balance(api)
+    balance = await get_balance(client)
     print("=" * 50)
     print("  Pocket Option Bot — ${strategyLabel}")
-    print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_MIN} мин")
+    print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин")
     print(f"  Баланс: {round(balance, 2)} USD | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
     print("=" * 50 + "\\n")
 
@@ -455,7 +454,7 @@ def main():
             if AUTO_RESTART:
                 total_profit = 0
                 trades_today = 0
-                time.sleep(300)
+                await asyncio.sleep(300)
                 continue
             break
 
@@ -464,7 +463,7 @@ def main():
             if AUTO_RESTART:
                 total_profit = 0
                 trades_today = 0
-                time.sleep(300)
+                await asyncio.sleep(300)
                 continue
             break
 
@@ -472,23 +471,23 @@ def main():
             print(f"[LIMIT] Дневной лимит {DAILY_LIMIT} сделок исчерпан")
             break
 
-        candles, prices = get_candles(api)
+        candles, prices = await get_candles_data(client)
         if not prices:
-            time.sleep(30)
+            await asyncio.sleep(30)
             continue
 
         signal = get_signal(prices, candles)
 
         if signal:
             if BET_PERCENT:
-                balance = get_balance(api)
+                balance = await get_balance(client)
                 bet = round(balance * (BASE_BET / 100), 2)
             else:
                 bet = current_bet
 
-            trade_id = place_trade(api, signal, bet)
-            if trade_id:
-                won, profit = check_result(api, trade_id)
+            order_id = await place_trade(client, signal, bet)
+            if order_id:
+                won, profit = await check_result(client, order_id)
                 total_profit += profit
                 trades_today += 1
                 current_bet   = adjust_bet(won)
@@ -503,10 +502,12 @@ def main():
         else:
             ts = datetime.now().strftime("%H:%M:%S")
             print(f"[{ts}] Нет сигнала, ожидание 30 сек...")
-            time.sleep(30)
+            await asyncio.sleep(30)
+
+    await client.disconnect()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
 `
   )
 }
@@ -653,26 +654,36 @@ def get_combined_signal(prices, candles):
     if puts > calls: return "PUT"
     return None  # Равенство голосов — пропускаем`
 
+  const comboAssetSymbol = cfg.asset
+    .replace("/", "")
+    .replace(" (OTC)", "_otc")
+    .replace(" (otc)", "_otc")
+    .toLowerCase()
+
   return (
 `#!/usr/bin/env python3
 """
 Pocket Option КОМБО-Бот
 Стратегии: ${labels}
 Логика: ${cfg.comboLogic} (${logicWord})
-Актив: ${cfg.asset} | Экспирация: ${cfg.expiry} мин | Ставка: $$${cfg.betAmount}
+Актив: ${cfg.asset} | Экспирация: ${cfg.expiry} мин | Ставка: ${cfg.betAmount} USD
 Сгенерировано: TradeBase Bot Builder
+
+Установка зависимостей (из папки PocketOptionAPI-main):
+    pip install .
 """
 
-import time
-import requests
+import asyncio
 import os
 from datetime import datetime
+from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
 
 # ===== НАСТРОЙКИ =====
-ASSET        = "${cfg.asset}"
-EXPIRY_MIN   = ${cfg.expiry}
+ASSET        = "${comboAssetSymbol}"
+EXPIRY_SEC   = ${String(parseInt(cfg.expiry) * 60)}
 BASE_BET     = ${cfg.betAmount}
 BET_PERCENT  = ${cfg.betPercent ? "True" : "False"}
+IS_DEMO      = True
 TAKE_PROFIT  = ${cfg.takeProfitUsd}
 STOP_LOSS    = ${cfg.stopLossUsd}
 DAILY_LIMIT  = ${cfg.dailyLimit}
@@ -680,16 +691,10 @@ AUTO_RESTART = ${cfg.autoRestart ? "True" : "False"}
 MARTINGALE   = ${cfg.martingaleEnabled ? "True" : "False"}
 
 SESSION_ID = os.environ.get("PO_SESSION_ID", "")
-BASE_URL   = "https://api.po.market/api/v1"
-
-session = requests.Session()
-session.headers.update({
-    "Cookie": "ci_session=" + SESSION_ID,
-    "Content-Type": "application/json",
-    "User-Agent": "Mozilla/5.0",
-})
-
-S = "$"  # Символ доллара для вывода
+if not SESSION_ID:
+    print("[ERROR] Не задан PO_SESSION_ID. Запустите бота командой:")
+    print('  $env:PO_SESSION_ID="ваш_session_id"; python bot.py')
+    exit(1)
 
 # ===== СОСТОЯНИЕ =====
 total_profit = 0.0
@@ -702,92 +707,98 @@ ${fnBlocks.join("\n")}
 # ===== КОМБО-ЛОГИКА (${cfg.comboLogic}) =====
 ${combineLogic}
 
-def get_candles(count=50):
+async def get_candles_data(client):
     try:
-        resp = session.get(BASE_URL + "/candles", params={"asset": ASSET, "period": EXPIRY_MIN * 60, "count": count})
-        data = resp.json().get("data", [])
-        candles = [(c["open"], c["high"], c["low"], c["close"]) for c in data]
-        prices  = [c[3] for c in candles]
+        raw = await client.get_candles(asset=ASSET, timeframe=EXPIRY_SEC)
+        candles = [(c.open, c.high, c.low, c.close) for c in raw]
+        prices  = [c.close for c in raw]
         return candles, prices
     except Exception as e:
-        print("[ERROR] get_candles:", e)
+        print(f"[ERROR] get_candles: {e}")
         return [], []
 
-def place_trade(direction, amount):
+async def place_trade(client, direction, amount):
     try:
-        resp = session.post(BASE_URL + "/trade", json={
-            "asset": ASSET, "direction": direction.lower(),
-            "amount": amount, "expiration": EXPIRY_MIN * 60,
-        })
-        result = resp.json()
-        trade_id = result.get("id", "unknown")
-        print(f"[TRADE] {direction} | {S}{amount} | {EXPIRY_MIN} мин | ID: {trade_id}")
-        return trade_id
+        dir_val = OrderDirection.CALL if direction == "CALL" else OrderDirection.PUT
+        order = await client.place_order(asset=ASSET, amount=amount, direction=dir_val, duration=EXPIRY_SEC)
+        print(f"[TRADE] {direction} | {amount} USD | {EXPIRY_SEC//60} мин | ID: {order.order_id}")
+        return order.order_id
     except Exception as e:
-        print("[ERROR] place_trade:", e)
+        print(f"[ERROR] place_trade: {e}")
         return None
 
-def check_result(trade_id):
-    time.sleep(EXPIRY_MIN * 60 + 5)
+async def check_result(client, order_id):
+    await asyncio.sleep(EXPIRY_SEC + 5)
     try:
-        resp   = session.get(BASE_URL + "/trade/" + str(trade_id))
-        profit = float(resp.json().get("profit", 0))
-        won    = profit > 0
-        print(f"[RESULT] {'ВЫИГРЫШ' if won else 'ПРОИГРЫШ'} | {S}{profit:.2f}")
-        return won, profit
+        result = await client.check_order_result(order_id)
+        if result:
+            profit = float(result.profit) if hasattr(result, "profit") else 0.0
+            won    = profit > 0
+            print(f"[RESULT] {'ВЫИГРЫШ' if won else 'ПРОИГРЫШ'} | {profit:.2f} USD")
+            return won, profit
+        return False, 0.0
     except Exception as e:
-        print("[ERROR] check_result:", e)
-        return False, 0
+        print(f"[ERROR] check_result: {e}")
+        return False, 0.0
 
-def get_balance():
+async def get_balance(client):
     try:
-        return float(session.get(BASE_URL + "/balance").json().get("balance", 0))
+        b = await client.get_balance()
+        return float(b.amount) if hasattr(b, "amount") else float(b)
     except:
-        return 0
+        return 0.0
 
 def print_stats():
-    wins    = sum(1 for t in trade_log if t["won"])
-    total   = len(trade_log)
-    wr      = (wins / total * 100) if total else 0
-    print(f"[STATS] {wins}/{total} | WR: {wr:.1f}% | Сессия: {S}{total_profit:.2f}")
+    wins  = sum(1 for t in trade_log if t["won"])
+    total = len(trade_log)
+    wr    = (wins / total * 100) if total else 0
+    print(f"[STATS] {wins}/{total} | WR: {wr:.1f}% | Сессия: {total_profit:.2f} USD")
 
-def main():
+async def main():
     global total_profit, trades_today, current_bet
 
+    client = AsyncPocketOptionClient(SESSION_ID, is_demo=IS_DEMO, enable_logging=False)
+    await client.connect()
+
+    balance = await get_balance(client)
     print("=" * 55)
     print("  КОМБО-Бот: ${labels}")
     print("  Логика: ${cfg.comboLogic} — ${logicWord}")
-    print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_MIN} мин")
+    print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин | Баланс: {balance:.2f} USD")
     print("  TP: " + str(TAKE_PROFIT) + " | SL: " + str(STOP_LOSS) + " | Лимит: " + str(DAILY_LIMIT))
     print("=" * 55 + "\\n")
 
     while True:
         if total_profit >= TAKE_PROFIT:
-            print(f"[TP] +{S}{total_profit:.2f}")
+            print(f"[TP] +{total_profit:.2f} USD")
             if AUTO_RESTART:
-                total_profit = 0; trades_today = 0; time.sleep(300); continue
+                total_profit = 0; trades_today = 0; await asyncio.sleep(300); continue
             break
         if total_profit <= -STOP_LOSS:
-            print(f"[SL] {S}{total_profit:.2f}")
+            print(f"[SL] {total_profit:.2f} USD")
             if AUTO_RESTART:
-                total_profit = 0; trades_today = 0; time.sleep(300); continue
+                total_profit = 0; trades_today = 0; await asyncio.sleep(300); continue
             break
         if trades_today >= DAILY_LIMIT:
             print(f"[LIMIT] Лимит {DAILY_LIMIT} сделок исчерпан")
             break
 
-        candles, prices = get_candles()
+        candles, prices = await get_candles_data(client)
         if not prices:
-            time.sleep(30)
+            await asyncio.sleep(30)
             continue
 
         signal = get_combined_signal(prices, candles)
 
         if signal:
-            bet = round(get_balance() * (BASE_BET / 100), 2) if BET_PERCENT else current_bet
-            trade_id = place_trade(signal, bet)
-            if trade_id:
-                won, profit = check_result(trade_id)
+            if BET_PERCENT:
+                balance = await get_balance(client)
+                bet = round(balance * (BASE_BET / 100), 2)
+            else:
+                bet = current_bet
+            order_id = await place_trade(client, signal, bet)
+            if order_id:
+                won, profit = await check_result(client, order_id)
                 total_profit += profit
                 trades_today += 1
                 current_bet   = adjust_bet(won)
@@ -796,10 +807,12 @@ def main():
         else:
             ts = datetime.now().strftime("%H:%M:%S")
             print(f"[{ts}] Нет подтверждённого сигнала, ожидание...")
-            time.sleep(30)
+            await asyncio.sleep(30)
+
+    await client.disconnect()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
 `
   )
 }

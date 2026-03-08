@@ -583,7 +583,10 @@ export default function BotBuilder() {
                           {/* Step 2 */}
                           <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-2">
                             <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 2 — Установите Python</p>
-                            <p className="text-zinc-400 font-space-mono text-xs">Если Python не установлен — скачайте с <a href="https://python.org/downloads" target="_blank" rel="noreferrer" className="text-blue-400 underline">python.org</a> (версия 3.10+). При установке отметьте галочку <span className="text-white">«Add to PATH»</span>.</p>
+                            <p className="text-zinc-400 font-space-mono text-xs">Скачайте <a href="https://www.python.org/downloads/release/python-3119/" target="_blank" rel="noreferrer" className="text-blue-400 underline">Python 3.11</a> (Windows installer 64-bit). При установке отметьте галочку <span className="text-white">«Add to PATH»</span>.</p>
+                            <div className="bg-yellow-500/5 border border-yellow-500/20 rounded p-2">
+                              <p className="text-yellow-400/80 font-space-mono text-xs">⚠️ Используйте именно <span className="text-white">Python 3.11</span> — версии 3.12+ не совместимы с библиотекой Pocket Option.</p>
+                            </div>
                           </div>
 
                           {/* Step 3 */}

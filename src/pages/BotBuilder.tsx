@@ -786,6 +786,29 @@ python bot.py
 API_KEY="ваш_api_key" API_SECRET="ваш_secret" python bot.py`}</pre>
                         </div>
 
+                        {/* Errors */}
+                        <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 space-y-2">
+                          <p className="text-red-400 font-orbitron text-xs font-semibold">❓ Бот выдал ошибку — что делать</p>
+                          <div className="space-y-2">
+                            <div className="bg-black/40 rounded p-2">
+                              <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-0.5">«python не является внутренней командой»</p>
+                              <p className="text-zinc-500 font-space-mono text-xs">Python не установлен или не добавлен в PATH. Переустановите с <a href="https://python.org/downloads" target="_blank" rel="noreferrer" className="text-blue-400 underline">python.org</a> и отметьте <span className="text-white">«Add to PATH»</span>.</p>
+                            </div>
+                            <div className="bg-black/40 rounded p-2">
+                              <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-0.5">«No module named 'ccxt'» или «No module named 'requests'»</p>
+                              <p className="text-zinc-500 font-space-mono text-xs">Зависимости не установились. Вернитесь к шагу 3 и выполните <span className="text-green-400">pip install requests ccxt</span> заново.</p>
+                            </div>
+                            <div className="bg-black/40 rounded p-2">
+                              <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-0.5">«Invalid API key» или «AuthenticationError»</p>
+                              <p className="text-zinc-500 font-space-mono text-xs">API-ключ скопирован неверно или у него нет прав на торговлю. Проверьте ключ в личном кабинете биржи и убедитесь что включены права <span className="text-white">Spot Trading</span>.</p>
+                            </div>
+                            <div className="bg-black/40 rounded p-2">
+                              <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-0.5">Терминал сразу закрылся</p>
+                              <p className="text-zinc-500 font-space-mono text-xs">Запустите через PowerShell (не двойным кликом по файлу) — так увидите текст ошибки.</p>
+                            </div>
+                          </div>
+                        </div>
+
                         <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-1">
                           <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 6 — Сначала тестовая сеть</p>
                           <p className="text-zinc-400 font-space-mono text-xs">Большинство бирж предоставляют <span className="text-white">Testnet / Paper Trading</span> — используйте его минимум 1–2 дня. Убедитесь что стратегия работает корректно до пополнения реального счёта.</p>

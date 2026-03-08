@@ -329,7 +329,7 @@ def adjust_bet(won):
     return BASE_BET
 `
 
-  const assetSymbol = cfg.asset
+  const assetSymbol = "#" + cfg.asset
     .replace("/", "")
     .replace(" (OTC)", "_otc")
     .replace(" (otc)", "_otc")

@@ -674,6 +674,16 @@ export default function BotBuilder() {
                                 <p className="text-zinc-500 font-space-mono text-xs">Session ID устарел или скопирован неверно. Зайдите в Pocket Option заново, не выходя из аккаунта — и повторите шаг 4.</p>
                               </div>
                               <div className="bg-black/40 rounded p-2">
+                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-0.5">«No such file or directory» / «bot.py не найден»</p>
+                                <p className="text-zinc-500 font-space-mono text-xs mb-1">PowerShell открыт не в той папке где лежит файл. Исправление:</p>
+                                <ol className="text-zinc-500 font-space-mono text-xs space-y-0.5 ml-2 list-decimal list-inside">
+                                  <li>Откройте папку с <span className="text-white">bot.py</span> в Проводнике</li>
+                                  <li>Зажмите <span className="text-white">Shift</span> → правая кнопка мыши на пустом месте папки</li>
+                                  <li>Выберите <span className="text-green-400">«Открыть окно PowerShell здесь»</span> — только так PowerShell сразу окажется в нужной папке</li>
+                                  <li>Теперь вводите команду запуска</li>
+                                </ol>
+                              </div>
+                              <div className="bg-black/40 rounded p-2">
                                 <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-0.5">Терминал сразу закрылся</p>
                                 <p className="text-zinc-500 font-space-mono text-xs">Запустите через PowerShell (не двойным кликом по файлу) — так увидите текст ошибки.</p>
                               </div>

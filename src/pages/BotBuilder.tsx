@@ -596,7 +596,7 @@ export default function BotBuilder() {
                               <li>Выберите <span className="text-green-400">«Открыть окно PowerShell здесь»</span> (или «Открыть в терминале»)</li>
                               <li>В открывшемся окне вставьте команду и нажмите <span className="text-white">Enter</span>:</li>
                             </ol>
-                            <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`pip install requests`}</pre>
+                            <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`pip install pocketoptionapi`}</pre>
                             <p className="text-zinc-500 font-space-mono text-xs">Увидите <span className="text-green-400">Successfully installed</span> — готово, переходите к шагу 4.</p>
                             <div className="bg-yellow-500/5 border border-yellow-500/20 rounded p-2">
                               <p className="text-yellow-400/80 font-space-mono text-xs">Видите сообщение <span className="text-white">«new version of pip available»</span>? Это не ошибка — просто pip предлагает обновить себя. Можно проигнорировать и идти дальше.</p>
@@ -666,8 +666,8 @@ export default function BotBuilder() {
                                 <p className="text-zinc-500 font-space-mono text-xs">Python не установлен или не добавлен в PATH. Переустановите Python с <a href="https://python.org/downloads" target="_blank" rel="noreferrer" className="text-blue-400 underline">python.org</a> и обязательно отметьте <span className="text-white">«Add to PATH»</span>.</p>
                               </div>
                               <div className="bg-black/40 rounded p-2">
-                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-0.5">«No module named 'requests'»</p>
-                                <p className="text-zinc-500 font-space-mono text-xs">Зависимости не установились. Вернитесь к шагу 3 и выполните <span className="text-green-400">pip install requests</span> заново.</p>
+                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-0.5">«No module named 'pocketoptionapi'»</p>
+                                <p className="text-zinc-500 font-space-mono text-xs">Зависимости не установились. Вернитесь к шагу 3 и выполните <span className="text-green-400">pip install pocketoptionapi</span> заново.</p>
                               </div>
                               <div className="bg-black/40 rounded p-2">
                                 <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-0.5">«Invalid session» или «Unauthorized»</p>

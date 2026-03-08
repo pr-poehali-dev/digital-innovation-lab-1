@@ -336,13 +336,16 @@ Pocket Option Bot — ${strategyLabel}
 Актив: ${cfg.asset} | Экспирация: ${cfg.expiry} мин
 Ставка: ${cfg.betAmount}${cfg.betPercent ? "%" : " USD"} | Стратегия: ${strategyLabel}
 Сгенерировано: TradeBase Bot Builder
+
+Установка зависимостей:
+    pip install pocketoptionapi
 """
 
 import time
-import requests
-import json
 import os
+import asyncio
 from datetime import datetime
+from pocketoptionapi.stable_api import PocketOption
 
 # ===== НАСТРОЙКИ =====
 ASSET       = "${cfg.asset}"
@@ -359,19 +362,12 @@ MARTINGALE       = ${cfg.martingaleEnabled ? "True" : "False"}
 MARTINGALE_MULT  = ${cfg.martingaleMultiplier}
 MARTINGALE_STEPS = ${cfg.martingaleSteps}
 
-# Session ID из Pocket Option (скопировать из браузера DevTools → Cookie → ci_session)
+# Session ID из Pocket Option (DevTools → Cookie → ci_session)
 SESSION_ID = os.environ.get("PO_SESSION_ID", "")
-BASE_URL   = "https://api.po.market/api/v1"
-
-# ===== HTTP СЕССИЯ =====
-session = requests.Session()
-session.headers.update({
-    "Cookie": "ci_session=" + SESSION_ID,
-    "Content-Type": "application/json",
-    "User-Agent": "Mozilla/5.0",
-})
-
-S = "$"  # Символ доллара для вывода
+if not SESSION_ID:
+    print("[ERROR] Не задан PO_SESSION_ID. Запустите бота командой:")
+    print('  $env:PO_SESSION_ID="ваш_session_id"; python bot.py')
+    exit(1)
 
 # ===== СОСТОЯНИЕ =====
 total_profit = 0.0
@@ -380,80 +376,80 @@ trade_log    = []
 ${martingaleBlock}
 ${strategyFunctions[cfg.strategy]}
 
-def get_candles(count=50):
-    """Получение свечей для анализа"""
+def get_candles(api, count=50):
+    """Получение свечей через pocketoptionapi"""
     try:
-        resp = session.get(BASE_URL + "/candles", params={
-            "asset": ASSET,
-            "period": EXPIRY_MIN * 60,
-            "count": count,
-        })
-        data = resp.json().get("data", [])
-        candles = [(c["open"], c["high"], c["low"], c["close"]) for c in data]
+        candles_raw = api.get_candles(ASSET, EXPIRY_MIN * 60, count, time.time())
+        candles = [(c["open"], c["max"], c["min"], c["close"]) for c in candles_raw]
         prices  = [c[3] for c in candles]
         return candles, prices
     except Exception as e:
         print("[ERROR] Не удалось получить свечи:", e)
         return [], []
 
-def place_trade(direction, amount):
-    """Открытие бинарного опциона в Pocket Option"""
-    payload = {
-        "asset":      ASSET,
-        "direction":  direction.lower(),
-        "amount":     amount,
-        "expiration": EXPIRY_MIN * 60,
-    }
+def place_trade(api, direction, amount):
+    """Открытие бинарного опциона"""
     try:
-        resp = session.post(BASE_URL + "/trade", json=payload)
-        result = resp.json()
-        trade_id = result.get("id", "unknown")
-        print(f"[TRADE] {direction} | {S}{amount} | {EXPIRY_MIN} мин | ID: {trade_id}")
-        return trade_id
+        status, trade_id = api.buy(amount, ASSET, direction.lower(), EXPIRY_MIN * 60)
+        if status:
+            print(f"[TRADE] {direction} | {amount} USD | {EXPIRY_MIN} мин | ID: {trade_id}")
+            return trade_id
+        else:
+            print("[ERROR] Сделка не открылась. Проверьте баланс и Session ID.")
+            return None
     except Exception as e:
         print("[ERROR] Ошибка при открытии сделки:", e)
         return None
 
-def check_result(trade_id):
-    """Проверка результата сделки после экспирации"""
-    time.sleep(EXPIRY_MIN * 60 + 5)
+def check_result(api, trade_id):
+    """Ожидание результата сделки"""
+    print(f"[WAIT] Ожидаем результат {EXPIRY_MIN} мин...")
+    time.sleep(EXPIRY_MIN * 60 + 3)
     try:
-        resp = session.get(BASE_URL + "/trade/" + str(trade_id))
-        result = resp.json()
-        profit = float(result.get("profit", 0))
+        result = api.check_win_v3(trade_id)
+        profit = float(result) if result else 0.0
         won    = profit > 0
         status = "ВЫИГРЫШ" if won else "ПРОИГРЫШ"
-        print(f"[RESULT] {status} | Профит: " + str(round(profit, 2)) + " USD")
+        print(f"[RESULT] {status} | Профит: {round(profit, 2)} USD")
         return won, profit
     except Exception as e:
         print("[ERROR] Не удалось получить результат:", e)
         return False, 0
 
-def get_balance():
-    """Текущий баланс аккаунта"""
+def get_balance(api):
+    """Текущий баланс"""
     try:
-        resp = session.get(BASE_URL + "/balance")
-        return float(resp.json().get("balance", 0))
+        return api.get_balance()
     except:
         return 0
 
 def print_stats():
-    wins     = sum(1 for t in trade_log if t["won"])
-    total    = len(trade_log)
-    winrate  = (wins / total * 100) if total else 0
-    print(f"\\n[STATS] {wins}/{total} сделок | Winrate: {winrate:.1f}% | Сессия: " + str(round(total_profit, 2)) + " USD\\n")
+    wins    = sum(1 for t in trade_log if t["won"])
+    total   = len(trade_log)
+    winrate = (wins / total * 100) if total else 0
+    print(f"\\n[STATS] {wins}/{total} сделок | Winrate: {winrate:.1f}% | Сессия: {round(total_profit, 2)} USD\\n")
 
 def main():
     global total_profit, trades_today, current_bet
 
+    print("Подключение к Pocket Option...")
+    api = PocketOption(SESSION_ID, demo=${cfg.betPercent ? "True" : "False"})
+    api.connect()
+    time.sleep(5)
+
+    if not api.check_connect():
+        print("[ERROR] Не удалось подключиться. Проверьте Session ID — он должен быть актуальным.")
+        print("Зайдите в Pocket Option, НЕ выходя из аккаунта, скопируйте ci_session заново.")
+        exit(1)
+
+    balance = get_balance(api)
     print("=" * 50)
-    print("  Pocket Option Bot — " + "${strategyLabel}")
-    print("  Актив:", ASSET, "| Экспирация:", EXPIRY_MIN, "мин")
-    print("  TP: " + str(TAKE_PROFIT) + " | SL: " + str(STOP_LOSS) + " | Лимит: " + str(DAILY_LIMIT) + " сделок")
+    print("  Pocket Option Bot — ${strategyLabel}")
+    print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_MIN} мин")
+    print(f"  Баланс: {round(balance, 2)} USD | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
     print("=" * 50 + "\\n")
 
     while True:
-        # Проверка лимитов
         if total_profit >= TAKE_PROFIT:
             print("[TP] Take Profit достигнут: +" + str(round(total_profit, 2)) + " USD")
             if AUTO_RESTART:
@@ -476,8 +472,7 @@ def main():
             print(f"[LIMIT] Дневной лимит {DAILY_LIMIT} сделок исчерпан")
             break
 
-        # Получение данных
-        candles, prices = get_candles()
+        candles, prices = get_candles(api)
         if not prices:
             time.sleep(30)
             continue
@@ -486,14 +481,14 @@ def main():
 
         if signal:
             if BET_PERCENT:
-                balance = get_balance()
+                balance = get_balance(api)
                 bet = round(balance * (BASE_BET / 100), 2)
             else:
                 bet = current_bet
 
-            trade_id = place_trade(signal, bet)
+            trade_id = place_trade(api, signal, bet)
             if trade_id:
-                won, profit = check_result(trade_id)
+                won, profit = check_result(api, trade_id)
                 total_profit += profit
                 trades_today += 1
                 current_bet   = adjust_bet(won)

@@ -241,17 +241,28 @@ export default function BotBuilder() {
                       <p className="text-zinc-500">мин экспир.</p>
                     </div>
                   </div>
-                  <button
-                    onClick={handleShare}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-orbitron text-xs font-bold transition-all duration-200
-                      ${shareCopied
-                        ? "bg-green-500/20 border-green-500/40 text-green-400"
-                        : "bg-zinc-800 border-zinc-600 text-zinc-300 hover:border-zinc-400 hover:text-white"
-                      }`}
-                  >
-                    <Icon name={shareCopied ? "Check" : "Share2"} size={13} />
-                    {shareCopied ? "Скопировано!" : "Поделиться"}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleShare}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-orbitron text-xs font-bold transition-all duration-200
+                        ${shareCopied
+                          ? "bg-green-500/20 border-green-500/40 text-green-400"
+                          : "bg-zinc-800 border-zinc-600 text-zinc-300 hover:border-zinc-400 hover:text-white"
+                        }`}
+                    >
+                      <Icon name={shareCopied ? "Check" : "Share2"} size={13} />
+                      {shareCopied ? "Скопировано!" : "Поделиться"}
+                    </button>
+                    <a
+                      href="/bot-landing"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg border font-orbitron text-xs font-bold transition-all duration-200 bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20"
+                    >
+                      <Icon name="ExternalLink" size={13} />
+                      Лендинг
+                    </a>
+                  </div>
                 </div>
               </div>
 

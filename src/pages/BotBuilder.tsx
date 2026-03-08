@@ -623,6 +623,10 @@ $env:PO_SESSION_ID="ваш_session_id"; python bot.py
 
 # Mac / Linux
 PO_SESSION_ID="ваш_session_id" python bot.py`}</pre>
+                            <div className="flex gap-2 bg-green-500/5 border border-green-500/20 rounded p-2">
+                              <span className="text-green-400 shrink-0">💡</span>
+                              <p className="text-green-400/80 font-space-mono text-xs">Хотите запустить на <span className="text-white">демо-счёте</span>? Переключитесь на демо в Pocket Option, затем возьмите Session ID с той же страницы — бот автоматически будет торговать на демо.</p>
+                            </div>
                           </div>
 
                           {/* Step 6 */}

@@ -626,9 +626,19 @@ PO_SESSION_ID="ваш_session_id" python bot.py`}</pre>
                           </div>
 
                           {/* Step 6 */}
-                          <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-1">
-                            <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 6 — Сначала демо-счёт</p>
-                            <p className="text-zinc-400 font-space-mono text-xs">Обязательно протестируйте бота на <span className="text-white">демо-счёте</span> Pocket Option минимум 1–2 дня перед запуском на реальные деньги. Убедитесь что бот ведёт себя как ожидается.</p>
+                          <div className="rounded-lg border border-green-500/30 bg-green-500/5 p-3 space-y-2">
+                            <p className="text-green-400 font-orbitron text-xs font-semibold">Шаг 6 — Сначала демо-счёт</p>
+                            <p className="text-zinc-400 font-space-mono text-xs">Обязательно протестируйте бота на <span className="text-white">демо-счёте</span> Pocket Option минимум 1–2 дня перед запуском на реальные деньги.</p>
+                            <div className="bg-black/40 rounded p-2 space-y-1">
+                              <p className="text-green-400 font-space-mono text-xs font-semibold">Как переключиться на демо в Pocket Option:</p>
+                              <ol className="text-zinc-400 font-space-mono text-xs space-y-1 ml-2 list-decimal list-inside">
+                                <li>Войдите на <a href="https://pocketoption.com" target="_blank" rel="noreferrer" className="text-blue-400 underline">pocketoption.com</a></li>
+                                <li>В правом верхнем углу кликните на <span className="text-white">баланс</span></li>
+                                <li>Выберите <span className="text-green-400">«Демо-счёт»</span> — там уже есть $10 000 виртуальных</li>
+                                <li>Получите Session ID именно с этой страницы (шаг 4) и запускайте бота</li>
+                              </ol>
+                            </div>
+                            <p className="text-zinc-500 font-space-mono text-xs">Бот не знает на каком счёте работает — он торгует там, где активен Session ID.</p>
                           </div>
 
                           {/* Warning */}

@@ -617,12 +617,15 @@ export default function BotBuilder() {
                           {/* Step 5 */}
                           <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-2">
                             <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 5 — Запустите бота</p>
-                            <p className="text-zinc-400 font-space-mono text-xs mb-1">В терминале выполните (вставьте свой Session ID):</p>
-                            <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`# Windows (PowerShell)
-$env:PO_SESSION_ID="ваш_session_id"; python bot.py
-
-# Mac / Linux
-PO_SESSION_ID="ваш_session_id" python bot.py`}</pre>
+                            <p className="text-zinc-400 font-space-mono text-xs font-semibold text-white mb-1">Как открыть терминал (если закрыли после шага 3):</p>
+                            <ol className="text-zinc-400 font-space-mono text-xs space-y-1 ml-2 list-decimal list-inside">
+                              <li>Откройте папку с файлом <span className="text-white">bot.py</span> в Проводнике</li>
+                              <li>Зажмите <span className="text-white">Shift</span> → правая кнопка мыши на пустом месте</li>
+                              <li>Выберите <span className="text-green-400">«Открыть окно PowerShell здесь»</span></li>
+                            </ol>
+                            <p className="text-zinc-400 font-space-mono text-xs mt-1 mb-1">Вставьте команду целиком — замените <span className="text-red-400">ваш_session_id</span> на скопированный в шаге 4 ID и нажмите <span className="text-white">Enter</span>:</p>
+                            <pre className="bg-black rounded p-2 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`$env:PO_SESSION_ID="ваш_session_id"; python bot.py`}</pre>
+                            <p className="text-zinc-500 font-space-mono text-xs">Если всё верно — в терминале появятся логи бота и он начнёт работать. Не закрывайте окно PowerShell — бот остановится.</p>
                             <div className="flex gap-2 bg-green-500/5 border border-green-500/20 rounded p-2">
                               <span className="text-green-400 shrink-0">💡</span>
                               <p className="text-green-400/80 font-space-mono text-xs">Хотите запустить на <span className="text-white">демо-счёте</span>? Переключитесь на демо в Pocket Option, затем возьмите Session ID с той же страницы — бот автоматически будет торговать на демо.</p>

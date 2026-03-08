@@ -11,6 +11,7 @@ import BotsGuide from "./pages/BotsGuide";
 import Legends from "./pages/Legends";
 import PracticeCase from "./pages/PracticeCase";
 import BotBuilder from "./pages/BotBuilder";
+import BotLanding from "./pages/BotLanding";
 import Payment from "./pages/Payment";
 import ThankYou from "./pages/ThankYou";
 import Admin from "./pages/Admin";
@@ -38,6 +39,7 @@ const App = () => (
           <Route path="/trading-basics" element={<TradingBasics />} />
           <Route path="/practice" element={<AccessGate><PracticeCase /></AccessGate>} />
           <Route path="/bot-builder" element={<AccessGate><BotBuilder /></AccessGate>} />
+          <Route path="/bot-landing" element={<BotLanding />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

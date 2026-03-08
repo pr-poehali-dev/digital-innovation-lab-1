@@ -573,6 +573,56 @@ export default function BotBuilder() {
                 </button>
               </div>
 
+              {/* Dual risk summary */}
+              {dualMode && (
+                <div className="mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    {
+                      label: "Суммарный стоп-лосс",
+                      value: `$${poConfig.stopLossUsd + poConfig2.stopLossUsd}`,
+                      sub: `Бот 1: $${poConfig.stopLossUsd} + Бот 2: $${poConfig2.stopLossUsd}`,
+                      color: "border-red-500/30 bg-red-500/5",
+                      valueColor: "text-red-400",
+                    },
+                    {
+                      label: "Суммарный тейк-профит",
+                      value: `$${poConfig.takeProfitUsd + poConfig2.takeProfitUsd}`,
+                      sub: `Бот 1: $${poConfig.takeProfitUsd} + Бот 2: $${poConfig2.takeProfitUsd}`,
+                      color: "border-green-500/30 bg-green-500/5",
+                      valueColor: "text-green-400",
+                    },
+                    {
+                      label: "Суммарная ставка",
+                      value: `$${poConfig.betAmount + poConfig2.betAmount}`,
+                      sub: `Бот 1: $${poConfig.betAmount} + Бот 2: $${poConfig2.betAmount}`,
+                      color: "border-yellow-500/30 bg-yellow-500/5",
+                      valueColor: "text-yellow-400",
+                    },
+                    {
+                      label: "Соотношение TP/SL",
+                      value: (poConfig.stopLossUsd + poConfig2.stopLossUsd) > 0
+                        ? `${((poConfig.takeProfitUsd + poConfig2.takeProfitUsd) / (poConfig.stopLossUsd + poConfig2.stopLossUsd)).toFixed(1)}x`
+                        : "—",
+                      sub: (poConfig.takeProfitUsd + poConfig2.takeProfitUsd) >= (poConfig.stopLossUsd + poConfig2.stopLossUsd)
+                        ? "Хорошее соотношение"
+                        : "SL превышает TP",
+                      color: (poConfig.takeProfitUsd + poConfig2.takeProfitUsd) >= (poConfig.stopLossUsd + poConfig2.stopLossUsd)
+                        ? "border-blue-500/30 bg-blue-500/5"
+                        : "border-orange-500/30 bg-orange-500/5",
+                      valueColor: (poConfig.takeProfitUsd + poConfig2.takeProfitUsd) >= (poConfig.stopLossUsd + poConfig2.stopLossUsd)
+                        ? "text-blue-400"
+                        : "text-orange-400",
+                    },
+                  ].map((item) => (
+                    <div key={item.label} className={`rounded-xl border p-3 ${item.color}`}>
+                      <p className="text-zinc-500 font-space-mono text-xs mb-1">{item.label}</p>
+                      <p className={`font-orbitron font-bold text-xl ${item.valueColor}`}>{item.value}</p>
+                      <p className="text-zinc-600 font-space-mono text-xs mt-0.5">{item.sub}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className={`grid gap-8 ${dualMode ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1 lg:grid-cols-3"}`}>
                 {/* Bot 1 Form */}
                 <div className={dualMode ? "" : "lg:col-span-1"}>

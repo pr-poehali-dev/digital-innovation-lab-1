@@ -901,6 +901,15 @@ export default function BotBuilder() {
                             <Icon name="Download" size={12} className="mr-1" />
                             .py
                           </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => copyCmd(`$env:PO_SESSION_ID='${sessionId || "ВСТАВЬТЕ_SESSION_ID"}'; python bot.py`, "header")}
+                            className="border-blue-500/40 text-blue-400 hover:bg-blue-500/10 font-space-mono text-xs"
+                          >
+                            <Icon name={copiedCmd === "header" ? "Check" : "Terminal"} size={12} className="mr-1" />
+                            {copiedCmd === "header" ? "Скопировано ✓" : "Команда запуска"}
+                          </Button>
                         </div>
                       )}
                     </CardHeader>

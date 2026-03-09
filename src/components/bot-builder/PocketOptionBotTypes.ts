@@ -333,11 +333,29 @@ def adjust_bet(won):
     return BASE_BET
 `
 
-  const assetSymbol = cfg.asset
-    .replace("/", "")
-    .replace(" (OTC)", "_otc")
-    .replace(" (otc)", "_otc")
-    .replace(/\s/g, "")
+  const assetMap: Record<string, string> = {
+    "EUR/USD (OTC)": "EURUSD_otc",
+    "GBP/USD (OTC)": "GBPUSD_otc",
+    "USD/JPY (OTC)": "USDJPY_otc",
+    "AUD/USD (OTC)": "AUDUSD_otc",
+    "EUR/GBP (OTC)": "EURGBP_otc",
+    "EUR/JPY (OTC)": "EURJPY_otc",
+    "USD/CAD (OTC)": "USDCAD_otc",
+    "NZD/USD (OTC)": "NZDUSD_otc",
+    "BTC/USD (OTC)": "BTCUSD_otc",
+    "ETH/USD (OTC)": "ETHUSD_otc",
+    "Gold (OTC)":    "XAUUSD_otc",
+    "Oil (OTC)":     "USOIL_otc",
+    "EUR/USD":       "EURUSD",
+    "GBP/USD":       "GBPUSD",
+    "USD/JPY":       "USDJPY",
+    "AUD/USD":       "AUDUSD",
+    "USD/CAD":       "USDCAD",
+    "EUR/GBP":       "EURGBP",
+    "EUR/JPY":       "EURJPY",
+    "NZD/USD":       "NZDUSD",
+  }
+  const assetSymbol = assetMap[cfg.asset] ?? cfg.asset.replace("/", "").replace(" (OTC)", "_otc").replace(/\s/g, "")
 
   return (
 `#!/usr/bin/env python3
@@ -360,8 +378,9 @@ from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
 AVAILABLE_ASSETS = [
     "EURUSD_otc", "GBPUSD_otc", "USDJPY_otc", "AUDUSD_otc",
     "EURGBP_otc", "EURJPY_otc", "USDCAD_otc", "NZDUSD_otc",
-    "USDCHF_otc", "AUDCAD_otc", "EURUSD",     "GBPUSD",
-    "USDJPY",     "AUDUSD",     "BTCUSD",     "ETHUSD",
+    "BTCUSD_otc", "ETHUSD_otc", "XAUUSD_otc", "USOIL_otc",
+    "EURUSD",     "GBPUSD",     "USDJPY",     "AUDUSD",
+    "USDCAD",     "EURGBP",     "EURJPY",     "NZDUSD",
 ]
 
 # ===== НАСТРОЙКИ =====

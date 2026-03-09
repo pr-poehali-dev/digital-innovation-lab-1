@@ -327,7 +327,10 @@ export default function BotBuilder() {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
-                      <p className="text-zinc-500 font-space-mono text-xs mb-1">Bot Token (от @BotFather)</p>
+                      <p className="text-zinc-500 font-space-mono text-xs mb-1 flex items-center gap-1">
+                        Bot Token (от @BotFather)
+                        {poConfig.tgToken && <span className="text-green-400 flex items-center gap-1"><Icon name="Check" size={11} />сохранён</span>}
+                      </p>
                       <input
                         type="text"
                         value={poConfig.tgToken}
@@ -337,7 +340,10 @@ export default function BotBuilder() {
                       />
                     </div>
                     <div>
-                      <p className="text-zinc-500 font-space-mono text-xs mb-1">Chat ID (ваш Telegram ID)</p>
+                      <p className="text-zinc-500 font-space-mono text-xs mb-1 flex items-center gap-1">
+                        Chat ID (ваш Telegram ID)
+                        {poConfig.tgChatId && <span className="text-green-400 flex items-center gap-1"><Icon name="Check" size={11} />сохранён</span>}
+                      </p>
                       <input
                         type="text"
                         value={poConfig.tgChatId}

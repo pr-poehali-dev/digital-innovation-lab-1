@@ -356,8 +356,23 @@ import os
 from datetime import datetime
 from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
 
+# ===== ДОСТУПНЫЕ АКТИВЫ =====
+AVAILABLE_ASSETS = [
+    "EURUSD_otc", "GBPUSD_otc", "USDJPY_otc", "AUDUSD_otc",
+    "EURGBP_otc", "EURJPY_otc", "USDCAD_otc", "NZDUSD_otc",
+    "USDCHF_otc", "AUDCAD_otc", "EURUSD",     "GBPUSD",
+    "USDJPY",     "AUDUSD",     "BTCUSD",     "ETHUSD",
+]
+
 # ===== НАСТРОЙКИ =====
-ASSET        = "${assetSymbol}"
+ASSET        = os.environ.get("PO_ASSET", "${assetSymbol}")
+
+if ASSET not in AVAILABLE_ASSETS:
+    print(f"[ERROR] Актив '{ASSET}' не найден!")
+    print("[INFO] Доступные активы:")
+    for a in AVAILABLE_ASSETS:
+        print(f"  - {a}")
+    exit(1)
 EXPIRY_SEC   = ${String(parseInt(cfg.expiry) * 60)}             # Экспирация в секундах
 BASE_BET     = ${cfg.betAmount}          # Базовая ставка USD
 BET_PERCENT  = ${cfg.betPercent ? "True" : "False"}        # True = % от баланса
@@ -405,6 +420,10 @@ async def get_candles_data(client):
     """Получение свечей"""
     try:
         raw = await client.get_candles(asset=ASSET, timeframe=EXPIRY_SEC)
+        if not raw:
+            print(f"[ERROR] Актив {ASSET} не найден или нет данных")
+            print(f"[HINT] Попробуй другой актив через: $env:PO_ASSET='EURUSD_otc'; python bot.py")
+            return [], []
         candles = [(c.open, c.high, c.low, c.close) for c in raw]
         prices  = [c.close for c in raw]
         return candles, prices

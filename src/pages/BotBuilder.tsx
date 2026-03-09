@@ -41,6 +41,10 @@ export default function BotBuilder() {
   const saveTgSettings = (token: string, chatId: string) => {
     localStorage.setItem("tg_settings", JSON.stringify({ tgToken: token, tgChatId: chatId }))
   }
+  const clearTgSettings = () => {
+    localStorage.removeItem("tg_settings")
+    setPoConfig((p) => ({ ...p, tgToken: "", tgChatId: "" }))
+  }
 
   // Pocket Option state — Bot 1
   const [poConfig, setPoConfig] = useState<POBotConfig>({
@@ -330,6 +334,11 @@ export default function BotBuilder() {
                       <p className="text-zinc-500 font-space-mono text-xs mb-1 flex items-center gap-1">
                         Bot Token (от @BotFather)
                         {poConfig.tgToken && <span className="text-green-400 flex items-center gap-1"><Icon name="Check" size={11} />сохранён</span>}
+                        {(poConfig.tgToken || poConfig.tgChatId) && (
+                          <button onClick={clearTgSettings} className="ml-auto flex items-center gap-0.5 text-zinc-600 hover:text-red-400 transition-colors text-xs">
+                            <Icon name="X" size={10} />очистить
+                          </button>
+                        )}
                       </p>
                       <input
                         type="text"

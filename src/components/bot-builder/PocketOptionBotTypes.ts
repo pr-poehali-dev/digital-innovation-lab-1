@@ -727,11 +727,29 @@ def get_combined_signal(prices, candles):
     if puts > calls: return "PUT"
     return None  # Равенство голосов — пропускаем`
 
-  const comboAssetSymbol = cfg.asset
-    .replace("/", "")
-    .replace(" (OTC)", "_otc")
-    .replace(" (otc)", "_otc")
-    .toLowerCase()
+  const comboAssetMap: Record<string, string> = {
+    "EUR/USD (OTC)": "EURUSD_otc",
+    "GBP/USD (OTC)": "GBPUSD_otc",
+    "USD/JPY (OTC)": "USDJPY_otc",
+    "AUD/USD (OTC)": "AUDUSD_otc",
+    "EUR/GBP (OTC)": "EURGBP_otc",
+    "EUR/JPY (OTC)": "EURJPY_otc",
+    "USD/CAD (OTC)": "USDCAD_otc",
+    "NZD/USD (OTC)": "NZDUSD_otc",
+    "BTC/USD (OTC)": "BTCUSD_otc",
+    "ETH/USD (OTC)": "ETHUSD_otc",
+    "Gold (OTC)":    "XAUUSD_otc",
+    "Oil (OTC)":     "USOIL_otc",
+    "EUR/USD":       "EURUSD",
+    "GBP/USD":       "GBPUSD",
+    "USD/JPY":       "USDJPY",
+    "AUD/USD":       "AUDUSD",
+    "USD/CAD":       "USDCAD",
+    "EUR/GBP":       "EURGBP",
+    "EUR/JPY":       "EURJPY",
+    "NZD/USD":       "NZDUSD",
+  }
+  const comboAssetSymbol = comboAssetMap[cfg.asset] ?? cfg.asset.replace("/", "").replace(" (OTC)", "_otc").replace(/\s/g, "")
 
   return (
 `#!/usr/bin/env python3
@@ -739,7 +757,7 @@ def get_combined_signal(prices, candles):
 Pocket Option КОМБО-Бот
 Стратегии: ${labels}
 Логика: ${cfg.comboLogic} (${logicWord})
-Актив: ${cfg.asset} | Экспирация: ${cfg.expiry} мин | Ставка: ${cfg.betAmount} USD
+Актив: ${comboAssetSymbol} | Экспирация: ${cfg.expiry} мин | Ставка: ${cfg.betAmount} USD
 Сгенерировано: TradeBase Bot Builder
 
 Установка зависимостей (из папки PocketOptionAPI-main):

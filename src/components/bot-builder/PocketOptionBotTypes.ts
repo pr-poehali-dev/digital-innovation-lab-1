@@ -363,7 +363,7 @@ def adjust_bet(won):
 `#!/usr/bin/env python3
 """
 Pocket Option Bot — ${strategyLabel}
-Актив: ${cfg.asset} | Экспирация: ${cfg.expiry} мин
+Актив: ${assetSymbol} | Экспирация: ${cfg.expiry} мин
 Ставка: ${cfg.betAmount}${cfg.betPercent ? "%" : " USD"} | Стратегия: ${strategyLabel}
 Сгенерировано: TradeBase Bot Builder
 

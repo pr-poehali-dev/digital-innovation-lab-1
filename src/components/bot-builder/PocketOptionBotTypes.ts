@@ -25,6 +25,7 @@ export interface POBotConfig {
   emaSlow: number
   useOTC: boolean
   autoRestart: boolean
+  isDemo: boolean
   tgToken: string
   tgChatId: string
 }
@@ -190,6 +191,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   emaSlow: 21,
   useOTC: true,
   autoRestart: false,
+  isDemo: true,
   tgToken: "",
   tgChatId: "",
 }
@@ -395,7 +397,7 @@ if ASSET not in AVAILABLE_ASSETS:
 EXPIRY_SEC   = ${String(parseInt(cfg.expiry) * 60)}             # Экспирация в секундах
 BASE_BET     = ${cfg.betAmount}          # Базовая ставка USD
 BET_PERCENT  = ${cfg.betPercent ? "True" : "False"}        # True = % от баланса
-IS_DEMO      = True                      # False = реальный счёт
+IS_DEMO      = ${cfg.isDemo ? "True" : "False"}                   # True = демо, False = реальный счёт
 
 TAKE_PROFIT  = ${cfg.takeProfitUsd}      # Стоп профит (USD за сессию)
 STOP_LOSS    = ${cfg.stopLossUsd}        # Стоп лосс (USD за сессию)

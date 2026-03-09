@@ -690,6 +690,23 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
 
           <div className="flex items-center justify-between pt-1">
             <div>
+              <Label className="text-zinc-300 text-sm">Режим счёта</Label>
+              <p className="text-zinc-500 text-xs font-space-mono">Демо или реальный счёт</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-space-mono ${config.isDemo ? "text-green-400" : "text-zinc-500"}`}>Демо</span>
+              <Switch checked={!config.isDemo} onCheckedChange={(v) => set({ isDemo: !v })} />
+              <span className={`text-xs font-space-mono ${!config.isDemo ? "text-red-400" : "text-zinc-500"}`}>Реальный</span>
+            </div>
+          </div>
+          {!config.isDemo && (
+            <div className="flex items-center gap-2 bg-red-950/40 border border-red-500/30 rounded-lg px-3 py-2">
+              <span className="text-red-400 text-xs font-space-mono">Реальный счёт — бот будет торговать настоящими деньгами!</span>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between pt-1">
+            <div>
               <Label className="text-zinc-300 text-sm">Авто-перезапуск</Label>
               <p className="text-zinc-500 text-xs font-space-mono">Продолжать после TP/SL</p>
             </div>

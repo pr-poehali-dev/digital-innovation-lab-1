@@ -34,8 +34,20 @@ export default function BotBuilder() {
     setTimeout(() => setTgTestStatus("idle"), 4000)
   }
 
+  // Telegram settings — сохраняются в localStorage
+  const savedTg = (() => {
+    try { return JSON.parse(localStorage.getItem("tg_settings") || "{}") } catch { return {} }
+  })()
+  const saveTgSettings = (token: string, chatId: string) => {
+    localStorage.setItem("tg_settings", JSON.stringify({ tgToken: token, tgChatId: chatId }))
+  }
+
   // Pocket Option state — Bot 1
-  const [poConfig, setPoConfig] = useState<POBotConfig>(PO_DEFAULT_CONFIG)
+  const [poConfig, setPoConfig] = useState<POBotConfig>({
+    ...PO_DEFAULT_CONFIG,
+    tgToken: savedTg.tgToken || "",
+    tgChatId: savedTg.tgChatId || "",
+  })
   const [poCode, setPoCode] = useState("")
   const [poGenerated, setPoGenerated] = useState(false)
   const [poCopied, setPoCopied] = useState(false)
@@ -55,7 +67,13 @@ export default function BotBuilder() {
 
   // Pocket Option state — Bot 2
   const [dualMode, setDualMode] = useState(false)
-  const [poConfig2, setPoConfig2] = useState<POBotConfig>({ ...PO_DEFAULT_CONFIG, strategy: "ema_cross", betAmount: 1 })
+  const [poConfig2, setPoConfig2] = useState<POBotConfig>({ ...PO_DEFAULT_CONFIG, strategy: "ema_cross", betAmount: 1, tgToken: savedTg.tgToken || "", tgChatId: savedTg.tgChatId || "" })
+
+  // Автосохранение TG настроек при изменении + синхронизация с Bot2
+  useEffect(() => {
+    saveTgSettings(poConfig.tgToken, poConfig.tgChatId)
+    setPoConfig2(p => ({ ...p, tgToken: poConfig.tgToken, tgChatId: poConfig.tgChatId }))
+  }, [poConfig.tgToken, poConfig.tgChatId])
   const [poCode2, setPoCode2] = useState("")
   const [dualDownloaded, setDualDownloaded] = useState(false)
 

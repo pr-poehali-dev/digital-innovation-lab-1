@@ -452,16 +452,29 @@ async def check_result(client, order_id):
     print(f"[WAIT] Ожидаем результат {EXPIRY_SEC//60} мин...")
     await asyncio.sleep(EXPIRY_SEC + 5)
     try:
-        result = await client.check_order_result(order_id)
-        if result:
-            print(f"[DEBUG] result attrs: { {a: getattr(result, a, None) for a in dir(result) if not a.startswith('_') and not callable(getattr(result, a, None))} }")
-            raw_profit = getattr(result, "profit", None) or getattr(result, "win_amount", None)
-            profit = float(raw_profit) if raw_profit is not None else 0.0
+        for attempt in range(12):
+            result = await client.check_order_result(order_id)
+            if not result:
+                await asyncio.sleep(5)
+                continue
+            status_val = str(getattr(result, "status", "")).lower()
+            if "active" in status_val or "pending" in status_val:
+                print(f"[WAIT] Сделка ещё активна, ждём... ({attempt+1}/12)")
+                await asyncio.sleep(5)
+                continue
+            raw_profit = getattr(result, "profit", None)
+            payout     = getattr(result, "payout", None)
+            if raw_profit is not None:
+                profit = float(raw_profit)
+            elif payout is not None:
+                profit = float(payout) - float(getattr(result, "amount", 0) or 0)
+            else:
+                profit = 0.0
             won    = profit > 0
-            status = "ВЫИГРЫШ" if won else "ПРОИГРЫШ"
+            status = "ВЫИГРЫШ ✅" if won else "ПРОИГРЫШ ❌"
             print(f"[RESULT] {status} | Профит: {round(profit, 2)}")
             return won, profit
-        print("[DEBUG] result is None/empty")
+        print("[WARN] Результат сделки не получен за отведённое время")
         return False, 0.0
     except Exception as e:
         print(f"[ERROR] Результат: {e}")
@@ -483,11 +496,13 @@ async def get_balance(client):
                 amount = float(b)
             except:
                 pass
-        currency = getattr(b, "currency", "USD") or "USD"
+        currency = getattr(b, "currency", None)
+        if not currency or currency.upper() == "USD":
+            currency = ""
         return amount, currency
     except Exception as e:
         print(f"[ERROR] get_balance: {e}")
-        return 0.0, "USD"
+        return 0.0, ""
 
 def print_stats():
     wins    = sum(1 for t in trade_log if t["won"])
@@ -509,9 +524,9 @@ async def main():
     print("  Pocket Option Bot — ${strategyLabel}")
     print(f"  Счёт: {account_type}")
     print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин")
-    print(f"  Баланс: {round(balance, 2)} {currency} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
+    print(f"  Баланс: {round(balance, 2)} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
     print("=" * 50 + "\\n")
-    tg(f"🤖 <b>Бот запущен</b>\\nСчёт: {account_type}\\nСтратегия: ${strategyLabel}\\nАктив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} {currency} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
+    tg(f"🤖 <b>Бот запущен</b>\\nСчёт: {account_type}\\nСтратегия: ${strategyLabel}\\nАктив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
 
     while True:
         if total_profit >= TAKE_PROFIT:
@@ -886,10 +901,10 @@ async def main():
     print("  КОМБО-Бот: ${labels}")
     print(f"  Счёт: {account_type}")
     print("  Логика: ${cfg.comboLogic} — ${logicWord}")
-    print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин | Баланс: {balance:.2f} {currency}")
+    print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин | Баланс: {balance:.2f}")
     print("  TP: " + str(TAKE_PROFIT) + " | SL: " + str(STOP_LOSS) + " | Лимит: " + str(DAILY_LIMIT))
     print("=" * 55 + "\\n")
-    tg(f"🤖 <b>КОМБО-Бот запущен</b>\\nСчёт: {account_type}\\n${labels} (${cfg.comboLogic})\\nАктив: {ASSET} | {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} {currency} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
+    tg(f"🤖 <b>КОМБО-Бот запущен</b>\\nСчёт: {account_type}\\n${labels} (${cfg.comboLogic})\\nАктив: {ASSET} | {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
 
     while True:
         if total_profit >= TAKE_PROFIT:

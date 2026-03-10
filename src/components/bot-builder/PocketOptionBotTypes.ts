@@ -544,6 +544,7 @@ async def main():
         return
 
 
+    print("[DEBUG] asset methods:", [m for m in dir(client) if not m.startswith('_') and 'asset' in m.lower()])
     account_type = "🟡 ДЕМО-СЧЁТ" if IS_DEMO else "🔴 РЕАЛЬНЫЙ СЧЁТ"
     print(f"[DEBUG] Торгую на: {account_type} | IS_DEMO={IS_DEMO}")
     print("=" * 50)

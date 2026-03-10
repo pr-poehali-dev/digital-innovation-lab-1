@@ -463,7 +463,7 @@ async def place_trade(client, direction, amount):
     try:
         dir_val = OrderDirection.CALL if direction == "CALL" else OrderDirection.PUT
         order = await client.place_order(asset=ASSET, amount=amount, direction=dir_val, duration=EXPIRY_SEC)
-        print(f"[TRADE] {direction} | {amount}₽ | {EXPIRY_SEC//60} мин | ID: {order.order_id}")
+        print(f"[TRADE] {direction} | {amount} | {EXPIRY_SEC//60} мин | ID: {order.order_id}")
         return order.order_id
     except Exception as e:
         print(f"[ERROR] Сделка: {e}")
@@ -594,13 +594,14 @@ async def main():
 
         if signal:
             if BET_PERCENT:
-                balance = await get_balance(client)
+                balance, currency = await get_balance(client)
                 bet = round(balance * (BASE_BET / 100), 2)
             else:
+                balance, currency = await get_balance(client)
                 bet = current_bet
 
             emoji = "📈" if signal == "CALL" else "📉"
-            tg(f"{emoji} <b>Сделка открыта</b>\\n{signal} | {bet}₽ | {ASSET} | {EXPIRY_SEC//60} мин")
+            tg(f"{emoji} <b>Сделка открыта</b>\\n{signal} | {bet} {currency} | {ASSET} | {EXPIRY_SEC//60} мин")
             balance_before, _ = await get_balance(client)
             order_id = await place_trade(client, signal, bet)
             if order_id:
@@ -892,7 +893,7 @@ async def place_trade(client, direction, amount):
     try:
         dir_val = OrderDirection.CALL if direction == "CALL" else OrderDirection.PUT
         order = await client.place_order(asset=ASSET, amount=amount, direction=dir_val, duration=EXPIRY_SEC)
-        print(f"[TRADE] {direction} | {amount}₽ | {EXPIRY_SEC//60} мин | ID: {order.order_id}")
+        print(f"[TRADE] {direction} | {amount} | {EXPIRY_SEC//60} мин | ID: {order.order_id}")
         return order.order_id
     except Exception as e:
         print(f"[ERROR] place_trade: {e}")
@@ -999,12 +1000,13 @@ async def main():
 
         if signal:
             if BET_PERCENT:
-                balance = await get_balance(client)
+                balance, currency = await get_balance(client)
                 bet = round(balance * (BASE_BET / 100), 2)
             else:
+                balance, currency = await get_balance(client)
                 bet = current_bet
             emoji = "📈" if signal == "CALL" else "📉"
-            tg(f"{emoji} <b>Комбо-сделка</b>\\n{signal} | {bet}₽ | {ASSET}")
+            tg(f"{emoji} <b>Комбо-сделка</b>\\n{signal} | {bet} {currency} | {ASSET}")
             balance_before, _ = await get_balance(client)
             order_id = await place_trade(client, signal, bet)
             if order_id:

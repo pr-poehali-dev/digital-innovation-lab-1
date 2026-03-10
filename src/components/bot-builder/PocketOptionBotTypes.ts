@@ -447,34 +447,26 @@ async def place_trade(client, direction, amount):
         print(f"[ERROR] Сделка: {e}")
         return None
 
-async def check_result(client, order_id):
-    """Ожидание результата"""
+async def check_result(client, order_id, balance_before):
+    """Ожидание результата через сравнение баланса"""
     print(f"[WAIT] Ожидаем результат {EXPIRY_SEC//60} мин...")
     await asyncio.sleep(EXPIRY_SEC + 5)
     try:
-        for attempt in range(12):
-            result = await client.check_order_result(order_id)
-            if not result:
-                await asyncio.sleep(5)
+        for attempt in range(10):
+            b = await client.get_balance()
+            if b is None:
+                await asyncio.sleep(3)
                 continue
-            status_val = str(getattr(result, "status", "")).lower()
-            if "active" in status_val or "pending" in status_val:
-                print(f"[WAIT] Сделка ещё активна, ждём... ({attempt+1}/12)")
-                await asyncio.sleep(5)
+            balance_after = float(b) if not hasattr(b, '__iter__') else float(list(b)[0])
+            profit = round(balance_after - balance_before, 2)
+            if profit == 0.0 and attempt < 3:
+                await asyncio.sleep(3)
                 continue
-            raw_profit = getattr(result, "profit", None)
-            payout     = getattr(result, "payout", None)
-            if raw_profit is not None:
-                profit = float(raw_profit)
-            elif payout is not None:
-                profit = float(payout) - float(getattr(result, "amount", 0) or 0)
-            else:
-                profit = 0.0
-            won    = profit > 0
+            won = profit > 0
             status = "ВЫИГРЫШ ✅" if won else "ПРОИГРЫШ ❌"
-            print(f"[RESULT] {status} | Профит: {round(profit, 2)}")
+            print(f"[RESULT] {status} | Профит: {profit}")
             return won, profit
-        print("[WARN] Результат сделки не получен за отведённое время")
+        print("[WARN] Не удалось определить результат сделки")
         return False, 0.0
     except Exception as e:
         print(f"[ERROR] Результат: {e}")
@@ -572,9 +564,10 @@ async def main():
 
             emoji = "📈" if signal == "CALL" else "📉"
             tg(f"{emoji} <b>Сделка открыта</b>\\n{signal} | {bet} USD | {ASSET} | {EXPIRY_SEC//60} мин")
+            balance_before = await get_balance(client)
             order_id = await place_trade(client, signal, bet)
             if order_id:
-                won, profit = await check_result(client, order_id)
+                won, profit = await check_result(client, order_id, balance_before)
                 total_profit += profit
                 trades_today += 1
                 current_bet   = adjust_bet(won)
@@ -852,16 +845,24 @@ async def place_trade(client, direction, amount):
         print(f"[ERROR] place_trade: {e}")
         return None
 
-async def check_result(client, order_id):
+async def check_result(client, order_id, balance_before):
+    print(f"[WAIT] Ожидаем результат {EXPIRY_SEC//60} мин...")
     await asyncio.sleep(EXPIRY_SEC + 5)
     try:
-        result = await client.check_order_result(order_id)
-        if result:
-            raw_profit = getattr(result, "profit", None)
-            profit = float(raw_profit) if raw_profit is not None else 0.0
-            won    = profit > 0
-            print(f"[RESULT] {'ВЫИГРЫШ' if won else 'ПРОИГРЫШ'} | {profit:.2f} USD")
+        for attempt in range(10):
+            b = await client.get_balance()
+            if b is None:
+                await asyncio.sleep(3)
+                continue
+            balance_after = float(b) if not hasattr(b, '__iter__') else float(list(b)[0])
+            profit = round(balance_after - balance_before, 2)
+            if profit == 0.0 and attempt < 3:
+                await asyncio.sleep(3)
+                continue
+            won = profit > 0
+            print(f"[RESULT] {'ВЫИГРЫШ ✅' if won else 'ПРОИГРЫШ ❌'} | Профит: {profit}")
             return won, profit
+        print("[WARN] Не удалось определить результат сделки")
         return False, 0.0
     except Exception as e:
         print(f"[ERROR] check_result: {e}")
@@ -939,9 +940,10 @@ async def main():
                 bet = current_bet
             emoji = "📈" if signal == "CALL" else "📉"
             tg(f"{emoji} <b>Комбо-сделка</b>\\n{signal} | {bet} USD | {ASSET}")
+            balance_before = await get_balance(client)
             order_id = await place_trade(client, signal, bet)
             if order_id:
-                won, profit = await check_result(client, order_id)
+                won, profit = await check_result(client, order_id, balance_before)
                 total_profit += profit
                 trades_today += 1
                 current_bet   = adjust_bet(won)

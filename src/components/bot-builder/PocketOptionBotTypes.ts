@@ -507,9 +507,19 @@ async def main():
     print("Подключение к Pocket Option...")
     client = AsyncPocketOptionClient(SESSION_ID, enable_logging=False)
     await client.connect()
-    await asyncio.sleep(3)
+    for i in range(15):
+        await asyncio.sleep(2)
+        try:
+            balance, currency = await get_balance(client)
+            if balance > 0:
+                break
+        except Exception:
+            pass
+        print(f"[WAIT] Ожидание соединения... ({i+1}/15)")
+    else:
+        print("[ERROR] Не удалось подключиться за 30 сек. Проверь SESSION_ID.")
+        return
 
-    balance, currency = await get_balance(client)
     account_type = "🟡 ДЕМО-СЧЁТ" if IS_DEMO else "🔴 РЕАЛЬНЫЙ СЧЁТ"
     print(f"[DEBUG] Торгую на: {account_type} | IS_DEMO={IS_DEMO}")
     print("=" * 50)
@@ -895,8 +905,19 @@ async def main():
 
     client = AsyncPocketOptionClient(SESSION_ID, enable_logging=False)
     await client.connect()
+    for i in range(15):
+        await asyncio.sleep(2)
+        try:
+            balance, currency = await get_balance(client)
+            if balance > 0:
+                break
+        except Exception:
+            pass
+        print(f"[WAIT] Ожидание соединения... ({i+1}/15)")
+    else:
+        print("[ERROR] Не удалось подключиться за 30 сек. Проверь SESSION_ID.")
+        return
 
-    balance, currency = await get_balance(client)
     account_type = "🟡 ДЕМО-СЧЁТ" if IS_DEMO else "🔴 РЕАЛЬНЫЙ СЧЁТ"
     print(f"[DEBUG] Торгую на: {account_type} | IS_DEMO={IS_DEMO}")
     print("=" * 55)

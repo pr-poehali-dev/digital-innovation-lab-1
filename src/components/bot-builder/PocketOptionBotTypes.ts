@@ -409,15 +409,10 @@ if not SESSION_ID:
 if not SESSION_ID:
     print("[ERROR] Не задан PO_SESSION_ID.")
     print("Создайте файл .env рядом с bot.py:")
-    print('  PO_SESSION_ID=a:4:{s:10:"session_id";...}ВАШ_ХЭШ')
+    print('  PO_SESSION_ID=42["auth",{"session":"...","isDemo":0,"uid":...}]')
     exit(1)
 
-# Автоочистка SESSION_ID: если передан полный auth-пакет 42["auth",{"session":"..."}] — извлекаем только session
-import re as _re
-_match = _re.search(r'"session"\\s*:\\s*"([^"]+)"', SESSION_ID)
-if _match:
-    SESSION_ID = _match.group(1)
-    print("[INFO] SESSION_ID автоматически извлечён из auth-пакета")
+print(f"[INFO] SESSION_ID загружен, длина: {len(SESSION_ID)} символов")
 
 # ===== TELEGRAM =====
 TG_TOKEN   = "${cfg.tgToken}"
@@ -851,15 +846,10 @@ if not SESSION_ID:
 if not SESSION_ID:
     print("[ERROR] Не задан PO_SESSION_ID.")
     print("Создайте файл .env рядом с bot.py:")
-    print('  PO_SESSION_ID=a:4:{s:10:"session_id";...}ВАШ_ХЭШ')
+    print('  PO_SESSION_ID=42["auth",{"session":"...","isDemo":0,"uid":...}]')
     exit(1)
 
-# Автоочистка SESSION_ID: если передан полный auth-пакет 42["auth",{"session":"..."}] — извлекаем только session
-import re as _re
-_match = _re.search(r'"session"\\s*:\\s*"([^"]+)"', SESSION_ID)
-if _match:
-    SESSION_ID = _match.group(1)
-    print("[INFO] SESSION_ID автоматически извлечён из auth-пакета")
+print(f"[INFO] SESSION_ID загружен, длина: {len(SESSION_ID)} символов")
 
 # ===== TELEGRAM =====
 TG_TOKEN   = "${cfg.tgToken}"

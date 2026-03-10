@@ -452,14 +452,14 @@ async def check_result(client, order_id, balance_before):
     print(f"[WAIT] Ожидаем результат {EXPIRY_SEC//60} мин...")
     await asyncio.sleep(EXPIRY_SEC + 5)
     try:
-        for attempt in range(10):
+        for attempt in range(15):
             balance_after, _ = await get_balance(client)
             if balance_after == 0.0:
-                await asyncio.sleep(3)
+                await asyncio.sleep(5)
                 continue
             profit = round(balance_after - balance_before, 2)
-            if profit == 0.0 and attempt < 3:
-                await asyncio.sleep(3)
+            if profit == 0.0 and attempt < 10:
+                await asyncio.sleep(5)
                 continue
             won = profit > 0
             status = "ВЫИГРЫШ ✅" if won else "ПРОИГРЫШ ❌"

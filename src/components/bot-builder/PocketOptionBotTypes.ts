@@ -495,7 +495,7 @@ async def get_balance(client):
     """Текущий баланс"""
     try:
         b = await client.get_balance()
-        print(f"[DEBUG] raw balance: {b} | type: {type(b)}")
+
         if b is None:
             return 0.0, "RUB"
         amount = 0.0
@@ -544,14 +544,9 @@ async def main():
         return
 
 
-    for test_asset in ["EURUSD_otc", "#EURUSD_otc", "EURUSD", "eurusd_otc", "eurusd"]:
-        try:
-            info = await client.get_asset_info(test_asset)
-            print(f"[DEBUG] asset '{test_asset}' -> {info}")
-        except Exception as ex:
-            print(f"[DEBUG] asset '{test_asset}' -> ERROR: {ex}")
+
     account_type = "🟡 ДЕМО-СЧЁТ" if IS_DEMO else "🔴 РЕАЛЬНЫЙ СЧЁТ"
-    print(f"[DEBUG] Торгую на: {account_type} | IS_DEMO={IS_DEMO}")
+
     print("=" * 50)
     print("  Pocket Option Bot — ${strategyLabel}")
     print(f"  Счёт: {account_type}")
@@ -963,7 +958,7 @@ async def main():
         return
 
     account_type = "🟡 ДЕМО-СЧЁТ" if IS_DEMO else "🔴 РЕАЛЬНЫЙ СЧЁТ"
-    print(f"[DEBUG] Торгую на: {account_type} | IS_DEMO={IS_DEMO}")
+
     print("=" * 55)
     print("  КОМБО-Бот: ${labels}")
     print(f"  Счёт: {account_type}")

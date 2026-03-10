@@ -657,7 +657,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
 
           <div>
             <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
-              {config.betPercent ? "Ставка (% от баланса)" : "Ставка (USD)"}
+              {config.betPercent ? "Ставка (% от баланса)" : "Ставка (₽)"}
             </Label>
             <div className="flex items-center gap-3">
               <Slider
@@ -667,18 +667,18 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
                 className="flex-1"
               />
               <span className="text-red-400 font-orbitron font-bold text-sm w-16 text-right">
-                {config.betAmount}{config.betPercent ? "%" : "$"}
+                {config.betAmount}{config.betPercent ? "%" : "₽"}
               </span>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Take Profit (USD)</Label>
+              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Take Profit (₽)</Label>
               <Input type="number" value={config.takeProfitUsd} onChange={(e) => set({ takeProfitUsd: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-green-400 font-space-mono text-sm" />
             </div>
             <div>
-              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Stop Loss (USD)</Label>
+              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Stop Loss (₽)</Label>
               <Input type="number" value={config.stopLossUsd} onChange={(e) => set({ stopLossUsd: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-red-400 font-space-mono text-sm" />
             </div>
           </div>
@@ -749,12 +749,12 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
               <Slider min={1} max={7} step={1} value={[config.martingaleSteps]} onValueChange={([v]) => set({ martingaleSteps: v })} />
             </div>
             <div className="bg-zinc-800 rounded-lg p-3 font-space-mono text-xs space-y-1">
-              <p className="text-zinc-400">Пример с базовой ставкой ${config.betAmount}:</p>
+              <p className="text-zinc-400">Пример с базовой ставкой {config.betAmount}₽:</p>
               {Array.from({ length: config.martingaleSteps }, (_, i) => {
                 const bet = (config.betAmount * Math.pow(config.martingaleMultiplier, i)).toFixed(2)
                 return (
                   <p key={i} className={i === 0 ? "text-green-400" : i < 3 ? "text-yellow-400" : "text-red-400"}>
-                    Шаг {i + 1}: ${bet}
+                    Шаг {i + 1}: {bet}₽
                   </p>
                 )
               })}

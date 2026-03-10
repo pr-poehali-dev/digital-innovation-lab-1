@@ -73,11 +73,15 @@ export default function BotBuilder() {
   const [dualMode, setDualMode] = useState(false)
   const [poConfig2, setPoConfig2] = useState<POBotConfig>({ ...PO_DEFAULT_CONFIG, strategy: "ema_cross", betAmount: 1, tgToken: savedTg.tgToken || "", tgChatId: savedTg.tgChatId || "" })
 
-  // Автосохранение TG настроек при изменении + синхронизация с Bot2
+  // Автосохранение TG настроек при изменении + синхронизация валюты и TG с Bot2
   useEffect(() => {
     saveTgSettings(poConfig.tgToken, poConfig.tgChatId)
     setPoConfig2(p => ({ ...p, tgToken: poConfig.tgToken, tgChatId: poConfig.tgChatId }))
   }, [poConfig.tgToken, poConfig.tgChatId])
+
+  useEffect(() => {
+    setPoConfig2(p => ({ ...p, currency: poConfig.currency }))
+  }, [poConfig.currency])
   const [poCode2, setPoCode2] = useState("")
   const [dualDownloaded, setDualDownloaded] = useState(false)
 

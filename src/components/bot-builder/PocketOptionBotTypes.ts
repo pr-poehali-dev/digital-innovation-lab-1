@@ -15,8 +15,8 @@ export interface POBotConfig {
   martingaleEnabled: boolean
   martingaleMultiplier: number
   martingaleSteps: number
-  takeProfitUsd: number
-  stopLossUsd: number
+  takeProfitRub: number
+  stopLossRub: number
   dailyLimit: number
   rsiPeriod: number
   rsiOverbought: number
@@ -181,8 +181,8 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   martingaleEnabled: false,
   martingaleMultiplier: 2.1,
   martingaleSteps: 3,
-  takeProfitUsd: 50,
-  stopLossUsd: 30,
+  takeProfitRub: 50,
+  stopLossRub: 30,
   dailyLimit: 20,
   rsiPeriod: 14,
   rsiOverbought: 70,
@@ -383,8 +383,8 @@ BASE_BET     = ${cfg.betAmount}          # Базовая ставка ₽
 BET_PERCENT  = ${cfg.betPercent ? "True" : "False"}        # True = % от баланса
 IS_DEMO      = ${cfg.isDemo ? "True" : "False"}                   # True = демо, False = реальный счёт
 
-TAKE_PROFIT  = ${cfg.takeProfitUsd}      # Стоп профит (₽ за сессию)
-STOP_LOSS    = ${cfg.stopLossUsd}        # Стоп лосс (₽ за сессию)
+TAKE_PROFIT  = ${cfg.takeProfitRub}      # Стоп профит (₽ за сессию)
+STOP_LOSS    = ${cfg.stopLossRub}        # Стоп лосс (₽ за сессию)
 DAILY_LIMIT  = ${cfg.dailyLimit}         # Макс. сделок в день
 AUTO_RESTART = ${cfg.autoRestart ? "True" : "False"}       # Перезапуск после TP/SL
 
@@ -786,8 +786,8 @@ EXPIRY_SEC   = ${String(parseInt(cfg.expiry) * 60)}
 BASE_BET     = ${cfg.betAmount}
 BET_PERCENT  = ${cfg.betPercent ? "True" : "False"}
 IS_DEMO      = True
-TAKE_PROFIT  = ${cfg.takeProfitUsd}
-STOP_LOSS    = ${cfg.stopLossUsd}
+TAKE_PROFIT  = ${cfg.takeProfitRub}
+STOP_LOSS    = ${cfg.stopLossRub}
 DAILY_LIMIT  = ${cfg.dailyLimit}
 AUTO_RESTART = ${cfg.autoRestart ? "True" : "False"}
 MARTINGALE   = ${cfg.martingaleEnabled ? "True" : "False"}

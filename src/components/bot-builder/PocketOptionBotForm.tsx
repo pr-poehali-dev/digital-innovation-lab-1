@@ -182,7 +182,7 @@ function assetExpiryComment(asset: string, expiry: POExpiry, strategy: POStrateg
 
 // ===== Bet comment =====
 function betComment(cfg: POBotConfig): { level: CommentLevel; text: string } | null {
-  const { betAmount, betPercent, takeProfitUsd, stopLossUsd, dailyLimit, martingaleEnabled, martingaleMultiplier, martingaleSteps } = cfg
+  const { betAmount, betPercent, takeProfitRub, stopLossRub, dailyLimit, martingaleEnabled, martingaleMultiplier, martingaleSteps } = cfg
 
   if (betPercent && betAmount > 10) {
     return { level: "danger", text: `${betAmount}% от баланса — очень агрессивно. Рекомендуем не более 2–5% на сделку. При серии убытков депозит быстро сгорит.` }
@@ -190,15 +190,15 @@ function betComment(cfg: POBotConfig): { level: CommentLevel; text: string } | n
   if (betPercent && betAmount <= 2) {
     return { level: "good", text: `${betAmount}% от баланса — консервативный размер. Хороший выбор для долгосрочной торговли.` }
   }
-  if (!betPercent && takeProfitUsd < betAmount * 3) {
-    return { level: "warn", text: `TP = $${takeProfitUsd} при ставке $${betAmount} — соотношение низкое. Рекомендуем TP не менее чем в 3–5 раз выше ставки.` }
+  if (!betPercent && takeProfitRub < betAmount * 3) {
+    return { level: "warn", text: `TP = ${takeProfitRub}₽ при ставке ${betAmount}₽ — соотношение низкое. Рекомендуем TP не менее чем в 3–5 раз выше ставки.` }
   }
-  if (stopLossUsd < betAmount * 2) {
-    return { level: "warn", text: `Stop Loss $${stopLossUsd} покроет менее 2 проигрышных сделок подряд при ставке $${betAmount}. Увеличьте SL или снизьте ставку.` }
+  if (stopLossRub < betAmount * 2) {
+    return { level: "warn", text: `Stop Loss ${stopLossRub}₽ покроет менее 2 проигрышных сделок подряд при ставке ${betAmount}₽. Увеличьте SL или снизьте ставку.` }
   }
   if (martingaleEnabled) {
     const maxBet = betAmount * Math.pow(martingaleMultiplier, martingaleSteps - 1)
-    if (maxBet > stopLossUsd * 0.6) {
+    if (maxBet > stopLossRub * 0.6) {
       return { level: "danger", text: `При мартингейле ×${martingaleMultiplier} за ${martingaleSteps} шагов максимальная ставка достигнет $${maxBet.toFixed(0)}, что превышает 60% вашего SL. Это критично.` }
     }
     return { level: "warn", text: `С мартингейлом максимальная ставка на шаге ${martingaleSteps}: $${maxBet.toFixed(0)}. Убедитесь, что депозит покрывает полную серию.` }
@@ -206,7 +206,7 @@ function betComment(cfg: POBotConfig): { level: CommentLevel; text: string } | n
   if (dailyLimit > 30 && !betPercent) {
     return { level: "warn", text: `${dailyLimit} сделок/день при фиксированной ставке — высокая нагрузка на депозит. Рекомендуем лимит 10–20 сделок.` }
   }
-  if (takeProfitUsd >= betAmount * 5 && stopLossUsd <= betAmount * 3) {
+  if (takeProfitRub >= betAmount * 5 && stopLossRub <= betAmount * 3) {
     return { level: "good", text: "Хорошее соотношение риск/доходность. TP значительно превышает SL." }
   }
   return null
@@ -675,11 +675,11 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Take Profit (₽)</Label>
-              <Input type="number" value={config.takeProfitUsd} onChange={(e) => set({ takeProfitUsd: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-green-400 font-space-mono text-sm" />
+              <Input type="number" value={config.takeProfitRub} onChange={(e) => set({ takeProfitRub: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-green-400 font-space-mono text-sm" />
             </div>
             <div>
               <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Stop Loss (₽)</Label>
-              <Input type="number" value={config.stopLossUsd} onChange={(e) => set({ stopLossUsd: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-red-400 font-space-mono text-sm" />
+              <Input type="number" value={config.stopLossRub} onChange={(e) => set({ stopLossRub: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-red-400 font-space-mono text-sm" />
             </div>
           </div>
 

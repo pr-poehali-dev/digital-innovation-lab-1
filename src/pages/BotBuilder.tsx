@@ -80,8 +80,8 @@ export default function BotBuilder() {
   }, [poConfig.tgToken, poConfig.tgChatId])
 
   useEffect(() => {
-    setPoConfig2(p => ({ ...p, currency: poConfig.currency }))
-  }, [poConfig.currency])
+    setPoConfig2(p => ({ ...p, currency: poConfig.currency, isDemo: poConfig.isDemo }))
+  }, [poConfig.currency, poConfig.isDemo])
   const [poCode2, setPoCode2] = useState("")
   const [dualDownloaded, setDualDownloaded] = useState(false)
 

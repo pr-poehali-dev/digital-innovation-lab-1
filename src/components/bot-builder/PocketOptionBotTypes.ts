@@ -453,11 +453,10 @@ async def check_result(client, order_id, balance_before):
     await asyncio.sleep(EXPIRY_SEC + 5)
     try:
         for attempt in range(10):
-            b = await client.get_balance()
-            if b is None:
+            balance_after, _ = await get_balance(client)
+            if balance_after == 0.0:
                 await asyncio.sleep(3)
                 continue
-            balance_after = float(b) if not hasattr(b, '__iter__') else float(list(b)[0])
             profit = round(balance_after - balance_before, 2)
             if profit == 0.0 and attempt < 3:
                 await asyncio.sleep(3)
@@ -564,7 +563,7 @@ async def main():
 
             emoji = "📈" if signal == "CALL" else "📉"
             tg(f"{emoji} <b>Сделка открыта</b>\\n{signal} | {bet} USD | {ASSET} | {EXPIRY_SEC//60} мин")
-            balance_before = await get_balance(client)
+            balance_before, _ = await get_balance(client)
             order_id = await place_trade(client, signal, bet)
             if order_id:
                 won, profit = await check_result(client, order_id, balance_before)
@@ -940,7 +939,7 @@ async def main():
                 bet = current_bet
             emoji = "📈" if signal == "CALL" else "📉"
             tg(f"{emoji} <b>Комбо-сделка</b>\\n{signal} | {bet} USD | {ASSET}")
-            balance_before = await get_balance(client)
+            balance_before, _ = await get_balance(client)
             order_id = await place_trade(client, signal, bet)
             if order_id:
                 won, profit = await check_result(client, order_id, balance_before)

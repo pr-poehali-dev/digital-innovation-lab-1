@@ -907,11 +907,10 @@ async def check_result(client, order_id, balance_before):
     await asyncio.sleep(EXPIRY_SEC + 5)
     try:
         for attempt in range(10):
-            b = await client.get_balance()
-            if b is None:
+            balance_after, _ = await get_balance(client)
+            if balance_after == 0.0:
                 await asyncio.sleep(3)
                 continue
-            balance_after = float(b) if not hasattr(b, '__iter__') else float(list(b)[0])
             profit = round(balance_after - balance_before, 2)
             if profit == 0.0 and attempt < 3:
                 await asyncio.sleep(3)
@@ -929,17 +928,23 @@ async def get_balance(client):
     try:
         b = await client.get_balance()
         if b is None:
-            return 0.0
+            return 0.0, CURRENCY
+        amount = 0.0
         if hasattr(b, "balance") and b.balance is not None:
-            return float(b.balance)
-        if hasattr(b, "amount") and b.amount is not None:
-            return float(b.amount)
-        try:
-            return float(b)
-        except:
-            return 0.0
+            amount = float(b.balance)
+        elif hasattr(b, "amount") and b.amount is not None:
+            amount = float(b.amount)
+        elif isinstance(b, (int, float)):
+            amount = float(b)
+        else:
+            try:
+                amount = float(b)
+            except:
+                pass
+        currency = getattr(b, "currency", None) or (b.get("currency") if isinstance(b, dict) else None) or CURRENCY
+        return amount, currency
     except:
-        return 0.0
+        return 0.0, CURRENCY
 
 def print_stats():
     wins  = sum(1 for t in trade_log if t["won"])

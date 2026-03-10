@@ -522,12 +522,20 @@ async def main():
     global total_profit, trades_today, current_bet
 
     print("Подключение к Pocket Option...")
-    client = AsyncPocketOptionClient(SESSION_ID, enable_logging=True)
+    client = AsyncPocketOptionClient(SESSION_ID, is_demo=IS_DEMO, enable_logging=False)
     await client.connect()
-    await asyncio.sleep(10)
-    balance, currency = await get_balance(client)
-    if balance == 0.0:
-        print("[WARN] Баланс = 0, попытка продолжить...")
+    for i in range(15):
+        await asyncio.sleep(2)
+        try:
+            balance, currency = await get_balance(client)
+            if balance > 0:
+                break
+        except Exception:
+            pass
+        print(f"[WAIT] Ожидание соединения... ({i+1}/15)")
+    else:
+        print("[ERROR] Не удалось подключиться за 30 сек. Проверь SESSION_ID.")
+        return
 
 
     account_type = "🟡 ДЕМО-СЧЁТ" if IS_DEMO else "🔴 РЕАЛЬНЫЙ СЧЁТ"
@@ -927,7 +935,7 @@ def print_stats():
 async def main():
     global total_profit, trades_today, current_bet
 
-    client = AsyncPocketOptionClient(SESSION_ID, enable_logging=False)
+    client = AsyncPocketOptionClient(SESSION_ID, is_demo=IS_DEMO, enable_logging=False)
     await client.connect()
     for i in range(15):
         await asyncio.sleep(2)

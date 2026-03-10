@@ -661,7 +661,9 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
             </Label>
             <div className="flex items-center gap-3">
               <Slider
-                min={config.betPercent ? 1 : 50} max={config.betPercent ? 50 : 10000} step={config.betPercent ? 1 : 50}
+                min={config.betPercent ? 1 : (config.currency === "RUB" ? 50 : config.currency === "INR" ? 50 : 1)}
+                max={config.betPercent ? 50 : (config.currency === "RUB" ? 10000 : config.currency === "INR" ? 5000 : config.currency === "BRL" ? 500 : 200)}
+                step={config.betPercent ? 1 : (config.currency === "RUB" ? 50 : config.currency === "INR" ? 50 : 1)}
                 value={[config.betAmount]}
                 onValueChange={([v]) => set({ betAmount: v })}
                 className="flex-1"

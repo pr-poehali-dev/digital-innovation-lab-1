@@ -376,24 +376,8 @@ import os
 from datetime import datetime
 from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
 
-# ===== ДОСТУПНЫЕ АКТИВЫ =====
-AVAILABLE_ASSETS = [
-    "EURUSD_otc", "GBPUSD_otc", "USDJPY_otc", "AUDUSD_otc",
-    "EURGBP_otc", "EURJPY_otc", "USDCAD_otc", "NZDUSD_otc",
-    "BTCUSD_otc", "ETHUSD_otc", "XAUUSD_otc", "USOIL_otc",
-    "EURUSD",     "GBPUSD",     "USDJPY",     "AUDUSD",
-    "USDCAD",     "EURGBP",     "EURJPY",     "NZDUSD",
-]
-
 # ===== НАСТРОЙКИ =====
 ASSET        = os.environ.get("PO_ASSET", "${assetSymbol}")
-
-if ASSET not in AVAILABLE_ASSETS:
-    print(f"[ERROR] Актив '{ASSET}' не найден!")
-    print("[INFO] Доступные активы:")
-    for a in AVAILABLE_ASSETS:
-        print(f"  - {a}")
-    exit(1)
 EXPIRY_SEC   = ${String(parseInt(cfg.expiry) * 60)}             # Экспирация в секундах
 BASE_BET     = ${cfg.betAmount}          # Базовая ставка USD
 BET_PERCENT  = ${cfg.betPercent ? "True" : "False"}        # True = % от баланса
@@ -470,7 +454,8 @@ async def check_result(client, order_id):
     try:
         result = await client.check_order_result(order_id)
         if result:
-            profit = float(result.profit) if hasattr(result, "profit") else 0.0
+            raw_profit = getattr(result, "profit", None)
+            profit = float(raw_profit) if raw_profit is not None else 0.0
             won    = profit > 0
             status = "ВЫИГРЫШ" if won else "ПРОИГРЫШ"
             print(f"[RESULT] {status} | Профит: {round(profit, 2)} USD")
@@ -839,7 +824,8 @@ async def check_result(client, order_id):
     try:
         result = await client.check_order_result(order_id)
         if result:
-            profit = float(result.profit) if hasattr(result, "profit") else 0.0
+            raw_profit = getattr(result, "profit", None)
+            profit = float(raw_profit) if raw_profit is not None else 0.0
             won    = profit > 0
             print(f"[RESULT] {'ВЫИГРЫШ' if won else 'ПРОИГРЫШ'} | {profit:.2f} USD")
             return won, profit

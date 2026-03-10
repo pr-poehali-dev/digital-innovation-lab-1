@@ -674,7 +674,16 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
 
           <div>
             <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Валюта счёта</Label>
-            <Select value={config.currency} onValueChange={(v) => set({ currency: v })}>
+            <Select value={config.currency} onValueChange={(v) => {
+              const defaults: Record<string, { betAmount: number; takeProfitRub: number; stopLossRub: number }> = {
+                RUB: { betAmount: 500, takeProfitRub: 3000, stopLossRub: 1500 },
+                USD: { betAmount: 5,   takeProfitRub: 30,   stopLossRub: 15   },
+                EUR: { betAmount: 5,   takeProfitRub: 30,   stopLossRub: 15   },
+                BRL: { betAmount: 25,  takeProfitRub: 150,  stopLossRub: 75   },
+                INR: { betAmount: 400, takeProfitRub: 2500, stopLossRub: 1000 },
+              }
+              set({ currency: v, ...(defaults[v] ?? {}) })
+            }}>
               <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100 font-space-mono text-sm">
                 <SelectValue />
               </SelectTrigger>

@@ -441,7 +441,13 @@ async def get_candles_data(client):
         raw = await client.get_candles(asset=ASSET, timeframe=EXPIRY_SEC)
         if not raw:
             print(f"[ERROR] Актив {ASSET} не найден или нет данных")
-            print(f"[HINT] Попробуй другой актив через: $env:PO_ASSET='EURUSD_otc'; python bot.py")
+            try:
+                assets = await client.get_available_assets()
+                if assets:
+                    names = [str(a) for a in list(assets)[:20]]
+                    print(f"[HINT] Доступные активы: {', '.join(names)}")
+            except Exception:
+                print(f"[HINT] Попробуй: #EURUSD_otc или EURUSD или GBPUSD_otc")
             return [], []
         candles = [(c.open, c.high, c.low, c.close) for c in raw]
         prices  = [c.close for c in raw]

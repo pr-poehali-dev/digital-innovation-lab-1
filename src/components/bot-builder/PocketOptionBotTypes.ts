@@ -453,8 +453,10 @@ async def check_result(client, order_id):
     await asyncio.sleep(EXPIRY_SEC + 5)
     try:
         result = await client.check_order_result(order_id)
+        print(f"[DEBUG] result raw: {result} | type: {type(result)} | attrs: {[a for a in dir(result) if not a.startswith('_')] if result else 'None'}")
         if result:
             raw_profit = getattr(result, "profit", None)
+            print(f"[DEBUG] raw_profit: {raw_profit}")
             profit = float(raw_profit) if raw_profit is not None else 0.0
             won    = profit > 0
             status = "ВЫИГРЫШ" if won else "ПРОИГРЫШ"
@@ -470,7 +472,9 @@ async def get_balance(client):
     try:
         b = await client.get_balance()
         if b is None:
+            print("[DEBUG] get_balance вернул None")
             return 0.0
+        print(f"[DEBUG] balance raw: {b} | type: {type(b)} | attrs: {[a for a in dir(b) if not a.startswith('_')]}")
         if hasattr(b, "amount") and b.amount is not None:
             return float(b.amount)
         if hasattr(b, "real") and not IS_DEMO and b.real is not None:
@@ -481,7 +485,8 @@ async def get_balance(client):
             return float(b)
         except:
             return 0.0
-    except:
+    except Exception as e:
+        print(f"[DEBUG] get_balance error: {e}")
         return 0.0
 
 def print_stats():

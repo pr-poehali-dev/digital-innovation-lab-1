@@ -469,7 +469,18 @@ async def get_balance(client):
     """Текущий баланс"""
     try:
         b = await client.get_balance()
-        return float(b.amount) if hasattr(b, "amount") else float(b)
+        if b is None:
+            return 0.0
+        if hasattr(b, "amount") and b.amount is not None:
+            return float(b.amount)
+        if hasattr(b, "real") and not IS_DEMO and b.real is not None:
+            return float(b.real)
+        if hasattr(b, "demo") and IS_DEMO and b.demo is not None:
+            return float(b.demo)
+        try:
+            return float(b)
+        except:
+            return 0.0
     except:
         return 0.0
 
@@ -488,12 +499,14 @@ async def main():
     await asyncio.sleep(3)
 
     balance = await get_balance(client)
+    account_type = "🟡 ДЕМО-СЧЁТ" if IS_DEMO else "🔴 РЕАЛЬНЫЙ СЧЁТ"
     print("=" * 50)
     print("  Pocket Option Bot — ${strategyLabel}")
+    print(f"  Счёт: {account_type}")
     print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин")
     print(f"  Баланс: {round(balance, 2)} USD | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
     print("=" * 50 + "\\n")
-    tg(f"🤖 <b>Бот запущен</b>\\nСтратегия: ${strategyLabel}\\nАктив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} USD | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
+    tg(f"🤖 <b>Бот запущен</b>\\nСчёт: {account_type}\\nСтратегия: ${strategyLabel}\\nАктив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} USD | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
 
     while True:
         if total_profit >= TAKE_PROFIT:
@@ -837,7 +850,18 @@ async def check_result(client, order_id):
 async def get_balance(client):
     try:
         b = await client.get_balance()
-        return float(b.amount) if hasattr(b, "amount") else float(b)
+        if b is None:
+            return 0.0
+        if hasattr(b, "amount") and b.amount is not None:
+            return float(b.amount)
+        if hasattr(b, "real") and not IS_DEMO and b.real is not None:
+            return float(b.real)
+        if hasattr(b, "demo") and IS_DEMO and b.demo is not None:
+            return float(b.demo)
+        try:
+            return float(b)
+        except:
+            return 0.0
     except:
         return 0.0
 
@@ -854,13 +878,15 @@ async def main():
     await client.connect()
 
     balance = await get_balance(client)
+    account_type = "🟡 ДЕМО-СЧЁТ" if IS_DEMO else "🔴 РЕАЛЬНЫЙ СЧЁТ"
     print("=" * 55)
     print("  КОМБО-Бот: ${labels}")
+    print(f"  Счёт: {account_type}")
     print("  Логика: ${cfg.comboLogic} — ${logicWord}")
     print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин | Баланс: {balance:.2f} USD")
     print("  TP: " + str(TAKE_PROFIT) + " | SL: " + str(STOP_LOSS) + " | Лимит: " + str(DAILY_LIMIT))
     print("=" * 55 + "\\n")
-    tg(f"🤖 <b>КОМБО-Бот запущен</b>\\n${labels} (${cfg.comboLogic})\\nАктив: {ASSET} | {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} USD | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
+    tg(f"🤖 <b>КОМБО-Бот запущен</b>\\nСчёт: {account_type}\\n${labels} (${cfg.comboLogic})\\nАктив: {ASSET} | {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} USD | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
 
     while True:
         if total_profit >= TAKE_PROFIT:

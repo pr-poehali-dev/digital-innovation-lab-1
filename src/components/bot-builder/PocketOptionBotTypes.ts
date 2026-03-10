@@ -392,10 +392,24 @@ MARTINGALE       = ${cfg.martingaleEnabled ? "True" : "False"}
 MARTINGALE_MULT  = ${cfg.martingaleMultiplier}
 MARTINGALE_STEPS = ${cfg.martingaleSteps}
 
+try:
+    from dotenv import load_dotenv; load_dotenv()
+except ImportError:
+    pass
+
 SESSION_ID = os.environ.get("PO_SESSION_ID", "")
 if not SESSION_ID:
-    print("[ERROR] Не задан PO_SESSION_ID. Запустите бота командой:")
-    print('  $env:PO_SESSION_ID="ваш_session_id"; python bot.py')
+    _env = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    if os.path.exists(_env):
+        with open(_env, encoding="utf-8") as _f:
+            for _line in _f:
+                if _line.startswith("PO_SESSION_ID="):
+                    SESSION_ID = _line.split("=", 1)[1].strip().strip('"').strip("'")
+                    break
+if not SESSION_ID:
+    print("[ERROR] Не задан PO_SESSION_ID.")
+    print("Создайте файл .env рядом с bot.py:")
+    print('  PO_SESSION_ID=42["auth",{...}]')
     exit(1)
 
 # ===== TELEGRAM =====
@@ -805,10 +819,24 @@ DAILY_LIMIT  = ${cfg.dailyLimit}
 AUTO_RESTART = ${cfg.autoRestart ? "True" : "False"}
 MARTINGALE   = ${cfg.martingaleEnabled ? "True" : "False"}
 
+try:
+    from dotenv import load_dotenv; load_dotenv()
+except ImportError:
+    pass
+
 SESSION_ID = os.environ.get("PO_SESSION_ID", "")
 if not SESSION_ID:
-    print("[ERROR] Не задан PO_SESSION_ID. Запустите бота командой:")
-    print('  $env:PO_SESSION_ID="ваш_session_id"; python bot.py')
+    _env = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    if os.path.exists(_env):
+        with open(_env, encoding="utf-8") as _f:
+            for _line in _f:
+                if _line.startswith("PO_SESSION_ID="):
+                    SESSION_ID = _line.split("=", 1)[1].strip().strip('"').strip("'")
+                    break
+if not SESSION_ID:
+    print("[ERROR] Не задан PO_SESSION_ID.")
+    print("Создайте файл .env рядом с bot.py:")
+    print('  PO_SESSION_ID=42["auth",{...}]')
     exit(1)
 
 # ===== TELEGRAM =====

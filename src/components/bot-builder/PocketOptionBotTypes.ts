@@ -809,7 +809,7 @@ def get_combined_signal(prices, candles):
 Pocket Option КОМБО-Бот
 Стратегии: ${labels}
 Логика: ${cfg.comboLogic} (${logicWord})
-Актив: ${comboAssetSymbol} | Экспирация: ${cfg.expiry} мин | Ставка: ${cfg.betAmount}₽
+Актив: ${comboAssetSymbol} | Экспирация: ${cfg.expiry} мин | Ставка: ${cfg.betAmount} ${cfg.currency}
 Сгенерировано: TradeBase Bot Builder
 
 Установка зависимостей (из папки PocketOptionAPI-main):
@@ -826,7 +826,8 @@ ASSET        = "${comboAssetSymbol}"
 EXPIRY_SEC   = ${String(parseInt(cfg.expiry) * 60)}
 BASE_BET     = ${cfg.betAmount}
 BET_PERCENT  = ${cfg.betPercent ? "True" : "False"}
-IS_DEMO      = True
+IS_DEMO      = ${cfg.isDemo ? "True" : "False"}
+CURRENCY     = "${cfg.currency}"
 TAKE_PROFIT  = ${cfg.takeProfitRub}
 STOP_LOSS    = ${cfg.stopLossRub}
 DAILY_LIMIT  = ${cfg.dailyLimit}

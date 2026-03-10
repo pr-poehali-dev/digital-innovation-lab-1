@@ -475,25 +475,28 @@ async def get_balance(client):
     """Текущий баланс"""
     try:
         b = await client.get_balance()
+        print(f"[DEBUG] raw balance: {b} | type: {type(b)}")
         if b is None:
-            return 0.0, "USD"
+            return 0.0, "RUB"
         amount = 0.0
         if hasattr(b, "balance") and b.balance is not None:
             amount = float(b.balance)
         elif hasattr(b, "amount") and b.amount is not None:
             amount = float(b.amount)
+        elif isinstance(b, (int, float)):
+            amount = float(b)
+        elif isinstance(b, dict):
+            amount = float(b.get("balance") or b.get("amount") or 0)
         else:
             try:
                 amount = float(b)
             except:
                 pass
-        currency = getattr(b, "currency", None)
-        if not currency or currency.upper() == "USD":
-            currency = ""
+        currency = getattr(b, "currency", None) or (b.get("currency") if isinstance(b, dict) else None) or "RUB"
         return amount, currency
     except Exception as e:
         print(f"[ERROR] get_balance: {e}")
-        return 0.0, ""
+        return 0.0, "RUB"
 
 def print_stats():
     wins    = sum(1 for t in trade_log if t["won"])

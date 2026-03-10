@@ -147,6 +147,18 @@ export default function BotBuilder() {
     URL.revokeObjectURL(url)
   }
 
+  const handleEnvDownload = () => {
+    const sessionVal = sessionId || "ВСТАВЬТЕ_SESSION_ID_СЮДА"
+    const content = `# Файл .env для Pocket Option Bot\n# Положите этот файл рядом с bot.py\nPO_SESSION_ID=${sessionVal}\n`
+    const blob = new Blob([content], { type: "text/plain" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = ".env"
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const handleCryptoDownload = () => {
     const filename = `crypto_bot_${config.type}.py`
     const blob = new Blob([code], { type: "text/x-python" })
@@ -900,6 +912,15 @@ export default function BotBuilder() {
                           >
                             <Icon name="Download" size={12} className="mr-1" />
                             .py
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleEnvDownload}
+                            className="border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/10 font-space-mono text-xs"
+                          >
+                            <Icon name="Download" size={12} className="mr-1" />
+                            .env
                           </Button>
                           <Button
                             variant="outline"

@@ -544,7 +544,12 @@ async def main():
         return
 
 
-    print("[DEBUG] asset methods:", [m for m in dir(client) if not m.startswith('_') and 'asset' in m.lower()])
+    for test_asset in ["EURUSD_otc", "#EURUSD_otc", "EURUSD", "eurusd_otc", "eurusd"]:
+        try:
+            info = await client.get_asset_info(test_asset)
+            print(f"[DEBUG] asset '{test_asset}' -> {info}")
+        except Exception as ex:
+            print(f"[DEBUG] asset '{test_asset}' -> ERROR: {ex}")
     account_type = "🟡 ДЕМО-СЧЁТ" if IS_DEMO else "🔴 РЕАЛЬНЫЙ СЧЁТ"
     print(f"[DEBUG] Торгую на: {account_type} | IS_DEMO={IS_DEMO}")
     print("=" * 50)

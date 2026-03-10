@@ -454,12 +454,14 @@ async def check_result(client, order_id):
     try:
         result = await client.check_order_result(order_id)
         if result:
+            print(f"[DEBUG] result attrs: { {a: getattr(result, a, None) for a in dir(result) if not a.startswith('_') and not callable(getattr(result, a, None))} }")
             raw_profit = getattr(result, "profit", None) or getattr(result, "win_amount", None)
             profit = float(raw_profit) if raw_profit is not None else 0.0
             won    = profit > 0
             status = "ВЫИГРЫШ" if won else "ПРОИГРЫШ"
-            print(f"[RESULT] {status} | Профит: {round(profit, 2)} USD")
+            print(f"[RESULT] {status} | Профит: {round(profit, 2)}")
             return won, profit
+        print("[DEBUG] result is None/empty")
         return False, 0.0
     except Exception as e:
         print(f"[ERROR] Результат: {e}")

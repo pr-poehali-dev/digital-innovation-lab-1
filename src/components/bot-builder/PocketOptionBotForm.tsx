@@ -657,7 +657,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
 
           <div>
             <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
-              {config.betPercent ? "Ставка (% от баланса)" : "Ставка (₽)"}
+              {config.betPercent ? "Ставка (% от баланса)" : `Ставка (${config.currency})`}
             </Label>
             <div className="flex items-center gap-3">
               <Slider
@@ -667,18 +667,34 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
                 className="flex-1"
               />
               <span className="text-red-400 font-orbitron font-bold text-sm w-16 text-right">
-                {config.betAmount}{config.betPercent ? "%" : "₽"}
+                {config.betAmount}{config.betPercent ? "%" : ` ${config.currency}`}
               </span>
             </div>
           </div>
 
+          <div>
+            <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Валюта счёта</Label>
+            <Select value={config.currency} onValueChange={(v) => set({ currency: v })}>
+              <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100 font-space-mono text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="RUB">RUB — Рубли ₽</SelectItem>
+                <SelectItem value="USD">USD — Доллары $</SelectItem>
+                <SelectItem value="EUR">EUR — Евро €</SelectItem>
+                <SelectItem value="BRL">BRL — Реалы R$</SelectItem>
+                <SelectItem value="INR">INR — Рупии ₹</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Take Profit (₽)</Label>
+              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Take Profit ({config.currency})</Label>
               <Input type="number" value={config.takeProfitRub} onChange={(e) => set({ takeProfitRub: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-green-400 font-space-mono text-sm" />
             </div>
             <div>
-              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Stop Loss (₽)</Label>
+              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Stop Loss ({config.currency})</Label>
               <Input type="number" value={config.stopLossRub} onChange={(e) => set({ stopLossRub: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-red-400 font-space-mono text-sm" />
             </div>
           </div>

@@ -26,6 +26,7 @@ export interface POBotConfig {
   useOTC: boolean
   autoRestart: boolean
   isDemo: boolean
+  currency: string
   tgToken: string
   tgChatId: string
 }
@@ -192,6 +193,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   useOTC: true,
   autoRestart: false,
   isDemo: true,
+  currency: "RUB",
   tgToken: "",
   tgChatId: "",
 }
@@ -383,8 +385,9 @@ BASE_BET     = ${cfg.betAmount}          # Базовая ставка ₽
 BET_PERCENT  = ${cfg.betPercent ? "True" : "False"}        # True = % от баланса
 IS_DEMO      = ${cfg.isDemo ? "True" : "False"}                   # True = демо, False = реальный счёт
 
-TAKE_PROFIT  = ${cfg.takeProfitRub}      # Стоп профит (₽ за сессию)
-STOP_LOSS    = ${cfg.stopLossRub}        # Стоп лосс (₽ за сессию)
+CURRENCY     = "${cfg.currency}"         # Валюта счёта
+TAKE_PROFIT  = ${cfg.takeProfitRub}      # Стоп профит за сессию
+STOP_LOSS    = ${cfg.stopLossRub}        # Стоп лосс за сессию
 DAILY_LIMIT  = ${cfg.dailyLimit}         # Макс. сделок в день
 AUTO_RESTART = ${cfg.autoRestart ? "True" : "False"}       # Перезапуск после TP/SL
 
@@ -524,7 +527,7 @@ def print_stats():
     wins    = sum(1 for t in trade_log if t["won"])
     total   = len(trade_log)
     winrate = (wins / total * 100) if total else 0
-    print(f"\\n[STATS] {wins}/{total} сделок | Winrate: {winrate:.1f}% | Сессия: {round(total_profit, 2)}₽\\n")
+    print(f"\\n[STATS] {wins}/{total} сделок | Winrate: {winrate:.1f}% | Сессия: {round(total_profit, 2)} {CURRENCY}\\n")
 
 async def main():
     global total_profit, trades_today, current_bet
@@ -553,15 +556,15 @@ async def main():
     print("  Pocket Option Bot — ${strategyLabel}")
     print(f"  Счёт: {account_type}")
     print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин")
-    print(f"  Баланс: {round(balance, 2)} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
+    print(f"  Баланс: {round(balance, 2)} {CURRENCY} | TP: {TAKE_PROFIT} {CURRENCY} | SL: {STOP_LOSS} {CURRENCY}")
     print("=" * 50 + "\\n")
-    tg(f"🤖 <b>Бот запущен</b>\\nСчёт: {account_type}\\nСтратегия: ${strategyLabel}\\nАктив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
+    tg(f"🤖 <b>Бот запущен</b>\\nСчёт: {account_type}\\nСтратегия: ${strategyLabel}\\nАктив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} {CURRENCY} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
 
     while True:
         if total_profit >= TAKE_PROFIT:
-            msg = f"[TP] Take Profit достигнут: +{round(total_profit, 2)}₽"
+            msg = f"[TP] Take Profit достигнут: +{round(total_profit, 2)} {CURRENCY}"
             print(msg)
-            tg(f"✅ <b>Take Profit достигнут!</b>\\n+{total_profit:.2f}₽ за сессию")
+            tg(f"✅ <b>Take Profit достигнут!</b>\\n+{total_profit:.2f} {CURRENCY} за сессию")
             if AUTO_RESTART:
                 total_profit = 0
                 trades_today = 0
@@ -570,9 +573,9 @@ async def main():
             break
 
         if total_profit <= -STOP_LOSS:
-            msg = f"[SL] Stop Loss достигнут: {round(total_profit, 2)}₽"
+            msg = f"[SL] Stop Loss достигнут: {round(total_profit, 2)} {CURRENCY}"
             print(msg)
-            tg(f"🛑 <b>Stop Loss достигнут!</b>\\n{total_profit:.2f}₽ за сессию")
+            tg(f"🛑 <b>Stop Loss достигнут!</b>\\n{total_profit:.2f} {CURRENCY} за сессию")
             if AUTO_RESTART:
                 total_profit = 0
                 trades_today = 0
@@ -582,7 +585,7 @@ async def main():
 
         if trades_today >= DAILY_LIMIT:
             print(f"[LIMIT] Дневной лимит {DAILY_LIMIT} сделок исчерпан")
-            tg(f"⚠️ <b>Дневной лимит исчерпан</b>\\n{DAILY_LIMIT} сделок | Итог: {total_profit:.2f}₽")
+            tg(f"⚠️ <b>Дневной лимит исчерпан</b>\\n{DAILY_LIMIT} сделок | Итог: {total_profit:.2f} {CURRENCY}")
             break
 
         candles, prices = await get_candles_data(client)
@@ -619,7 +622,7 @@ async def main():
                 wins  = sum(1 for t in trade_log if t["won"])
                 wr    = wins / len(trade_log) * 100
                 res_emoji = "✅" if won else "❌"
-                tg(f"{res_emoji} <b>{'Выигрыш' if won else 'Проигрыш'}</b>\\nПрофит: {profit:+.2f}₽\\nСессия: {total_profit:+.2f}₽ | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
+                tg(f"{res_emoji} <b>{'Выигрыш' if won else 'Проигрыш'}</b>\\nПрофит: {profit:+.2f} {CURRENCY}\\nСессия: {total_profit:+.2f} {CURRENCY} | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
                 print_stats()
         else:
             ts = datetime.now().strftime("%H:%M:%S")
@@ -942,7 +945,7 @@ def print_stats():
     wins  = sum(1 for t in trade_log if t["won"])
     total = len(trade_log)
     wr    = (wins / total * 100) if total else 0
-    print(f"[STATS] {wins}/{total} | WR: {wr:.1f}% | Сессия: {total_profit:.2f}₽")
+    print(f"[STATS] {wins}/{total} | WR: {wr:.1f}% | Сессия: {total_profit:.2f} {CURRENCY}")
 
 async def main():
     global total_profit, trades_today, current_bet
@@ -968,27 +971,27 @@ async def main():
     print("  КОМБО-Бот: ${labels}")
     print(f"  Счёт: {account_type}")
     print("  Логика: ${cfg.comboLogic} — ${logicWord}")
-    print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин | Баланс: {balance:.2f}")
-    print("  TP: " + str(TAKE_PROFIT) + " | SL: " + str(STOP_LOSS) + " | Лимит: " + str(DAILY_LIMIT))
+    print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин | Баланс: {balance:.2f} {CURRENCY}")
+    print(f"  TP: {TAKE_PROFIT} {CURRENCY} | SL: {STOP_LOSS} {CURRENCY} | Лимит: {DAILY_LIMIT}")
     print("=" * 55 + "\\n")
-    tg(f"🤖 <b>КОМБО-Бот запущен</b>\\nСчёт: {account_type}\\n${labels} (${cfg.comboLogic})\\nАктив: {ASSET} | {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
+    tg(f"🤖 <b>КОМБО-Бот запущен</b>\\nСчёт: {account_type}\\n${labels} (${cfg.comboLogic})\\nАктив: {ASSET} | {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} {CURRENCY} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
 
     while True:
         if total_profit >= TAKE_PROFIT:
-            print(f"[TP] +{total_profit:.2f}₽")
-            tg(f"✅ <b>Take Profit достигнут!</b>\\n+{total_profit:.2f}₽ за сессию")
+            print(f"[TP] +{total_profit:.2f} {CURRENCY}")
+            tg(f"✅ <b>Take Profit достигнут!</b>\\n+{total_profit:.2f} {CURRENCY} за сессию")
             if AUTO_RESTART:
                 total_profit = 0; trades_today = 0; await asyncio.sleep(300); continue
             break
         if total_profit <= -STOP_LOSS:
-            print(f"[SL] {total_profit:.2f}₽")
-            tg(f"🛑 <b>Stop Loss достигнут!</b>\\n{total_profit:.2f}₽ за сессию")
+            print(f"[SL] {total_profit:.2f} {CURRENCY}")
+            tg(f"🛑 <b>Stop Loss достигнут!</b>\\n{total_profit:.2f} {CURRENCY} за сессию")
             if AUTO_RESTART:
                 total_profit = 0; trades_today = 0; await asyncio.sleep(300); continue
             break
         if trades_today >= DAILY_LIMIT:
             print(f"[LIMIT] Лимит {DAILY_LIMIT} сделок исчерпан")
-            tg(f"⚠️ <b>Дневной лимит исчерпан</b>\\n{DAILY_LIMIT} сделок | Итог: {total_profit:.2f}₽")
+            tg(f"⚠️ <b>Дневной лимит исчерпан</b>\\n{DAILY_LIMIT} сделок | Итог: {total_profit:.2f} {CURRENCY}")
             break
 
         candles, prices = await get_candles_data(client)
@@ -1018,7 +1021,7 @@ async def main():
                 wins = sum(1 for t in trade_log if t["won"])
                 wr   = wins / len(trade_log) * 100
                 res_emoji = "✅" if won else "❌"
-                tg(f"{res_emoji} <b>{'Выигрыш' if won else 'Проигрыш'}</b>\\n{profit:+.2f}₽ | Сессия: {total_profit:+.2f}₽ | WR: {wr:.0f}%")
+                tg(f"{res_emoji} <b>{'Выигрыш' if won else 'Проигрыш'}</b>\\n{profit:+.2f} {CURRENCY} | Сессия: {total_profit:+.2f} {CURRENCY} | WR: {wr:.0f}%")
                 print_stats()
         else:
             ts = datetime.now().strftime("%H:%M:%S")

@@ -511,6 +511,7 @@ async def main():
 
     balance, currency = await get_balance(client)
     account_type = "🟡 ДЕМО-СЧЁТ" if IS_DEMO else "🔴 РЕАЛЬНЫЙ СЧЁТ"
+    print(f"[DEBUG] Торгую на: {account_type} | IS_DEMO={IS_DEMO}")
     print("=" * 50)
     print("  Pocket Option Bot — ${strategyLabel}")
     print(f"  Счёт: {account_type}")
@@ -897,6 +898,7 @@ async def main():
 
     balance, currency = await get_balance(client)
     account_type = "🟡 ДЕМО-СЧЁТ" if IS_DEMO else "🔴 РЕАЛЬНЫЙ СЧЁТ"
+    print(f"[DEBUG] Торгую на: {account_type} | IS_DEMO={IS_DEMO}")
     print("=" * 55)
     print("  КОМБО-Бот: ${labels}")
     print(f"  Счёт: {account_type}")

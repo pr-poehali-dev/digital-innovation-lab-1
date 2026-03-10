@@ -470,19 +470,22 @@ async def get_balance(client):
     try:
         b = await client.get_balance()
         if b is None:
-            print("[DEBUG] get_balance вернул None")
-            return 0.0
+            return 0.0, "USD"
+        amount = 0.0
         if hasattr(b, "balance") and b.balance is not None:
-            return float(b.balance)
-        if hasattr(b, "amount") and b.amount is not None:
-            return float(b.amount)
-        try:
-            return float(b)
-        except:
-            return 0.0
+            amount = float(b.balance)
+        elif hasattr(b, "amount") and b.amount is not None:
+            amount = float(b.amount)
+        else:
+            try:
+                amount = float(b)
+            except:
+                pass
+        currency = getattr(b, "currency", "USD") or "USD"
+        return amount, currency
     except Exception as e:
         print(f"[ERROR] get_balance: {e}")
-        return 0.0
+        return 0.0, "USD"
 
 def print_stats():
     wins    = sum(1 for t in trade_log if t["won"])
@@ -498,15 +501,15 @@ async def main():
     await client.connect()
     await asyncio.sleep(3)
 
-    balance = await get_balance(client)
+    balance, currency = await get_balance(client)
     account_type = "🟡 ДЕМО-СЧЁТ" if IS_DEMO else "🔴 РЕАЛЬНЫЙ СЧЁТ"
     print("=" * 50)
     print("  Pocket Option Bot — ${strategyLabel}")
     print(f"  Счёт: {account_type}")
     print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин")
-    print(f"  Баланс: {round(balance, 2)} USD | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
+    print(f"  Баланс: {round(balance, 2)} {currency} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
     print("=" * 50 + "\\n")
-    tg(f"🤖 <b>Бот запущен</b>\\nСчёт: {account_type}\\nСтратегия: ${strategyLabel}\\nАктив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} USD | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
+    tg(f"🤖 <b>Бот запущен</b>\\nСчёт: {account_type}\\nСтратегия: ${strategyLabel}\\nАктив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} {currency} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
 
     while True:
         if total_profit >= TAKE_PROFIT:
@@ -875,16 +878,16 @@ async def main():
     client = AsyncPocketOptionClient(SESSION_ID, is_demo=IS_DEMO, enable_logging=False)
     await client.connect()
 
-    balance = await get_balance(client)
+    balance, currency = await get_balance(client)
     account_type = "🟡 ДЕМО-СЧЁТ" if IS_DEMO else "🔴 РЕАЛЬНЫЙ СЧЁТ"
     print("=" * 55)
     print("  КОМБО-Бот: ${labels}")
     print(f"  Счёт: {account_type}")
     print("  Логика: ${cfg.comboLogic} — ${logicWord}")
-    print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин | Баланс: {balance:.2f} USD")
+    print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин | Баланс: {balance:.2f} {currency}")
     print("  TP: " + str(TAKE_PROFIT) + " | SL: " + str(STOP_LOSS) + " | Лимит: " + str(DAILY_LIMIT))
     print("=" * 55 + "\\n")
-    tg(f"🤖 <b>КОМБО-Бот запущен</b>\\nСчёт: {account_type}\\n${labels} (${cfg.comboLogic})\\nАктив: {ASSET} | {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} USD | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
+    tg(f"🤖 <b>КОМБО-Бот запущен</b>\\nСчёт: {account_type}\\n${labels} (${cfg.comboLogic})\\nАктив: {ASSET} | {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} {currency} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
 
     while True:
         if total_profit >= TAKE_PROFIT:

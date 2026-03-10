@@ -661,7 +661,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
             </Label>
             <div className="flex items-center gap-3">
               <Slider
-                min={1} max={config.betPercent ? 50 : 200} step={1}
+                min={config.betPercent ? 1 : 50} max={config.betPercent ? 50 : 10000} step={config.betPercent ? 1 : 50}
                 value={[config.betAmount]}
                 onValueChange={([v]) => set({ betAmount: v })}
                 className="flex-1"

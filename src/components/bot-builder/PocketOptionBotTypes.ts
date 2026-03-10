@@ -831,8 +831,10 @@ CURRENCY     = "${cfg.currency}"
 TAKE_PROFIT  = ${cfg.takeProfitRub}
 STOP_LOSS    = ${cfg.stopLossRub}
 DAILY_LIMIT  = ${cfg.dailyLimit}
-AUTO_RESTART = ${cfg.autoRestart ? "True" : "False"}
-MARTINGALE   = ${cfg.martingaleEnabled ? "True" : "False"}
+AUTO_RESTART     = ${cfg.autoRestart ? "True" : "False"}
+MARTINGALE       = ${cfg.martingaleEnabled ? "True" : "False"}
+MARTINGALE_MULT  = ${cfg.martingaleMultiplier}
+MARTINGALE_STEPS = ${cfg.martingaleSteps}
 
 try:
     from dotenv import load_dotenv; load_dotenv()

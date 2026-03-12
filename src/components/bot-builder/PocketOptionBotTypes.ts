@@ -454,7 +454,7 @@ ${strategyFunctions[cfg.strategy]}
 async def get_candles_data(client):
     """Получение свечей"""
     try:
-        raw = await client.get_candles(asset=ASSET, timeframe=EXPIRY_SEC)
+        raw = await client.get_candles(asset=ASSET, timeframe=60, count=100)
         if not raw:
             print(f"[ERROR] Актив {ASSET} не найден или нет данных")
             try:
@@ -909,9 +909,10 @@ ${combineLogic}
 
 async def get_candles_data(client):
     try:
-        raw = await client.get_candles(asset=ASSET, timeframe=EXPIRY_SEC)
+        raw = await client.get_candles(asset=ASSET, timeframe=60, count=100)
         candles = [(c.open, c.high, c.low, c.close) for c in raw]
         prices  = [c.close for c in raw]
+        print(f"[CANDLES] Получено свечей: {len(prices)}")
         return candles, prices
     except Exception as e:
         print(f"[ERROR] get_candles: {e}")

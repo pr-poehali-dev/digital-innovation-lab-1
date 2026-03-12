@@ -767,16 +767,15 @@ def signal_support_resistance(prices, candles):
   const combineLogic = cfg.comboLogic === "AND"
     ? `
 def get_combined_signal(prices, candles):
-    """Комбо AND — все стратегии должны совпасть"""
+    """Комбо AND — большинство стратегий должны совпасть"""
     signals = [${callLines.join(", ")}]
     signals = [s for s in signals if s is not None]
-    if len(signals) < ${selected.length}:
-        return None  # Не все дали сигнал
+    majority = (${selected.length} // 2) + 1
     calls = signals.count("CALL")
     puts  = signals.count("PUT")
-    if calls == len(signals): return "CALL"
-    if puts  == len(signals): return "PUT"
-    return None  # Сигналы противоречат друг другу`
+    if calls >= majority: return "CALL"
+    if puts  >= majority: return "PUT"
+    return None  # Нет большинства`
     : `
 def get_combined_signal(prices, candles):
     """Комбо OR — достаточно хотя бы одного сигнала"""

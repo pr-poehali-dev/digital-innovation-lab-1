@@ -369,8 +369,8 @@ Pocket Option Bot — ${strategyLabel}
 Ставка: ${cfg.betAmount}${cfg.betPercent ? "%" : "₽"} | Стратегия: ${strategyLabel}
 Сгенерировано: TradeBase Bot Builder
 
-Установка зависимостей (из папки PocketOptionAPI-main):
-    pip install .
+Установка зависимостей:
+    pip install pocketoptionapi-async
 """
 
 import asyncio
@@ -823,8 +823,8 @@ Pocket Option КОМБО-Бот
 Актив: ${comboAssetSymbol} | Экспирация: ${cfg.expiry} мин | Ставка: ${cfg.betAmount} ${cfg.currency}
 Сгенерировано: TradeBase Bot Builder
 
-Установка зависимостей (из папки PocketOptionAPI-main):
-    pip install .
+Установка зависимостей:
+    pip install pocketoptionapi-async
 """
 
 import asyncio

@@ -422,7 +422,9 @@ try:
     import re as _re
     _m = _re.search('"isDemo"[ ]*:[ ]*([0-9]+)', SESSION_ID)
     IS_DEMO = bool(int(_m.group(1))) if _m else IS_DEMO
-    print(f"[INFO] Режим из сессии: {'ДЕМО' if IS_DEMO else 'РЕАЛЬНЫЙ'}")
+    _u = _re.search('"uid"[ ]*:[ ]*([0-9]+)', SESSION_ID)
+    _uid = _u.group(1) if _u else "неизвестен"
+    print(f"[INFO] Аккаунт UID: {_uid} | Режим: {'ДЕМО' if IS_DEMO else 'РЕАЛЬНЫЙ'}")
 except Exception:
     print(f"[INFO] Режим (из настроек): {'ДЕМО' if IS_DEMO else 'РЕАЛЬНЫЙ'}")
 
@@ -872,7 +874,9 @@ try:
     import re as _re
     _m = _re.search('"isDemo"[ ]*:[ ]*([0-9]+)', SESSION_ID)
     IS_DEMO = bool(int(_m.group(1))) if _m else IS_DEMO
-    print(f"[INFO] Режим из сессии: {'ДЕМО' if IS_DEMO else 'РЕАЛЬНЫЙ'}")
+    _u = _re.search('"uid"[ ]*:[ ]*([0-9]+)', SESSION_ID)
+    _uid = _u.group(1) if _u else "неизвестен"
+    print(f"[INFO] Аккаунт UID: {_uid} | Режим: {'ДЕМО' if IS_DEMO else 'РЕАЛЬНЫЙ'}")
 except Exception:
     print(f"[INFO] Режим (из настроек): {'ДЕМО' if IS_DEMO else 'РЕАЛЬНЫЙ'}")
 

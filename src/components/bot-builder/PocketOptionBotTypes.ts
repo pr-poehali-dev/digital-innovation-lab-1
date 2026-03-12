@@ -417,6 +417,15 @@ if not SESSION_ID:
 
 print(f"[INFO] SESSION_ID загружен, длина: {len(SESSION_ID)} символов")
 
+# ===== АВТООПРЕДЕЛЕНИЕ ДЕМО/РЕАЛ из SESSION_ID =====
+try:
+    import re as _re
+    _m = _re.search('"isDemo"[ ]*:[ ]*([0-9]+)', SESSION_ID)
+    IS_DEMO = bool(int(_m.group(1))) if _m else IS_DEMO
+    print(f"[INFO] Режим из сессии: {'ДЕМО' if IS_DEMO else 'РЕАЛЬНЫЙ'}")
+except Exception:
+    print(f"[INFO] Режим (из настроек): {'ДЕМО' if IS_DEMO else 'РЕАЛЬНЫЙ'}")
+
 # ===== TELEGRAM =====
 TG_TOKEN   = "${cfg.tgToken}"
 TG_CHAT_ID = "${cfg.tgChatId}"
@@ -857,6 +866,15 @@ if not SESSION_ID:
     exit(1)
 
 print(f"[INFO] SESSION_ID загружен, длина: {len(SESSION_ID)} символов")
+
+# ===== АВТООПРЕДЕЛЕНИЕ ДЕМО/РЕАЛ из SESSION_ID =====
+try:
+    import re as _re
+    _m = _re.search('"isDemo"[ ]*:[ ]*([0-9]+)', SESSION_ID)
+    IS_DEMO = bool(int(_m.group(1))) if _m else IS_DEMO
+    print(f"[INFO] Режим из сессии: {'ДЕМО' if IS_DEMO else 'РЕАЛЬНЫЙ'}")
+except Exception:
+    print(f"[INFO] Режим (из настроек): {'ДЕМО' if IS_DEMO else 'РЕАЛЬНЫЙ'}")
 
 # ===== TELEGRAM =====
 TG_TOKEN   = "${cfg.tgToken}"

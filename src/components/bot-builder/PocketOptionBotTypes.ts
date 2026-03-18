@@ -449,6 +449,33 @@ total_profit = 0.0
 trades_today = 0
 trade_log    = []
 ${martingaleBlock}
+# ===== ТРЕНД EMA20/EMA50 =====
+_last_trend = None
+
+def _calc_ema(prices, period):
+    k = 2 / (period + 1)
+    ema = [prices[0]]
+    for p in prices[1:]:
+        ema.append(p * k + ema[-1] * (1 - k))
+    return ema
+
+def get_trend(prices):
+    if len(prices) < 52:
+        return None
+    ema20 = _calc_ema(prices, 20)
+    ema50 = _calc_ema(prices, 50)
+    return "UP" if ema20[-1] > ema50[-1] else "DOWN"
+
+def check_trend_change(prices):
+    global _last_trend
+    trend = get_trend(prices)
+    if trend and trend != _last_trend:
+        old = _last_trend
+        _last_trend = trend
+        return trend, old
+    _last_trend = trend
+    return None, None
+
 ${strategyFunctions[cfg.strategy]}
 
 async def get_candles_data(client):
@@ -604,7 +631,22 @@ async def main():
             await asyncio.sleep(30)
             continue
 
+        new_trend, old_trend = check_trend_change(prices)
+        if new_trend:
+            arrow = "📈" if new_trend == "UP" else "📉"
+            msg = f"{arrow} <b>Тренд изменился!</b>\\n{old_trend or '?'} → {new_trend}\\nEMA20/EMA50 | {ASSET}"
+            print(f"[TREND] {old_trend} → {new_trend}")
+            tg(msg)
+
+        trend = get_trend(prices)
         signal = get_signal(prices, candles)
+
+        if signal and trend:
+            if (signal == "CALL" and trend != "UP") or (signal == "PUT" and trend != "DOWN"):
+                ts = datetime.now().strftime("%H:%M:%S")
+                print(f"[{ts}] Сигнал {signal} отклонён — тренд {trend}")
+                await asyncio.sleep(30)
+                continue
 
         if signal:
             if BET_PERCENT:
@@ -900,6 +942,33 @@ total_profit = 0.0
 trades_today = 0
 trade_log    = []
 ${martingaleBlock}
+# ===== ТРЕНД EMA20/EMA50 =====
+_last_trend = None
+
+def _calc_ema(prices, period):
+    k = 2 / (period + 1)
+    ema = [prices[0]]
+    for p in prices[1:]:
+        ema.append(p * k + ema[-1] * (1 - k))
+    return ema
+
+def get_trend(prices):
+    if len(prices) < 52:
+        return None
+    ema20 = _calc_ema(prices, 20)
+    ema50 = _calc_ema(prices, 50)
+    return "UP" if ema20[-1] > ema50[-1] else "DOWN"
+
+def check_trend_change(prices):
+    global _last_trend
+    trend = get_trend(prices)
+    if trend and trend != _last_trend:
+        old = _last_trend
+        _last_trend = trend
+        return trend, old
+    _last_trend = trend
+    return None, None
+
 # ===== СТРАТЕГИИ =====
 ${fnBlocks.join("\n")}
 
@@ -1029,7 +1098,22 @@ async def main():
             await asyncio.sleep(30)
             continue
 
+        new_trend, old_trend = check_trend_change(prices)
+        if new_trend:
+            arrow = "📈" if new_trend == "UP" else "📉"
+            msg = f"{arrow} <b>Тренд изменился!</b>\\n{old_trend or '?'} → {new_trend}\\nEMA20/EMA50 | {ASSET}"
+            print(f"[TREND] {old_trend} → {new_trend}")
+            tg(msg)
+
+        trend = get_trend(prices)
         signal = get_combined_signal(prices, candles)
+
+        if signal and trend:
+            if (signal == "CALL" and trend != "UP") or (signal == "PUT" and trend != "DOWN"):
+                ts = datetime.now().strftime("%H:%M:%S")
+                print(f"[{ts}] Комбо-сигнал {signal} отклонён — тренд {trend}")
+                await asyncio.sleep(30)
+                continue
 
         if signal:
             if BET_PERCENT:

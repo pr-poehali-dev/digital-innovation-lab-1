@@ -770,8 +770,8 @@ def signal_ema(prices, candles):
         return None
     fast = calculate_ema(prices, ${cfg.emaFast})
     slow = calculate_ema(prices, ${cfg.emaSlow})
-    if fast[-1] > slow[-1] and fast[-2] <= slow[-2]: return "CALL"
-    if fast[-1] < slow[-1] and fast[-2] >= slow[-2]: return "PUT"
+    if fast[-1] > slow[-1] and fast[-2] <= slow[-2]: return "${cfg.trendFollow ? "CALL" : "PUT"}"
+    if fast[-1] < slow[-1] and fast[-2] >= slow[-2]: return "${cfg.trendFollow ? "PUT" : "CALL"}"
     return None`)
     callLines.push("signal_ema(prices, candles)")
   }
@@ -786,10 +786,11 @@ def signal_candle_pattern(prices, candles):
     body2 = abs(c2 - o2)
     low_sh = min(o2, c2) - l2
     up_sh  = h2 - max(o2, c2)
-    if low_sh > body2 * 2 and up_sh < body2 * 0.5 and c1 < o1: return "CALL"
-    if up_sh > body2 * 2 and low_sh < body2 * 0.5 and c1 > o1: return "PUT"
-    if c1 < o1 and c2 > o2 and c2 > o1 and o2 < c1: return "CALL"
-    if c1 > o1 and c2 < o2 and c2 < o1 and o2 > c1: return "PUT"
+    # Молот / Падающая звезда / Поглощения
+    if low_sh > body2 * 2 and up_sh < body2 * 0.5 and c1 < o1: return "${cfg.trendFollow ? "CALL" : "PUT"}"
+    if up_sh > body2 * 2 and low_sh < body2 * 0.5 and c1 > o1: return "${cfg.trendFollow ? "PUT" : "CALL"}"
+    if c1 < o1 and c2 > o2 and c2 > o1 and o2 < c1: return "${cfg.trendFollow ? "CALL" : "PUT"}"
+    if c1 > o1 and c2 < o2 and c2 < o1 and o2 > c1: return "${cfg.trendFollow ? "PUT" : "CALL"}"
     return None`)
     callLines.push("signal_candle_pattern(prices, candles)")
   }
@@ -810,9 +811,9 @@ def signal_support_resistance(prices, candles):
     cur = prices[-1]
     thr = cur * 0.001
     for s in sup:
-        if abs(cur - s) < thr: return "CALL"
+        if abs(cur - s) < thr: return "${cfg.trendFollow ? "CALL" : "PUT"}"
     for r in res:
-        if abs(cur - r) < thr: return "PUT"
+        if abs(cur - r) < thr: return "${cfg.trendFollow ? "PUT" : "CALL"}"
     return None`)
     callLines.push("signal_support_resistance(prices, candles)")
   }

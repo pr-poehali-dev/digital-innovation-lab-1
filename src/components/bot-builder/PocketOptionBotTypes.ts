@@ -374,9 +374,22 @@ def adjust_bet(won):
 `#!/usr/bin/env python3
 """
 Pocket Option Bot — ${strategyLabel}
-Актив: ${assetSymbol} | Экспирация: ${cfg.expiry} мин
-Ставка: ${cfg.betAmount}${cfg.betPercent ? "%" : "₽"} | Стратегия: ${strategyLabel}
 Сгенерировано: TradeBase Bot Builder
+
+════════════════════════════════════════
+  КОНФИГУРАЦИЯ БОТА
+════════════════════════════════════════
+  Стратегия  : ${strategyLabel}
+  Актив      : ${assetSymbol}
+  Экспирация : ${cfg.expiry} мин
+  Ставка     : ${cfg.betAmount}${cfg.betPercent ? "% от баланса" : " " + cfg.currency}
+  Режим      : ${cfg.isDemo ? "ДЕМО-СЧЁТ" : "РЕАЛЬНЫЙ СЧЁТ"}
+  Направление: ${cfg.trendFollow ? "По тренду ↗" : "Против тренда ↙"}
+  Take Profit: ${cfg.takeProfitRub} ${cfg.currency}
+  Stop Loss  : ${cfg.stopLossRub} ${cfg.currency}
+  Лимит/день : ${cfg.dailyLimit} сделок
+  Мартингейл : ${cfg.martingaleEnabled ? `x${cfg.martingaleMultiplier} до ${cfg.martingaleSteps} шагов` : "выкл"}
+════════════════════════════════════════
 
 Установка зависимостей:
     pip install pocketoptionapi-async
@@ -871,10 +884,23 @@ def get_combined_signal(prices, candles):
 `#!/usr/bin/env python3
 """
 Pocket Option КОМБО-Бот
-Стратегии: ${labels}
-Логика: ${cfg.comboLogic} (${logicWord})
-Актив: ${comboAssetSymbol} | Экспирация: ${cfg.expiry} мин | Ставка: ${cfg.betAmount} ${cfg.currency}
 Сгенерировано: TradeBase Bot Builder
+
+════════════════════════════════════════
+  КОНФИГУРАЦИЯ БОТА
+════════════════════════════════════════
+  Стратегии  : ${labels}
+  Логика     : ${cfg.comboLogic} — ${logicWord}
+  Актив      : ${comboAssetSymbol}
+  Экспирация : ${cfg.expiry} мин
+  Ставка     : ${cfg.betAmount}${cfg.betPercent ? "% от баланса" : " " + cfg.currency}
+  Режим      : ${cfg.isDemo ? "ДЕМО-СЧЁТ" : "РЕАЛЬНЫЙ СЧЁТ"}
+  Направление: ${cfg.trendFollow ? "По тренду ↗" : "Против тренда ↙"}
+  Take Profit: ${cfg.takeProfitRub} ${cfg.currency}
+  Stop Loss  : ${cfg.stopLossRub} ${cfg.currency}
+  Лимит/день : ${cfg.dailyLimit} сделок
+  Мартингейл : ${cfg.martingaleEnabled ? `x${cfg.martingaleMultiplier} до ${cfg.martingaleSteps} шагов` : "выкл"}
+════════════════════════════════════════
 
 Установка зависимостей:
     pip install pocketoptionapi-async

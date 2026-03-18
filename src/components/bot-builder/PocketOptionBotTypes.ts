@@ -226,12 +226,12 @@ def calculate_rsi(prices, period=${cfg.rsiPeriod}):
     return 100 - (100 / (1 + rs))
 
 def get_signal(prices, candles=None):
-    """Сигнал разворота по RSI"""
+    """Сигнал по RSI${cfg.trendFollow ? " (по тренду — разворот)" : " (против тренда — продолжение)"}"""
     rsi = calculate_rsi(prices)
     if rsi <= ${cfg.rsiOversold}:
-        return "CALL"  # Перепроданность — ждём рост
+        return "${cfg.trendFollow ? "CALL" : "PUT"}"
     elif rsi >= ${cfg.rsiOverbought}:
-        return "PUT"   # Перекупленность — ждём падение
+        return "${cfg.trendFollow ? "PUT" : "CALL"}"
     return None`,
 
     ema_cross: `
@@ -750,8 +750,8 @@ def calculate_rsi(prices, period=${cfg.rsiPeriod}):
 
 def signal_rsi(prices, candles):
     rsi = calculate_rsi(prices)
-    if rsi <= ${cfg.rsiOversold}: return "CALL"
-    if rsi >= ${cfg.rsiOverbought}: return "PUT"
+    if rsi <= ${cfg.rsiOversold}: return "${cfg.trendFollow ? "CALL" : "PUT"}"
+    if rsi >= ${cfg.rsiOverbought}: return "${cfg.trendFollow ? "PUT" : "CALL"}"
     return None`)
     callLines.push("signal_rsi(prices, candles)")
   }

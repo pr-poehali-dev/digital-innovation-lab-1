@@ -1078,6 +1078,52 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
         </Card>
       )}
 
+      {/* Combo candle_pattern + support_resistance settings */}
+      {config.comboMode && (config.comboStrategies.includes("candle_pattern") || config.comboStrategies.includes("support_resistance")) && (
+        <Card className="bg-zinc-900 border-zinc-700">
+          <CardHeader className="pb-3"><CardTitle className="font-orbitron text-white text-base">Направление входа</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {config.comboStrategies.includes("candle_pattern") && (
+              <div className="space-y-2">
+                <p className="text-yellow-400 font-space-mono text-xs font-semibold">Паттерны свечей</p>
+                <div className="flex items-center justify-between bg-zinc-800/60 border border-zinc-700 rounded-lg px-2.5 py-2">
+                  <span className="text-zinc-400 text-xs font-space-mono">
+                    {config.trendFollow ? "↗ По тренду — паттерны продолжения" : "↙ Против тренда — разворотные паттерны"}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-xs font-space-mono ${!config.trendFollow ? "text-orange-400" : "text-zinc-600"}`}>Против</span>
+                    <Switch checked={config.trendFollow} onCheckedChange={(v) => set({ trendFollow: v })} />
+                    <span className={`text-xs font-space-mono ${config.trendFollow ? "text-green-400" : "text-zinc-600"}`}>По тренду</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            {config.comboStrategies.includes("support_resistance") && (
+              <div className="space-y-2">
+                <p className="text-purple-400 font-space-mono text-xs font-semibold">Уровни поддержки/сопротивления</p>
+                <div className="flex items-center justify-between bg-zinc-800/60 border border-zinc-700 rounded-lg px-2.5 py-2">
+                  <span className="text-zinc-400 text-xs font-space-mono">
+                    {config.trendFollow ? "↗ По тренду — отбой в сторону тренда" : "↙ Против тренда — отбой от уровня в любую сторону"}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-xs font-space-mono ${!config.trendFollow ? "text-orange-400" : "text-zinc-600"}`}>Против</span>
+                    <Switch checked={config.trendFollow} onCheckedChange={(v) => set({ trendFollow: v })} />
+                    <span className={`text-xs font-space-mono ${config.trendFollow ? "text-green-400" : "text-zinc-600"}`}>По тренду</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            {!config.trendFollow && (
+              <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-2.5 py-2">
+                <span className="text-orange-400 text-xs font-space-mono leading-relaxed">
+                  ⚠️ Против тренда — только для флета. На трендовом рынке увеличивает убытки.
+                </span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <Button
         onClick={onGenerate}
         className="w-full bg-red-600 hover:bg-red-500 text-white font-orbitron font-bold py-4 text-base rounded-xl transition-all duration-200 shadow-lg shadow-red-500/20"

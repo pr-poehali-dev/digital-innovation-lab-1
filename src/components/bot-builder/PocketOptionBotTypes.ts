@@ -709,6 +709,18 @@ async def main():
     await client.disconnect()
 
 if __name__ == "__main__":
+    print("════════════════════════════════════════")
+    print("  КОНФИГУРАЦИЯ БОТА")
+    print("════════════════════════════════════════")
+    print(f"  Стратегия  : ${strategyLabel}")
+    print(f"  Актив      : {ASSET}")
+    print(f"  Экспирация : {EXPIRY} мин")
+    print(f"  Ставка     : {BASE_BET} {CURRENCY}")
+    print(f"  Режим      : {'ДЕМО-СЧЁТ' if IS_DEMO else 'РЕАЛЬНЫЙ СЧЁТ'}")
+    print(f"  Take Profit: {TAKE_PROFIT} {CURRENCY}")
+    print(f"  Stop Loss  : {STOP_LOSS} {CURRENCY}")
+    print(f"  Лимит/день : {DAILY_LIMIT} сделок")
+    print("════════════════════════════════════════")
     asyncio.run(main())
 `
   )
@@ -1185,6 +1197,19 @@ async def main():
     await client.disconnect()
 
 if __name__ == "__main__":
+    print("════════════════════════════════════════")
+    print("  КОНФИГУРАЦИЯ БОТА")
+    print("════════════════════════════════════════")
+    print(f"  Стратегии  : ${labels}")
+    print(f"  Логика     : ${cfg.comboLogic} — ${logicWord}")
+    print(f"  Актив      : {ASSET}")
+    print(f"  Экспирация : {EXPIRY} мин")
+    print(f"  Ставка     : {BASE_BET} {CURRENCY}")
+    print(f"  Режим      : {'ДЕМО-СЧЁТ' if IS_DEMO else 'РЕАЛЬНЫЙ СЧЁТ'}")
+    print(f"  Take Profit: {TAKE_PROFIT} {CURRENCY}")
+    print(f"  Stop Loss  : {STOP_LOSS} {CURRENCY}")
+    print(f"  Лимит/день : {DAILY_LIMIT} сделок")
+    print("════════════════════════════════════════")
     asyncio.run(main())
 `
   )

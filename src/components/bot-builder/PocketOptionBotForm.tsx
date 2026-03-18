@@ -715,6 +715,11 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
             <Slider min={1} max={100} step={1} value={[config.dailyLimit]} onValueChange={([v]) => set({ dailyLimit: v })} />
           </div>
 
+          <div>
+            <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Интервал проверки: {config.checkInterval} сек</Label>
+            <Slider min={10} max={120} step={5} value={[config.checkInterval]} onValueChange={([v]) => set({ checkInterval: v })} />
+          </div>
+
           <div className="flex items-center justify-between pt-1">
             <div>
               <Label className="text-zinc-300 text-sm">Режим счёта</Label>

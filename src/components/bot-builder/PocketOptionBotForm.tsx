@@ -885,6 +885,13 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
                 <span className={`text-xs font-space-mono ${config.trendFollow ? "text-green-400" : "text-zinc-600"}`}>↗ По тренду</span>
               </div>
             </div>
+            {!config.trendFollow && (
+              <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-3 py-2">
+                <span className="text-orange-400 text-xs font-space-mono leading-relaxed">
+                  ⚠️ Режим «против тренда» подходит только для боковых рынков (флет). На сильном тренде увеличивает убытки. Используй осторожно.
+                </span>
+              </div>
+            )}
             <AIComment {...emaComment(config)} />
           </CardContent>
         </Card>
@@ -956,6 +963,13 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
                     <span className={`text-xs font-space-mono ${config.trendFollow ? "text-green-400" : "text-zinc-600"}`}>По тренду</span>
                   </div>
                 </div>
+                {!config.trendFollow && (
+                  <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-2.5 py-2">
+                    <span className="text-orange-400 text-xs font-space-mono leading-relaxed">
+                      ⚠️ Против тренда — только для флета. На трендовом рынке увеличивает убытки.
+                    </span>
+                  </div>
+                )}
                 <AIComment {...emaComment(config)} />
               </div>
             )}

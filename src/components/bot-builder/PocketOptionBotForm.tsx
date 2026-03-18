@@ -826,11 +826,95 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
               </div>
             </div>
             <AIComment {...rsiComment(config)} />
+            {/* Trend direction */}
+            <div className="flex items-center justify-between bg-zinc-800/60 border border-zinc-700 rounded-xl px-3 py-2.5">
+              <div>
+                <Label className="text-zinc-300 text-sm">Направление входа</Label>
+                <p className="text-zinc-500 text-xs font-space-mono">
+                  {config.trendFollow ? "По тренду — CALL при перепроданности в росте" : "Против тренда — CALL при перепроданности в падении"}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                <span className={`text-xs font-space-mono ${!config.trendFollow ? "text-orange-400" : "text-zinc-600"}`}>↙ Против</span>
+                <Switch checked={config.trendFollow} onCheckedChange={(v) => set({ trendFollow: v })} />
+                <span className={`text-xs font-space-mono ${config.trendFollow ? "text-green-400" : "text-zinc-600"}`}>↗ По тренду</span>
+              </div>
+            </div>
+            {!config.trendFollow && (
+              <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-3 py-2">
+                <span className="text-orange-400 text-xs font-space-mono leading-relaxed">
+                  ⚠️ Режим «против тренда» подходит только для боковых рынков (флет). На сильном тренде увеличивает убытки. Используй осторожно.
+                </span>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
 
-      {/* EMA settings */}
+      {/* Candle Pattern settings */}
+      {!config.comboMode && config.strategy === "candle_pattern" && (
+        <Card className="bg-zinc-900 border-yellow-500/20">
+          <CardHeader className="pb-3"><CardTitle className="font-orbitron text-white text-base">Настройки паттернов свечей</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-zinc-500 text-xs font-space-mono leading-relaxed">
+              Бот ищет разворотные паттерны (молот, поглощение, доджи). Сигнал формируется при закрытии свечи.
+            </p>
+            <div className="flex items-center justify-between bg-zinc-800/60 border border-zinc-700 rounded-xl px-3 py-2.5">
+              <div>
+                <Label className="text-zinc-300 text-sm">Направление входа</Label>
+                <p className="text-zinc-500 text-xs font-space-mono">
+                  {config.trendFollow ? "По тренду — только паттерны продолжения" : "Против тренда — только разворотные паттерны"}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                <span className={`text-xs font-space-mono ${!config.trendFollow ? "text-orange-400" : "text-zinc-600"}`}>↙ Против</span>
+                <Switch checked={config.trendFollow} onCheckedChange={(v) => set({ trendFollow: v })} />
+                <span className={`text-xs font-space-mono ${config.trendFollow ? "text-green-400" : "text-zinc-600"}`}>↗ По тренду</span>
+              </div>
+            </div>
+            {!config.trendFollow && (
+              <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-3 py-2">
+                <span className="text-orange-400 text-xs font-space-mono leading-relaxed">
+                  ⚠️ Режим «против тренда» подходит только для боковых рынков (флет). На сильном тренде увеличивает убытки. Используй осторожно.
+                </span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Support/Resistance settings */}
+      {!config.comboMode && config.strategy === "support_resistance" && (
+        <Card className="bg-zinc-900 border-purple-500/20">
+          <CardHeader className="pb-3"><CardTitle className="font-orbitron text-white text-base">Настройки уровней</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-zinc-500 text-xs font-space-mono leading-relaxed">
+              Бот торгует от уровней поддержки и сопротивления. Вход при отбое от уровня.
+            </p>
+            <div className="flex items-center justify-between bg-zinc-800/60 border border-zinc-700 rounded-xl px-3 py-2.5">
+              <div>
+                <Label className="text-zinc-300 text-sm">Направление входа</Label>
+                <p className="text-zinc-500 text-xs font-space-mono">
+                  {config.trendFollow ? "По тренду — отбой в сторону тренда" : "Против тренда — отбой от уровня в любую сторону"}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                <span className={`text-xs font-space-mono ${!config.trendFollow ? "text-orange-400" : "text-zinc-600"}`}>↙ Против</span>
+                <Switch checked={config.trendFollow} onCheckedChange={(v) => set({ trendFollow: v })} />
+                <span className={`text-xs font-space-mono ${config.trendFollow ? "text-green-400" : "text-zinc-600"}`}>↗ По тренду</span>
+              </div>
+            </div>
+            {!config.trendFollow && (
+              <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-3 py-2">
+                <span className="text-orange-400 text-xs font-space-mono leading-relaxed">
+                  ⚠️ Режим «против тренда» подходит только для боковых рынков (флет). На сильном тренде увеличивает убытки. Используй осторожно.
+                </span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {!config.comboMode && config.strategy === "ema_cross" && (
         <Card className="bg-zinc-900 border-green-500/20">
           <CardHeader className="pb-3"><CardTitle className="font-orbitron text-white text-base">Настройки EMA</CardTitle></CardHeader>
@@ -920,6 +1004,23 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
                   </div>
                 </div>
                 <AIComment {...rsiComment(config)} />
+                <div className="flex items-center justify-between bg-zinc-800/60 border border-zinc-700 rounded-lg px-2.5 py-2">
+                  <span className="text-zinc-400 text-xs font-space-mono">
+                    {config.trendFollow ? "↗ По тренду" : "↙ Против тренда"}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-xs font-space-mono ${!config.trendFollow ? "text-orange-400" : "text-zinc-600"}`}>Против</span>
+                    <Switch checked={config.trendFollow} onCheckedChange={(v) => set({ trendFollow: v })} />
+                    <span className={`text-xs font-space-mono ${config.trendFollow ? "text-green-400" : "text-zinc-600"}`}>По тренду</span>
+                  </div>
+                </div>
+                {!config.trendFollow && (
+                  <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-2.5 py-2">
+                    <span className="text-orange-400 text-xs font-space-mono leading-relaxed">
+                      ⚠️ Против тренда — только для флета. На трендовом рынке увеличивает убытки.
+                    </span>
+                  </div>
+                )}
               </div>
             )}
             {config.comboStrategies.includes("ema_cross") && (

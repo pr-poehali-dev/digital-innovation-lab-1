@@ -718,6 +718,9 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
           <div>
             <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Интервал проверки: {config.checkInterval} сек</Label>
             <Slider min={10} max={120} step={5} value={[config.checkInterval]} onValueChange={([v]) => set({ checkInterval: v })} />
+            <p className="text-zinc-600 font-space-mono text-xs mt-1.5">
+              {config.checkInterval <= 15 ? "⚡ Быстро — больше сигналов, больше шума" : config.checkInterval >= 60 ? "🐢 Медленно — меньше шума, реже проверка" : "⚖️ Баланс — оптимально для большинства стратегий"}
+            </p>
           </div>
 
           <div className="flex items-center justify-between pt-1">

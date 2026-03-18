@@ -13,10 +13,18 @@ import {
   POStrategy,
   POExpiry,
   POComboLogic,
+  POEmaTrendMode,
   PO_STRATEGIES,
   PO_ASSETS,
   PO_EXPIRY_LABELS,
 } from "./PocketOptionBotTypes"
+
+const EMA_PRESETS: { mode: POEmaTrendMode; label: string; fast: number; slow: number; hint: string }[] = [
+  { mode: "ema9_21",   label: "9/21",    fast: 9,  slow: 21,  hint: "Скальпинг и короткие сделки" },
+  { mode: "ema20_50",  label: "20/50",   fast: 20, slow: 50,  hint: "Классика — универсально" },
+  { mode: "ema50_200", label: "50/200",  fast: 50, slow: 200, hint: "Долгосрочный тренд" },
+  { mode: "custom",    label: "Своё",    fast: 0,  slow: 0,   hint: "Ввести вручную" },
+]
 
 interface Props {
   config: POBotConfig
@@ -827,14 +835,54 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
         <Card className="bg-zinc-900 border-green-500/20">
           <CardHeader className="pb-3"><CardTitle className="font-orbitron text-white text-base">Настройки EMA</CardTitle></CardHeader>
           <CardContent className="space-y-4">
+            {/* Presets */}
+            <div>
+              <Label className="text-zinc-400 font-space-mono text-xs mb-2 block">Пресет периодов</Label>
+              <div className="grid grid-cols-4 gap-1.5">
+                {EMA_PRESETS.map((p) => (
+                  <button
+                    key={p.mode}
+                    onClick={() => {
+                      if (p.mode !== "custom") set({ emaTrendMode: p.mode, emaFast: p.fast, emaSlow: p.slow })
+                      else set({ emaTrendMode: "custom" })
+                    }}
+                    className={`rounded-lg px-2 py-1.5 text-xs font-space-mono font-semibold border transition-all ${
+                      config.emaTrendMode === p.mode
+                        ? "bg-green-500/20 border-green-500/50 text-green-400"
+                        : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-zinc-600 font-space-mono text-xs mt-1.5">
+                {EMA_PRESETS.find(p => p.mode === config.emaTrendMode)?.hint}
+              </p>
+            </div>
+            {/* Values */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Быстрая EMA</Label>
-                <Input type="number" value={config.emaFast} onChange={(e) => set({ emaFast: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-green-400 font-space-mono text-sm" />
+                <Input type="number" value={config.emaFast} onChange={(e) => set({ emaFast: Number(e.target.value), emaTrendMode: "custom" })} className="bg-zinc-800 border-zinc-700 text-green-400 font-space-mono text-sm" />
               </div>
               <div>
                 <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Медленная EMA</Label>
-                <Input type="number" value={config.emaSlow} onChange={(e) => set({ emaSlow: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-blue-400 font-space-mono text-sm" />
+                <Input type="number" value={config.emaSlow} onChange={(e) => set({ emaSlow: Number(e.target.value), emaTrendMode: "custom" })} className="bg-zinc-800 border-zinc-700 text-blue-400 font-space-mono text-sm" />
+              </div>
+            </div>
+            {/* Trend direction */}
+            <div className="flex items-center justify-between bg-zinc-800/60 border border-zinc-700 rounded-xl px-3 py-2.5">
+              <div>
+                <Label className="text-zinc-300 text-sm">Направление входа</Label>
+                <p className="text-zinc-500 text-xs font-space-mono">
+                  {config.trendFollow ? "По тренду — CALL при росте EMA" : "Против тренда — CALL при падении EMA"}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                <span className={`text-xs font-space-mono ${!config.trendFollow ? "text-orange-400" : "text-zinc-600"}`}>↙ Против</span>
+                <Switch checked={config.trendFollow} onCheckedChange={(v) => set({ trendFollow: v })} />
+                <span className={`text-xs font-space-mono ${config.trendFollow ? "text-green-400" : "text-zinc-600"}`}>↗ По тренду</span>
               </div>
             </div>
             <AIComment {...emaComment(config)} />
@@ -870,14 +918,42 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
             {config.comboStrategies.includes("ema_cross") && (
               <div className="space-y-2">
                 <p className="text-green-400 font-space-mono text-xs font-semibold">EMA</p>
+                <div className="grid grid-cols-4 gap-1">
+                  {EMA_PRESETS.map((p) => (
+                    <button
+                      key={p.mode}
+                      onClick={() => {
+                        if (p.mode !== "custom") set({ emaTrendMode: p.mode, emaFast: p.fast, emaSlow: p.slow })
+                        else set({ emaTrendMode: "custom" })
+                      }}
+                      className={`rounded-md px-1.5 py-1 text-xs font-space-mono font-semibold border transition-all ${
+                        config.emaTrendMode === p.mode
+                          ? "bg-green-500/20 border-green-500/50 text-green-400"
+                          : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Быстрая EMA</Label>
-                    <Input type="number" value={config.emaFast} onChange={(e) => set({ emaFast: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-green-400 font-space-mono text-xs h-8" />
+                    <Input type="number" value={config.emaFast} onChange={(e) => set({ emaFast: Number(e.target.value), emaTrendMode: "custom" })} className="bg-zinc-800 border-zinc-700 text-green-400 font-space-mono text-xs h-8" />
                   </div>
                   <div>
                     <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Медленная EMA</Label>
-                    <Input type="number" value={config.emaSlow} onChange={(e) => set({ emaSlow: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-blue-400 font-space-mono text-xs h-8" />
+                    <Input type="number" value={config.emaSlow} onChange={(e) => set({ emaSlow: Number(e.target.value), emaTrendMode: "custom" })} className="bg-zinc-800 border-zinc-700 text-blue-400 font-space-mono text-xs h-8" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between bg-zinc-800/60 border border-zinc-700 rounded-lg px-2.5 py-2">
+                  <span className="text-zinc-400 text-xs font-space-mono">
+                    {config.trendFollow ? "↗ По тренду" : "↙ Против тренда"}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-xs font-space-mono ${!config.trendFollow ? "text-orange-400" : "text-zinc-600"}`}>Против</span>
+                    <Switch checked={config.trendFollow} onCheckedChange={(v) => set({ trendFollow: v })} />
+                    <span className={`text-xs font-space-mono ${config.trendFollow ? "text-green-400" : "text-zinc-600"}`}>По тренду</span>
                   </div>
                 </div>
                 <AIComment {...emaComment(config)} />

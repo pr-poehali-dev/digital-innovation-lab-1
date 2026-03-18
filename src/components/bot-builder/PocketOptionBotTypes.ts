@@ -1,6 +1,7 @@
 export type POStrategy = "rsi_reversal" | "ema_cross" | "martingale" | "candle_pattern" | "support_resistance"
 export type POExpiry = "1" | "2" | "3" | "5" | "15"
 export type POComboLogic = "AND" | "OR"
+export type POEmaTrendMode = "ema9_21" | "ema20_50" | "ema50_200" | "custom"
 
 export interface POBotConfig {
   strategy: POStrategy
@@ -23,6 +24,8 @@ export interface POBotConfig {
   rsiOversold: number
   emaFast: number
   emaSlow: number
+  emaTrendMode: POEmaTrendMode
+  trendFollow: boolean
   useOTC: boolean
   autoRestart: boolean
   isDemo: boolean
@@ -191,6 +194,8 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   rsiOversold: 30,
   emaFast: 9,
   emaSlow: 21,
+  emaTrendMode: "ema9_21",
+  trendFollow: true,
   useOTC: true,
   autoRestart: false,
   isDemo: true,
@@ -239,15 +244,17 @@ def calculate_ema(prices, period):
     return ema
 
 def get_signal(prices, candles=None):
-    """Сигнал по пересечению EMA ${cfg.emaFast} / EMA ${cfg.emaSlow}"""
+    """Сигнал по пересечению EMA ${cfg.emaFast} / EMA ${cfg.emaSlow}${cfg.trendFollow ? " (по тренду)" : " (против тренда)"}"""
     if len(prices) < ${cfg.emaSlow} + 2:
         return None
     ema_fast = calculate_ema(prices, ${cfg.emaFast})
     ema_slow = calculate_ema(prices, ${cfg.emaSlow})
-    if ema_fast[-1] > ema_slow[-1] and ema_fast[-2] <= ema_slow[-2]:
-        return "CALL"
-    if ema_fast[-1] < ema_slow[-1] and ema_fast[-2] >= ema_slow[-2]:
-        return "PUT"
+    cross_up = ema_fast[-1] > ema_slow[-1] and ema_fast[-2] <= ema_slow[-2]
+    cross_down = ema_fast[-1] < ema_slow[-1] and ema_fast[-2] >= ema_slow[-2]
+    if cross_up:
+        return "${cfg.trendFollow ? "CALL" : "PUT"}"
+    if cross_down:
+        return "${cfg.trendFollow ? "PUT" : "CALL"}"
     return None`,
 
     martingale: `

@@ -457,16 +457,22 @@ TG_TOKEN   = "${cfg.tgToken}"
 TG_CHAT_ID = "${cfg.tgChatId}"
 TG_ENABLED = bool(TG_TOKEN and TG_CHAT_ID)
 
-def tg(text):
+def tg(text, retries=3, delay=5):
     if not TG_ENABLED:
         return
-    try:
-        import urllib.request, urllib.parse
-        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
-        data = urllib.parse.urlencode({"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
-        urllib.request.urlopen(url, data, timeout=5)
-    except Exception as e:
-        print(f"[TG] Ошибка: {e}")
+    import urllib.request, urllib.parse, time
+    url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+    data = urllib.parse.urlencode({"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
+    for attempt in range(1, retries + 1):
+        try:
+            urllib.request.urlopen(url, data, timeout=10)
+            return
+        except Exception as e:
+            if attempt < retries:
+                print(f"[TG] Попытка {attempt}/{retries} не удалась, повтор через {delay}с...")
+                time.sleep(delay)
+            else:
+                print(f"[TG] Ошибка после {retries} попыток: {e}")
 
 # ===== СОСТОЯНИЕ =====
 total_profit = 0.0
@@ -979,16 +985,22 @@ TG_TOKEN   = "${cfg.tgToken}"
 TG_CHAT_ID = "${cfg.tgChatId}"
 TG_ENABLED = bool(TG_TOKEN and TG_CHAT_ID)
 
-def tg(text):
+def tg(text, retries=3, delay=5):
     if not TG_ENABLED:
         return
-    try:
-        import urllib.request, urllib.parse
-        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
-        data = urllib.parse.urlencode({"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
-        urllib.request.urlopen(url, data, timeout=5)
-    except Exception as e:
-        print(f"[TG] Ошибка: {e}")
+    import urllib.request, urllib.parse, time
+    url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+    data = urllib.parse.urlencode({"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
+    for attempt in range(1, retries + 1):
+        try:
+            urllib.request.urlopen(url, data, timeout=10)
+            return
+        except Exception as e:
+            if attempt < retries:
+                print(f"[TG] Попытка {attempt}/{retries} не удалась, повтор через {delay}с...")
+                time.sleep(delay)
+            else:
+                print(f"[TG] Ошибка после {retries} попыток: {e}")
 
 # ===== СОСТОЯНИЕ =====
 total_profit = 0.0

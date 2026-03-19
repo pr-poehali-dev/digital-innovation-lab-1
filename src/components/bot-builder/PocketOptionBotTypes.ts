@@ -681,7 +681,7 @@ async def main():
                 bet = current_bet
 
             emoji = "📈" if signal == "CALL" else "📉"
-            trend_label = f"Тренд: {'↑ UP' if current_trend == 'UP' else '↓ DOWN' if current_trend == 'DOWN' else '— нет'}"
+            trend_label = f"Тренд: {'↑ UP' if trend == 'UP' else '↓ DOWN' if trend == 'DOWN' else '— нет'}"
             tg(f"{emoji} <b>Сделка открыта</b>\\n{signal} | {bet} {currency} | {ASSET} | {EXPIRY_SEC//60} мин\\n{trend_label}")
             balance_before, _ = await get_balance(client)
             order_id = await place_trade(client, signal, bet)

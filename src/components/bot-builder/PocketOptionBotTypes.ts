@@ -399,6 +399,7 @@ Pocket Option Bot — ${strategyLabel}
   Ставка     : ${cfg.betAmount}${cfg.betPercent ? "% от баланса" : " " + cfg.currency}
   Режим      : ${cfg.isDemo ? "ДЕМО-СЧЁТ" : "РЕАЛЬНЫЙ СЧЁТ"}
   Направление: ${cfg.trendFollow ? "По тренду ↗" : "Против тренда ↙"}
+  Режим свечей: ${(cfg.trendMode ?? "same") === "same" ? "Одинаковые (2 зелёных=CALL / 2 красных=PUT)" : "Разворот (красн+зел=PUT / зел+красн=CALL)"}
   Take Profit: ${cfg.takeProfitRub} ${cfg.currency}
   Stop Loss  : ${cfg.stopLossRub} ${cfg.currency}
   Лимит/день : ${cfg.dailyLimit} сделок
@@ -776,6 +777,7 @@ if __name__ == "__main__":
     print(f"  Take Profit: {TAKE_PROFIT} {CURRENCY}")
     print(f"  Stop Loss  : {STOP_LOSS} {CURRENCY}")
     print(f"  Лимит/день : {DAILY_LIMIT} сделок")
+    print(f"  Режим свечей: {TREND_MODE}")
     print("════════════════════════════════════════")
     asyncio.run(main())
 `
@@ -964,6 +966,7 @@ Pocket Option КОМБО-Бот
   Ставка     : ${cfg.betAmount}${cfg.betPercent ? "% от баланса" : " " + cfg.currency}
   Режим      : ${cfg.isDemo ? "ДЕМО-СЧЁТ" : "РЕАЛЬНЫЙ СЧЁТ"}
   Направление: ${cfg.trendFollow ? "По тренду ↗" : "Против тренда ↙"}
+  Режим свечей: ${(cfg.trendMode ?? "same") === "same" ? "Одинаковые (2 зелёных=CALL / 2 красных=PUT)" : "Разворот (красн+зел=PUT / зел+красн=CALL)"}
   Take Profit: ${cfg.takeProfitRub} ${cfg.currency}
   Stop Loss  : ${cfg.stopLossRub} ${cfg.currency}
   Лимит/день : ${cfg.dailyLimit} сделок

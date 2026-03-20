@@ -494,16 +494,29 @@ ${martingaleBlock}
 # ===== ТРЕНД ПО 2 ПОСЛЕДНИМ СВЕЧАМ =====
 _last_trend = None
 
+def candle_color(c):
+    return "UP" if c[3] >= c[0] else "DOWN"
+
 def get_trend(candles):
     if len(candles) < 2:
         return None
-    last2 = candles[-2:]
-    all_up   = all(c[3] > c[0] for c in last2)
-    all_down = all(c[3] < c[0] for c in last2)
-    if all_up:
-        return "UP"
-    if all_down:
-        return "DOWN"
+    prev = candle_color(candles[-2])
+    last = candle_color(candles[-1])
+    if prev == "UP" and last == "UP":
+        return "UP_UP"
+    if prev == "DOWN" and last == "DOWN":
+        return "DOWN_DOWN"
+    if prev == "DOWN" and last == "UP":
+        return "DOWN_UP"
+    if prev == "UP" and last == "DOWN":
+        return "UP_DOWN"
+    return None
+
+def trend_to_signal(trend):
+    if trend in ("UP_UP", "DOWN_UP"):
+        return "CALL"
+    if trend in ("DOWN_DOWN", "UP_DOWN"):
+        return "PUT"
     return None
 
 def check_trend_change(candles):
@@ -686,18 +699,21 @@ async def main():
 
         new_trend, old_trend = check_trend_change(candles)
         if new_trend:
-            arrow = "📈" if new_trend == "UP" else "📉"
-            msg = f"{arrow} <b>Тренд изменился!</b>\\n{old_trend or '?'} → {new_trend}\\n3 свечи подряд | {ASSET}"
+            arrow = "📈" if new_trend in ("UP_UP", "DOWN_UP") else "📉"
+            labels = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
+            msg = f"{arrow} <b>Тренд изменился!</b>\\n{labels.get(old_trend, old_trend or '?')} → {labels.get(new_trend, new_trend)} | {ASSET}"
             print(f"[TREND] {old_trend} → {new_trend}")
             tg(msg)
 
         trend = get_trend(candles)
+        trend_sig = trend_to_signal(trend)
         signal = get_signal(prices, candles)
 
-        if signal and trend:
-            if (signal == "CALL" and trend != "UP") or (signal == "PUT" and trend != "DOWN"):
+        if signal and trend_sig:
+            if signal != trend_sig:
                 ts = datetime.now().strftime("%H:%M:%S")
-                print(f"[{ts}] Сигнал {signal} отклонён — тренд {trend}")
+                labels = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "DOWN_UP": "🔴🟢", "UP_DOWN": "🟢🔴"}
+                print(f"[{ts}] Сигнал {signal} отклонён — тренд {labels.get(trend, trend)} ({trend_sig})")
                 await asyncio.sleep(CHECK_INTERVAL)
                 continue
 
@@ -710,7 +726,8 @@ async def main():
                 bet = current_bet
 
             emoji = "📈" if signal == "CALL" else "📉"
-            trend_label = f"Тренд: {'↑ UP' if trend == 'UP' else '↓ DOWN' if trend == 'DOWN' else '— нет'}"
+            _tlabels = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
+            trend_label = f"Тренд: {_tlabels.get(trend, '— нет')}"
             tg(f"{emoji} <b>Сделка открыта</b>\\n{signal} | {bet} {currency} | {ASSET} | {EXPIRY_SEC//60} мин\\n{trend_label}")
             balance_before, _ = await get_balance(client)
             order_id = await place_trade(client, signal, bet)
@@ -1033,16 +1050,29 @@ ${martingaleBlock}
 # ===== ТРЕНД ПО 2 ПОСЛЕДНИМ СВЕЧАМ =====
 _last_trend = None
 
+def candle_color(c):
+    return "UP" if c[3] >= c[0] else "DOWN"
+
 def get_trend(candles):
     if len(candles) < 2:
         return None
-    last2 = candles[-2:]
-    all_up   = all(c[3] > c[0] for c in last2)
-    all_down = all(c[3] < c[0] for c in last2)
-    if all_up:
-        return "UP"
-    if all_down:
-        return "DOWN"
+    prev = candle_color(candles[-2])
+    last = candle_color(candles[-1])
+    if prev == "UP" and last == "UP":
+        return "UP_UP"
+    if prev == "DOWN" and last == "DOWN":
+        return "DOWN_DOWN"
+    if prev == "DOWN" and last == "UP":
+        return "DOWN_UP"
+    if prev == "UP" and last == "DOWN":
+        return "UP_DOWN"
+    return None
+
+def trend_to_signal(trend):
+    if trend in ("UP_UP", "DOWN_UP"):
+        return "CALL"
+    if trend in ("DOWN_DOWN", "UP_DOWN"):
+        return "PUT"
     return None
 
 def check_trend_change(candles):
@@ -1186,18 +1216,21 @@ async def main():
 
         new_trend, old_trend = check_trend_change(candles)
         if new_trend:
-            arrow = "📈" if new_trend == "UP" else "📉"
-            msg = f"{arrow} <b>Тренд изменился!</b>\\n{old_trend or '?'} → {new_trend}\\n3 свечи подряд | {ASSET}"
+            arrow = "📈" if new_trend in ("UP_UP", "DOWN_UP") else "📉"
+            labels = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
+            msg = f"{arrow} <b>Тренд изменился!</b>\\n{labels.get(old_trend, old_trend or '?')} → {labels.get(new_trend, new_trend)} | {ASSET}"
             print(f"[TREND] {old_trend} → {new_trend}")
             tg(msg)
 
         trend = get_trend(candles)
+        trend_sig = trend_to_signal(trend)
         signal = get_combined_signal(prices, candles)
 
-        if signal and trend:
-            if (signal == "CALL" and trend != "UP") or (signal == "PUT" and trend != "DOWN"):
+        if signal and trend_sig:
+            if signal != trend_sig:
                 ts = datetime.now().strftime("%H:%M:%S")
-                print(f"[{ts}] Комбо-сигнал {signal} отклонён — тренд {trend}")
+                labels = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "DOWN_UP": "🔴🟢", "UP_DOWN": "🟢🔴"}
+                print(f"[{ts}] Комбо-сигнал {signal} отклонён — тренд {labels.get(trend, trend)} ({trend_sig})")
                 await asyncio.sleep(CHECK_INTERVAL)
                 continue
 
@@ -1209,7 +1242,9 @@ async def main():
                 balance, currency = await get_balance(client)
                 bet = current_bet
             emoji = "📈" if signal == "CALL" else "📉"
-            tg(f"{emoji} <b>Комбо-сделка</b>\\n{signal} | {bet} {currency} | {ASSET}")
+            _tlabels2 = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
+            trend_info = _tlabels2.get(trend, "— нет тренда")
+            tg(f"{emoji} <b>Комбо-сделка</b>\\n{signal} | {bet} {currency} | {ASSET}\\nТренд: {trend_info}")
             balance_before, _ = await get_balance(client)
             order_id = await place_trade(client, signal, bet)
             if order_id:

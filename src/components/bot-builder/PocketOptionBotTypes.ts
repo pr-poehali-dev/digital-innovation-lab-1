@@ -489,26 +489,24 @@ total_profit = 0.0
 trades_today = 0
 trade_log    = []
 ${martingaleBlock}
-# ===== ТРЕНД EMA20/EMA50 =====
+# ===== ТРЕНД ПО 3 ПОСЛЕДНИМ СВЕЧАМ =====
 _last_trend = None
 
-def _calc_ema(prices, period):
-    k = 2 / (period + 1)
-    ema = [prices[0]]
-    for p in prices[1:]:
-        ema.append(p * k + ema[-1] * (1 - k))
-    return ema
-
-def get_trend(prices):
-    if len(prices) < 52:
+def get_trend(candles):
+    if len(candles) < 3:
         return None
-    ema20 = _calc_ema(prices, 20)
-    ema50 = _calc_ema(prices, 50)
-    return "UP" if ema20[-1] > ema50[-1] else "DOWN"
+    last3 = candles[-3:]
+    all_up   = all(c[3] > c[0] for c in last3)
+    all_down = all(c[3] < c[0] for c in last3)
+    if all_up:
+        return "UP"
+    if all_down:
+        return "DOWN"
+    return None
 
-def check_trend_change(prices):
+def check_trend_change(candles):
     global _last_trend
-    trend = get_trend(prices)
+    trend = get_trend(candles)
     if trend and trend != _last_trend:
         old = _last_trend
         _last_trend = trend
@@ -684,14 +682,14 @@ async def main():
             await asyncio.sleep(CHECK_INTERVAL)
             continue
 
-        new_trend, old_trend = check_trend_change(prices)
+        new_trend, old_trend = check_trend_change(candles)
         if new_trend:
             arrow = "📈" if new_trend == "UP" else "📉"
-            msg = f"{arrow} <b>Тренд изменился!</b>\\n{old_trend or '?'} → {new_trend}\\nEMA20/EMA50 | {ASSET}"
+            msg = f"{arrow} <b>Тренд изменился!</b>\\n{old_trend or '?'} → {new_trend}\\n3 свечи подряд | {ASSET}"
             print(f"[TREND] {old_trend} → {new_trend}")
             tg(msg)
 
-        trend = get_trend(prices)
+        trend = get_trend(candles)
         signal = get_signal(prices, candles)
 
         if signal and trend:
@@ -1030,26 +1028,24 @@ total_profit = 0.0
 trades_today = 0
 trade_log    = []
 ${martingaleBlock}
-# ===== ТРЕНД EMA20/EMA50 =====
+# ===== ТРЕНД ПО 3 ПОСЛЕДНИМ СВЕЧАМ =====
 _last_trend = None
 
-def _calc_ema(prices, period):
-    k = 2 / (period + 1)
-    ema = [prices[0]]
-    for p in prices[1:]:
-        ema.append(p * k + ema[-1] * (1 - k))
-    return ema
-
-def get_trend(prices):
-    if len(prices) < 52:
+def get_trend(candles):
+    if len(candles) < 3:
         return None
-    ema20 = _calc_ema(prices, 20)
-    ema50 = _calc_ema(prices, 50)
-    return "UP" if ema20[-1] > ema50[-1] else "DOWN"
+    last3 = candles[-3:]
+    all_up   = all(c[3] > c[0] for c in last3)
+    all_down = all(c[3] < c[0] for c in last3)
+    if all_up:
+        return "UP"
+    if all_down:
+        return "DOWN"
+    return None
 
-def check_trend_change(prices):
+def check_trend_change(candles):
     global _last_trend
-    trend = get_trend(prices)
+    trend = get_trend(candles)
     if trend and trend != _last_trend:
         old = _last_trend
         _last_trend = trend
@@ -1186,14 +1182,14 @@ async def main():
             await asyncio.sleep(CHECK_INTERVAL)
             continue
 
-        new_trend, old_trend = check_trend_change(prices)
+        new_trend, old_trend = check_trend_change(candles)
         if new_trend:
             arrow = "📈" if new_trend == "UP" else "📉"
-            msg = f"{arrow} <b>Тренд изменился!</b>\\n{old_trend or '?'} → {new_trend}\\nEMA20/EMA50 | {ASSET}"
+            msg = f"{arrow} <b>Тренд изменился!</b>\\n{old_trend or '?'} → {new_trend}\\n3 свечи подряд | {ASSET}"
             print(f"[TREND] {old_trend} → {new_trend}")
             tg(msg)
 
-        trend = get_trend(prices)
+        trend = get_trend(candles)
         signal = get_combined_signal(prices, candles)
 
         if signal and trend:

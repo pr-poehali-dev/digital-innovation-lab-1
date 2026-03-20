@@ -1124,6 +1124,60 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
         </Card>
       )}
 
+      <Card className="bg-zinc-900 border-zinc-700">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="font-orbitron text-white text-sm flex items-center gap-2">
+              <Icon name="Send" size={16} className="text-blue-400" />
+              Telegram уведомления
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-space-mono ${!config.tgEnabled ? "text-zinc-400" : "text-zinc-600"}`}>Выкл</span>
+              <Switch checked={config.tgEnabled} onCheckedChange={(v) => set({ tgEnabled: v })} />
+              <span className={`text-xs font-space-mono ${config.tgEnabled ? "text-green-400" : "text-zinc-600"}`}>Вкл</span>
+            </div>
+          </div>
+        </CardHeader>
+        {config.tgEnabled && (
+          <CardContent className="space-y-3">
+            <div>
+              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Bot Token</Label>
+              <Input
+                type="password"
+                value={config.tgToken}
+                onChange={(e) => set({ tgToken: e.target.value })}
+                placeholder="123456:ABCdef..."
+                className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-sm"
+              />
+              <p className="text-zinc-600 font-space-mono text-xs mt-1">Получи у @BotFather в Telegram</p>
+            </div>
+            <div>
+              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Chat ID</Label>
+              <Input
+                type="text"
+                value={config.tgChatId}
+                onChange={(e) => set({ tgChatId: e.target.value })}
+                placeholder="123456789"
+                className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-sm"
+              />
+              <p className="text-zinc-600 font-space-mono text-xs mt-1">Узнай у @userinfobot</p>
+            </div>
+            {config.tgToken && config.tgChatId && (
+              <div className="flex items-center gap-2 bg-green-950/40 border border-green-500/30 rounded-lg px-2.5 py-2">
+                <Icon name="CheckCircle" size={14} className="text-green-400" />
+                <span className="text-green-400 text-xs font-space-mono">Уведомления настроены</span>
+              </div>
+            )}
+            {config.tgEnabled && (!config.tgToken || !config.tgChatId) && (
+              <div className="flex items-center gap-2 bg-yellow-950/40 border border-yellow-500/30 rounded-lg px-2.5 py-2">
+                <Icon name="AlertTriangle" size={14} className="text-yellow-400" />
+                <span className="text-yellow-400 text-xs font-space-mono">Заполни Token и Chat ID</span>
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
+
       <Button
         onClick={onGenerate}
         className="w-full bg-red-600 hover:bg-red-500 text-white font-orbitron font-bold py-4 text-base rounded-xl transition-all duration-200 shadow-lg shadow-red-500/20"

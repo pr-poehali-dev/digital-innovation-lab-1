@@ -32,6 +32,7 @@ export interface POBotConfig {
   currency: string
   tgToken: string
   tgChatId: string
+  tgEnabled: boolean
   checkInterval: number
 }
 
@@ -202,6 +203,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   currency: "RUB",
   tgToken: "",
   tgChatId: "",
+  tgEnabled: true,
   checkInterval: 30,
 }
 
@@ -465,7 +467,7 @@ except Exception:
 # ===== TELEGRAM =====
 TG_TOKEN   = "${cfg.tgToken}"
 TG_CHAT_ID = "${cfg.tgChatId}"
-TG_ENABLED = bool(TG_TOKEN and TG_CHAT_ID)
+TG_ENABLED = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
 
 def tg(text, retries=3, delay=5):
     if not TG_ENABLED:
@@ -1004,7 +1006,7 @@ except Exception:
 # ===== TELEGRAM =====
 TG_TOKEN   = "${cfg.tgToken}"
 TG_CHAT_ID = "${cfg.tgChatId}"
-TG_ENABLED = bool(TG_TOKEN and TG_CHAT_ID)
+TG_ENABLED = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
 
 def tg(text, retries=3, delay=5):
     if not TG_ENABLED:

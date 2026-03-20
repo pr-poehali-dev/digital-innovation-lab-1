@@ -25,6 +25,7 @@ export interface POBotConfig {
   emaFast: number
   emaSlow: number
   emaTrendMode: POEmaTrendMode
+  trendMode: "same" | "reverse"
   trendFollow: boolean
   useOTC: boolean
   autoRestart: boolean
@@ -196,6 +197,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   emaFast: 9,
   emaSlow: 21,
   emaTrendMode: "ema9_21",
+  trendMode: "same",
   trendFollow: true,
   useOTC: true,
   autoRestart: false,
@@ -430,6 +432,7 @@ MARTINGALE_MULT  = ${cfg.martingaleMultiplier}
 MARTINGALE_STEPS = ${cfg.martingaleSteps}
 
 CHECK_INTERVAL   = ${cfg.checkInterval}      # Интервал проверки сигнала (сек)
+TREND_MODE       = "${cfg.trendMode ?? "same"}"     # "same" = 2 одинаковых, "reverse" = разворот
 
 try:
     from dotenv import load_dotenv; load_dotenv()
@@ -513,10 +516,16 @@ def get_trend(candles):
     return None
 
 def trend_to_signal(trend):
-    if trend in ("UP_UP", "DOWN_UP"):
-        return "CALL"
-    if trend in ("DOWN_DOWN", "UP_DOWN"):
-        return "PUT"
+    if TREND_MODE == "same":
+        if trend == "UP_UP":
+            return "CALL"
+        if trend == "DOWN_DOWN":
+            return "PUT"
+    else:
+        if trend == "DOWN_UP":
+            return "CALL"
+        if trend == "UP_DOWN":
+            return "PUT"
     return None
 
 def check_trend_change(candles):
@@ -986,6 +995,7 @@ MARTINGALE_MULT  = ${cfg.martingaleMultiplier}
 MARTINGALE_STEPS = ${cfg.martingaleSteps}
 
 CHECK_INTERVAL   = ${cfg.checkInterval}      # Интервал проверки сигнала (сек)
+TREND_MODE       = "${cfg.trendMode ?? "same"}"     # "same" = 2 одинаковых, "reverse" = разворот
 
 try:
     from dotenv import load_dotenv; load_dotenv()
@@ -1069,10 +1079,16 @@ def get_trend(candles):
     return None
 
 def trend_to_signal(trend):
-    if trend in ("UP_UP", "DOWN_UP"):
-        return "CALL"
-    if trend in ("DOWN_DOWN", "UP_DOWN"):
-        return "PUT"
+    if TREND_MODE == "same":
+        if trend == "UP_UP":
+            return "CALL"
+        if trend == "DOWN_DOWN":
+            return "PUT"
+    else:
+        if trend == "DOWN_UP":
+            return "CALL"
+        if trend == "UP_DOWN":
+            return "PUT"
     return None
 
 def check_trend_change(candles):

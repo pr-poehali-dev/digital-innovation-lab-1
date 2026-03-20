@@ -226,12 +226,16 @@ def calculate_rsi(prices, period=${cfg.rsiPeriod}):
     return 100 - (100 / (1 + rs))
 
 def get_signal(prices, candles=None):
-    """Сигнал по RSI${cfg.trendFollow ? " (по тренду — разворот)" : " (против тренда — продолжение)"}"""
+    """Сигнал по RSI${cfg.trendFollow ? " — разворотная стратегия (перепроданность=CALL, перекупленность=PUT)" : " — контртрендовая стратегия (перепроданность=PUT, перекупленность=CALL)"}"""
+    if len(prices) < ${cfg.rsiPeriod} + 1:
+        return None
     rsi = calculate_rsi(prices)
-    if rsi <= ${cfg.rsiOversold}:
-        return "${cfg.trendFollow ? "CALL" : "PUT"}"
-    elif rsi >= ${cfg.rsiOverbought}:
-        return "${cfg.trendFollow ? "PUT" : "CALL"}"
+    oversold  = rsi <= ${cfg.rsiOversold}
+    overbought = rsi >= ${cfg.rsiOverbought}
+    if oversold:
+        return "CALL" if ${cfg.trendFollow ? "True" : "False"} else "PUT"
+    if overbought:
+        return "PUT" if ${cfg.trendFollow ? "True" : "False"} else "CALL"
     return None`,
 
     ema_cross: `
@@ -259,12 +263,18 @@ def get_signal(prices, candles=None):
 
     martingale: `
 def get_signal(prices, candles=None):
-    """Мартингейл: сигнал по последней свече"""
-    if len(prices) < 2:
+    """Мартингейл: направление по последним 3 свечам (большинство голосует за одно направление)"""
+    if len(prices) < 4:
         return None
-    if prices[-1] < prices[-2]:
+    moves = []
+    for i in range(-3, 0):
+        if prices[i] < prices[i - 1]:
+            moves.append("CALL")
+        elif prices[i] > prices[i - 1]:
+            moves.append("PUT")
+    if moves.count("CALL") >= 2:
         return "CALL"
-    elif prices[-1] > prices[-2]:
+    if moves.count("PUT") >= 2:
         return "PUT"
     return None`,
 

@@ -518,26 +518,39 @@ def check_trend_change(prices):
 
 ${strategyFunctions[cfg.strategy]}
 
+async def try_get_candles(client, asset_name):
+    """Попытка получить свечи для конкретного названия актива"""
+    raw = await client.get_candles(asset=asset_name, timeframe=60, count=100)
+    return raw if raw else None
+
 async def get_candles_data(client):
-    """Получение свечей"""
+    """Получение свечей с автоперебором форматов актива"""
+    base = ASSET.replace("_otc", "").replace("#", "")
+    candidates = [ASSET, f"#{ASSET}", base, f"{base}_otc", f"#{base}_otc"]
+    seen = []
+    for name in candidates:
+        if name in seen:
+            continue
+        seen.append(name)
+        try:
+            raw = await try_get_candles(client, name)
+            if raw:
+                if name != ASSET:
+                    print(f"[INFO] Актив найден как: {name}")
+                candles = [(c.open, c.high, c.low, c.close) for c in raw]
+                prices  = [c.close for c in raw]
+                return candles, prices
+        except Exception:
+            continue
+    print(f"[ERROR] Актив {ASSET} не найден ни в одном формате")
     try:
-        raw = await client.get_candles(asset=ASSET, timeframe=60, count=100)
-        if not raw:
-            print(f"[ERROR] Актив {ASSET} не найден или нет данных")
-            try:
-                assets = await client.get_available_assets()
-                if assets:
-                    names = [str(a) for a in list(assets)[:20]]
-                    print(f"[HINT] Доступные активы: {', '.join(names)}")
-            except Exception:
-                print(f"[HINT] Попробуй: #EURUSD_otc или EURUSD или GBPUSD_otc")
-            return [], []
-        candles = [(c.open, c.high, c.low, c.close) for c in raw]
-        prices  = [c.close for c in raw]
-        return candles, prices
-    except Exception as e:
-        print(f"[ERROR] Свечи: {e}")
-        return [], []
+        assets = await client.get_available_assets()
+        if assets:
+            names = [str(a) for a in list(assets)[:10]]
+            print(f"[HINT] Доступные активы: {', '.join(names)}")
+    except Exception:
+        pass
+    return [], []
 
 async def place_trade(client, direction, amount):
     """Открытие опциона"""

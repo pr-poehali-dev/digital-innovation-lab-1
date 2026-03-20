@@ -522,9 +522,9 @@ def trend_to_signal(trend):
         if trend == "DOWN_DOWN":
             return "PUT"
     else:
-        if trend == "DOWN_UP":
-            return "CALL"
         if trend == "UP_DOWN":
+            return "CALL"
+        if trend == "DOWN_UP":
             return "PUT"
     return None
 
@@ -1085,9 +1085,9 @@ def trend_to_signal(trend):
         if trend == "DOWN_DOWN":
             return "PUT"
     else:
-        if trend == "DOWN_UP":
-            return "CALL"
         if trend == "UP_DOWN":
+            return "CALL"
+        if trend == "DOWN_UP":
             return "PUT"
     return None
 

@@ -489,15 +489,15 @@ total_profit = 0.0
 trades_today = 0
 trade_log    = []
 ${martingaleBlock}
-# ===== ТРЕНД ПО 3 ПОСЛЕДНИМ СВЕЧАМ =====
+# ===== ТРЕНД ПО 2 ПОСЛЕДНИМ СВЕЧАМ =====
 _last_trend = None
 
 def get_trend(candles):
-    if len(candles) < 3:
+    if len(candles) < 2:
         return None
-    last3 = candles[-3:]
-    all_up   = all(c[3] > c[0] for c in last3)
-    all_down = all(c[3] < c[0] for c in last3)
+    last2 = candles[-2:]
+    all_up   = all(c[3] > c[0] for c in last2)
+    all_down = all(c[3] < c[0] for c in last2)
     if all_up:
         return "UP"
     if all_down:
@@ -1028,15 +1028,15 @@ total_profit = 0.0
 trades_today = 0
 trade_log    = []
 ${martingaleBlock}
-# ===== ТРЕНД ПО 3 ПОСЛЕДНИМ СВЕЧАМ =====
+# ===== ТРЕНД ПО 2 ПОСЛЕДНИМ СВЕЧАМ =====
 _last_trend = None
 
 def get_trend(candles):
-    if len(candles) < 3:
+    if len(candles) < 2:
         return None
-    last3 = candles[-3:]
-    all_up   = all(c[3] > c[0] for c in last3)
-    all_down = all(c[3] < c[0] for c in last3)
+    last2 = candles[-2:]
+    all_up   = all(c[3] > c[0] for c in last2)
+    all_down = all(c[3] < c[0] for c in last2)
     if all_up:
         return "UP"
     if all_down:

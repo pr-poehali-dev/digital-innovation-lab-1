@@ -689,94 +689,116 @@ async def main():
     print("=" * 50 + "\\n")
     tg(f"🤖 <b>Бот запущен</b>\\nСчёт: {account_type}\\nСтратегия: ${strategyLabel}\\nАктив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} {CURRENCY} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
 
+    _reconnect_attempts = 0
+
     while True:
-        if total_profit >= TAKE_PROFIT:
-            msg = f"[TP] Take Profit достигнут: +{round(total_profit, 2)} {CURRENCY}"
-            print(msg)
-            tg(f"✅ <b>Take Profit достигнут!</b>\\n+{total_profit:.2f} {CURRENCY} за сессию")
-            if AUTO_RESTART:
-                total_profit = 0
-                trades_today = 0
-                await asyncio.sleep(300)
-                continue
-            break
+        try:
+            if total_profit >= TAKE_PROFIT:
+                msg = f"[TP] Take Profit достигнут: +{round(total_profit, 2)} {CURRENCY}"
+                print(msg)
+                tg(f"✅ <b>Take Profit достигнут!</b>\\n+{total_profit:.2f} {CURRENCY} за сессию")
+                if AUTO_RESTART:
+                    total_profit = 0
+                    trades_today = 0
+                    await asyncio.sleep(300)
+                    continue
+                break
 
-        if total_profit <= -STOP_LOSS:
-            msg = f"[SL] Stop Loss достигнут: {round(total_profit, 2)} {CURRENCY}"
-            print(msg)
-            tg(f"🛑 <b>Stop Loss достигнут!</b>\\n{total_profit:.2f} {CURRENCY} за сессию")
-            if AUTO_RESTART:
-                total_profit = 0
-                trades_today = 0
-                await asyncio.sleep(300)
-                continue
-            break
+            if total_profit <= -STOP_LOSS:
+                msg = f"[SL] Stop Loss достигнут: {round(total_profit, 2)} {CURRENCY}"
+                print(msg)
+                tg(f"🛑 <b>Stop Loss достигнут!</b>\\n{total_profit:.2f} {CURRENCY} за сессию")
+                if AUTO_RESTART:
+                    total_profit = 0
+                    trades_today = 0
+                    await asyncio.sleep(300)
+                    continue
+                break
 
-        if trades_today >= DAILY_LIMIT:
-            print(f"[LIMIT] Дневной лимит {DAILY_LIMIT} сделок исчерпан")
-            tg(f"⚠️ <b>Дневной лимит исчерпан</b>\\n{DAILY_LIMIT} сделок | Итог: {total_profit:.2f} {CURRENCY}")
-            break
+            if trades_today >= DAILY_LIMIT:
+                print(f"[LIMIT] Дневной лимит {DAILY_LIMIT} сделок исчерпан")
+                tg(f"⚠️ <b>Дневной лимит исчерпан</b>\\n{DAILY_LIMIT} сделок | Итог: {total_profit:.2f} {CURRENCY}")
+                break
 
-        candles, prices = await get_candles_data(client)
-        if not prices:
-            await asyncio.sleep(CHECK_INTERVAL)
-            continue
-
-        new_trend, old_trend = check_trend_change(candles)
-        if new_trend:
-            arrow = "📈" if new_trend in ("UP_UP", "DOWN_UP") else "📉"
-            labels = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
-            msg = f"{arrow} <b>Тренд изменился!</b>\\n{labels.get(old_trend, old_trend or '?')} → {labels.get(new_trend, new_trend)} | {ASSET}"
-            print(f"[TREND] {old_trend} → {new_trend}")
-            tg(msg)
-
-        trend = get_trend(candles)
-        trend_sig = trend_to_signal(trend)
-        signal = get_signal(prices, candles)
-
-        if signal and trend_sig:
-            if signal != trend_sig:
-                ts = datetime.now().strftime("%H:%M:%S")
-                labels = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "DOWN_UP": "🔴🟢", "UP_DOWN": "🟢🔴"}
-                print(f"[{ts}] Сигнал {signal} отклонён — тренд {labels.get(trend, trend)} ({trend_sig})")
+            candles, prices = await get_candles_data(client)
+            if not prices:
                 await asyncio.sleep(CHECK_INTERVAL)
                 continue
 
-        if signal:
-            if BET_PERCENT:
-                balance, currency = await get_balance(client)
-                bet = round(balance * (BASE_BET / 100), 2)
-            else:
-                balance, currency = await get_balance(client)
-                bet = current_bet
+            _reconnect_attempts = 0
 
-            emoji = "📈" if signal == "CALL" else "📉"
-            _tlabels = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
-            trend_label = f"Тренд: {_tlabels.get(trend, '— нет')}"
-            tg(f"{emoji} <b>Сделка открыта</b>\\n{signal} | {bet} {currency} | {ASSET} | {EXPIRY_SEC//60} мин\\n{trend_label}")
-            balance_before, _ = await get_balance(client)
-            order_id = await place_trade(client, signal, bet)
-            if order_id:
-                won, profit = await check_result(client, order_id, balance_before)
-                total_profit += profit
-                trades_today += 1
-                current_bet   = adjust_bet(won)
-                trade_log.append({
-                    "time": datetime.now().strftime("%H:%M:%S"),
-                    "direction": signal,
-                    "amount": bet,
-                    "won": won,
-                    "profit": profit,
-                })
-                wins  = sum(1 for t in trade_log if t["won"])
-                wr    = wins / len(trade_log) * 100
-                res_emoji = "✅" if won else "❌"
-                tg(f"{res_emoji} <b>{'Выигрыш' if won else 'Проигрыш'}</b>\\nПрофит: {profit:+.2f} {CURRENCY}\\nСессия: {total_profit:+.2f} {CURRENCY} | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
-                print_stats()
-        else:
-            ts = datetime.now().strftime("%H:%M:%S")
-            print(f"[{ts}] Нет сигнала, ожидание {CHECK_INTERVAL} сек...")
-            await asyncio.sleep(CHECK_INTERVAL)
+            new_trend, old_trend = check_trend_change(candles)
+            if new_trend:
+                arrow = "📈" if new_trend in ("UP_UP", "DOWN_UP") else "📉"
+                labels = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
+                msg = f"{arrow} <b>Тренд изменился!</b>\\n{labels.get(old_trend, old_trend or '?')} → {labels.get(new_trend, new_trend)} | {ASSET}"
+                print(f"[TREND] {old_trend} → {new_trend}")
+                tg(msg)
+
+            trend = get_trend(candles)
+            trend_sig = trend_to_signal(trend)
+            signal = get_signal(prices, candles)
+
+            if signal and trend_sig:
+                if signal != trend_sig:
+                    ts = datetime.now().strftime("%H:%M:%S")
+                    labels = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "DOWN_UP": "🔴🟢", "UP_DOWN": "🟢🔴"}
+                    print(f"[{ts}] Сигнал {signal} отклонён — тренд {labels.get(trend, trend)} ({trend_sig})")
+                    await asyncio.sleep(CHECK_INTERVAL)
+                    continue
+
+            if signal:
+                if BET_PERCENT:
+                    balance, currency = await get_balance(client)
+                    bet = round(balance * (BASE_BET / 100), 2)
+                else:
+                    balance, currency = await get_balance(client)
+                    bet = current_bet
+
+                emoji = "📈" if signal == "CALL" else "📉"
+                _tlabels = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
+                trend_label = f"Тренд: {_tlabels.get(trend, '— нет')}"
+                tg(f"{emoji} <b>Сделка открыта</b>\\n{signal} | {bet} {currency} | {ASSET} | {EXPIRY_SEC//60} мин\\n{trend_label}")
+                balance_before, _ = await get_balance(client)
+                order_id = await place_trade(client, signal, bet)
+                if order_id:
+                    won, profit = await check_result(client, order_id, balance_before)
+                    total_profit += profit
+                    trades_today += 1
+                    current_bet   = adjust_bet(won)
+                    trade_log.append({
+                        "time": datetime.now().strftime("%H:%M:%S"),
+                        "direction": signal,
+                        "amount": bet,
+                        "won": won,
+                        "profit": profit,
+                    })
+                    wins  = sum(1 for t in trade_log if t["won"])
+                    wr    = wins / len(trade_log) * 100
+                    res_emoji = "✅" if won else "❌"
+                    tg(f"{res_emoji} <b>{'Выигрыш' if won else 'Проигрыш'}</b>\\nПрофит: {profit:+.2f} {CURRENCY}\\nСессия: {total_profit:+.2f} {CURRENCY} | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
+                    print_stats()
+            else:
+                ts = datetime.now().strftime("%H:%M:%S")
+                print(f"[{ts}] Нет сигнала, ожидание {CHECK_INTERVAL} сек...")
+                await asyncio.sleep(CHECK_INTERVAL)
+
+        except Exception as e:
+            err = str(e)
+            _reconnect_attempts += 1
+            if _reconnect_attempts > 10:
+                print("[ERROR] Слишком много обрывов подряд, завершение.")
+                tg("🔴 <b>Бот остановлен</b>\\nСлишком много обрывов соединения.")
+                break
+            print(f"[RECONNECT] Обрыв соединения ({_reconnect_attempts}/10): {err}")
+            tg(f"⚠️ <b>Обрыв соединения</b>\\nПопытка переподключения {_reconnect_attempts}/10...")
+            try:
+                await client.connect()
+                await asyncio.sleep(5)
+                print("[RECONNECT] Переподключение успешно, продолжаю...")
+            except Exception as re:
+                print(f"[RECONNECT] Не удалось переподключиться: {re}")
+                await asyncio.sleep(10)
 
     await client.disconnect()
 

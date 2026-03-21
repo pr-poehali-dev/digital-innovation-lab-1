@@ -796,6 +796,7 @@ async def main():
                 await client.connect()
                 await asyncio.sleep(5)
                 print("[RECONNECT] Переподключение успешно, продолжаю...")
+                tg(f"✅ <b>Переподключение успешно</b>\\nБот продолжает работу | Сессия: {total_profit:+.2f} {CURRENCY}")
             except Exception as re:
                 print(f"[RECONNECT] Не удалось переподключиться: {re}")
                 await asyncio.sleep(10)

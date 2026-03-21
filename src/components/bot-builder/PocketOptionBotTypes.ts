@@ -542,9 +542,24 @@ def check_trend_change(candles):
 ${strategyFunctions[cfg.strategy]}
 
 async def try_get_candles(client, asset_name):
-    """Попытка получить свечи для конкретного названия актива"""
-    raw = await client.get_candles(asset=asset_name, timeframe=60, count=${Math.min(50, Math.max(cfg.emaSlow + 5, cfg.rsiPeriod + 5, 10))})
-    return raw if raw else None
+    """Попытка получить свечи, с авто-переподключением при обрыве"""
+    for attempt in range(3):
+        try:
+            raw = await client.get_candles(asset=asset_name, timeframe=60, count=100)
+            return raw if raw else None
+        except Exception as e:
+            err = str(e)
+            if "Not connected" in err or "reconnection failed" in err:
+                print(f"[RECONNECT] Нет соединения, попытка переподключения {attempt+1}/3...")
+                try:
+                    await client.connect()
+                    await asyncio.sleep(3)
+                except Exception:
+                    pass
+            else:
+                return None
+    print("[ERROR] Не удалось получить свечи после 3 попыток переподключения")
+    return None
 
 async def get_candles_data(client):
     """Получение свечей с автоперебором форматов актива"""

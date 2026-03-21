@@ -543,7 +543,7 @@ ${strategyFunctions[cfg.strategy]}
 
 async def try_get_candles(client, asset_name):
     """Попытка получить свечи для конкретного названия актива"""
-    raw = await client.get_candles(asset=asset_name, timeframe=60, count=50)
+    raw = await client.get_candles(asset=asset_name, timeframe=60, count=${Math.min(50, Math.max(cfg.emaSlow + 5, cfg.rsiPeriod + 5, 10))})
     return raw if raw else None
 
 async def get_candles_data(client):

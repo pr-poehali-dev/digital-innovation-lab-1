@@ -234,15 +234,16 @@ def calculate_rsi(prices, period=${cfg.rsiPeriod}):
 def get_signal(prices, candles=None):
     """Сигнал по RSI${cfg.trendFollow ? " — разворотная стратегия (перепроданность=CALL, перекупленность=PUT)" : " — контртрендовая стратегия (перепроданность=PUT, перекупленность=CALL)"}"""
     if len(prices) < ${cfg.rsiPeriod} + 1:
-        return None
+        return None, ""
     rsi = calculate_rsi(prices)
     oversold  = rsi <= ${cfg.rsiOversold}
     overbought = rsi >= ${cfg.rsiOverbought}
+    info = f"RSI({cfg.rsiPeriod}): {rsi:.1f}"
     if oversold:
-        return "CALL" if ${cfg.trendFollow ? "True" : "False"} else "PUT"
+        return ("CALL" if ${cfg.trendFollow ? "True" : "False"} else "PUT"), f"{info} ≤ {cfg.rsiOversold} (перепроданность)"
     if overbought:
-        return "PUT" if ${cfg.trendFollow ? "True" : "False"} else "CALL"
-    return None`,
+        return ("PUT" if ${cfg.trendFollow ? "True" : "False"} else "CALL"), f"{info} ≥ {cfg.rsiOverbought} (перекупленность)"
+    return None, info`,
 
     ema_cross: `
 def calculate_ema(prices, period):
@@ -256,39 +257,43 @@ def calculate_ema(prices, period):
 def get_signal(prices, candles=None):
     """Сигнал по пересечению EMA ${cfg.emaFast} / EMA ${cfg.emaSlow}${cfg.trendFollow ? " (по тренду)" : " (против тренда)"}"""
     if len(prices) < ${cfg.emaSlow} + 2:
-        return None
+        return None, ""
     ema_fast = calculate_ema(prices, ${cfg.emaFast})
     ema_slow = calculate_ema(prices, ${cfg.emaSlow})
     cross_up = ema_fast[-1] > ema_slow[-1] and ema_fast[-2] <= ema_slow[-2]
     cross_down = ema_fast[-1] < ema_slow[-1] and ema_fast[-2] >= ema_slow[-2]
+    info = f"EMA{cfg.emaFast}={ema_fast[-1]:.5f} / EMA{cfg.emaSlow}={ema_slow[-1]:.5f}"
     if cross_up:
-        return "${cfg.trendFollow ? "CALL" : "PUT"}"
+        return "${cfg.trendFollow ? "CALL" : "PUT"}", f"{info} (пересечение вверх ↑)"
     if cross_down:
-        return "${cfg.trendFollow ? "PUT" : "CALL"}"
-    return None`,
+        return "${cfg.trendFollow ? "PUT" : "CALL"}", f"{info} (пересечение вниз ↓)"
+    return None, info`,
 
     martingale: `
 def get_signal(prices, candles=None):
     """Мартингейл: направление по последним 3 свечам (большинство голосует за одно направление)"""
     if len(prices) < 4:
-        return None
+        return None, ""
     moves = []
     for i in range(-3, 0):
         if prices[i] < prices[i - 1]:
             moves.append("CALL")
         elif prices[i] > prices[i - 1]:
             moves.append("PUT")
-    if moves.count("CALL") >= 2:
-        return "CALL"
-    if moves.count("PUT") >= 2:
-        return "PUT"
-    return None`,
+    calls = moves.count("CALL")
+    puts  = moves.count("PUT")
+    info  = f"Свечи: {calls} вверх / {puts} вниз из 3"
+    if calls >= 2:
+        return "CALL", f"{info} → большинство вверх"
+    if puts >= 2:
+        return "PUT", f"{info} → большинство вниз"
+    return None, info`,
 
     candle_pattern: `
 def get_signal(prices, candles=None):
     """Паттерны японских свечей"""
     if candles is None or len(candles) < 3:
-        return None
+        return None, ""
     o1, h1, l1, c1 = candles[-2]
     o2, h2, l2, c2 = candles[-1]
     body2 = abs(c2 - o2)
@@ -296,17 +301,17 @@ def get_signal(prices, candles=None):
     upper_shadow = h2 - max(o2, c2)
     # Молот — разворот вверх
     if lower_shadow > body2 * 2 and upper_shadow < body2 * 0.5 and c1 < o1:
-        return "CALL"
+        return "CALL", "Паттерн: 🔨 Молот (разворот вверх)"
     # Падающая звезда — разворот вниз
     if upper_shadow > body2 * 2 and lower_shadow < body2 * 0.5 and c1 > o1:
-        return "PUT"
+        return "PUT", "Паттерн: ⭐ Падающая звезда (разворот вниз)"
     # Бычье поглощение
     if c1 < o1 and c2 > o2 and c2 > o1 and o2 < c1:
-        return "CALL"
+        return "CALL", "Паттерн: 🟢 Бычье поглощение"
     # Медвежье поглощение
     if c1 > o1 and c2 < o2 and c2 < o1 and o2 > c1:
-        return "PUT"
-    return None`,
+        return "PUT", "Паттерн: 🔴 Медвежье поглощение"
+    return None, ""`,
 
     support_resistance: `
 def find_levels(prices, window=10):
@@ -322,17 +327,17 @@ def find_levels(prices, window=10):
 def get_signal(prices, candles=None):
     """Вход от уровней поддержки/сопротивления"""
     if len(prices) < 30:
-        return None
+        return None, ""
     supports, resistances = find_levels(prices)
     current = prices[-1]
     threshold = current * 0.001
     for sup in supports:
         if abs(current - sup) < threshold:
-            return "CALL"
+            return "CALL", f"Цена {current:.5f} у поддержки {sup:.5f} (отскок вверх)"
     for res in resistances:
         if abs(current - res) < threshold:
-            return "PUT"
-    return None`,
+            return "PUT", f"Цена {current:.5f} у сопротивления {res:.5f} (отскок вниз)"
+    return None, f"Цена {current:.5f} | sup={[round(s,5) for s in supports]} res={[round(r,5) for r in resistances]}"`,
   }
 
   const martingaleBlock = cfg.martingaleEnabled
@@ -749,7 +754,7 @@ async def main():
 
             trend = get_trend(candles)
             trend_sig = trend_to_signal(trend)
-            signal = get_signal(prices, candles)
+            signal, signal_info = get_signal(prices, candles)
 
             if signal and trend_sig:
                 if signal != trend_sig:
@@ -770,7 +775,11 @@ async def main():
                 emoji = "📈" if signal == "CALL" else "📉"
                 _tlabels = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
                 trend_label = f"Тренд: {_tlabels.get(trend, '— нет')}"
-                tg(f"{emoji} <b>Сделка открыта</b>\\n{signal} | {bet} {currency} | {ASSET} | {EXPIRY_SEC//60} мин\\n{trend_label}")
+                sig_line = f"📊 Сигнал: {signal_info}" if signal_info else ""
+                tg_parts = [f"{emoji} <b>Сделка открыта</b>", f"{signal} | {bet} {currency} | {ASSET} | {EXPIRY_SEC//60} мин", trend_label]
+                if sig_line:
+                    tg_parts.append(sig_line)
+                tg("\\n".join(tg_parts))
                 balance_before, _ = await get_balance(client)
                 order_id = await place_trade(client, signal, bet)
                 if order_id:

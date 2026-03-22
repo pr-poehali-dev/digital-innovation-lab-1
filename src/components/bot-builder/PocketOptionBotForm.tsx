@@ -1305,6 +1305,17 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
               />
               <p className="text-zinc-600 font-space-mono text-xs mt-1">Узнай у @userinfobot</p>
             </div>
+            <div>
+              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">SOCKS5 прокси (если Telegram заблокирован)</Label>
+              <Input
+                type="text"
+                value={config.tgProxy}
+                onChange={(e) => set({ tgProxy: e.target.value })}
+                placeholder="socks5://user:pass@host:1080"
+                className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-sm"
+              />
+              <p className="text-zinc-600 font-space-mono text-xs mt-1">Оставь пустым если Telegram работает</p>
+            </div>
             {config.tgToken && config.tgChatId && (
               <div className="flex items-center gap-2 bg-green-950/40 border border-green-500/30 rounded-lg px-2.5 py-2">
                 <Icon name="CheckCircle" size={14} className="text-green-400" />

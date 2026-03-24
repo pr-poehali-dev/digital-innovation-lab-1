@@ -399,6 +399,7 @@ def adjust_bet(won):
 `
 
   const assetMap: Record<string, string> = {
+    // Валютные пары OTC
     "EUR/USD (OTC)": "EURUSD_otc",
     "GBP/USD (OTC)": "GBPUSD_otc",
     "USD/JPY (OTC)": "USDJPY_otc",
@@ -407,10 +408,9 @@ def adjust_bet(won):
     "EUR/JPY (OTC)": "EURJPY_otc",
     "USD/CAD (OTC)": "USDCAD_otc",
     "NZD/USD (OTC)": "NZDUSD_otc",
-    "BTC/USD (OTC)": "BTCUSD_otc",
-    "ETH/USD (OTC)": "ETHUSD_otc",
-    "Gold (OTC)":    "XAUUSD_otc",
-    "Oil (OTC)":     "USOIL_otc",
+    "AUD/CAD (OTC)": "AUDCAD_otc",
+    "USD/CHF (OTC)": "USDCHF_otc",
+    // Валютные пары
     "EUR/USD":       "EURUSD",
     "GBP/USD":       "GBPUSD",
     "USD/JPY":       "USDJPY",
@@ -419,6 +419,21 @@ def adjust_bet(won):
     "EUR/GBP":       "EURGBP",
     "EUR/JPY":       "EURJPY",
     "NZD/USD":       "NZDUSD",
+    // Криптовалюты OTC
+    "BTC/USD (OTC)": "BTCUSD_otc",
+    "ETH/USD (OTC)": "ETHUSD_otc",
+    "LTC/USD (OTC)": "LTCUSD_otc",
+    "XRP/USD (OTC)": "XRPUSD_otc",
+    "SOL/USD (OTC)": "SOLUSD_otc",
+    // Криптовалюты
+    "BTC/USD":       "BTCUSD",
+    "ETH/USD":       "ETHUSD",
+    "LTC/USD":       "LTCUSD",
+    "XRP/USD":       "XRPUSD",
+    "SOL/USD":       "SOLUSD",
+    // Прочее
+    "Gold (OTC)":    "XAUUSD_otc",
+    "Oil (OTC)":     "USOIL_otc",
   }
   const assetSymbol = assetMap[cfg.asset] ?? cfg.asset.replace("/", "").replace(" (OTC)", "_otc").replace(/\s/g, "")
 

@@ -798,7 +798,7 @@ async def main():
                     wins  = sum(1 for t in trade_log if t["won"])
                     wr    = wins / len(trade_log) * 100
                     res_emoji = "✅" if won else "❌"
-                    tg(f"{res_emoji} <b>{'Выигрыш' if won else 'Проигрыш'}</b>\\nПрофит: {profit:+.2f} {CURRENCY}\\nСессия: {total_profit:+.2f} {CURRENCY} | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
+                    tg(f"{res_emoji} <b>{'Выигрыш' if won else 'Проигрыш'}</b>\\n{signal} | {bet} {currency} | {ASSET}\\nПрофит: {profit:+.2f} {currency}\\nСессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
                     print_stats()
             else:
                 ts = datetime.now().strftime("%H:%M:%S")
@@ -1359,7 +1359,7 @@ async def main():
                 wins = sum(1 for t in trade_log if t["won"])
                 wr   = wins / len(trade_log) * 100
                 res_emoji = "✅" if won else "❌"
-                tg(f"{res_emoji} <b>{'Выигрыш' if won else 'Проигрыш'}</b>\\n{profit:+.2f} {CURRENCY} | Сессия: {total_profit:+.2f} {CURRENCY} | WR: {wr:.0f}%")
+                tg(f"{res_emoji} <b>{'Выигрыш' if won else 'Проигрыш'}</b>\\n{signal} | {bet} {currency} | {ASSET}\\nПрофит: {profit:+.2f} {currency}\\nСессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
                 print_stats()
         else:
             ts = datetime.now().strftime("%H:%M:%S")

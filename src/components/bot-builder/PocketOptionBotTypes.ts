@@ -964,26 +964,36 @@ def signal_support_resistance(prices, candles):
     ? `
 def get_combined_signal(prices, candles):
     """Комбо AND — большинство стратегий должны совпасть"""
-    signals = [${callLines.join(", ")}]
-    signals = [s for s in signals if s is not None]
+    names = [${callLines.map(l => `"${l.replace(/\(.*\)/, '')}"`).join(", ")}]
+    raw   = [${callLines.join(", ")}]
+    signals = [(n, s) for n, s in zip(names, raw) if s is not None]
     majority = (${selected.length} // 2) + 1
-    calls = signals.count("CALL")
-    puts  = signals.count("PUT")
-    if calls >= majority: return "CALL"
-    if puts  >= majority: return "PUT"
-    return None  # Нет большинства`
+    calls = sum(1 for _, s in signals if s == "CALL")
+    puts  = sum(1 for _, s in signals if s == "PUT")
+    if calls >= majority:
+        info = "AND: " + ", ".join(n for n, s in signals if s == "CALL")
+        return "CALL", info
+    if puts >= majority:
+        info = "AND: " + ", ".join(n for n, s in signals if s == "PUT")
+        return "PUT", info
+    return None, ""  # Нет большинства`
     : `
 def get_combined_signal(prices, candles):
     """Комбо OR — достаточно хотя бы одного сигнала"""
-    signals = [${callLines.join(", ")}]
-    signals = [s for s in signals if s is not None]
+    names = [${callLines.map(l => `"${l.replace(/\(.*\)/, '')}"`).join(", ")}]
+    raw   = [${callLines.join(", ")}]
+    signals = [(n, s) for n, s in zip(names, raw) if s is not None]
     if not signals:
-        return None
-    calls = signals.count("CALL")
-    puts  = signals.count("PUT")
-    if calls > puts: return "CALL"
-    if puts > calls: return "PUT"
-    return None  # Равенство голосов — пропускаем`
+        return None, ""
+    calls = sum(1 for _, s in signals if s == "CALL")
+    puts  = sum(1 for _, s in signals if s == "PUT")
+    if calls > puts:
+        info = "OR: " + ", ".join(n for n, s in signals if s == "CALL")
+        return "CALL", info
+    if puts > calls:
+        info = "OR: " + ", ".join(n for n, s in signals if s == "PUT")
+        return "PUT", info
+    return None, ""  # Равенство голосов — пропускаем`
 
   const comboAssetMap: Record<string, string> = {
     "EUR/USD (OTC)": "EURUSD_otc",
@@ -1312,7 +1322,7 @@ async def main():
 
         trend = get_trend(candles)
         trend_sig = trend_to_signal(trend)
-        signal = get_combined_signal(prices, candles)
+        signal, signal_info = get_combined_signal(prices, candles)
 
         if signal and trend_sig:
             if signal != trend_sig:
@@ -1332,7 +1342,10 @@ async def main():
             emoji = "📈" if signal == "CALL" else "📉"
             _tlabels2 = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
             trend_info = _tlabels2.get(trend, "— нет тренда")
-            tg(f"{emoji} <b>Комбо-сделка</b>\\n{signal} | {bet} {currency} | {ASSET}\\nТренд: {trend_info}")
+            tg_parts = [f"{emoji} <b>Комбо-сделка</b>", f"{signal} | {bet} {currency} | {ASSET}", f"Тренд: {trend_info}"]
+            if signal_info:
+                tg_parts.append(f"📊 Сигнал: {signal_info}")
+            tg("\\n".join(tg_parts))
             balance_before, _ = await get_balance(client)
             order_id = await place_trade(client, signal, bet)
             if order_id:

@@ -553,7 +553,7 @@ def trend_to_signal(trend):
 
 def check_trend_change(candles):
     global _last_trend
-    trend = get_trend(candles)
+    trend = get_trend(candles[:-1])  # убираем последнюю незакрытую свечу
     if trend and trend != _last_trend:
         old = _last_trend
         _last_trend = trend
@@ -1187,7 +1187,7 @@ def trend_to_signal(trend):
 
 def check_trend_change(candles):
     global _last_trend
-    trend = get_trend(candles)
+    trend = get_trend(candles[:-1])  # убираем последнюю незакрытую свечу
     if trend and trend != _last_trend:
         old = _last_trend
         _last_trend = trend

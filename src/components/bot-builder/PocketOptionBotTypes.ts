@@ -756,6 +756,12 @@ async def main():
             trend_sig = trend_to_signal(trend)
             signal, signal_info = get_signal(prices, candles)
 
+            if signal and not trend_sig:
+                ts = datetime.now().strftime("%H:%M:%S")
+                labels = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "DOWN_UP": "🔴🟢", "UP_DOWN": "🟢🔴"}
+                print(f"[{ts}] Сигнал {signal} отклонён — тренд неподходящий {labels.get(trend, trend or '?')}")
+                await asyncio.sleep(CHECK_INTERVAL)
+                continue
             if signal and trend_sig:
                 if signal != trend_sig:
                     ts = datetime.now().strftime("%H:%M:%S")
@@ -1325,6 +1331,12 @@ async def main():
         trend_sig = trend_to_signal(trend)
         signal, signal_info = get_combined_signal(prices, candles)
 
+        if signal and not trend_sig:
+            ts = datetime.now().strftime("%H:%M:%S")
+            labels = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "DOWN_UP": "🔴🟢", "UP_DOWN": "🟢🔴"}
+            print(f"[{ts}] Комбо-сигнал {signal} отклонён — тренд неподходящий {labels.get(trend, trend or '?')}")
+            await asyncio.sleep(CHECK_INTERVAL)
+            continue
         if signal and trend_sig:
             if signal != trend_sig:
                 ts = datetime.now().strftime("%H:%M:%S")

@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -16,6 +16,7 @@ import {
   POEmaTrendMode,
   PO_STRATEGIES,
   PO_ASSETS,
+  PO_ASSETS_GROUPS,
   PO_EXPIRY_LABELS,
 } from "./PocketOptionBotTypes"
 
@@ -634,11 +635,16 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
               <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-sm">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-zinc-800 border-zinc-700 max-h-64">
-                {PO_ASSETS.map((a) => (
-                  <SelectItem key={a} value={a} className="text-white font-space-mono text-xs hover:bg-zinc-700">
-                    {a}
-                  </SelectItem>
+              <SelectContent className="bg-zinc-800 border-zinc-700 max-h-72">
+                {PO_ASSETS_GROUPS.map((group) => (
+                  <SelectGroup key={group.label}>
+                    <SelectLabel className="text-zinc-500 font-space-mono text-xs px-2 py-1">{group.label}</SelectLabel>
+                    {group.assets.map((a) => (
+                      <SelectItem key={a} value={a} className="text-white font-space-mono text-xs hover:bg-zinc-700">
+                        {a}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 ))}
               </SelectContent>
             </Select>

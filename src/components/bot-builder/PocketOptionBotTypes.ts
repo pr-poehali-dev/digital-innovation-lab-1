@@ -163,10 +163,41 @@ export const PO_STRATEGIES: Record<POStrategy, StrategyMeta> = {
 }
 
 export const PO_ASSETS = [
-  "EUR/USD (OTC)", "GBP/USD (OTC)", "USD/JPY (OTC)", "AUD/USD (OTC)",
+  // Валютные пары (Forex)
   "EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CAD",
   "EUR/GBP", "EUR/JPY", "NZD/USD",
-  "BTC/USD (OTC)", "ETH/USD (OTC)", "Gold (OTC)", "Oil (OTC)",
+  // Валютные пары OTC
+  "EUR/USD (OTC)", "GBP/USD (OTC)", "USD/JPY (OTC)", "AUD/USD (OTC)", "EUR/GBP (OTC)",
+  "USD/CAD (OTC)", "NZD/USD (OTC)", "AUD/CAD (OTC)", "USD/CHF (OTC)",
+  // Криптовалюты
+  "BTC/USD", "ETH/USD", "LTC/USD", "XRP/USD", "SOL/USD",
+  // Криптовалюты OTC
+  "BTC/USD (OTC)", "ETH/USD (OTC)", "LTC/USD (OTC)", "XRP/USD (OTC)", "SOL/USD (OTC)",
+  // Прочее
+  "Gold (OTC)", "Oil (OTC)",
+]
+
+export const PO_ASSETS_GROUPS = [
+  {
+    label: "💱 Валютные пары",
+    assets: ["EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CAD"],
+  },
+  {
+    label: "💱 Валютные пары OTC",
+    assets: ["EUR/USD (OTC)", "GBP/USD (OTC)", "USD/JPY (OTC)", "AUD/USD (OTC)", "EUR/GBP (OTC)"],
+  },
+  {
+    label: "₿ Криптовалюты",
+    assets: ["BTC/USD", "ETH/USD", "LTC/USD", "XRP/USD", "SOL/USD"],
+  },
+  {
+    label: "₿ Криптовалюты OTC",
+    assets: ["BTC/USD (OTC)", "ETH/USD (OTC)", "LTC/USD (OTC)", "XRP/USD (OTC)", "SOL/USD (OTC)"],
+  },
+  {
+    label: "🏅 Прочее",
+    assets: ["Gold (OTC)", "Oil (OTC)", "EUR/GBP", "EUR/JPY", "NZD/USD", "USD/CHF (OTC)"],
+  },
 ]
 
 export const PO_EXPIRY_LABELS: Record<POExpiry, string> = {

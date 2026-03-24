@@ -779,6 +779,7 @@ async def main():
                 tg_parts = [f"{emoji} <b>Сделка открыта</b>", f"{signal} | {bet} {currency} | {ASSET} | {EXPIRY_SEC//60} мин", trend_label]
                 if sig_line:
                     tg_parts.append(sig_line)
+                tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")
                 tg("\\n".join(tg_parts))
                 balance_before, _ = await get_balance(client)
                 order_id = await place_trade(client, signal, bet)
@@ -1345,6 +1346,7 @@ async def main():
             tg_parts = [f"{emoji} <b>Комбо-сделка</b>", f"{signal} | {bet} {currency} | {ASSET}", f"Тренд: {trend_info}"]
             if signal_info:
                 tg_parts.append(f"📊 Сигнал: {signal_info}")
+            tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")
             tg("\\n".join(tg_parts))
             balance_before, _ = await get_balance(client)
             order_id = await place_trade(client, signal, bet)

@@ -1297,6 +1297,8 @@ async def main():
     print("  Логика: ${cfg.comboLogic} — ${logicWord}")
     print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин | Баланс: {balance:.2f} {CURRENCY}")
     print(f"  TP: {TAKE_PROFIT} {CURRENCY} | SL: {STOP_LOSS} {CURRENCY} | Лимит: {DAILY_LIMIT}")
+    trend_mode_label = "🟢🟢/🔴🔴 Одинаковые" if TREND_MODE == "same" else "🔴🟢/🟢🔴 Разворот"
+    print(f"  Режим тренда: {trend_mode_label}")
     print("=" * 55 + "\\n")
     tg(f"🤖 <b>КОМБО-Бот запущен</b>\\nСчёт: {account_type}\\n${labels} (${cfg.comboLogic})\\nАктив: {ASSET} | {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} {CURRENCY} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
 

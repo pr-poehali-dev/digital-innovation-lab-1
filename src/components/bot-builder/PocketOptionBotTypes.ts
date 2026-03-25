@@ -35,6 +35,7 @@ export interface POBotConfig {
   tgChatId: string
   tgEnabled: boolean
   tgProxy: string
+  tgNotifyMode: "all" | "bets_only"
   checkInterval: number
 }
 

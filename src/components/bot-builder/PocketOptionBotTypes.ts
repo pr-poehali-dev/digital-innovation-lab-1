@@ -559,7 +559,7 @@ def tg(text):
 
 def tg_info(text):
     """Информационное уведомление (запуск/тренд/ошибки) — только в режиме all"""
-    if TG_NOTIFY_MODE == "bets_only":
+    if globals().get("TG_NOTIFY_MODE", "all") == "bets_only":
         return
     tg(text)
 
@@ -1201,7 +1201,7 @@ def tg(text):
 
 def tg_info(text):
     """Информационное уведомление (запуск/тренд/ошибки) — только в режиме all"""
-    if TG_NOTIFY_MODE == "bets_only":
+    if globals().get("TG_NOTIFY_MODE", "all") == "bets_only":
         return
     tg(text)
 

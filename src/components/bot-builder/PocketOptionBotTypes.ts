@@ -271,11 +271,11 @@ def get_signal(prices, candles=None):
     rsi = calculate_rsi(prices)
     oversold  = rsi <= ${cfg.rsiOversold}
     overbought = rsi >= ${cfg.rsiOverbought}
-    info = f"RSI({cfg.rsiPeriod}): {rsi:.1f}"
+    info = f"RSI(${cfg.rsiPeriod}): {rsi:.1f}"
     if oversold:
-        return ("CALL" if ${cfg.trendFollow ? "True" : "False"} else "PUT"), f"{info} ≤ {cfg.rsiOversold} (перепроданность)"
+        return ("CALL" if ${cfg.trendFollow ? "True" : "False"} else "PUT"), f"{info} ≤ ${cfg.rsiOversold} (перепроданность)"
     if overbought:
-        return ("PUT" if ${cfg.trendFollow ? "True" : "False"} else "CALL"), f"{info} ≥ {cfg.rsiOverbought} (перекупленность)"
+        return ("PUT" if ${cfg.trendFollow ? "True" : "False"} else "CALL"), f"{info} ≥ ${cfg.rsiOverbought} (перекупленность)"
     return None, info`,
 
     ema_cross: `
@@ -295,7 +295,7 @@ def get_signal(prices, candles=None):
     ema_slow = calculate_ema(prices, ${cfg.emaSlow})
     cross_up = ema_fast[-1] > ema_slow[-1] and ema_fast[-2] <= ema_slow[-2]
     cross_down = ema_fast[-1] < ema_slow[-1] and ema_fast[-2] >= ema_slow[-2]
-    info = f"EMA{cfg.emaFast}={ema_fast[-1]:.5f} / EMA{cfg.emaSlow}={ema_slow[-1]:.5f}"
+    info = f"EMA${cfg.emaFast}={ema_fast[-1]:.5f} / EMA${cfg.emaSlow}={ema_slow[-1]:.5f}"
     if cross_up:
         return "${cfg.trendFollow ? "CALL" : "PUT"}", f"{info} (пересечение вверх ↑)"
     if cross_down:

@@ -743,12 +743,17 @@ async def main():
     print("Подключение к Pocket Option...")
     client = AsyncPocketOptionClient(SESSION_ID, is_demo=IS_DEMO, enable_logging=False)
     try:
-        await client.connect()
+        await asyncio.wait_for(client.connect(), timeout=15)
+        print("[INFO] WebSocket подключён, ждём авторизации...")
+    except asyncio.TimeoutError:
+        print("[ERROR] connect() завис (таймаут 15 сек). Проверь интернет/VPN.")
+        return
     except Exception as e:
         print(f"[ERROR] connect(): {e}")
-    await asyncio.sleep(5)
+        return
     balance, currency = 0.0, "USD"
     for i in range(15):
+        await asyncio.sleep(3)
         try:
             balance, currency = await get_balance(client)
             if balance > 0:
@@ -756,9 +761,8 @@ async def main():
         except Exception as e:
             print(f"[ERROR] get_balance: {e}")
         print(f"[WAIT] Ожидание соединения... ({i+1}/15)")
-        await asyncio.sleep(3)
     else:
-        print("[ERROR] Не удалось подключиться за 50 сек. Проверь SESSION_ID и соединение.")
+        print("[ERROR] Не удалось получить баланс за 45 сек. Проверь SESSION_ID.")
         return
 
 

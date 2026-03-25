@@ -741,15 +741,27 @@ async def main():
     global total_profit, trades_today, current_bet
 
     print("Подключение к Pocket Option...")
-    client = AsyncPocketOptionClient(SESSION_ID, is_demo=IS_DEMO, enable_logging=False)
+    client = AsyncPocketOptionClient(SESSION_ID, is_demo=IS_DEMO, enable_logging=True)
+    connected = False
     try:
-        await asyncio.wait_for(client.connect(), timeout=15)
+        connect_task = asyncio.create_task(client.connect())
+        for _ in range(20):
+            await asyncio.sleep(1)
+            if getattr(client, 'connected', False) or getattr(client, 'is_connected', False):
+                connected = True
+                break
+        if not connected:
+            connect_task.cancel()
+            print("[ERROR] Не удалось подключиться за 20 сек.")
+            print("[HINT] Попробуй:")
+            print("  1. pip install --upgrade pocketoptionapi-async")
+            print("  2. Убедись что VPN включён и работает")
+            print('  3. Проверь SESSION_ID — он должен начинаться с: 42["auth",{')
+            return
         print("[INFO] WebSocket подключён, ждём авторизации...")
-    except asyncio.TimeoutError:
-        print("[ERROR] connect() завис (таймаут 15 сек). Проверь интернет/VPN.")
-        return
     except Exception as e:
         print(f"[ERROR] connect(): {e}")
+        print("[HINT] pip install --upgrade pocketoptionapi-async")
         return
     balance, currency = 0.0, "USD"
     for i in range(15):

@@ -526,8 +526,9 @@ except Exception:
 # ===== TELEGRAM =====
 TG_TOKEN   = "${cfg.tgToken}"
 TG_CHAT_ID = "${cfg.tgChatId}"
-TG_ENABLED = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
-TG_PROXY   = "${cfg.tgProxy}"
+TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
+TG_PROXY        = "${cfg.tgProxy}"
+TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 
 def _tg_send(text, retries=3, delay=5):
     import urllib.request, urllib.parse, time
@@ -1167,8 +1168,9 @@ except Exception:
 # ===== TELEGRAM =====
 TG_TOKEN   = "${cfg.tgToken}"
 TG_CHAT_ID = "${cfg.tgChatId}"
-TG_ENABLED = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
-TG_PROXY   = "${cfg.tgProxy}"
+TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
+TG_PROXY        = "${cfg.tgProxy}"
+TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 
 def _tg_send(text, retries=3, delay=5):
     import urllib.request, urllib.parse, time

@@ -1322,6 +1322,27 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
               />
               <p className="text-zinc-600 font-space-mono text-xs mt-1">Оставь пустым если Telegram работает</p>
             </div>
+            <div>
+              <Label className="text-zinc-400 font-space-mono text-xs mb-2 block">Какие уведомления получать</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => set({ tgNotifyMode: "all" })}
+                  className={`rounded-lg px-3 py-2 text-xs font-space-mono border transition-all text-left ${(config.tgNotifyMode ?? "all") === "all" ? "bg-blue-600/20 border-blue-500/50 text-blue-300" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}
+                >
+                  <div className="font-bold mb-0.5">📡 Все события</div>
+                  <div className="text-zinc-500 text-[10px]">Запуск, тренды, ставки, реконнект</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => set({ tgNotifyMode: "bets_only" })}
+                  className={`rounded-lg px-3 py-2 text-xs font-space-mono border transition-all text-left ${(config.tgNotifyMode ?? "all") === "bets_only" ? "bg-blue-600/20 border-blue-500/50 text-blue-300" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}
+                >
+                  <div className="font-bold mb-0.5">🎯 Только ставки</div>
+                  <div className="text-zinc-500 text-[10px]">TP/SL + результат каждой сделки</div>
+                </button>
+              </div>
+            </div>
             {config.tgToken && config.tgChatId && (
               <div className="flex items-center gap-2 bg-green-950/40 border border-green-500/30 rounded-lg px-2.5 py-2">
                 <Icon name="CheckCircle" size={14} className="text-green-400" />

@@ -238,6 +238,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   tgToken: "",
   tgChatId: "",
   tgEnabled: true,
+  tgNotifyMode: "all",
   tgProxy: "",
   checkInterval: 30,
 }
@@ -548,10 +549,17 @@ def _tg_send(text, retries=3, delay=5):
                 print(f"[TG] Ошибка: {e}")
 
 def tg(text):
+    """Отправка уведомления о ставке (всегда, если TG включён)"""
     if not TG_ENABLED:
         return
     import threading
     threading.Thread(target=_tg_send, args=(text,), daemon=True).start()
+
+def tg_info(text):
+    """Информационное уведомление (запуск/тренд/ошибки) — только в режиме all"""
+    if TG_NOTIFY_MODE == "bets_only":
+        return
+    tg(text)
 
 # ===== СОСТОЯНИЕ =====
 total_profit = 0.0
@@ -755,7 +763,7 @@ async def main():
     print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин")
     print(f"  Баланс: {round(balance, 2)} {CURRENCY} | TP: {TAKE_PROFIT} {CURRENCY} | SL: {STOP_LOSS} {CURRENCY}")
     print("=" * 50 + "\\n")
-    tg(f"🤖 <b>Бот запущен</b>\\nСчёт: {account_type}\\nСтратегия: ${strategyLabel}\\nАктив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} {CURRENCY} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
+    tg_info(f"🤖 <b>Бот запущен</b>\\nСчёт: {account_type}\\nСтратегия: ${strategyLabel}\\nАктив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} {CURRENCY} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
 
     _reconnect_attempts = 0
 
@@ -785,7 +793,7 @@ async def main():
 
             if trades_today >= DAILY_LIMIT:
                 print(f"[LIMIT] Дневной лимит {DAILY_LIMIT} сделок исчерпан")
-                tg(f"⚠️ <b>Дневной лимит исчерпан</b>\\n{DAILY_LIMIT} сделок | Итог: {total_profit:.2f} {CURRENCY}")
+                tg_info(f"⚠️ <b>Дневной лимит исчерпан</b>\\n{DAILY_LIMIT} сделок | Итог: {total_profit:.2f} {CURRENCY}")
                 break
 
             candles, prices = await get_candles_data(client)
@@ -801,7 +809,7 @@ async def main():
                 labels = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
                 msg = f"{arrow} <b>Тренд изменился!</b>\\n{labels.get(old_trend, old_trend or '?')} → {labels.get(new_trend, new_trend)} | {ASSET}"
                 print(f"[TREND] {old_trend} → {new_trend}")
-                tg(msg)
+                tg_info(msg)
 
             trend = get_trend(candles)
             trend_sig = trend_to_signal(trend)
@@ -862,15 +870,15 @@ async def main():
             _reconnect_attempts += 1
             if _reconnect_attempts > 10:
                 print("[ERROR] Слишком много обрывов подряд, завершение.")
-                tg("🔴 <b>Бот остановлен</b>\\nСлишком много обрывов соединения.")
+                tg_info("🔴 <b>Бот остановлен</b>\\nСлишком много обрывов соединения.")
                 break
             print(f"[RECONNECT] Обрыв соединения ({_reconnect_attempts}/10): {err}")
-            tg(f"⚠️ <b>Обрыв соединения</b>\\nПопытка переподключения {_reconnect_attempts}/10...")
+            tg_info(f"⚠️ <b>Обрыв соединения</b>\\nПопытка переподключения {_reconnect_attempts}/10...")
             try:
                 await client.connect()
                 await asyncio.sleep(5)
                 print("[RECONNECT] Переподключение успешно, продолжаю...")
-                tg(f"✅ <b>Переподключение успешно</b>\\nБот продолжает работу | Сессия: {total_profit:+.2f} {CURRENCY}")
+                tg_info(f"✅ <b>Переподключение успешно</b>\\nБот продолжает работу | Сессия: {total_profit:+.2f} {CURRENCY}")
             except Exception as re:
                 print(f"[RECONNECT] Не удалось переподключиться: {re}")
                 await asyncio.sleep(10)
@@ -1182,10 +1190,17 @@ def _tg_send(text, retries=3, delay=5):
                 print(f"[TG] Ошибка: {e}")
 
 def tg(text):
+    """Отправка уведомления о ставке (всегда, если TG включён)"""
     if not TG_ENABLED:
         return
     import threading
     threading.Thread(target=_tg_send, args=(text,), daemon=True).start()
+
+def tg_info(text):
+    """Информационное уведомление (запуск/тренд/ошибки) — только в режиме all"""
+    if TG_NOTIFY_MODE == "bets_only":
+        return
+    tg(text)
 
 # ===== СОСТОЯНИЕ =====
 total_profit = 0.0
@@ -1347,7 +1362,7 @@ async def main():
     trend_mode_label = "🟢🟢/🔴🔴 Одинаковые" if TREND_MODE == "same" else "🔴🟢/🟢🔴 Разворот"
     print(f"  Режим тренда: {trend_mode_label}")
     print("=" * 55 + "\\n")
-    tg(f"🤖 <b>КОМБО-Бот запущен</b>\\nСчёт: {account_type}\\n${labels} (${cfg.comboLogic})\\nАктив: {ASSET} | {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} {CURRENCY} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
+    tg_info(f"🤖 <b>КОМБО-Бот запущен</b>\\nСчёт: {account_type}\\n${labels} (${cfg.comboLogic})\\nАктив: {ASSET} | {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} {CURRENCY} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
 
     while True:
         if total_profit >= TAKE_PROFIT:
@@ -1364,7 +1379,7 @@ async def main():
             break
         if trades_today >= DAILY_LIMIT:
             print(f"[LIMIT] Лимит {DAILY_LIMIT} сделок исчерпан")
-            tg(f"⚠️ <b>Дневной лимит исчерпан</b>\\n{DAILY_LIMIT} сделок | Итог: {total_profit:.2f} {CURRENCY}")
+            tg_info(f"⚠️ <b>Дневной лимит исчерпан</b>\\n{DAILY_LIMIT} сделок | Итог: {total_profit:.2f} {CURRENCY}")
             break
 
         candles, prices = await get_candles_data(client)
@@ -1378,7 +1393,7 @@ async def main():
             labels = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
             msg = f"{arrow} <b>Тренд изменился!</b>\\n{labels.get(old_trend, old_trend or '?')} → {labels.get(new_trend, new_trend)} | {ASSET}"
             print(f"[TREND] {old_trend} → {new_trend}")
-            tg(msg)
+            tg_info(msg)
 
         trend = get_trend(candles)
         trend_sig = trend_to_signal(trend)

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Icon from "@/components/ui/icon"
+import * as XLSX from "xlsx"
 
 interface Trade {
   id: string
@@ -109,6 +110,43 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
     URL.revokeObjectURL(url)
   }
 
+  const exportExcel = () => {
+    const wins = trades.filter((t) => t.won).length
+    const totalT = trades.length
+    const wr = totalT > 0 ? Math.round((wins / totalT) * 100) : 0
+    const totalProf = trades.reduce((s, t) => s + t.profit, 0)
+
+    const rows = trades.map((t) => ({
+      "Дата": t.date,
+      "Время": t.time,
+      "Актив": t.asset,
+      "Направление": t.direction,
+      "Ставка": t.bet,
+      "Выплата %": t.payout,
+      "Результат": t.won ? "WIN" : "LOSS",
+      "Профит": parseFloat(t.profit.toFixed(2)),
+    }))
+
+    const summaryRows = [
+      {},
+      { "Дата": "=== ИТОГИ СЕССИИ ===" },
+      { "Дата": "Всего сделок", "Время": totalT },
+      { "Дата": "Выигрышей", "Время": wins },
+      { "Дата": "Проигрышей", "Время": totalT - wins },
+      { "Дата": "Winrate", "Время": `${wr}%` },
+      { "Дата": "Общий профит", "Время": parseFloat(totalProf.toFixed(2)) },
+    ]
+
+    const ws = XLSX.utils.json_to_sheet([...rows, ...summaryRows])
+    ws["!cols"] = [
+      { wch: 12 }, { wch: 8 }, { wch: 18 }, { wch: 12 },
+      { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 },
+    ]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Журнал сделок")
+    XLSX.writeFile(wb, `trade_journal_${todayDate()}.xlsx`)
+  }
+
   // Stats
   const total = trades.length
   const wins = trades.filter((t) => t.won).length
@@ -166,6 +204,9 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
             <div className="flex items-center gap-2">
               <button onClick={exportCSV} className="text-zinc-500 hover:text-green-400 transition-colors" title="Экспорт в CSV">
                 <Icon name="FileDown" size={14} />
+              </button>
+              <button onClick={exportExcel} className="text-zinc-500 hover:text-emerald-400 transition-colors" title="Экспорт в Excel (.xlsx)">
+                <Icon name="Sheet" size={14} />
               </button>
               <button onClick={clearAll} className="text-zinc-600 hover:text-red-400 transition-colors" title="Очистить журнал">
                 <Icon name="Trash2" size={14} />

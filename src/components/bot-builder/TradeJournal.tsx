@@ -55,6 +55,9 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
   const [useManualTime, setUseManualTime] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [justAdded, setJustAdded] = useState<"win" | "loss" | null>(null)
+  const [showExportPanel, setShowExportPanel] = useState(false)
+  const [exportFrom, setExportFrom] = useState("")
+  const [exportTo, setExportTo] = useState(todayDate())
 
   useEffect(() => {
     setAsset(defaultAsset)
@@ -95,9 +98,18 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
     }
   }
 
+  const getFilteredTrades = () => {
+    return trades.filter((t) => {
+      if (exportFrom && t.date < exportFrom) return false
+      if (exportTo && t.date > exportTo) return false
+      return true
+    })
+  }
+
   const exportCSV = () => {
+    const filtered = getFilteredTrades()
     const header = "Дата,Время,Актив,Направление,Ставка,Выплата %,Результат,Профит"
-    const rows = trades.map((t) =>
+    const rows = filtered.map((t) =>
       [t.date, t.time, t.asset, t.direction, t.bet, t.payout, t.won ? "WIN" : "LOSS", t.profit.toFixed(2)].join(",")
     )
     const csv = [header, ...rows].join("\n")
@@ -105,18 +117,20 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `trade_journal_${todayDate()}.csv`
+    const suffix = exportFrom ? `${exportFrom}_${exportTo}` : todayDate()
+    a.download = `trade_journal_${suffix}.csv`
     a.click()
     URL.revokeObjectURL(url)
   }
 
   const exportExcel = () => {
-    const wins = trades.filter((t) => t.won).length
-    const totalT = trades.length
+    const filtered = getFilteredTrades()
+    const wins = filtered.filter((t) => t.won).length
+    const totalT = filtered.length
     const wr = totalT > 0 ? Math.round((wins / totalT) * 100) : 0
-    const totalProf = trades.reduce((s, t) => s + t.profit, 0)
+    const totalProf = filtered.reduce((s, t) => s + t.profit, 0)
 
-    const rows = trades.map((t) => ({
+    const rows = filtered.map((t) => ({
       "Дата": t.date,
       "Время": t.time,
       "Актив": t.asset,
@@ -127,9 +141,10 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
       "Профит": parseFloat(t.profit.toFixed(2)),
     }))
 
+    const periodLabel = exportFrom ? `${exportFrom} — ${exportTo}` : "Все время"
     const summaryRows = [
       {},
-      { "Дата": "=== ИТОГИ СЕССИИ ===" },
+      { "Дата": `=== ИТОГИ: ${periodLabel} ===` },
       { "Дата": "Всего сделок", "Время": totalT },
       { "Дата": "Выигрышей", "Время": wins },
       { "Дата": "Проигрышей", "Время": totalT - wins },
@@ -144,7 +159,8 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
     ]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "Журнал сделок")
-    XLSX.writeFile(wb, `trade_journal_${todayDate()}.xlsx`)
+    const suffix = exportFrom ? `${exportFrom}_${exportTo}` : todayDate()
+    XLSX.writeFile(wb, `trade_journal_${suffix}.xlsx`)
   }
 
   // Stats
@@ -202,11 +218,12 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
           </CardTitle>
           {total > 0 && (
             <div className="flex items-center gap-2">
-              <button onClick={exportCSV} className="text-zinc-500 hover:text-green-400 transition-colors" title="Экспорт в CSV">
-                <Icon name="FileDown" size={14} />
-              </button>
-              <button onClick={exportExcel} className="text-zinc-500 hover:text-emerald-400 transition-colors" title="Экспорт в Excel (.xlsx)">
-                <Icon name="Sheet" size={14} />
+              <button
+                onClick={() => setShowExportPanel((v) => !v)}
+                className={`text-xs font-space-mono px-2 py-1 rounded-lg border transition-colors ${showExportPanel ? "bg-zinc-700 border-zinc-500 text-zinc-200" : "border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-500"}`}
+                title="Выгрузка в файл"
+              >
+                <Icon name="Download" size={13} />
               </button>
               <button onClick={clearAll} className="text-zinc-600 hover:text-red-400 transition-colors" title="Очистить журнал">
                 <Icon name="Trash2" size={14} />
@@ -217,6 +234,73 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
       </CardHeader>
 
       <CardContent className="space-y-4">
+
+        {/* Export panel */}
+        {showExportPanel && (
+          <div className="bg-zinc-800/70 border border-zinc-700 rounded-xl p-3 space-y-3">
+            <p className="text-zinc-400 font-space-mono text-xs font-bold">Выгрузка сделок</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">С даты</Label>
+                <input
+                  type="date"
+                  value={exportFrom}
+                  onChange={(e) => setExportFrom(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-700 text-white font-space-mono text-xs rounded-lg px-2 py-1.5 outline-none focus:border-zinc-500"
+                />
+              </div>
+              <div>
+                <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">По дату</Label>
+                <input
+                  type="date"
+                  value={exportTo}
+                  onChange={(e) => setExportTo(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-700 text-white font-space-mono text-xs rounded-lg px-2 py-1.5 outline-none focus:border-zinc-500"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1.5 flex-wrap">
+                {[
+                  { label: "Сегодня", from: todayDate(), to: todayDate() },
+                  { label: "Неделя", from: new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10), to: todayDate() },
+                  { label: "Месяц", from: new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10), to: todayDate() },
+                  { label: "Всё", from: "", to: todayDate() },
+                ].map((p) => (
+                  <button
+                    key={p.label}
+                    onClick={() => { setExportFrom(p.from); setExportTo(p.to) }}
+                    className="text-xs font-space-mono px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 transition-colors"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <div className="ml-auto flex gap-2">
+                <button
+                  onClick={exportCSV}
+                  className="text-xs font-space-mono px-3 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-green-400 border border-zinc-600 transition-colors flex items-center gap-1.5"
+                >
+                  <Icon name="FileDown" size={12} /> CSV
+                </button>
+                <button
+                  onClick={exportExcel}
+                  className="text-xs font-space-mono px-3 py-1.5 rounded-lg bg-emerald-900/40 hover:bg-emerald-900/60 text-emerald-400 border border-emerald-700/40 transition-colors flex items-center gap-1.5"
+                >
+                  <Icon name="Sheet" size={12} /> Excel
+                </button>
+              </div>
+            </div>
+            {(() => {
+              const cnt = getFilteredTrades().length
+              return (
+                <p className="text-zinc-600 font-space-mono text-xs">
+                  {cnt > 0 ? `Будет выгружено: ${cnt} сделок` : "Нет сделок за выбранный период"}
+                </p>
+              )
+            })()}
+          </div>
+        )}
 
         {/* Stats row */}
         <div className="grid grid-cols-4 gap-2">

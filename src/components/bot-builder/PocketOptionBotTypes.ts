@@ -742,18 +742,23 @@ async def main():
 
     print("Подключение к Pocket Option...")
     client = AsyncPocketOptionClient(SESSION_ID, is_demo=IS_DEMO, enable_logging=False)
-    await client.connect()
+    try:
+        await client.connect()
+    except Exception as e:
+        print(f"[ERROR] connect(): {e}")
+    await asyncio.sleep(5)
+    balance, currency = 0.0, "USD"
     for i in range(15):
-        await asyncio.sleep(2)
         try:
             balance, currency = await get_balance(client)
             if balance > 0:
                 break
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[ERROR] get_balance: {e}")
         print(f"[WAIT] Ожидание соединения... ({i+1}/15)")
+        await asyncio.sleep(3)
     else:
-        print("[ERROR] Не удалось подключиться за 30 сек. Проверь SESSION_ID.")
+        print("[ERROR] Не удалось подключиться за 50 сек. Проверь SESSION_ID и соединение.")
         return
 
 

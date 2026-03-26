@@ -709,7 +709,7 @@ async def get_balance(client):
     """Текущий баланс"""
     try:
         b = await client.get_balance()
-
+        print(f"[DEBUG] get_balance raw: {b} | type: {type(b)} | attrs: {dir(b)}")
         if b is None:
             return 0.0, "USD"
         amount = 0.0

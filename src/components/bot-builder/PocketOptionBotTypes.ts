@@ -166,10 +166,11 @@ export const PO_STRATEGIES: Record<POStrategy, StrategyMeta> = {
 export const PO_ASSETS = [
   // Валютные пары (Forex)
   "EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CAD",
-  "EUR/GBP", "EUR/JPY", "NZD/USD",
+  "EUR/GBP", "EUR/JPY", "NZD/USD", "EUR/CHF", "CAD/JPY", "CAD/CHF", "AUD/CAD",
   // Валютные пары OTC
   "EUR/USD (OTC)", "GBP/USD (OTC)", "USD/JPY (OTC)", "AUD/USD (OTC)", "EUR/GBP (OTC)",
   "USD/CAD (OTC)", "NZD/USD (OTC)", "AUD/CAD (OTC)", "USD/CHF (OTC)",
+  "EUR/CHF (OTC)", "CAD/JPY (OTC)", "CAD/CHF (OTC)",
   // Криптовалюты
   "BTC/USD", "ETH/USD", "LTC/USD", "XRP/USD", "SOL/USD",
   // Криптовалюты OTC
@@ -181,11 +182,11 @@ export const PO_ASSETS = [
 export const PO_ASSETS_GROUPS = [
   {
     label: "💱 Валютные пары",
-    assets: ["EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CAD"],
+    assets: ["EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CAD", "EUR/CHF", "CAD/JPY", "CAD/CHF", "AUD/CAD"],
   },
   {
     label: "💱 Валютные пары OTC",
-    assets: ["EUR/USD (OTC)", "GBP/USD (OTC)", "USD/JPY (OTC)", "AUD/USD (OTC)", "EUR/GBP (OTC)"],
+    assets: ["EUR/USD (OTC)", "GBP/USD (OTC)", "USD/JPY (OTC)", "AUD/USD (OTC)", "EUR/GBP (OTC)", "EUR/CHF (OTC)", "CAD/JPY (OTC)", "CAD/CHF (OTC)", "AUD/CAD (OTC)"],
   },
   {
     label: "₿ Криптовалюты",

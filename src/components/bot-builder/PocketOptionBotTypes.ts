@@ -711,7 +711,7 @@ async def get_balance(client):
         b = await client.get_balance()
 
         if b is None:
-            return 0.0, "RUB"
+            return 0.0, "USD"
         amount = 0.0
         if hasattr(b, "balance") and b.balance is not None:
             amount = float(b.balance)
@@ -726,11 +726,11 @@ async def get_balance(client):
                 amount = float(b)
             except:
                 pass
-        currency = getattr(b, "currency", None) or (b.get("currency") if isinstance(b, dict) else None) or "RUB"
+        currency = getattr(b, "currency", None) or (b.get("currency") if isinstance(b, dict) else None) or "USD"
         return amount, currency
     except Exception as e:
         print(f"[ERROR] get_balance: {e}")
-        return 0.0, "RUB"
+        return 0.0, "USD"
 
 def print_stats():
     wins    = sum(1 for t in trade_log if t["won"])

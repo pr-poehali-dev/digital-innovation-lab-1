@@ -770,6 +770,8 @@ async def main():
         try:
             balance, currency = await get_balance(client)
             if balance > 0:
+                global CURRENCY
+                CURRENCY = currency
                 break
         except Exception as e:
             print(f"[ERROR] get_balance: {e}")

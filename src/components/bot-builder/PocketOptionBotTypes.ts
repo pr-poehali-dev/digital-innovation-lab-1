@@ -854,9 +854,11 @@ async def main():
             if signal:
                 if BET_PERCENT:
                     balance, currency = await get_balance(client)
+                    CURRENCY = currency
                     bet = round(balance * (BASE_BET / 100), 2)
                 else:
                     balance, currency = await get_balance(client)
+                    CURRENCY = currency
                     bet = current_bet
 
                 emoji = "📈" if signal == "CALL" else "📉"

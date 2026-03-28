@@ -633,7 +633,7 @@ async def try_get_candles(client, asset_name):
     """Попытка получить свечи, с авто-переподключением при обрыве"""
     for attempt in range(3):
         try:
-            raw = await client.get_candles(asset=asset_name, timeframe=60, count=100)
+            raw = await client.get_candles(asset=asset_name, timeframe=EXPIRY_SEC, count=100)
             return raw if raw else None
         except Exception as e:
             err = str(e)

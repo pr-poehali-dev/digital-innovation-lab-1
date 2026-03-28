@@ -665,14 +665,14 @@ async def get_candles_data(client):
                     print(f"[INFO] Актив найден как: {name}")
                 if hasattr(raw[0], 'time'):
                     sorted_raw = sorted(raw, key=lambda c: c.time)
-                    print(f"[ORDER] Сортировка по времени: первая={sorted_raw[0].time} последняя={sorted_raw[-1].time}")
                 else:
-                    first = (raw[0].open, raw[0].close)
-                    last  = (raw[-1].open, raw[-1].close)
-                    print(f"[ORDER] Нет .time | первая o={first[0]:.5f} c={first[1]:.5f} | последняя o={last[0]:.5f} c={last[1]:.5f}")
                     sorted_raw = list(reversed(raw))
                 candles = [(c.open, c.high, c.low, c.close) for c in sorted_raw]
                 prices  = [c.close for c in sorted_raw]
+                for i, c in enumerate(sorted_raw[-5:], start=len(sorted_raw)-4):
+                    t = c.time if hasattr(c, 'time') else '?'
+                    emoji = '🟢' if c.close >= c.open else '🔴'
+                    print(f"[C{i}] {emoji} t={t} o={c.open:.5f} c={c.close:.5f}")
                 return candles, prices
         except Exception:
             continue

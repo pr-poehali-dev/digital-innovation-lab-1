@@ -697,6 +697,10 @@ async def get_candles_data(client):
             lc = closed_raw[-1]
             emoji = '🟢' if lc.close >= lc.open else '🔴'
             print(f"[CACHE] Новая закрытая свеча: {emoji} o={lc.open:.5f} c={lc.close:.5f} | закрытых в кэше: {len(_candle_cache)}")
+            last5 = sorted_raw[-8:]
+            for i, c in enumerate(last5):
+                e = '🟢' if c.close >= c.open else '🔴'
+                print(f"[RAW_{i}] {e} o={c.open:.5f} c={c.close:.5f}")
             candles_all = _candle_cache + [(cur_candle.open, cur_candle.high, cur_candle.low, cur_candle.close)]
             prices_all  = [c[3] for c in candles_all]
             return candles_all, prices_all

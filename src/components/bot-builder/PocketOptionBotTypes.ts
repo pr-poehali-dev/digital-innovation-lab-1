@@ -677,7 +677,9 @@ async def get_candles_data(client):
             closed_raw = sorted_raw[:-1]
             if not closed_raw:
                 continue
-            last_time = closed_raw[-1].time if hasattr(closed_raw[-1], 'time') else closed_raw[-1].open
+            has_time = hasattr(closed_raw[-1], 'time')
+            last_time = closed_raw[-1].time if has_time else f"{closed_raw[-1].open:.5f}_{closed_raw[-1].close:.5f}"
+            print(f"[CACHE_DEBUG] has_time={has_time} last_time={last_time} cached={_last_candle_time} match={_last_candle_time == last_time}")
             if _candle_asset == name and _last_candle_time == last_time and _candle_cache:
                 print(f"[CACHE] Новых закрытых свечей нет, используем кэш ({len(_candle_cache)} шт)")
                 candles_all = _candle_cache + [(sorted_raw[-1].open, sorted_raw[-1].high, sorted_raw[-1].low, sorted_raw[-1].close)]

@@ -574,7 +574,6 @@ def tg_info(text):
 total_profit = 0.0
 trades_today = 0
 trade_log        = []
-last_lost_signal = None  # блокировка: если проиграл — повторный сигнал пропустить
 ${martingaleBlock}
 # ===== ТРЕНД ПО 2 ПОСЛЕДНИМ СВЕЧАМ =====
 _last_trend = None
@@ -851,7 +850,6 @@ async def main():
                 if AUTO_RESTART:
                     total_profit = 0
                     trades_today = 0
-                    last_lost_signal = None
                     _candle_cache[:] = []
                     _last_candle_time = None
                     _last_trend = None
@@ -867,7 +865,6 @@ async def main():
                 if AUTO_RESTART:
                     total_profit = 0
                     trades_today = 0
-                    last_lost_signal = None
                     _candle_cache[:] = []
                     _last_candle_time = None
                     _last_trend = None
@@ -916,10 +913,6 @@ async def main():
                     rejected_conflict += 1
                     await asyncio.sleep(CHECK_INTERVAL)
                     continue
-                if signal == last_lost_signal:
-                    print(f"[{ts}] Сигнал {signal} заблокирован — прошлая сделка {last_lost_signal} проиграла, ждём противоположный сигнал")
-                    await asyncio.sleep(CHECK_INTERVAL)
-                    continue
 
             if signal:
                 if BET_PERCENT:
@@ -949,10 +942,6 @@ async def main():
                     total_profit += profit
                     trades_today += 1
                     current_bet   = adjust_bet(won)
-                    if won:
-                        last_lost_signal = None  # выиграли — снимаем блокировку
-                    else:
-                        last_lost_signal = signal  # проиграли — блокируем этот же сигнал
                     trade_log.append({
                         "time": datetime.now().strftime("%H:%M:%S"),
                         "direction": signal,
@@ -1316,7 +1305,6 @@ def tg_info(text):
 total_profit = 0.0
 trades_today = 0
 trade_log        = []
-last_lost_signal = None  # блокировка: если проиграл — повторный сигнал пропустить
 ${martingaleBlock}
 # ===== ТРЕНД ПО 2 ПОСЛЕДНИМ СВЕЧАМ =====
 _last_trend = None
@@ -1489,13 +1477,13 @@ async def main():
             print(f"[TP] +{total_profit:.2f} {CURRENCY}")
             tg(f"✅ <b>Take Profit достигнут!</b>\\n+{total_profit:.2f} {CURRENCY} за сессию")
             if AUTO_RESTART:
-                total_profit = 0; trades_today = 0; last_lost_signal = None; await asyncio.sleep(300); continue
+                total_profit = 0; trades_today = 0; await asyncio.sleep(300); continue
             break
         if total_profit <= -STOP_LOSS:
             print(f"[SL] {total_profit:.2f} {CURRENCY}")
             tg(f"🛑 <b>Stop Loss достигнут!</b>\\n{total_profit:.2f} {CURRENCY} за сессию")
             if AUTO_RESTART:
-                total_profit = 0; trades_today = 0; last_lost_signal = None; await asyncio.sleep(300); continue
+                total_profit = 0; trades_today = 0; await asyncio.sleep(300); continue
             break
         if trades_today >= DAILY_LIMIT:
             print(f"[LIMIT] Лимит {DAILY_LIMIT} сделок исчерпан")
@@ -1528,10 +1516,6 @@ async def main():
                 await asyncio.sleep(CHECK_INTERVAL)
                 continue
             signal = trend_sig
-            if signal == last_lost_signal:
-                print(f"[{ts}] Комбо-сигнал {signal} заблокирован — прошлая сделка {last_lost_signal} проиграла, ждём противоположный сигнал")
-                await asyncio.sleep(CHECK_INTERVAL)
-                continue
 
         if signal:
             if BET_PERCENT:
@@ -1555,10 +1539,6 @@ async def main():
                 total_profit += profit
                 trades_today += 1
                 current_bet   = adjust_bet(won)
-                if won:
-                    last_lost_signal = None
-                else:
-                    last_lost_signal = signal
                 trade_log.append({"won": won, "profit": profit})
                 wins = sum(1 for t in trade_log if t["won"])
                 wr   = wins / len(trade_log) * 100

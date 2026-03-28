@@ -923,6 +923,8 @@ async def main():
                 emoji = "📈" if signal == "CALL" else "📉"
                 _tlabels = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
                 trend_label = f"Тренд: {_tlabels.get(trend, '— нет')}"
+                if signal_info:
+                    print(f"[SIGNAL] {signal_info}")
                 sig_line = f"📊 Сигнал: {signal_info}" if signal_info else ""
                 tg_parts = [f"{emoji} <b>Сделка открыта</b>", f"{signal} | {bet} {currency} | {ASSET} | {EXPIRY_SEC//60} мин", trend_label]
                 if sig_line:
@@ -1041,9 +1043,9 @@ def calculate_rsi(prices, period=${cfg.rsiPeriod}):
 
 def signal_rsi(prices, candles):
     rsi = calculate_rsi(prices)
-    if rsi <= ${cfg.rsiOversold}: return "${cfg.trendFollow ? "CALL" : "PUT"}"
-    if rsi >= ${cfg.rsiOverbought}: return "${cfg.trendFollow ? "PUT" : "CALL"}"
-    return None`)
+    if rsi <= ${cfg.rsiOversold}: return "${cfg.trendFollow ? "CALL" : "PUT"}", f"RSI={rsi:.1f}≤${cfg.rsiOversold}"
+    if rsi >= ${cfg.rsiOverbought}: return "${cfg.trendFollow ? "PUT" : "CALL"}", f"RSI={rsi:.1f}≥${cfg.rsiOverbought}"
+    return None, f"RSI={rsi:.1f}"`)
     callLines.push("signal_rsi(prices, candles)")
   }
 
@@ -1058,12 +1060,13 @@ def calculate_ema(prices, period):
 
 def signal_ema(prices, candles):
     if len(prices) < ${cfg.emaSlow} + 2:
-        return None
+        return None, ""
     fast = calculate_ema(prices, ${cfg.emaFast})
     slow = calculate_ema(prices, ${cfg.emaSlow})
-    if fast[-1] > slow[-1] and fast[-2] <= slow[-2]: return "${cfg.trendFollow ? "CALL" : "PUT"}"
-    if fast[-1] < slow[-1] and fast[-2] >= slow[-2]: return "${cfg.trendFollow ? "PUT" : "CALL"}"
-    return None`)
+    info = f"EMA${cfg.emaFast}={fast[-1]:.5f}/EMA${cfg.emaSlow}={slow[-1]:.5f}"
+    if fast[-1] > slow[-1] and fast[-2] <= slow[-2]: return "${cfg.trendFollow ? "CALL" : "PUT"}", f"{info}↑"
+    if fast[-1] < slow[-1] and fast[-2] >= slow[-2]: return "${cfg.trendFollow ? "PUT" : "CALL"}", f"{info}↓"
+    return None, info`)
     callLines.push("signal_ema(prices, candles)")
   }
 
@@ -1071,18 +1074,17 @@ def signal_ema(prices, candles):
     fnBlocks.push(`
 def signal_candle_pattern(prices, candles):
     if not candles or len(candles) < 3:
-        return None
+        return None, ""
     o1, h1, l1, c1 = candles[-2]
     o2, h2, l2, c2 = candles[-1]
     body2 = abs(c2 - o2)
     low_sh = min(o2, c2) - l2
     up_sh  = h2 - max(o2, c2)
-    # Молот / Падающая звезда / Поглощения
-    if low_sh > body2 * 2 and up_sh < body2 * 0.5 and c1 < o1: return "${cfg.trendFollow ? "CALL" : "PUT"}"
-    if up_sh > body2 * 2 and low_sh < body2 * 0.5 and c1 > o1: return "${cfg.trendFollow ? "PUT" : "CALL"}"
-    if c1 < o1 and c2 > o2 and c2 > o1 and o2 < c1: return "${cfg.trendFollow ? "CALL" : "PUT"}"
-    if c1 > o1 and c2 < o2 and c2 < o1 and o2 > c1: return "${cfg.trendFollow ? "PUT" : "CALL"}"
-    return None`)
+    if low_sh > body2 * 2 and up_sh < body2 * 0.5 and c1 < o1: return "${cfg.trendFollow ? "CALL" : "PUT"}", "Молот🔨"
+    if up_sh > body2 * 2 and low_sh < body2 * 0.5 and c1 > o1: return "${cfg.trendFollow ? "PUT" : "CALL"}", "Звезда⭐"
+    if c1 < o1 and c2 > o2 and c2 > o1 and o2 < c1: return "${cfg.trendFollow ? "CALL" : "PUT"}", "Поглощение🟢"
+    if c1 > o1 and c2 < o2 and c2 < o1 and o2 > c1: return "${cfg.trendFollow ? "PUT" : "CALL"}", "Поглощение🔴"
+    return None, "Нет паттерна"`)
     callLines.push("signal_candle_pattern(prices, candles)")
   }
 
@@ -1097,15 +1099,15 @@ def find_levels(prices, window=10):
 
 def signal_support_resistance(prices, candles):
     if len(prices) < 30:
-        return None
+        return None, ""
     sup, res = find_levels(prices)
     cur = prices[-1]
     thr = cur * 0.001
     for s in sup:
-        if abs(cur - s) < thr: return "${cfg.trendFollow ? "CALL" : "PUT"}"
+        if abs(cur - s) < thr: return "${cfg.trendFollow ? "CALL" : "PUT"}", f"Поддержка={s:.5f}"
     for r in res:
-        if abs(cur - r) < thr: return "${cfg.trendFollow ? "PUT" : "CALL"}"
-    return None`)
+        if abs(cur - r) < thr: return "${cfg.trendFollow ? "PUT" : "CALL"}", f"Сопротивление={r:.5f}"
+    return None, "Нет уровня"`)
     callLines.push("signal_support_resistance(prices, candles)")
   }
 
@@ -1113,36 +1115,39 @@ def signal_support_resistance(prices, candles):
     ? `
 def get_combined_signal(prices, candles):
     """Комбо AND — большинство стратегий должны совпасть"""
-    names = [${callLines.map(l => `"${l.replace(/\(.*\)/, '')}"`).join(", ")}]
-    raw   = [${callLines.join(", ")}]
-    signals = [(n, s) for n, s in zip(names, raw) if s is not None]
+    fns = [${callLines.map(l => l.replace(/\(.*\)/, '')).join(", ")}]
+    results = [f(prices, candles) for f in fns]
+    signals = [(s, i) for s, i in results if s is not None]
     majority = (${selected.length} // 2) + 1
-    calls = sum(1 for _, s in signals if s == "CALL")
-    puts  = sum(1 for _, s in signals if s == "PUT")
-    if calls >= majority:
-        info = "AND: " + ", ".join(n for n, s in signals if s == "CALL")
+    calls = [(s, i) for s, i in signals if s == "CALL"]
+    puts  = [(s, i) for s, i in signals if s == "PUT"]
+    if len(calls) >= majority:
+        info = "AND✅ " + " | ".join(i for _, i in calls if i)
         return "CALL", info
-    if puts >= majority:
-        info = "AND: " + ", ".join(n for n, s in signals if s == "PUT")
+    if len(puts) >= majority:
+        info = "AND✅ " + " | ".join(i for _, i in puts if i)
         return "PUT", info
-    return None, ""  # Нет большинства`
+    all_info = " | ".join(i for _, i in signals if i)
+    return None, all_info  # Нет большинства`
     : `
 def get_combined_signal(prices, candles):
     """Комбо OR — достаточно хотя бы одного сигнала"""
-    names = [${callLines.map(l => `"${l.replace(/\(.*\)/, '')}"`).join(", ")}]
-    raw   = [${callLines.join(", ")}]
-    signals = [(n, s) for n, s in zip(names, raw) if s is not None]
+    fns = [${callLines.map(l => l.replace(/\(.*\)/, '')).join(", ")}]
+    results = [f(prices, candles) for f in fns]
+    signals = [(s, i) for s, i in results if s is not None]
     if not signals:
-        return None, ""
-    calls = sum(1 for _, s in signals if s == "CALL")
-    puts  = sum(1 for _, s in signals if s == "PUT")
-    if calls > puts:
-        info = "OR: " + ", ".join(n for n, s in signals if s == "CALL")
+        all_info = " | ".join(i for _, i in results if i)
+        return None, all_info
+    calls = [(s, i) for s, i in signals if s == "CALL"]
+    puts  = [(s, i) for s, i in signals if s == "PUT"]
+    if len(calls) > len(puts):
+        info = "OR✅ " + " | ".join(i for _, i in calls if i)
         return "CALL", info
-    if puts > calls:
-        info = "OR: " + ", ".join(n for n, s in signals if s == "PUT")
+    if len(puts) > len(calls):
+        info = "OR✅ " + " | ".join(i for _, i in puts if i)
         return "PUT", info
-    return None, ""  # Равенство голосов — пропускаем`
+    all_info = " | ".join(i for _, i in signals if i)
+    return None, all_info  # Равенство голосов — пропускаем`
 
   const comboAssetMap: Record<string, string> = {
     "EUR/USD (OTC)": "EURUSD_otc",

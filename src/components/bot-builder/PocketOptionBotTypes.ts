@@ -578,6 +578,11 @@ ${martingaleBlock}
 # ===== ТРЕНД ПО 2 ПОСЛЕДНИМ СВЕЧАМ =====
 _last_trend = None
 
+# ===== КЭШ СВЕЧЕЙ =====
+_candle_cache     = []
+_candle_asset     = None
+_last_candle_time = None
+
 def candle_color(c):
     return "UP" if c[3] >= c[0] else "DOWN"
 
@@ -650,7 +655,8 @@ async def try_get_candles(client, asset_name):
     return None
 
 async def get_candles_data(client):
-    """Получение свечей с автоперебором форматов актива"""
+    """Получение свечей с кэшем — обновляет только когда закрывается новая свеча"""
+    global _candle_cache, _candle_asset, _last_candle_time
     base = ASSET.replace("_otc", "").replace("#", "")
     candidates = [ASSET, f"#{ASSET}", base, f"{base}_otc", f"#{base}_otc"]
     seen = []
@@ -660,20 +666,32 @@ async def get_candles_data(client):
         seen.append(name)
         try:
             raw = await try_get_candles(client, name)
-            if raw:
-                if name != ASSET:
-                    print(f"[INFO] Актив найден как: {name}")
-                if hasattr(raw[0], 'time'):
-                    sorted_raw = sorted(raw, key=lambda c: c.time)
-                else:
-                    sorted_raw = list(reversed(raw))
-                candles = [(c.open, c.high, c.low, c.close) for c in sorted_raw]
-                prices  = [c.close for c in sorted_raw]
-                for i, c in enumerate(sorted_raw[-5:], start=len(sorted_raw)-4):
-                    t = c.time if hasattr(c, 'time') else '?'
-                    emoji = '🟢' if c.close >= c.open else '🔴'
-                    print(f"[C{i}] {emoji} t={t} o={c.open:.5f} c={c.close:.5f}")
-                return candles, prices
+            if not raw:
+                continue
+            if name != ASSET:
+                print(f"[INFO] Актив найден как: {name}")
+            if hasattr(raw[0], 'time'):
+                sorted_raw = sorted(raw, key=lambda c: c.time)
+            else:
+                sorted_raw = list(reversed(raw))
+            closed_raw = sorted_raw[:-1]
+            if not closed_raw:
+                continue
+            last_time = closed_raw[-1].time if hasattr(closed_raw[-1], 'time') else closed_raw[-1].open
+            if _candle_asset == name and _last_candle_time == last_time and _candle_cache:
+                print(f"[CACHE] Новых закрытых свечей нет, используем кэш ({len(_candle_cache)} шт)")
+                candles_all = _candle_cache + [(sorted_raw[-1].open, sorted_raw[-1].high, sorted_raw[-1].low, sorted_raw[-1].close)]
+                prices_all  = [c[3] for c in candles_all]
+                return candles_all, prices_all
+            _candle_cache     = [(c.open, c.high, c.low, c.close) for c in closed_raw]
+            _candle_asset     = name
+            _last_candle_time = last_time
+            lc = closed_raw[-1]
+            emoji = '🟢' if lc.close >= lc.open else '🔴'
+            print(f"[CACHE] Новая закрытая свеча: {emoji} o={lc.open:.5f} c={lc.close:.5f} | закрытых в кэше: {len(_candle_cache)}")
+            candles_all = _candle_cache + [(sorted_raw[-1].open, sorted_raw[-1].high, sorted_raw[-1].low, sorted_raw[-1].close)]
+            prices_all  = [c[3] for c in candles_all]
+            return candles_all, prices_all
         except Exception:
             continue
     print(f"[ERROR] Актив {ASSET} не найден ни в одном формате")
@@ -1256,6 +1274,11 @@ trade_log    = []
 ${martingaleBlock}
 # ===== ТРЕНД ПО 2 ПОСЛЕДНИМ СВЕЧАМ =====
 _last_trend = None
+
+# ===== КЭШ СВЕЧЕЙ =====
+_candle_cache     = []
+_candle_asset     = None
+_last_candle_time = None
 
 def candle_color(c):
     return "UP" if c[3] >= c[0] else "DOWN"

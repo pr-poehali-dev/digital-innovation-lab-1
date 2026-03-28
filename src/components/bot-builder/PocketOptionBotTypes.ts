@@ -850,7 +850,7 @@ async def main():
             if total_profit >= TAKE_PROFIT:
                 msg = f"[TP] Take Profit достигнут: +{round(total_profit, 2)} {CURRENCY}"
                 print(msg)
-                tg(f"✅ <b>Take Profit достигнут!</b>\\n+{total_profit:.2f} {CURRENCY} за сессию")
+                tg(f"✅ <b>Take Profit достигнут!</b>\\n+{total_profit:.2f} {CURRENCY} за сессию\\n📊 Сделок: {trades_today} | Отклонено: {rejected_signals} (нет тренда: {rejected_no_trend}, конфликт: {rejected_conflict})")
                 if AUTO_RESTART:
                     total_profit = 0
                     trades_today = 0
@@ -861,7 +861,7 @@ async def main():
             if total_profit <= -STOP_LOSS:
                 msg = f"[SL] Stop Loss достигнут: {round(total_profit, 2)} {CURRENCY}"
                 print(msg)
-                tg(f"🛑 <b>Stop Loss достигнут!</b>\\n{total_profit:.2f} {CURRENCY} за сессию")
+                tg(f"🛑 <b>Stop Loss достигнут!</b>\\n{total_profit:.2f} {CURRENCY} за сессию\\n📊 Сделок: {trades_today} | Отклонено: {rejected_signals} (нет тренда: {rejected_no_trend}, конфликт: {rejected_conflict})")
                 if AUTO_RESTART:
                     total_profit = 0
                     trades_today = 0
@@ -871,7 +871,7 @@ async def main():
 
             if trades_today >= DAILY_LIMIT:
                 print(f"[LIMIT] Дневной лимит {DAILY_LIMIT} сделок исчерпан")
-                tg_info(f"⚠️ <b>Дневной лимит исчерпан</b>\\n{DAILY_LIMIT} сделок | Итог: {total_profit:.2f} {CURRENCY}")
+                tg_info(f"⚠️ <b>Дневной лимит исчерпан</b>\\n{DAILY_LIMIT} сделок | Итог: {total_profit:.2f} {CURRENCY}\\n📊 Отклонено: {rejected_signals} (нет тренда: {rejected_no_trend}, конфликт: {rejected_conflict})")
                 break
 
             await asyncio.sleep(3)

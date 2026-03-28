@@ -1459,6 +1459,7 @@ async def main():
             tg_info(f"⚠️ <b>Дневной лимит исчерпан</b>\\n{DAILY_LIMIT} сделок | Итог: {total_profit:.2f} {CURRENCY}")
             break
 
+        await asyncio.sleep(3)
         candles, prices = await get_candles_data(client)
         if not prices:
             await asyncio.sleep(CHECK_INTERVAL)

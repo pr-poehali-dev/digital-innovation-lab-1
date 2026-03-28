@@ -783,10 +783,14 @@ def print_stats():
     wins    = sum(1 for t in trade_log if t["won"])
     total   = len(trade_log)
     winrate = (wins / total * 100) if total else 0
-    print(f"\\n[STATS] {wins}/{total} сделок | Winrate: {winrate:.1f}% | Сессия: {round(total_profit, 2)} {CURRENCY}\\n")
+    print(f"\\n[STATS] {wins}/{total} сделок | Winrate: {winrate:.1f}% | Сессия: {round(total_profit, 2)} {CURRENCY}")
+    print(f"[STATS] Отклонено сигналов: {rejected_signals} (нет тренда: {rejected_no_trend}, конфликт: {rejected_conflict})\\n")
 
 async def main():
-    global total_profit, trades_today, current_bet
+    global total_profit, trades_today, current_bet, rejected_signals, rejected_no_trend, rejected_conflict
+    rejected_signals = 0
+    rejected_no_trend = 0
+    rejected_conflict = 0
 
     print("Подключение к Pocket Option...")
     client = AsyncPocketOptionClient(SESSION_ID, is_demo=IS_DEMO, enable_logging=True)
@@ -895,10 +899,14 @@ async def main():
                 ts = datetime.now().strftime("%H:%M:%S")
                 if not trend_sig:
                     print(f"[{ts}] Сигнал {signal} отклонён — тренд неподходящий {labels.get(trend, trend or '?')}")
+                    rejected_signals += 1
+                    rejected_no_trend += 1
                     await asyncio.sleep(CHECK_INTERVAL)
                     continue
                 if signal != trend_sig:
                     print(f"[{ts}] Сигнал {signal} отклонён — не совпадает с трендом {trend_sig} ({labels.get(trend, trend or '?')})")
+                    rejected_signals += 1
+                    rejected_conflict += 1
                     await asyncio.sleep(CHECK_INTERVAL)
                     continue
 

@@ -793,9 +793,15 @@ def print_stats():
 
 async def main():
     global total_profit, trades_today, current_bet, rejected_signals, rejected_no_trend, rejected_conflict
+    global _candle_cache, _candle_asset, _last_candle_time, _last_trend
     rejected_signals = 0
     rejected_no_trend = 0
     rejected_conflict = 0
+    _candle_cache     = []
+    _candle_asset     = None
+    _last_candle_time = None
+    _last_trend       = None
+    print("[CACHE] Кэш свечей сброшен")
 
     print("Подключение к Pocket Option...")
     client = AsyncPocketOptionClient(SESSION_ID, is_demo=IS_DEMO, enable_logging=True)

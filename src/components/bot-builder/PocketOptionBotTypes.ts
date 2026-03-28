@@ -694,7 +694,8 @@ async def get_candles_data(client):
             candles_all = _candle_cache + [(sorted_raw[-1].open, sorted_raw[-1].high, sorted_raw[-1].low, sorted_raw[-1].close)]
             prices_all  = [c[3] for c in candles_all]
             return candles_all, prices_all
-        except Exception:
+        except Exception as e:
+            print(f"[CACHE_ERR] {e}")
             continue
     print(f"[ERROR] Актив {ASSET} не найден ни в одном формате")
     try:

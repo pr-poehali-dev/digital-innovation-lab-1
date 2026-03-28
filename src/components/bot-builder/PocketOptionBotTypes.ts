@@ -897,7 +897,6 @@ async def main():
                     print(f"[{ts}] Сигнал {signal} отклонён — тренд неподходящий {labels.get(trend, trend or '?')}")
                     await asyncio.sleep(CHECK_INTERVAL)
                     continue
-                signal = trend_sig
 
             if signal:
                 if BET_PERCENT:

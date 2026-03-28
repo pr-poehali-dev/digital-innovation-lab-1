@@ -663,8 +663,12 @@ async def get_candles_data(client):
             if raw:
                 if name != ASSET:
                     print(f"[INFO] Актив найден как: {name}")
-                candles = [(c.open, c.high, c.low, c.close) for c in raw]
-                prices  = [c.close for c in raw]
+                sorted_raw = sorted(raw, key=lambda c: c.time) if hasattr(raw[0], 'time') else raw
+                candles = [(c.open, c.high, c.low, c.close) for c in sorted_raw]
+                prices  = [c.close for c in sorted_raw]
+                if hasattr(raw[0], 'time'):
+                    lc = sorted_raw[-2]
+                    print(f"[LAST_CLOSED] time={lc.time} o={lc.open:.5f} c={lc.close:.5f} {'🟢' if lc.close >= lc.open else '🔴'}")
                 return candles, prices
         except Exception:
             continue

@@ -577,15 +577,16 @@ def candle_color(c):
     return "UP" if c[3] >= c[0] else "DOWN"
 
 def get_trend(candles):
-    if len(candles) < 2:
+    closed = candles[:-1]
+    if len(closed) < 2:
         return None
-    prev = candle_color(candles[-2])
-    last = candle_color(candles[-1])
+    prev = candle_color(closed[-2])
+    last = candle_color(closed[-1])
     prev_emoji = "🟢" if prev == "UP" else "🔴"
     last_emoji = "🟢" if last == "UP" else "🔴"
-    p = candles[-2]
-    l = candles[-1]
-    print(f"[CANDLE_COLOR] предпоследняя={prev_emoji} o={p[0]:.5f} c={p[3]:.5f} | последняя={last_emoji} o={l[0]:.5f} c={l[3]:.5f}")
+    p = closed[-2]
+    l = closed[-1]
+    print(f"[CANDLE_COLOR] предпоследняя={prev_emoji} o={p[0]:.5f} c={p[3]:.5f} | последняя={last_emoji} o={l[0]:.5f} c={l[3]:.5f} (текущая пропущена)")
     if prev == "UP" and last == "UP":
         return "UP_UP"
     if prev == "DOWN" and last == "DOWN":
@@ -1245,15 +1246,16 @@ def candle_color(c):
     return "UP" if c[3] >= c[0] else "DOWN"
 
 def get_trend(candles):
-    if len(candles) < 2:
+    closed = candles[:-1]
+    if len(closed) < 2:
         return None
-    prev = candle_color(candles[-2])
-    last = candle_color(candles[-1])
+    prev = candle_color(closed[-2])
+    last = candle_color(closed[-1])
     prev_emoji = "🟢" if prev == "UP" else "🔴"
     last_emoji = "🟢" if last == "UP" else "🔴"
-    p = candles[-2]
-    l = candles[-1]
-    print(f"[CANDLE_COLOR] предпоследняя={prev_emoji} o={p[0]:.5f} c={p[3]:.5f} | последняя={last_emoji} o={l[0]:.5f} c={l[3]:.5f}")
+    p = closed[-2]
+    l = closed[-1]
+    print(f"[CANDLE_COLOR] предпоследняя={prev_emoji} o={p[0]:.5f} c={p[3]:.5f} | последняя={last_emoji} o={l[0]:.5f} c={l[3]:.5f} (текущая пропущена)")
     if prev == "UP" and last == "UP":
         return "UP_UP"
     if prev == "DOWN" and last == "DOWN":

@@ -267,6 +267,7 @@ def calculate_rsi(prices, period=${cfg.rsiPeriod}):
 
 def get_signal(prices, candles=None):
     """Сигнал по RSI${cfg.trendFollow ? " — разворотная стратегия (перепроданность=CALL, перекупленность=PUT)" : " — контртрендовая стратегия (перепроданность=PUT, перекупленность=CALL)"}"""
+    prices = prices[:-1]
     if len(prices) < ${cfg.rsiPeriod} + 1:
         return None, ""
     rsi = calculate_rsi(prices)
@@ -290,6 +291,7 @@ def calculate_ema(prices, period):
 
 def get_signal(prices, candles=None):
     """Сигнал по пересечению EMA ${cfg.emaFast} / EMA ${cfg.emaSlow}${cfg.trendFollow ? " (по тренду)" : " (против тренда)"}"""
+    prices = prices[:-1]
     if len(prices) < ${cfg.emaSlow} + 2:
         return None, ""
     ema_fast = calculate_ema(prices, ${cfg.emaFast})
@@ -306,6 +308,7 @@ def get_signal(prices, candles=None):
     martingale: `
 def get_signal(prices, candles=None):
     """Мартингейл: направление по последним 3 свечам (большинство голосует за одно направление)"""
+    prices = prices[:-1]
     if len(prices) < 4:
         return None, ""
     moves = []
@@ -328,8 +331,9 @@ def get_signal(prices, candles=None):
     """Паттерны японских свечей"""
     if candles is None or len(candles) < 3:
         return None, ""
-    o1, h1, l1, c1 = candles[-2]
-    o2, h2, l2, c2 = candles[-1]
+    closed = candles[:-1]
+    o1, h1, l1, c1 = closed[-2]
+    o2, h2, l2, c2 = closed[-1]
     body2 = abs(c2 - o2)
     lower_shadow = min(o2, c2) - l2
     upper_shadow = h2 - max(o2, c2)
@@ -360,6 +364,7 @@ def find_levels(prices, window=10):
 
 def get_signal(prices, candles=None):
     """Вход от уровней поддержки/сопротивления"""
+    prices = prices[:-1]
     if len(prices) < 30:
         return None, ""
     supports, resistances = find_levels(prices)
@@ -612,7 +617,7 @@ def trend_to_signal(trend):
 
 def check_trend_change(candles):
     global _last_trend
-    trend = get_trend(candles[:-1])  # убираем последнюю незакрытую свечу
+    trend = get_trend(candles)
     if trend and trend != _last_trend:
         old = _last_trend
         _last_trend = trend
@@ -1281,7 +1286,7 @@ def trend_to_signal(trend):
 
 def check_trend_change(candles):
     global _last_trend
-    trend = get_trend(candles[:-1])  # убираем последнюю незакрытую свечу
+    trend = get_trend(candles)
     if trend and trend != _last_trend:
         old = _last_trend
         _last_trend = trend

@@ -1483,6 +1483,7 @@ async def main():
     print("=" * 55 + "\\n")
     tg_info(f"🤖 <b>КОМБО-Бот запущен</b>\\nСчёт: {account_type}\\n${labels} (${cfg.comboLogic})\\nАктив: {ASSET} | {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} {CURRENCY} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
 
+    last_lost_signal = None
     while True:
         if total_profit >= TAKE_PROFIT:
             print(f"[TP] +{total_profit:.2f} {CURRENCY}")

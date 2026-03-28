@@ -1374,7 +1374,7 @@ async def get_candles_data(client):
         raw = await client.get_candles(asset=ASSET, timeframe=EXPIRY_SEC, count=100)
         candles = [(c.open, c.high, c.low, c.close) for c in raw]
         prices  = [c.close for c in raw]
-        print(f"[CANDLES] Получено свечей: {len(prices)}")
+        print(f"[CANDLES] Получено свечей: {len(prices)} | таймфрейм: {EXPIRY_SEC}с ({EXPIRY_SEC//60}мин)")
         return candles, prices
     except Exception as e:
         print(f"[ERROR] get_candles: {e}")

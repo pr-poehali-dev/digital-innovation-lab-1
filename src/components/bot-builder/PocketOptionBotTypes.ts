@@ -1371,7 +1371,7 @@ ${combineLogic}
 
 async def get_candles_data(client):
     try:
-        raw = await client.get_candles(asset=ASSET, timeframe=60, count=100)
+        raw = await client.get_candles(asset=ASSET, timeframe=EXPIRY_SEC, count=100)
         candles = [(c.open, c.high, c.low, c.close) for c in raw]
         prices  = [c.close for c in raw]
         print(f"[CANDLES] Получено свечей: {len(prices)}")

@@ -673,7 +673,6 @@ async def get_candles_data(client):
             if hasattr(raw[0], 'time'):
                 sorted_raw = sorted(raw, key=lambda c: c.time)
                 now_ts = datetime.now().timestamp()
-                # Нормализуем время: если миллисекунды (13 цифр) — переводим в секунды
                 sample_time = sorted_raw[-1].time
                 if sample_time > 1e10:
                     closed_raw = [c for c in sorted_raw if c.time / 1000 + EXPIRY_SEC <= now_ts]
@@ -687,26 +686,12 @@ async def get_candles_data(client):
                 closed_raw = sorted_raw[:-1]
             if not closed_raw:
                 continue
-            has_time = hasattr(closed_raw[-1], 'time')
-            last_time = closed_raw[-1].time if has_time else f"{closed_raw[-1].open:.5f}_{closed_raw[-1].close:.5f}"
-            print(f"[CACHE_DEBUG] has_time={has_time} last_time={last_time} cached={_last_candle_time} match={_last_candle_time == last_time}")
             cur_candle = sorted_raw[-1]
-            if _candle_asset == name and _last_candle_time == last_time and _candle_cache:
-                print(f"[CACHE] Новых закрытых свечей нет, используем кэш ({len(_candle_cache)} шт)")
-                candles_all = _candle_cache + [(cur_candle.open, cur_candle.high, cur_candle.low, cur_candle.close)]
-                prices_all  = [c[3] for c in candles_all]
-                return candles_all, prices_all
-            _candle_cache     = [(c.open, c.high, c.low, c.close) for c in closed_raw]
-            _candle_asset     = name
-            _last_candle_time = last_time
             lc = closed_raw[-1]
             emoji = '🟢' if lc.close >= lc.open else '🔴'
-            print(f"[CACHE] Новая закрытая свеча: {emoji} o={lc.open:.5f} c={lc.close:.5f} | закрытых в кэше: {len(_candle_cache)}")
-            last5 = sorted_raw[-8:]
-            for i, c in enumerate(last5):
-                e = '🟢' if c.close >= c.open else '🔴'
-                print(f"[RAW_{i}] {e} o={c.open:.5f} c={c.close:.5f}")
-            candles_all = _candle_cache + [(cur_candle.open, cur_candle.high, cur_candle.low, cur_candle.close)]
+            print(f"[CANDLE] Последняя закрытая: {emoji} o={lc.open:.5f} c={lc.close:.5f} | закрытых: {len(closed_raw)}")
+            candles_all = [(c.open, c.high, c.low, c.close) for c in closed_raw]
+            candles_all += [(cur_candle.open, cur_candle.high, cur_candle.low, cur_candle.close)]
             prices_all  = [c[3] for c in candles_all]
             return candles_all, prices_all
         except Exception as e:

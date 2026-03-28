@@ -865,6 +865,10 @@ async def main():
                 if AUTO_RESTART:
                     total_profit = 0
                     trades_today = 0
+                    _candle_cache[:] = []
+                    _last_candle_time = None
+                    _last_trend = None
+                    print("[CACHE] Кэш сброшен после TP, перезапуск через 5 мин...")
                     await asyncio.sleep(300)
                     continue
                 break
@@ -876,6 +880,10 @@ async def main():
                 if AUTO_RESTART:
                     total_profit = 0
                     trades_today = 0
+                    _candle_cache[:] = []
+                    _last_candle_time = None
+                    _last_trend = None
+                    print("[CACHE] Кэш сброшен после SL, перезапуск через 5 мин...")
                     await asyncio.sleep(300)
                     continue
                 break

@@ -732,6 +732,10 @@ async def check_result(client, order_id, balance_before):
             if profit == 0.0 and attempt < 10:
                 await asyncio.sleep(5)
                 continue
+            if profit < 0 and attempt < 10:
+                print(f"[WAIT] Баланс ещё не обновился (попытка {attempt+1}), ждём...")
+                await asyncio.sleep(5)
+                continue
             won = profit > 0
             status = "ВЫИГРЫШ ✅" if won else "ПРОИГРЫШ ❌"
             print(f"[RESULT] {status} | Профит: {profit}")

@@ -25,7 +25,7 @@ export interface POBotConfig {
   emaFast: number
   emaSlow: number
   emaTrendMode: POEmaTrendMode
-  trendMode: "same" | "reverse"
+  trendMode: "same" | "reverse" | "any"
   trendFollow: "follow" | "reverse" | "combo"
   useOTC: boolean
   autoRestart: boolean
@@ -460,7 +460,7 @@ Pocket Option Bot — ${strategyLabel}
   Ставка     : ${cfg.betAmount}${cfg.betPercent ? "% от баланса" : " " + cfg.currency}
   Режим      : ${cfg.isDemo ? "ДЕМО-СЧЁТ" : "РЕАЛЬНЫЙ СЧЁТ"}
   Направление: ${cfg.trendFollow === "follow" ? "По тренду ↗" : cfg.trendFollow === "reverse" ? "Против тренда ↙" : "Комбо ↗↙"}
-  Режим свечей: ${(cfg.trendMode ?? "same") === "same" ? "Одинаковые (2 зелёных=CALL / 2 красных=PUT)" : "Разворот (красн+зел=PUT / зел+красн=CALL)"}
+  Режим свечей: ${(cfg.trendMode ?? "same") === "same" ? "Одинаковые (2 зелёных=CALL / 2 красных=PUT)" : (cfg.trendMode === "reverse") ? "Разворот (красн+зел=PUT / зел+красн=CALL)" : "Любой паттерн (UP=CALL, DOWN=PUT)"}
   Take Profit: ${cfg.takeProfitRub} ${cfg.currency}
   Stop Loss  : ${cfg.stopLossRub} ${cfg.currency}
   Лимит/день : ${cfg.dailyLimit} сделок
@@ -494,7 +494,7 @@ MARTINGALE_MULT  = ${cfg.martingaleMultiplier}
 MARTINGALE_STEPS = ${cfg.martingaleSteps}
 
 CHECK_INTERVAL   = ${cfg.checkInterval}      # Интервал проверки сигнала (сек)
-TREND_MODE       = "${cfg.trendMode ?? "same"}"     # "same" = 2 одинаковых, "reverse" = разворот
+TREND_MODE       = "${cfg.trendMode ?? "same"}"     # "same" = 2 одинаковых, "reverse" = разворот, "any" = любой паттерн
 TREND_FOLLOW     = "${cfg.trendFollow}"              # "follow" = по тренду, "reverse" = против, "combo" = без фильтра
 
 try:
@@ -616,7 +616,12 @@ def get_trend(candles):
     return None
 
 def trend_to_signal(trend):
-    if TREND_MODE == "same":
+    if TREND_MODE == "any":
+        if trend in ("UP_UP", "DOWN_UP"):
+            return "CALL"
+        if trend in ("DOWN_DOWN", "UP_DOWN"):
+            return "PUT"
+    elif TREND_MODE == "same":
         if trend == "UP_UP":
             return "CALL"
         if trend == "DOWN_DOWN":
@@ -1214,7 +1219,7 @@ Pocket Option КОМБО-Бот
   Ставка     : ${cfg.betAmount}${cfg.betPercent ? "% от баланса" : " " + cfg.currency}
   Режим      : ${cfg.isDemo ? "ДЕМО-СЧЁТ" : "РЕАЛЬНЫЙ СЧЁТ"}
   Направление: ${cfg.trendFollow === "follow" ? "По тренду ↗" : cfg.trendFollow === "reverse" ? "Против тренда ↙" : "Комбо ↗↙"}
-  Режим свечей: ${(cfg.trendMode ?? "same") === "same" ? "Одинаковые (2 зелёных=CALL / 2 красных=PUT)" : "Разворот (красн+зел=PUT / зел+красн=CALL)"}
+  Режим свечей: ${(cfg.trendMode ?? "same") === "same" ? "Одинаковые (2 зелёных=CALL / 2 красных=PUT)" : (cfg.trendMode === "reverse") ? "Разворот (красн+зел=PUT / зел+красн=CALL)" : "Любой паттерн (UP=CALL, DOWN=PUT)"}
   Take Profit: ${cfg.takeProfitRub} ${cfg.currency}
   Stop Loss  : ${cfg.stopLossRub} ${cfg.currency}
   Лимит/день : ${cfg.dailyLimit} сделок
@@ -1246,7 +1251,7 @@ MARTINGALE_MULT  = ${cfg.martingaleMultiplier}
 MARTINGALE_STEPS = ${cfg.martingaleSteps}
 
 CHECK_INTERVAL   = ${cfg.checkInterval}      # Интервал проверки сигнала (сек)
-TREND_MODE       = "${cfg.trendMode ?? "same"}"     # "same" = 2 одинаковых, "reverse" = разворот
+TREND_MODE       = "${cfg.trendMode ?? "same"}"     # "same" = 2 одинаковых, "reverse" = разворот, "any" = любой паттерн
 TREND_FOLLOW     = "${cfg.trendFollow}"              # "follow" = по тренду, "reverse" = против, "combo" = без фильтра
 
 try:
@@ -1368,7 +1373,12 @@ def get_trend(candles):
     return None
 
 def trend_to_signal(trend):
-    if TREND_MODE == "same":
+    if TREND_MODE == "any":
+        if trend in ("UP_UP", "DOWN_UP"):
+            return "CALL"
+        if trend in ("DOWN_DOWN", "UP_DOWN"):
+            return "PUT"
+    elif TREND_MODE == "same":
         if trend == "UP_UP":
             return "CALL"
         if trend == "DOWN_DOWN":

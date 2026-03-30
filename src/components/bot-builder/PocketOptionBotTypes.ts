@@ -26,7 +26,7 @@ export interface POBotConfig {
   emaSlow: number
   emaTrendMode: POEmaTrendMode
   trendMode: "same" | "reverse"
-  trendFollow: boolean
+  trendFollow: "follow" | "reverse" | "combo"
   useOTC: boolean
   autoRestart: boolean
   isDemo: boolean
@@ -232,7 +232,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   emaSlow: 21,
   emaTrendMode: "ema9_21",
   trendMode: "same",
-  trendFollow: true,
+  trendFollow: "follow",
   useOTC: true,
   autoRestart: false,
   isDemo: true,
@@ -266,7 +266,7 @@ def calculate_rsi(prices, period=${cfg.rsiPeriod}):
     return 100 - (100 / (1 + rs))
 
 def get_signal(prices, candles=None):
-    """Сигнал по RSI${cfg.trendFollow ? " — разворотная стратегия (перепроданность=CALL, перекупленность=PUT)" : " — контртрендовая стратегия (перепроданность=PUT, перекупленность=CALL)"}"""
+    """Сигнал по RSI${cfg.trendFollow === "follow" ? " — по тренду (перепроданность=CALL, перекупленность=PUT)" : cfg.trendFollow === "reverse" ? " — против тренда (перепроданность=PUT, перекупленность=CALL)" : " — комбо (без фильтрации)"}"""
     prices = prices[:-1]
     if len(prices) < ${cfg.rsiPeriod} + 1:
         return None, ""
@@ -275,9 +275,9 @@ def get_signal(prices, candles=None):
     overbought = rsi >= ${cfg.rsiOverbought}
     info = f"RSI(${cfg.rsiPeriod}): {rsi:.1f}"
     if oversold:
-        return ("CALL" if ${cfg.trendFollow ? "True" : "False"} else "PUT"), f"{info} ≤ ${cfg.rsiOversold} (перепроданность)"
+        return ("CALL" if ${cfg.trendFollow !== "reverse" ? "True" : "False"} else "PUT"), f"{info} ≤ ${cfg.rsiOversold} (перепроданность)"
     if overbought:
-        return ("PUT" if ${cfg.trendFollow ? "True" : "False"} else "CALL"), f"{info} ≥ ${cfg.rsiOverbought} (перекупленность)"
+        return ("PUT" if ${cfg.trendFollow !== "reverse" ? "True" : "False"} else "CALL"), f"{info} ≥ ${cfg.rsiOverbought} (перекупленность)"
     return None, info`,
 
     ema_cross: `
@@ -290,7 +290,7 @@ def calculate_ema(prices, period):
     return ema
 
 def get_signal(prices, candles=None):
-    """Сигнал по пересечению EMA ${cfg.emaFast} / EMA ${cfg.emaSlow}${cfg.trendFollow ? " (по тренду)" : " (против тренда)"}"""
+    """Сигнал по пересечению EMA ${cfg.emaFast} / EMA ${cfg.emaSlow}${cfg.trendFollow === "follow" ? " (по тренду)" : cfg.trendFollow === "reverse" ? " (против тренда)" : " (комбо)"}"""
     prices = prices[:-1]
     if len(prices) < ${cfg.emaSlow} + 2:
         return None, ""
@@ -300,9 +300,9 @@ def get_signal(prices, candles=None):
     cross_down = ema_fast[-1] < ema_slow[-1] and ema_fast[-2] >= ema_slow[-2]
     info = f"EMA${cfg.emaFast}={ema_fast[-1]:.5f} / EMA${cfg.emaSlow}={ema_slow[-1]:.5f}"
     if cross_up:
-        return "${cfg.trendFollow ? "CALL" : "PUT"}", f"{info} (пересечение вверх ↑)"
+        return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", f"{info} (пересечение вверх ↑)"
     if cross_down:
-        return "${cfg.trendFollow ? "PUT" : "CALL"}", f"{info} (пересечение вниз ↓)"
+        return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", f"{info} (пересечение вниз ↓)"
     return None, info`,
 
     martingale: `
@@ -459,7 +459,7 @@ Pocket Option Bot — ${strategyLabel}
   Экспирация : ${cfg.expiry} мин
   Ставка     : ${cfg.betAmount}${cfg.betPercent ? "% от баланса" : " " + cfg.currency}
   Режим      : ${cfg.isDemo ? "ДЕМО-СЧЁТ" : "РЕАЛЬНЫЙ СЧЁТ"}
-  Направление: ${cfg.trendFollow ? "По тренду ↗" : "Против тренда ↙"}
+  Направление: ${cfg.trendFollow === "follow" ? "По тренду ↗" : cfg.trendFollow === "reverse" ? "Против тренда ↙" : "Комбо ↗↙"}
   Режим свечей: ${(cfg.trendMode ?? "same") === "same" ? "Одинаковые (2 зелёных=CALL / 2 красных=PUT)" : "Разворот (красн+зел=PUT / зел+красн=CALL)"}
   Take Profit: ${cfg.takeProfitRub} ${cfg.currency}
   Stop Loss  : ${cfg.stopLossRub} ${cfg.currency}
@@ -495,6 +495,7 @@ MARTINGALE_STEPS = ${cfg.martingaleSteps}
 
 CHECK_INTERVAL   = ${cfg.checkInterval}      # Интервал проверки сигнала (сек)
 TREND_MODE       = "${cfg.trendMode ?? "same"}"     # "same" = 2 одинаковых, "reverse" = разворот
+TREND_FOLLOW     = "${cfg.trendFollow}"              # "follow" = по тренду, "reverse" = против, "combo" = без фильтра
 
 try:
     from dotenv import load_dotenv; load_dotenv()
@@ -905,18 +906,19 @@ async def main():
             if signal:
                 labels = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "DOWN_UP": "🔴🟢", "UP_DOWN": "🟢🔴"}
                 ts = datetime.now().strftime("%H:%M:%S")
-                if not trend_sig:
-                    print(f"[{ts}] Сигнал {signal} отклонён — тренд неподходящий {labels.get(trend, trend or '?')}")
-                    rejected_signals += 1
-                    rejected_no_trend += 1
-                    await asyncio.sleep(CHECK_INTERVAL)
-                    continue
-                if signal != trend_sig:
-                    print(f"[{ts}] Сигнал {signal} отклонён — не совпадает с трендом {trend_sig} ({labels.get(trend, trend or '?')})")
-                    rejected_signals += 1
-                    rejected_conflict += 1
-                    await asyncio.sleep(CHECK_INTERVAL)
-                    continue
+                if TREND_FOLLOW != "combo":
+                    if not trend_sig:
+                        print(f"[{ts}] Сигнал {signal} отклонён — тренд неподходящий {labels.get(trend, trend or '?')}")
+                        rejected_signals += 1
+                        rejected_no_trend += 1
+                        await asyncio.sleep(CHECK_INTERVAL)
+                        continue
+                    if signal != trend_sig:
+                        print(f"[{ts}] Сигнал {signal} отклонён — не совпадает с трендом {trend_sig} ({labels.get(trend, trend or '?')})")
+                        rejected_signals += 1
+                        rejected_conflict += 1
+                        await asyncio.sleep(CHECK_INTERVAL)
+                        continue
 
             if signal:
                 if BET_PERCENT:
@@ -1051,8 +1053,8 @@ def calculate_rsi(prices, period=${cfg.rsiPeriod}):
 
 def signal_rsi(prices, candles):
     rsi = calculate_rsi(prices)
-    if rsi <= ${cfg.rsiOversold}: return "${cfg.trendFollow ? "CALL" : "PUT"}", f"RSI={rsi:.1f}≤${cfg.rsiOversold}"
-    if rsi >= ${cfg.rsiOverbought}: return "${cfg.trendFollow ? "PUT" : "CALL"}", f"RSI={rsi:.1f}≥${cfg.rsiOverbought}"
+    if rsi <= ${cfg.rsiOversold}: return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", f"RSI={rsi:.1f}≤${cfg.rsiOversold}"
+    if rsi >= ${cfg.rsiOverbought}: return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", f"RSI={rsi:.1f}≥${cfg.rsiOverbought}"
     return None, f"RSI={rsi:.1f}"`)
     callLines.push("signal_rsi(prices, candles)")
   }
@@ -1072,8 +1074,8 @@ def signal_ema(prices, candles):
     fast = calculate_ema(prices, ${cfg.emaFast})
     slow = calculate_ema(prices, ${cfg.emaSlow})
     info = f"EMA${cfg.emaFast}={fast[-1]:.5f}/EMA${cfg.emaSlow}={slow[-1]:.5f}"
-    if fast[-1] > slow[-1] and fast[-2] <= slow[-2]: return "${cfg.trendFollow ? "CALL" : "PUT"}", f"{info}↑"
-    if fast[-1] < slow[-1] and fast[-2] >= slow[-2]: return "${cfg.trendFollow ? "PUT" : "CALL"}", f"{info}↓"
+    if fast[-1] > slow[-1] and fast[-2] <= slow[-2]: return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", f"{info}↑"
+    if fast[-1] < slow[-1] and fast[-2] >= slow[-2]: return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", f"{info}↓"
     return None, info`)
     callLines.push("signal_ema(prices, candles)")
   }
@@ -1088,10 +1090,10 @@ def signal_candle_pattern(prices, candles):
     body2 = abs(c2 - o2)
     low_sh = min(o2, c2) - l2
     up_sh  = h2 - max(o2, c2)
-    if low_sh > body2 * 2 and up_sh < body2 * 0.5 and c1 < o1: return "${cfg.trendFollow ? "CALL" : "PUT"}", "Молот🔨"
-    if up_sh > body2 * 2 and low_sh < body2 * 0.5 and c1 > o1: return "${cfg.trendFollow ? "PUT" : "CALL"}", "Звезда⭐"
-    if c1 < o1 and c2 > o2 and c2 > o1 and o2 < c1: return "${cfg.trendFollow ? "CALL" : "PUT"}", "Поглощение🟢"
-    if c1 > o1 and c2 < o2 and c2 < o1 and o2 > c1: return "${cfg.trendFollow ? "PUT" : "CALL"}", "Поглощение🔴"
+    if low_sh > body2 * 2 and up_sh < body2 * 0.5 and c1 < o1: return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", "Молот🔨"
+    if up_sh > body2 * 2 and low_sh < body2 * 0.5 and c1 > o1: return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", "Звезда⭐"
+    if c1 < o1 and c2 > o2 and c2 > o1 and o2 < c1: return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", "Поглощение🟢"
+    if c1 > o1 and c2 < o2 and c2 < o1 and o2 > c1: return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", "Поглощение🔴"
     return None, "Нет паттерна"`)
     callLines.push("signal_candle_pattern(prices, candles)")
   }
@@ -1112,9 +1114,9 @@ def signal_support_resistance(prices, candles):
     cur = prices[-1]
     thr = cur * 0.001
     for s in sup:
-        if abs(cur - s) < thr: return "${cfg.trendFollow ? "CALL" : "PUT"}", f"Поддержка={s:.5f}"
+        if abs(cur - s) < thr: return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", f"Поддержка={s:.5f}"
     for r in res:
-        if abs(cur - r) < thr: return "${cfg.trendFollow ? "PUT" : "CALL"}", f"Сопротивление={r:.5f}"
+        if abs(cur - r) < thr: return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", f"Сопротивление={r:.5f}"
     return None, "Нет уровня"`)
     callLines.push("signal_support_resistance(prices, candles)")
   }
@@ -1196,7 +1198,7 @@ Pocket Option КОМБО-Бот
   Экспирация : ${cfg.expiry} мин
   Ставка     : ${cfg.betAmount}${cfg.betPercent ? "% от баланса" : " " + cfg.currency}
   Режим      : ${cfg.isDemo ? "ДЕМО-СЧЁТ" : "РЕАЛЬНЫЙ СЧЁТ"}
-  Направление: ${cfg.trendFollow ? "По тренду ↗" : "Против тренда ↙"}
+  Направление: ${cfg.trendFollow === "follow" ? "По тренду ↗" : cfg.trendFollow === "reverse" ? "Против тренда ↙" : "Комбо ↗↙"}
   Режим свечей: ${(cfg.trendMode ?? "same") === "same" ? "Одинаковые (2 зелёных=CALL / 2 красных=PUT)" : "Разворот (красн+зел=PUT / зел+красн=CALL)"}
   Take Profit: ${cfg.takeProfitRub} ${cfg.currency}
   Stop Loss  : ${cfg.stopLossRub} ${cfg.currency}
@@ -1230,6 +1232,7 @@ MARTINGALE_STEPS = ${cfg.martingaleSteps}
 
 CHECK_INTERVAL   = ${cfg.checkInterval}      # Интервал проверки сигнала (сек)
 TREND_MODE       = "${cfg.trendMode ?? "same"}"     # "same" = 2 одинаковых, "reverse" = разворот
+TREND_FOLLOW     = "${cfg.trendFollow}"              # "follow" = по тренду, "reverse" = против, "combo" = без фильтра
 
 try:
     from dotenv import load_dotenv; load_dotenv()
@@ -1515,11 +1518,12 @@ async def main():
         if signal:
             labels = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "DOWN_UP": "🔴🟢", "UP_DOWN": "🟢🔴"}
             ts = datetime.now().strftime("%H:%M:%S")
-            if not trend_sig:
-                print(f"[{ts}] Комбо-сигнал {signal} отклонён — тренд неподходящий {labels.get(trend, trend or '?')}")
-                await asyncio.sleep(CHECK_INTERVAL)
-                continue
-            signal = trend_sig
+            if TREND_FOLLOW != "combo":
+                if not trend_sig:
+                    print(f"[{ts}] Комбо-сигнал {signal} отклонён — тренд неподходящий {labels.get(trend, trend or '?')}")
+                    await asyncio.sleep(CHECK_INTERVAL)
+                    continue
+                signal = trend_sig
 
         if signal:
             if BET_PERCENT:

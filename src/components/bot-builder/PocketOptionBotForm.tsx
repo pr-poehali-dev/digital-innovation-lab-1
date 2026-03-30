@@ -854,26 +854,24 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
             </div>
             <AIComment {...rsiComment(config)} />
             {/* Trend direction */}
-            <div className="flex items-center justify-between bg-zinc-800/60 border border-zinc-700 rounded-xl px-3 py-2.5">
-              <div>
-                <Label className="text-zinc-300 text-sm">Направление входа</Label>
-                <p className="text-zinc-500 text-xs font-space-mono">
-                  {config.trendFollow ? "По тренду — CALL при перепроданности в росте" : "Против тренда — CALL при перепроданности в падении"}
-                </p>
+            <div className="space-y-2">
+              <Label className="text-zinc-300 text-sm">Направление входа</Label>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button onClick={() => set({ trendFollow: "follow" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "follow" ? "border-green-500/60 bg-green-500/10 text-green-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗ По тренду</button>
+                <button onClick={() => set({ trendFollow: "reverse" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "reverse" ? "border-orange-500/60 bg-orange-500/10 text-orange-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↙ Против</button>
+                <button onClick={() => set({ trendFollow: "combo" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "combo" ? "border-blue-500/60 bg-blue-500/10 text-blue-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗↙ Комбо</button>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                <span className={`text-xs font-space-mono ${!config.trendFollow ? "text-orange-400" : "text-zinc-600"}`}>↙ Против</span>
-                <Switch checked={config.trendFollow} onCheckedChange={(v) => set({ trendFollow: v })} />
-                <span className={`text-xs font-space-mono ${config.trendFollow ? "text-green-400" : "text-zinc-600"}`}>↗ По тренду</span>
-              </div>
+              {config.trendFollow === "reverse" && (
+                <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-3 py-2">
+                  <span className="text-orange-400 text-xs font-space-mono leading-relaxed">⚠️ Только для флета. На сильном тренде увеличивает убытки.</span>
+                </div>
+              )}
+              {config.trendFollow === "combo" && (
+                <div className="flex items-start gap-2 bg-blue-950/40 border border-blue-500/30 rounded-lg px-3 py-2">
+                  <span className="text-blue-400 text-xs font-space-mono leading-relaxed">Комбо: бот ставит по любому сигналу стратегии без фильтра тренда.</span>
+                </div>
+              )}
             </div>
-            {!config.trendFollow && (
-              <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-3 py-2">
-                <span className="text-orange-400 text-xs font-space-mono leading-relaxed">
-                  ⚠️ Режим «против тренда» подходит только для боковых рынков (флет). На сильном тренде увеличивает убытки. Используй осторожно.
-                </span>
-              </div>
-            )}
             {/* Trend mode */}
             <div className="space-y-2">
               <Label className="text-zinc-300 text-sm">Режим анализа свечей</Label>
@@ -907,26 +905,24 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
             <p className="text-zinc-500 text-xs font-space-mono leading-relaxed">
               Бот ищет разворотные паттерны (молот, поглощение, доджи). Сигнал формируется при закрытии свечи.
             </p>
-            <div className="flex items-center justify-between bg-zinc-800/60 border border-zinc-700 rounded-xl px-3 py-2.5">
-              <div>
-                <Label className="text-zinc-300 text-sm">Направление входа</Label>
-                <p className="text-zinc-500 text-xs font-space-mono">
-                  {config.trendFollow ? "По тренду — только паттерны продолжения" : "Против тренда — только разворотные паттерны"}
-                </p>
+            <div className="space-y-2">
+              <Label className="text-zinc-300 text-sm">Направление входа</Label>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button onClick={() => set({ trendFollow: "follow" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "follow" ? "border-green-500/60 bg-green-500/10 text-green-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗ По тренду</button>
+                <button onClick={() => set({ trendFollow: "reverse" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "reverse" ? "border-orange-500/60 bg-orange-500/10 text-orange-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↙ Против</button>
+                <button onClick={() => set({ trendFollow: "combo" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "combo" ? "border-blue-500/60 bg-blue-500/10 text-blue-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗↙ Комбо</button>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                <span className={`text-xs font-space-mono ${!config.trendFollow ? "text-orange-400" : "text-zinc-600"}`}>↙ Против</span>
-                <Switch checked={config.trendFollow} onCheckedChange={(v) => set({ trendFollow: v })} />
-                <span className={`text-xs font-space-mono ${config.trendFollow ? "text-green-400" : "text-zinc-600"}`}>↗ По тренду</span>
-              </div>
+              {config.trendFollow === "reverse" && (
+                <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-3 py-2">
+                  <span className="text-orange-400 text-xs font-space-mono leading-relaxed">⚠️ Только для флета. На сильном тренде увеличивает убытки.</span>
+                </div>
+              )}
+              {config.trendFollow === "combo" && (
+                <div className="flex items-start gap-2 bg-blue-950/40 border border-blue-500/30 rounded-lg px-3 py-2">
+                  <span className="text-blue-400 text-xs font-space-mono leading-relaxed">Комбо: бот ставит по любому сигналу стратегии без фильтра тренда.</span>
+                </div>
+              )}
             </div>
-            {!config.trendFollow && (
-              <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-3 py-2">
-                <span className="text-orange-400 text-xs font-space-mono leading-relaxed">
-                  ⚠️ Режим «против тренда» подходит только для боковых рынков (флет). На сильном тренде увеличивает убытки. Используй осторожно.
-                </span>
-              </div>
-            )}
             {/* Trend mode */}
             <div className="space-y-2">
               <Label className="text-zinc-300 text-sm">Режим анализа свечей</Label>
@@ -960,26 +956,24 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
             <p className="text-zinc-500 text-xs font-space-mono leading-relaxed">
               Бот торгует от уровней поддержки и сопротивления. Вход при отбое от уровня.
             </p>
-            <div className="flex items-center justify-between bg-zinc-800/60 border border-zinc-700 rounded-xl px-3 py-2.5">
-              <div>
-                <Label className="text-zinc-300 text-sm">Направление входа</Label>
-                <p className="text-zinc-500 text-xs font-space-mono">
-                  {config.trendFollow ? "По тренду — отбой в сторону тренда" : "Против тренда — отбой от уровня в любую сторону"}
-                </p>
+            <div className="space-y-2">
+              <Label className="text-zinc-300 text-sm">Направление входа</Label>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button onClick={() => set({ trendFollow: "follow" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "follow" ? "border-green-500/60 bg-green-500/10 text-green-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗ По тренду</button>
+                <button onClick={() => set({ trendFollow: "reverse" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "reverse" ? "border-orange-500/60 bg-orange-500/10 text-orange-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↙ Против</button>
+                <button onClick={() => set({ trendFollow: "combo" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "combo" ? "border-blue-500/60 bg-blue-500/10 text-blue-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗↙ Комбо</button>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                <span className={`text-xs font-space-mono ${!config.trendFollow ? "text-orange-400" : "text-zinc-600"}`}>↙ Против</span>
-                <Switch checked={config.trendFollow} onCheckedChange={(v) => set({ trendFollow: v })} />
-                <span className={`text-xs font-space-mono ${config.trendFollow ? "text-green-400" : "text-zinc-600"}`}>↗ По тренду</span>
-              </div>
+              {config.trendFollow === "reverse" && (
+                <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-3 py-2">
+                  <span className="text-orange-400 text-xs font-space-mono leading-relaxed">⚠️ Только для флета. На сильном тренде увеличивает убытки.</span>
+                </div>
+              )}
+              {config.trendFollow === "combo" && (
+                <div className="flex items-start gap-2 bg-blue-950/40 border border-blue-500/30 rounded-lg px-3 py-2">
+                  <span className="text-blue-400 text-xs font-space-mono leading-relaxed">Комбо: бот ставит по любому сигналу стратегии без фильтра тренда.</span>
+                </div>
+              )}
             </div>
-            {!config.trendFollow && (
-              <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-3 py-2">
-                <span className="text-orange-400 text-xs font-space-mono leading-relaxed">
-                  ⚠️ Режим «против тренда» подходит только для боковых рынков (флет). На сильном тренде увеличивает убытки. Используй осторожно.
-                </span>
-              </div>
-            )}
             <div className="space-y-2 pt-1">
               <Label className="text-zinc-300 text-sm">Режим анализа свечей</Label>
               <p className="text-zinc-500 text-xs font-space-mono">Как бот читает 2 последних свечи перед входом</p>
@@ -1045,26 +1039,24 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
               </div>
             </div>
             {/* Trend direction */}
-            <div className="flex items-center justify-between bg-zinc-800/60 border border-zinc-700 rounded-xl px-3 py-2.5">
-              <div>
-                <Label className="text-zinc-300 text-sm">Направление входа</Label>
-                <p className="text-zinc-500 text-xs font-space-mono">
-                  {config.trendFollow ? "По тренду — CALL при росте EMA" : "Против тренда — CALL при падении EMA"}
-                </p>
+            <div className="space-y-2">
+              <Label className="text-zinc-300 text-sm">Направление входа</Label>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button onClick={() => set({ trendFollow: "follow" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "follow" ? "border-green-500/60 bg-green-500/10 text-green-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗ По тренду</button>
+                <button onClick={() => set({ trendFollow: "reverse" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "reverse" ? "border-orange-500/60 bg-orange-500/10 text-orange-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↙ Против</button>
+                <button onClick={() => set({ trendFollow: "combo" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "combo" ? "border-blue-500/60 bg-blue-500/10 text-blue-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗↙ Комбо</button>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                <span className={`text-xs font-space-mono ${!config.trendFollow ? "text-orange-400" : "text-zinc-600"}`}>↙ Против</span>
-                <Switch checked={config.trendFollow} onCheckedChange={(v) => set({ trendFollow: v })} />
-                <span className={`text-xs font-space-mono ${config.trendFollow ? "text-green-400" : "text-zinc-600"}`}>↗ По тренду</span>
-              </div>
+              {config.trendFollow === "reverse" && (
+                <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-3 py-2">
+                  <span className="text-orange-400 text-xs font-space-mono leading-relaxed">⚠️ Только для флета. На сильном тренде увеличивает убытки.</span>
+                </div>
+              )}
+              {config.trendFollow === "combo" && (
+                <div className="flex items-start gap-2 bg-blue-950/40 border border-blue-500/30 rounded-lg px-3 py-2">
+                  <span className="text-blue-400 text-xs font-space-mono leading-relaxed">Комбо: бот ставит по любому сигналу стратегии без фильтра тренда.</span>
+                </div>
+              )}
             </div>
-            {!config.trendFollow && (
-              <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-3 py-2">
-                <span className="text-orange-400 text-xs font-space-mono leading-relaxed">
-                  ⚠️ Режим «против тренда» подходит только для боковых рынков (флет). На сильном тренде увеличивает убытки. Используй осторожно.
-                </span>
-              </div>
-            )}
             <div className="space-y-2 pt-1">
               <Label className="text-zinc-300 text-sm">Режим анализа свечей</Label>
               <p className="text-zinc-500 text-xs font-space-mono">Как бот читает 2 последних свечи перед входом</p>
@@ -1113,21 +1105,19 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
                   </div>
                 </div>
                 <AIComment {...rsiComment(config)} />
-                <div className="flex items-center justify-between bg-zinc-800/60 border border-zinc-700 rounded-lg px-2.5 py-2">
-                  <span className="text-zinc-400 text-xs font-space-mono">
-                    {config.trendFollow ? "↗ По тренду" : "↙ Против тренда"}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <span className={`text-xs font-space-mono ${!config.trendFollow ? "text-orange-400" : "text-zinc-600"}`}>Против</span>
-                    <Switch checked={config.trendFollow} onCheckedChange={(v) => set({ trendFollow: v })} />
-                    <span className={`text-xs font-space-mono ${config.trendFollow ? "text-green-400" : "text-zinc-600"}`}>По тренду</span>
-                  </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button onClick={() => set({ trendFollow: "follow" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "follow" ? "border-green-500/60 bg-green-500/10 text-green-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗ По тренду</button>
+                  <button onClick={() => set({ trendFollow: "reverse" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "reverse" ? "border-orange-500/60 bg-orange-500/10 text-orange-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↙ Против</button>
+                  <button onClick={() => set({ trendFollow: "combo" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "combo" ? "border-blue-500/60 bg-blue-500/10 text-blue-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗↙ Комбо</button>
                 </div>
-                {!config.trendFollow && (
+                {config.trendFollow === "reverse" && (
                   <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-2.5 py-2">
-                    <span className="text-orange-400 text-xs font-space-mono leading-relaxed">
-                      ⚠️ Против тренда — только для флета. На трендовом рынке увеличивает убытки.
-                    </span>
+                    <span className="text-orange-400 text-xs font-space-mono leading-relaxed">⚠️ Только для флета. На трендовом рынке увеличивает убытки.</span>
+                  </div>
+                )}
+                {config.trendFollow === "combo" && (
+                  <div className="flex items-start gap-2 bg-blue-950/40 border border-blue-500/30 rounded-lg px-2.5 py-2">
+                    <span className="text-blue-400 text-xs font-space-mono leading-relaxed">Комбо: ставит по любому сигналу без фильтра тренда.</span>
                   </div>
                 )}
               </div>
@@ -1163,21 +1153,19 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
                     <Input type="number" value={config.emaSlow} onChange={(e) => set({ emaSlow: Number(e.target.value), emaTrendMode: "custom" })} className="bg-zinc-800 border-zinc-700 text-blue-400 font-space-mono text-xs h-8" />
                   </div>
                 </div>
-                <div className="flex items-center justify-between bg-zinc-800/60 border border-zinc-700 rounded-lg px-2.5 py-2">
-                  <span className="text-zinc-400 text-xs font-space-mono">
-                    {config.trendFollow ? "↗ По тренду" : "↙ Против тренда"}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <span className={`text-xs font-space-mono ${!config.trendFollow ? "text-orange-400" : "text-zinc-600"}`}>Против</span>
-                    <Switch checked={config.trendFollow} onCheckedChange={(v) => set({ trendFollow: v })} />
-                    <span className={`text-xs font-space-mono ${config.trendFollow ? "text-green-400" : "text-zinc-600"}`}>По тренду</span>
-                  </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button onClick={() => set({ trendFollow: "follow" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "follow" ? "border-green-500/60 bg-green-500/10 text-green-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗ По тренду</button>
+                  <button onClick={() => set({ trendFollow: "reverse" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "reverse" ? "border-orange-500/60 bg-orange-500/10 text-orange-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↙ Против</button>
+                  <button onClick={() => set({ trendFollow: "combo" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "combo" ? "border-blue-500/60 bg-blue-500/10 text-blue-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗↙ Комбо</button>
                 </div>
-                {!config.trendFollow && (
+                {config.trendFollow === "reverse" && (
                   <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-2.5 py-2">
-                    <span className="text-orange-400 text-xs font-space-mono leading-relaxed">
-                      ⚠️ Против тренда — только для флета. На трендовом рынке увеличивает убытки.
-                    </span>
+                    <span className="text-orange-400 text-xs font-space-mono leading-relaxed">⚠️ Только для флета. На трендовом рынке увеличивает убытки.</span>
+                  </div>
+                )}
+                {config.trendFollow === "combo" && (
+                  <div className="flex items-start gap-2 bg-blue-950/40 border border-blue-500/30 rounded-lg px-2.5 py-2">
+                    <span className="text-blue-400 text-xs font-space-mono leading-relaxed">Комбо: ставит по любому сигналу без фильтра тренда.</span>
                   </div>
                 )}
                 <AIComment {...emaComment(config)} />
@@ -1212,43 +1200,24 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
         <Card className="bg-zinc-900 border-zinc-700">
           <CardHeader className="pb-3"><CardTitle className="font-orbitron text-white text-base">Направление входа</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            {config.comboStrategies.includes("candle_pattern") && (
-              <div className="space-y-2">
-                <p className="text-yellow-400 font-space-mono text-xs font-semibold">Паттерны свечей</p>
-                <div className="flex items-center justify-between bg-zinc-800/60 border border-zinc-700 rounded-lg px-2.5 py-2">
-                  <span className="text-zinc-400 text-xs font-space-mono">
-                    {config.trendFollow ? "↗ По тренду — паттерны продолжения" : "↙ Против тренда — разворотные паттерны"}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <span className={`text-xs font-space-mono ${!config.trendFollow ? "text-orange-400" : "text-zinc-600"}`}>Против</span>
-                    <Switch checked={config.trendFollow} onCheckedChange={(v) => set({ trendFollow: v })} />
-                    <span className={`text-xs font-space-mono ${config.trendFollow ? "text-green-400" : "text-zinc-600"}`}>По тренду</span>
-                  </div>
+            <div className="space-y-2">
+              <Label className="text-zinc-300 text-sm">Направление входа</Label>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button onClick={() => set({ trendFollow: "follow" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "follow" ? "border-green-500/60 bg-green-500/10 text-green-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗ По тренду</button>
+                <button onClick={() => set({ trendFollow: "reverse" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "reverse" ? "border-orange-500/60 bg-orange-500/10 text-orange-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↙ Против</button>
+                <button onClick={() => set({ trendFollow: "combo" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "combo" ? "border-blue-500/60 bg-blue-500/10 text-blue-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗↙ Комбо</button>
+              </div>
+              {config.trendFollow === "reverse" && (
+                <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-2.5 py-2">
+                  <span className="text-orange-400 text-xs font-space-mono leading-relaxed">⚠️ Только для флета. На трендовом рынке увеличивает убытки.</span>
                 </div>
-              </div>
-            )}
-            {config.comboStrategies.includes("support_resistance") && (
-              <div className="space-y-2">
-                <p className="text-purple-400 font-space-mono text-xs font-semibold">Уровни поддержки/сопротивления</p>
-                <div className="flex items-center justify-between bg-zinc-800/60 border border-zinc-700 rounded-lg px-2.5 py-2">
-                  <span className="text-zinc-400 text-xs font-space-mono">
-                    {config.trendFollow ? "↗ По тренду — отбой в сторону тренда" : "↙ Против тренда — отбой от уровня в любую сторону"}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <span className={`text-xs font-space-mono ${!config.trendFollow ? "text-orange-400" : "text-zinc-600"}`}>Против</span>
-                    <Switch checked={config.trendFollow} onCheckedChange={(v) => set({ trendFollow: v })} />
-                    <span className={`text-xs font-space-mono ${config.trendFollow ? "text-green-400" : "text-zinc-600"}`}>По тренду</span>
-                  </div>
+              )}
+              {config.trendFollow === "combo" && (
+                <div className="flex items-start gap-2 bg-blue-950/40 border border-blue-500/30 rounded-lg px-2.5 py-2">
+                  <span className="text-blue-400 text-xs font-space-mono leading-relaxed">Комбо: ставит по любому сигналу без фильтра тренда.</span>
                 </div>
-              </div>
-            )}
-            {!config.trendFollow && (
-              <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-2.5 py-2">
-                <span className="text-orange-400 text-xs font-space-mono leading-relaxed">
-                  ⚠️ Против тренда — только для флета. На трендовом рынке увеличивает убытки.
-                </span>
-              </div>
-            )}
+              )}
+            </div>
             <div className="space-y-2 pt-1">
               <Label className="text-zinc-300 text-sm">Режим анализа свечей</Label>
               <p className="text-zinc-500 text-xs font-space-mono">Как бот читает 2 последних свечи перед входом</p>

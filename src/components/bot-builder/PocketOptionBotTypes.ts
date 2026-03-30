@@ -731,7 +731,8 @@ async def place_trade(client, direction, amount):
         return None
 
 async def check_result(client, order_id, balance_before, bet):
-    """Ожидание результата через сравнение баланса"""
+    """Ожидание результата. Профит считается по формуле: выигрыш = +bet*0.92, проигрыш = -bet"""
+    PAYOUT = 0.92
     print(f"[WAIT] Ожидаем результат {EXPIRY_SEC//60} мин...")
     await asyncio.sleep(EXPIRY_SEC + 10)
     try:
@@ -740,21 +741,14 @@ async def check_result(client, order_id, balance_before, bet):
             if balance_after == 0.0:
                 await asyncio.sleep(5)
                 continue
-            profit = round(balance_after - balance_before, 2)
-            if profit == 0.0 and attempt < 10:
+            diff = round(balance_after - balance_before, 2)
+            if diff == 0.0 and attempt < 10:
                 await asyncio.sleep(5)
                 continue
-            if profit < 0 and attempt < 10:
-                print(f"[WAIT] Баланс ещё не обновился (попытка {attempt+1}), ждём...")
-                await asyncio.sleep(5)
-                continue
-            if profit > bet * 2.5 and attempt < 12:
-                print(f"[WAIT] Аномальный профит {profit} при ставке {bet}, ждём обновления баланса (попытка {attempt+1})...")
-                await asyncio.sleep(5)
-                continue
-            won = profit > 0
+            won = diff > 0
+            profit = round(bet * PAYOUT, 2) if won else round(-bet, 2)
             status = "ВЫИГРЫШ ✅" if won else "ПРОИГРЫШ ❌"
-            print(f"[RESULT] {status} | Профит: {profit}")
+            print(f"[RESULT] {status} | Ставка: {bet} | Профит: {profit}")
             return won, profit
         print("[WARN] Не удалось определить результат сделки")
         return False, 0.0

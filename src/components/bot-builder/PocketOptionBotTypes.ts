@@ -572,9 +572,14 @@ def tg_info(text):
     tg(text)
 
 # ===== СОСТОЯНИЕ =====
-total_profit = 0.0
-trades_today = 0
-trade_log        = []
+total_profit  = 0.0
+trades_today  = 0
+trade_log     = []
+calls_follow  = 0
+calls_reverse = 0
+rejected_signals  = 0
+rejected_no_trend = 0
+rejected_conflict = 0
 ${martingaleBlock}
 # ===== ТРЕНД ПО 2 ПОСЛЕДНИМ СВЕЧАМ =====
 _last_trend = None
@@ -779,14 +784,18 @@ def print_stats():
     total   = len(trade_log)
     winrate = (wins / total * 100) if total else 0
     print(f"\\n[STATS] {wins}/{total} сделок | Winrate: {winrate:.1f}% | Сессия: {round(total_profit, 2)} {CURRENCY}")
+    print(f"[STATS] По тренду: {calls_follow} ставок | Против/комбо: {calls_reverse} ставок")
     print(f"[STATS] Отклонено сигналов: {rejected_signals} (нет тренда: {rejected_no_trend}, конфликт: {rejected_conflict})\\n")
 
 async def main():
     global total_profit, trades_today, current_bet, rejected_signals, rejected_no_trend, rejected_conflict
     global _candle_cache, _candle_asset, _last_candle_time, _last_trend
+    global calls_follow, calls_reverse
     rejected_signals = 0
     rejected_no_trend = 0
     rejected_conflict = 0
+    calls_follow  = 0
+    calls_reverse = 0
     _candle_cache     = []
     _candle_asset     = None
     _last_candle_time = None
@@ -930,6 +939,12 @@ async def main():
                     CURRENCY = currency
                     bet = current_bet
 
+                if trend_sig and signal == trend_sig:
+                    calls_follow += 1
+                elif trend_sig and signal != trend_sig:
+                    calls_reverse += 1
+                elif not trend_sig:
+                    calls_reverse += 1
                 emoji = "📈" if signal == "CALL" else "📉"
                 _tlabels = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
                 trend_label = f"Тренд: {_tlabels.get(trend, '— нет')}"
@@ -1309,9 +1324,14 @@ def tg_info(text):
     tg(text)
 
 # ===== СОСТОЯНИЕ =====
-total_profit = 0.0
-trades_today = 0
-trade_log        = []
+total_profit  = 0.0
+trades_today  = 0
+trade_log     = []
+calls_follow  = 0
+calls_reverse = 0
+rejected_signals  = 0
+rejected_no_trend = 0
+rejected_conflict = 0
 ${martingaleBlock}
 # ===== ТРЕНД ПО 2 ПОСЛЕДНИМ СВЕЧАМ =====
 _last_trend = None
@@ -1446,9 +1466,12 @@ def print_stats():
     total = len(trade_log)
     wr    = (wins / total * 100) if total else 0
     print(f"[STATS] {wins}/{total} | WR: {wr:.1f}% | Сессия: {total_profit:.2f} {CURRENCY}")
+    print(f"[STATS] По тренду: {calls_follow} ставок | Против/комбо: {calls_reverse} ставок")
 
 async def main():
-    global total_profit, trades_today, current_bet
+    global total_profit, trades_today, current_bet, calls_follow, calls_reverse
+    calls_follow  = 0
+    calls_reverse = 0
 
     client = AsyncPocketOptionClient(SESSION_ID, is_demo=IS_DEMO, enable_logging=False)
     await client.connect()
@@ -1532,6 +1555,10 @@ async def main():
             else:
                 balance, currency = await get_balance(client)
                 bet = current_bet
+            if trend_sig and signal == trend_sig:
+                calls_follow += 1
+            else:
+                calls_reverse += 1
             emoji = "📈" if signal == "CALL" else "📉"
             _tlabels2 = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
             trend_info = _tlabels2.get(trend, "— нет тренда")

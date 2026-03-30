@@ -765,6 +765,14 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
             </p>
           </div>
 
+          <div>
+            <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Выплата брокера: {config.payoutRate}%</Label>
+            <Slider min={50} max={99} step={1} value={[config.payoutRate]} onValueChange={([v]) => set({ payoutRate: v })} />
+            <p className="text-zinc-600 font-space-mono text-xs mt-1.5">
+              {config.payoutRate >= 90 ? "🔥 Высокая выплата — ищи активы с таким %" : config.payoutRate >= 75 ? "⚖️ Средняя выплата — стандарт для большинства" : "⚠️ Низкая выплата — сложнее выйти в плюс"}
+            </p>
+          </div>
+
           <div className="flex items-center justify-between pt-1">
             <div>
               <Label className="text-zinc-300 text-sm">Режим счёта</Label>

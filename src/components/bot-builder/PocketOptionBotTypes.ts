@@ -37,6 +37,7 @@ export interface POBotConfig {
   tgProxy: string
   tgNotifyMode: "all" | "bets_only"
   checkInterval: number
+  payoutRate: number
 }
 
 export interface StrategyMeta {
@@ -243,6 +244,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   tgNotifyMode: "all",
   tgProxy: "",
   checkInterval: 30,
+  payoutRate: 92,
 }
 
 // Helper to avoid TS template literal conflicts with Python f-strings
@@ -731,8 +733,8 @@ async def place_trade(client, direction, amount):
         return None
 
 async def check_result(client, order_id, balance_before, bet):
-    """Ожидание результата. Профит считается по формуле: выигрыш = +bet*0.92, проигрыш = -bet"""
-    PAYOUT = 0.92
+    """Ожидание результата. Профит считается по формуле: выигрыш = +bet*PAYOUT, проигрыш = -bet"""
+    PAYOUT = ${cfg.payoutRate} / 100
     print(f"[WAIT] Ожидаем результат {EXPIRY_SEC//60} мин...")
     await asyncio.sleep(EXPIRY_SEC + 10)
     try:

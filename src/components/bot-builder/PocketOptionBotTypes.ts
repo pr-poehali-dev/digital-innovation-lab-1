@@ -730,7 +730,7 @@ async def place_trade(client, direction, amount):
         print(f"[ERROR] Сделка: {e}")
         return None
 
-async def check_result(client, order_id, balance_before):
+async def check_result(client, order_id, balance_before, bet):
     """Ожидание результата через сравнение баланса"""
     print(f"[WAIT] Ожидаем результат {EXPIRY_SEC//60} мин...")
     await asyncio.sleep(EXPIRY_SEC + 10)
@@ -746,6 +746,10 @@ async def check_result(client, order_id, balance_before):
                 continue
             if profit < 0 and attempt < 10:
                 print(f"[WAIT] Баланс ещё не обновился (попытка {attempt+1}), ждём...")
+                await asyncio.sleep(5)
+                continue
+            if profit > bet * 2.5 and attempt < 12:
+                print(f"[WAIT] Аномальный профит {profit} при ставке {bet}, ждём обновления баланса (попытка {attempt+1})...")
                 await asyncio.sleep(5)
                 continue
             won = profit > 0
@@ -965,7 +969,7 @@ async def main():
                 balance_before, _ = await get_balance(client)
                 order_id = await place_trade(client, signal, bet)
                 if order_id:
-                    won, profit = await check_result(client, order_id, balance_before)
+                    won, profit = await check_result(client, order_id, balance_before, bet)
                     total_profit += profit
                     trades_today += 1
                     current_bet   = adjust_bet(won)
@@ -1429,7 +1433,7 @@ async def place_trade(client, direction, amount):
         print(f"[ERROR] place_trade: {e}")
         return None
 
-async def check_result(client, order_id, balance_before):
+async def check_result(client, order_id, balance_before, bet):
     print(f"[WAIT] Ожидаем результат {EXPIRY_SEC//60} мин...")
     await asyncio.sleep(EXPIRY_SEC + 5)
     try:
@@ -1440,6 +1444,10 @@ async def check_result(client, order_id, balance_before):
                 continue
             profit = round(balance_after - balance_before, 2)
             if profit == 0.0 and attempt < 3:
+                await asyncio.sleep(3)
+                continue
+            if profit > bet * 2.5 and attempt < 8:
+                print(f"[WAIT] Аномальный профит {profit} при ставке {bet}, ждём обновления баланса (попытка {attempt+1})...")
                 await asyncio.sleep(3)
                 continue
             won = profit > 0
@@ -1582,7 +1590,7 @@ async def main():
             balance_before, _ = await get_balance(client)
             order_id = await place_trade(client, signal, bet)
             if order_id:
-                won, profit = await check_result(client, order_id, balance_before)
+                won, profit = await check_result(client, order_id, balance_before, bet)
                 total_profit += profit
                 trades_today += 1
                 current_bet   = adjust_bet(won)

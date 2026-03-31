@@ -3,23 +3,17 @@ import urllib.request
 
 BINANCE_TICKER_URL = "https://api.binance.com/api/v3/ticker/24hr"
 
-# Только те крипто-пары, которые реально есть на Pocket Option (OTC)
+# Только самые популярные крипто-пары, стабильно присутствующие на Pocket Option (OTC)
 CRYPTO_PAIRS = [
-    "BTCUSDT", "ETHUSDT", "LTCUSDT", "XRPUSDT", "SOLUSDT",
-    "BNBUSDT", "DOGEUSDT", "ADAUSDT", "DOTUSDT", "AVAXUSDT",
+    "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "DOGEUSDT",
 ]
 
 PO_ASSET_MAP = {
     "BTCUSDT": "BTC/USD",
     "ETHUSDT": "ETH/USD",
-    "LTCUSDT": "LTC/USD",
-    "XRPUSDT": "XRP/USD",
     "SOLUSDT": "SOL/USD",
     "BNBUSDT": "BNB/USD",
     "DOGEUSDT": "DOGE/USD",
-    "ADAUSDT": "ADA/USD",
-    "DOTUSDT": "DOT/USD",
-    "AVAXUSDT": "AVAX/USD",
 }
 
 

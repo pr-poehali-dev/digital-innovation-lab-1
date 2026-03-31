@@ -66,7 +66,8 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
       const raw = await resp.json()
       const data = typeof raw === "string" ? JSON.parse(raw) : raw
       setResults(data.top)
-      if (data.top?.[0]) onSelect(data.top[0].asset_otc)
+      const topForex = data.top?.find((r: TrendResult) => r.category === "forex")
+      if (topForex) onSelect(topForex.asset_otc)
     } catch {
       setError("Не удалось получить данные")
     } finally {
@@ -127,7 +128,8 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
             {visible && visible.map((r, i) => {
               const barPct = (r.trend_strength / maxStrength) * 100
               const isUp = r.direction === "UP"
-              const isTop = i === 0
+              const topForexAsset = visible.find(x => x.category === "forex")?.asset
+              const isTop = r.asset === topForexAsset
               const payoutVal = payouts[r.asset] ?? ""
               const payoutNum = Number(payoutVal)
               const payoutColor = payoutNum >= 85 ? "text-green-400" : payoutNum >= 75 ? "text-yellow-400" : payoutNum > 0 ? "text-red-400" : "text-zinc-500"

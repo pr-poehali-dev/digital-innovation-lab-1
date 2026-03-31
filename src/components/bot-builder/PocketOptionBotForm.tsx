@@ -71,28 +71,35 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
       {error && <p className="text-red-400 font-space-mono text-xs">{error}</p>}
       {results && (
         <div className="space-y-1">
+          <div className="bg-zinc-900 border border-yellow-500/20 rounded-lg px-3 py-2 flex items-start gap-2">
+            <Icon name="Info" size={12} className="text-yellow-500/70 mt-0.5 shrink-0" />
+            <p className="text-yellow-500/70 font-space-mono text-xs leading-relaxed">
+              OTC-версии доступны 24/7, включая выходные, и не зависят от биржевой ликвидности — поэтому брокер всегда принимает сделку.
+            </p>
+          </div>
           {results.map((r) => (
             <button
               key={r.asset}
               type="button"
               onClick={() => onSelect(r.asset_otc)}
-              className="w-full flex items-center justify-between bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded px-2.5 py-1.5 transition-colors"
+              className="w-full flex items-center justify-between bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded px-2.5 py-1.5 transition-colors group"
             >
               <div className="flex items-center gap-2">
                 <span className={`text-xs font-bold ${r.direction === "UP" ? "text-green-400" : "text-red-400"}`}>
                   {r.direction === "UP" ? "▲" : "▼"}
                 </span>
                 <span className="text-white font-space-mono text-xs">{r.asset}</span>
+                <span className="text-zinc-600 font-space-mono text-xs">→ OTC</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className={`font-space-mono text-xs ${r.change_pct > 0 ? "text-green-400" : "text-red-400"}`}>
                   {r.change_pct > 0 ? "+" : ""}{r.change_pct}%
                 </span>
-                <span className="text-zinc-500 font-space-mono text-xs">→ выбрать OTC</span>
+                <span className="text-zinc-500 font-space-mono text-xs group-hover:text-yellow-400 transition-colors">выбрать →</span>
               </div>
             </button>
           ))}
-          <p className="text-zinc-600 font-space-mono text-xs text-center pt-0.5">Нажми на актив — он выберется автоматически</p>
+          <p className="text-zinc-600 font-space-mono text-xs text-center pt-0.5">Нажми на актив — выберется OTC-версия</p>
         </div>
       )}
     </div>

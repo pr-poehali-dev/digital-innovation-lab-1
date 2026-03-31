@@ -166,40 +166,84 @@ export const PO_STRATEGIES: Record<POStrategy, StrategyMeta> = {
 
 export const PO_ASSETS = [
   // Валютные пары (Forex)
-  "EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CAD",
-  "EUR/GBP", "EUR/JPY", "NZD/USD", "EUR/CHF", "CAD/JPY", "CAD/CHF", "AUD/CAD",
+  "EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CAD", "USD/CHF",
+  "EUR/GBP", "EUR/JPY", "EUR/CHF", "EUR/AUD", "EUR/CAD", "EUR/NZD",
+  "GBP/JPY", "GBP/CHF", "GBP/AUD", "GBP/CAD", "GBP/NZD",
+  "AUD/JPY", "AUD/CHF", "AUD/CAD", "AUD/NZD",
+  "NZD/USD", "NZD/JPY", "NZD/CHF", "NZD/CAD",
+  "CAD/JPY", "CAD/CHF", "CHF/JPY",
   // Валютные пары OTC
-  "EUR/USD (OTC)", "GBP/USD (OTC)", "USD/JPY (OTC)", "AUD/USD (OTC)", "EUR/GBP (OTC)",
-  "USD/CAD (OTC)", "NZD/USD (OTC)", "AUD/CAD (OTC)", "USD/CHF (OTC)",
-  "EUR/CHF (OTC)", "CAD/JPY (OTC)", "CAD/CHF (OTC)",
+  "EUR/USD (OTC)", "GBP/USD (OTC)", "USD/JPY (OTC)", "AUD/USD (OTC)", "USD/CAD (OTC)", "USD/CHF (OTC)",
+  "EUR/GBP (OTC)", "EUR/JPY (OTC)", "EUR/CHF (OTC)", "EUR/AUD (OTC)", "EUR/CAD (OTC)", "EUR/NZD (OTC)",
+  "GBP/JPY (OTC)", "GBP/CHF (OTC)", "GBP/AUD (OTC)", "GBP/CAD (OTC)", "GBP/NZD (OTC)",
+  "AUD/JPY (OTC)", "AUD/CHF (OTC)", "AUD/CAD (OTC)", "AUD/NZD (OTC)",
+  "NZD/USD (OTC)", "NZD/JPY (OTC)", "NZD/CHF (OTC)", "NZD/CAD (OTC)",
+  "CAD/JPY (OTC)", "CAD/CHF (OTC)", "CHF/JPY (OTC)",
   // Криптовалюты
   "BTC/USD", "ETH/USD", "LTC/USD", "XRP/USD", "SOL/USD",
+  "BNB/USD", "DOGE/USD", "ADA/USD", "DOT/USD", "AVAX/USD",
+  "MATIC/USD", "LINK/USD", "UNI/USD", "ATOM/USD", "TRX/USD",
   // Криптовалюты OTC
   "BTC/USD (OTC)", "ETH/USD (OTC)", "LTC/USD (OTC)", "XRP/USD (OTC)", "SOL/USD (OTC)",
-  // Прочее
-  "Gold (OTC)", "Oil (OTC)",
+  "BNB/USD (OTC)", "DOGE/USD (OTC)", "ADA/USD (OTC)", "DOT/USD (OTC)", "AVAX/USD (OTC)",
+  // Акции OTC
+  "Apple (OTC)", "Google (OTC)", "Amazon (OTC)", "Tesla (OTC)", "Microsoft (OTC)",
+  "Meta (OTC)", "Netflix (OTC)", "Twitter (OTC)", "Alibaba (OTC)", "Nvidia (OTC)",
+  // Товары OTC
+  "Gold (OTC)", "Silver (OTC)", "Oil (OTC)", "Natural Gas (OTC)", "Platinum (OTC)",
+  // Индексы OTC
+  "S&P 500 (OTC)", "NASDAQ (OTC)", "Dow Jones (OTC)", "FTSE 100 (OTC)", "DAX (OTC)",
+  "Nikkei 225 (OTC)", "CAC 40 (OTC)",
 ]
 
 export const PO_ASSETS_GROUPS = [
   {
-    label: "💱 Валютные пары",
-    assets: ["EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CAD", "EUR/CHF", "CAD/JPY", "CAD/CHF", "AUD/CAD"],
+    label: "💱 Forex — основные",
+    assets: ["EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CAD", "USD/CHF", "NZD/USD"],
   },
   {
-    label: "💱 Валютные пары OTC",
-    assets: ["EUR/USD (OTC)", "GBP/USD (OTC)", "USD/JPY (OTC)", "AUD/USD (OTC)", "EUR/GBP (OTC)", "EUR/CHF (OTC)", "CAD/JPY (OTC)", "CAD/CHF (OTC)", "AUD/CAD (OTC)"],
+    label: "💱 Forex — кросс-пары",
+    assets: [
+      "EUR/GBP", "EUR/JPY", "EUR/CHF", "EUR/AUD", "EUR/CAD", "EUR/NZD",
+      "GBP/JPY", "GBP/CHF", "GBP/AUD", "GBP/CAD", "GBP/NZD",
+      "AUD/JPY", "AUD/CHF", "AUD/CAD", "AUD/NZD",
+      "NZD/JPY", "NZD/CHF", "NZD/CAD",
+      "CAD/JPY", "CAD/CHF", "CHF/JPY",
+    ],
   },
   {
-    label: "₿ Криптовалюты",
-    assets: ["BTC/USD", "ETH/USD", "LTC/USD", "XRP/USD", "SOL/USD"],
+    label: "💱 Forex OTC — основные",
+    assets: ["EUR/USD (OTC)", "GBP/USD (OTC)", "USD/JPY (OTC)", "AUD/USD (OTC)", "USD/CAD (OTC)", "USD/CHF (OTC)", "NZD/USD (OTC)"],
   },
   {
-    label: "₿ Криптовалюты OTC",
-    assets: ["BTC/USD (OTC)", "ETH/USD (OTC)", "LTC/USD (OTC)", "XRP/USD (OTC)", "SOL/USD (OTC)"],
+    label: "💱 Forex OTC — кросс-пары",
+    assets: [
+      "EUR/GBP (OTC)", "EUR/JPY (OTC)", "EUR/CHF (OTC)", "EUR/AUD (OTC)", "EUR/CAD (OTC)", "EUR/NZD (OTC)",
+      "GBP/JPY (OTC)", "GBP/CHF (OTC)", "GBP/AUD (OTC)", "GBP/CAD (OTC)", "GBP/NZD (OTC)",
+      "AUD/JPY (OTC)", "AUD/CHF (OTC)", "AUD/CAD (OTC)", "AUD/NZD (OTC)",
+      "NZD/JPY (OTC)", "NZD/CHF (OTC)", "NZD/CAD (OTC)",
+      "CAD/JPY (OTC)", "CAD/CHF (OTC)", "CHF/JPY (OTC)",
+    ],
   },
   {
-    label: "🏅 Прочее",
-    assets: ["Gold (OTC)", "Oil (OTC)", "EUR/GBP", "EUR/JPY", "NZD/USD", "USD/CHF (OTC)"],
+    label: "₿ Крипто",
+    assets: ["BTC/USD", "ETH/USD", "LTC/USD", "XRP/USD", "SOL/USD", "BNB/USD", "DOGE/USD", "ADA/USD", "DOT/USD", "AVAX/USD", "MATIC/USD", "LINK/USD", "UNI/USD", "ATOM/USD", "TRX/USD"],
+  },
+  {
+    label: "₿ Крипто OTC",
+    assets: ["BTC/USD (OTC)", "ETH/USD (OTC)", "LTC/USD (OTC)", "XRP/USD (OTC)", "SOL/USD (OTC)", "BNB/USD (OTC)", "DOGE/USD (OTC)", "ADA/USD (OTC)", "DOT/USD (OTC)", "AVAX/USD (OTC)"],
+  },
+  {
+    label: "📈 Акции OTC",
+    assets: ["Apple (OTC)", "Google (OTC)", "Amazon (OTC)", "Tesla (OTC)", "Microsoft (OTC)", "Meta (OTC)", "Netflix (OTC)", "Twitter (OTC)", "Alibaba (OTC)", "Nvidia (OTC)"],
+  },
+  {
+    label: "🏅 Товары OTC",
+    assets: ["Gold (OTC)", "Silver (OTC)", "Oil (OTC)", "Natural Gas (OTC)", "Platinum (OTC)"],
+  },
+  {
+    label: "📊 Индексы OTC",
+    assets: ["S&P 500 (OTC)", "NASDAQ (OTC)", "Dow Jones (OTC)", "FTSE 100 (OTC)", "DAX (OTC)", "Nikkei 225 (OTC)", "CAC 40 (OTC)"],
   },
 ]
 

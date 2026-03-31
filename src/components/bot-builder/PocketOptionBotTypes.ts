@@ -165,20 +165,16 @@ export const PO_STRATEGIES: Record<POStrategy, StrategyMeta> = {
 }
 
 export const PO_ASSETS = [
-  // Валютные пары (Forex)
-  "EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CAD", "USD/CHF",
-  "EUR/GBP", "EUR/JPY", "EUR/CHF", "EUR/AUD", "EUR/CAD", "EUR/NZD",
-  "GBP/JPY", "GBP/CHF", "GBP/AUD", "GBP/CAD", "GBP/NZD",
-  "AUD/JPY", "AUD/CHF", "AUD/CAD", "AUD/NZD",
-  "NZD/USD", "NZD/JPY", "NZD/CHF", "NZD/CAD",
-  "CAD/JPY", "CAD/CHF", "CHF/JPY",
-  // Валютные пары OTC
-  "EUR/USD (OTC)", "GBP/USD (OTC)", "USD/JPY (OTC)", "AUD/USD (OTC)", "USD/CAD (OTC)", "USD/CHF (OTC)",
-  "EUR/GBP (OTC)", "EUR/JPY (OTC)", "EUR/CHF (OTC)", "EUR/AUD (OTC)", "EUR/CAD (OTC)", "EUR/NZD (OTC)",
-  "GBP/JPY (OTC)", "GBP/CHF (OTC)", "GBP/AUD (OTC)", "GBP/CAD (OTC)", "GBP/NZD (OTC)",
-  "AUD/JPY (OTC)", "AUD/CHF (OTC)", "AUD/CAD (OTC)", "AUD/NZD (OTC)",
-  "NZD/USD (OTC)", "NZD/JPY (OTC)", "NZD/CHF (OTC)", "NZD/CAD (OTC)",
-  "CAD/JPY (OTC)", "CAD/CHF (OTC)", "CHF/JPY (OTC)",
+  // Валютные пары Forex (подтверждённые на PO)
+  "EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CAD", "USD/CHF", "NZD/USD",
+  "EUR/GBP", "EUR/JPY", "EUR/CHF", "EUR/AUD", "EUR/CAD",
+  "GBP/JPY", "GBP/CHF", "GBP/AUD", "GBP/CAD",
+  "AUD/JPY", "AUD/CAD", "CAD/JPY",
+  // Валютные пары Forex OTC (подтверждённые на PO)
+  "EUR/USD (OTC)", "GBP/USD (OTC)", "USD/JPY (OTC)", "AUD/USD (OTC)", "USD/CAD (OTC)", "USD/CHF (OTC)", "NZD/USD (OTC)",
+  "EUR/GBP (OTC)", "EUR/JPY (OTC)", "EUR/CHF (OTC)", "EUR/AUD (OTC)", "EUR/CAD (OTC)",
+  "GBP/JPY (OTC)", "GBP/CHF (OTC)", "GBP/AUD (OTC)", "GBP/CAD (OTC)",
+  "AUD/JPY (OTC)", "AUD/CAD (OTC)", "CAD/JPY (OTC)",
   // Криптовалюты
   "BTC/USD", "ETH/USD", "SOL/USD", "BNB/USD", "DOGE/USD",
   // Криптовалюты OTC
@@ -202,11 +198,9 @@ export const PO_ASSETS_GROUPS = [
   {
     label: "💱 Forex — кросс-пары",
     assets: [
-      "EUR/GBP", "EUR/JPY", "EUR/CHF", "EUR/AUD", "EUR/CAD", "EUR/NZD",
-      "GBP/JPY", "GBP/CHF", "GBP/AUD", "GBP/CAD", "GBP/NZD",
-      "AUD/JPY", "AUD/CHF", "AUD/CAD", "AUD/NZD",
-      "NZD/JPY", "NZD/CHF", "NZD/CAD",
-      "CAD/JPY", "CAD/CHF", "CHF/JPY",
+      "EUR/GBP", "EUR/JPY", "EUR/CHF", "EUR/AUD", "EUR/CAD",
+      "GBP/JPY", "GBP/CHF", "GBP/AUD", "GBP/CAD",
+      "AUD/JPY", "AUD/CAD", "CAD/JPY",
     ],
   },
   {
@@ -216,11 +210,9 @@ export const PO_ASSETS_GROUPS = [
   {
     label: "💱 Forex OTC — кросс-пары",
     assets: [
-      "EUR/GBP (OTC)", "EUR/JPY (OTC)", "EUR/CHF (OTC)", "EUR/AUD (OTC)", "EUR/CAD (OTC)", "EUR/NZD (OTC)",
-      "GBP/JPY (OTC)", "GBP/CHF (OTC)", "GBP/AUD (OTC)", "GBP/CAD (OTC)", "GBP/NZD (OTC)",
-      "AUD/JPY (OTC)", "AUD/CHF (OTC)", "AUD/CAD (OTC)", "AUD/NZD (OTC)",
-      "NZD/JPY (OTC)", "NZD/CHF (OTC)", "NZD/CAD (OTC)",
-      "CAD/JPY (OTC)", "CAD/CHF (OTC)", "CHF/JPY (OTC)",
+      "EUR/GBP (OTC)", "EUR/JPY (OTC)", "EUR/CHF (OTC)", "EUR/AUD (OTC)", "EUR/CAD (OTC)",
+      "GBP/JPY (OTC)", "GBP/CHF (OTC)", "GBP/AUD (OTC)", "GBP/CAD (OTC)",
+      "AUD/JPY (OTC)", "AUD/CAD (OTC)", "CAD/JPY (OTC)",
     ],
   },
   {

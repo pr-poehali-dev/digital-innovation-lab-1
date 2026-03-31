@@ -1,4 +1,6 @@
 {
+  "trend-scanner": "https://functions.poehali.dev/d55c380e-7fd5-4871-aca7-c8670be08cde",
+  "send-order": "https://functions.poehali.dev/8142e649-2318-4b2a-a321-d35ac72b9882",
   "create-invoice": "https://functions.poehali.dev/244707c8-085e-44a0-95a1-851a19b54e4c",
   "admin-keys": "https://functions.poehali.dev/edd2b917-45c0-406b-877f-0e7f96206cac",
   "validate-key": "https://functions.poehali.dev/cc94a441-3b9a-471c-94ce-7ac22db0a8f9",

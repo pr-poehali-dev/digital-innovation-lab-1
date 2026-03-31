@@ -20,6 +20,85 @@ import {
   PO_EXPIRY_LABELS,
 } from "./PocketOptionBotTypes"
 
+const TREND_SCANNER_URL = "https://functions.poehali.dev/d55c380e-7fd5-4871-aca7-c8670be08cde"
+
+interface TrendResult {
+  asset: string
+  asset_otc: string
+  change_pct: number
+  trend_strength: number
+  direction: "UP" | "DOWN"
+  volume_usd: number
+  position_in_range: number
+}
+
+function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
+  const [loading, setLoading] = useState(false)
+  const [results, setResults] = useState<TrendResult[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  async function scan() {
+    setLoading(true)
+    setError(null)
+    setResults(null)
+    try {
+      const resp = await fetch(TREND_SCANNER_URL)
+      const raw = await resp.json()
+      const data = typeof raw === "string" ? JSON.parse(raw) : raw
+      setResults(data.top)
+    } catch {
+      setError("Не удалось получить данные")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <Button
+        type="button"
+        onClick={scan}
+        disabled={loading}
+        className="w-full bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 font-space-mono text-xs h-8"
+        variant="outline"
+      >
+        {loading ? (
+          <><Icon name="Loader2" size={13} className="mr-1.5 animate-spin" />Сканирую рынок...</>
+        ) : (
+          <><Icon name="Zap" size={13} className="mr-1.5" />Найти сильный тренд (Binance)</>
+        )}
+      </Button>
+      {error && <p className="text-red-400 font-space-mono text-xs">{error}</p>}
+      {results && (
+        <div className="space-y-1">
+          {results.map((r) => (
+            <button
+              key={r.asset}
+              type="button"
+              onClick={() => onSelect(r.asset_otc)}
+              className="w-full flex items-center justify-between bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded px-2.5 py-1.5 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-bold ${r.direction === "UP" ? "text-green-400" : "text-red-400"}`}>
+                  {r.direction === "UP" ? "▲" : "▼"}
+                </span>
+                <span className="text-white font-space-mono text-xs">{r.asset}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`font-space-mono text-xs ${r.change_pct > 0 ? "text-green-400" : "text-red-400"}`}>
+                  {r.change_pct > 0 ? "+" : ""}{r.change_pct}%
+                </span>
+                <span className="text-zinc-500 font-space-mono text-xs">→ выбрать OTC</span>
+              </div>
+            </button>
+          ))}
+          <p className="text-zinc-600 font-space-mono text-xs text-center pt-0.5">Нажми на актив — он выберется автоматически</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AssetSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [search, setSearch] = useState("")
   const [open, setOpen] = useState(false)
@@ -692,6 +771,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
           <CardTitle className="font-orbitron text-white text-base">Актив и экспирация</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <TrendScanner onSelect={(v) => set({ asset: v })} />
           <AssetSelector value={config.asset} onChange={(v) => set({ asset: v })} />
 
           <div>

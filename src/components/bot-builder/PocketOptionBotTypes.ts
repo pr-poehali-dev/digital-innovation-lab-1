@@ -183,14 +183,15 @@ export const PO_ASSETS = [
   "BTC/USD", "ETH/USD", "SOL/USD", "BNB/USD", "DOGE/USD",
   // Криптовалюты OTC
   "BTC/USD (OTC)", "ETH/USD (OTC)", "SOL/USD (OTC)", "BNB/USD (OTC)", "DOGE/USD (OTC)",
-  // Акции OTC
-  "Apple (OTC)", "Google (OTC)", "Amazon (OTC)", "Tesla (OTC)", "Microsoft (OTC)",
-  "Meta (OTC)", "Netflix (OTC)", "Twitter (OTC)", "Alibaba (OTC)", "Nvidia (OTC)",
-  // Товары OTC
-  "Gold (OTC)", "Silver (OTC)", "Oil (OTC)", "Natural Gas (OTC)", "Platinum (OTC)",
-  // Индексы OTC
-  "S&P 500 (OTC)", "NASDAQ (OTC)", "Dow Jones (OTC)", "FTSE 100 (OTC)", "DAX (OTC)",
-  "Nikkei 225 (OTC)", "CAC 40 (OTC)",
+  // Акции OTC (реальный список Pocket Option)
+  "Nvidia (OTC)", "Apple (OTC)", "Tesla (OTC)", "VISA (OTC)", "Palantir (OTC)",
+  "GameStop (OTC)", "ExxonMobil (OTC)", "Netflix (OTC)", "McDonald's (OTC)",
+  "Intel (OTC)", "Boeing (OTC)", "Alibaba (OTC)",
+  // Товары OTC (реальный список Pocket Option)
+  "Gold (OTC)", "Silver (OTC)", "Brent Oil (OTC)", "WTI Oil (OTC)",
+  "Natural Gas (OTC)", "Platinum (OTC)", "Palladium (OTC)",
+  // Индексы OTC (реальный список Pocket Option)
+  "S&P 500 (OTC)", "Dow Jones (OTC)", "NASDAQ (OTC)", "AUS 200 (OTC)", "VIX (OTC)",
 ]
 
 export const PO_ASSETS_GROUPS = [
@@ -232,15 +233,15 @@ export const PO_ASSETS_GROUPS = [
   },
   {
     label: "📈 Акции OTC",
-    assets: ["Apple (OTC)", "Google (OTC)", "Amazon (OTC)", "Tesla (OTC)", "Microsoft (OTC)", "Meta (OTC)", "Netflix (OTC)", "Twitter (OTC)", "Alibaba (OTC)", "Nvidia (OTC)"],
+    assets: ["Nvidia (OTC)", "Apple (OTC)", "Tesla (OTC)", "VISA (OTC)", "Palantir (OTC)", "GameStop (OTC)", "ExxonMobil (OTC)", "Netflix (OTC)", "McDonald's (OTC)", "Intel (OTC)", "Boeing (OTC)", "Alibaba (OTC)"],
   },
   {
     label: "🏅 Товары OTC",
-    assets: ["Gold (OTC)", "Silver (OTC)", "Oil (OTC)", "Natural Gas (OTC)", "Platinum (OTC)"],
+    assets: ["Gold (OTC)", "Silver (OTC)", "Brent Oil (OTC)", "WTI Oil (OTC)", "Natural Gas (OTC)", "Platinum (OTC)", "Palladium (OTC)"],
   },
   {
     label: "📊 Индексы OTC",
-    assets: ["S&P 500 (OTC)", "NASDAQ (OTC)", "Dow Jones (OTC)", "FTSE 100 (OTC)", "DAX (OTC)", "Nikkei 225 (OTC)", "CAC 40 (OTC)"],
+    assets: ["S&P 500 (OTC)", "Dow Jones (OTC)", "NASDAQ (OTC)", "AUS 200 (OTC)", "VIX (OTC)"],
   },
 ]
 

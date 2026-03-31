@@ -3,10 +3,10 @@ import urllib.request
 
 BINANCE_TICKER_URL = "https://api.binance.com/api/v3/ticker/24hr"
 
+# Только те крипто-пары, которые реально есть на Pocket Option (OTC)
 CRYPTO_PAIRS = [
     "BTCUSDT", "ETHUSDT", "LTCUSDT", "XRPUSDT", "SOLUSDT",
     "BNBUSDT", "DOGEUSDT", "ADAUSDT", "DOTUSDT", "AVAXUSDT",
-    "MATICUSDT", "LINKUSDT", "UNIUSDT", "ATOMUSDT", "TRXUSDT",
 ]
 
 PO_ASSET_MAP = {
@@ -20,11 +20,6 @@ PO_ASSET_MAP = {
     "ADAUSDT": "ADA/USD",
     "DOTUSDT": "DOT/USD",
     "AVAXUSDT": "AVAX/USD",
-    "MATICUSDT": "MATIC/USD",
-    "LINKUSDT": "LINK/USD",
-    "UNIUSDT": "UNI/USD",
-    "ATOMUSDT": "ATOM/USD",
-    "TRXUSDT": "TRX/USD",
 }
 
 
@@ -87,10 +82,10 @@ def handler(event: dict, context) -> dict:
 
     return {
         "statusCode": 200,
-        "headers": {"Access-Control-Allow-Origin": "*"},
-        "body": json.dumps({
+        "headers": {"Access-Control-Allow-Origin": "*", "Content-Type": "application/json"},
+        "body": {
             "top": top,
             "best": top[0] if top else None,
             "scanned": len(results),
-        }),
+        },
     }

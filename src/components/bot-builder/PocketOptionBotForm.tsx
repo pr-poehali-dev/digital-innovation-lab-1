@@ -25,11 +25,12 @@ const TREND_SCANNER_URL = "https://functions.poehali.dev/d55c380e-7fd5-4871-aca7
 interface TrendResult {
   asset: string
   asset_otc: string
+  category: "crypto" | "forex"
   change_pct: number
   trend_strength: number
   direction: "UP" | "DOWN"
-  volume_usd: number
-  position_in_range: number
+  volume_usd?: number
+  position_in_range: number | null
 }
 
 function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
@@ -141,6 +142,7 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
                     <span className={`text-xs font-bold shrink-0 ${isUp ? "text-green-400" : "text-red-400"}`}>
                       {isUp ? "▲" : "▼"}
                     </span>
+                    <span className="text-xs shrink-0">{r.category === "crypto" ? "₿" : "💱"}</span>
                     <span className={`font-space-mono text-xs flex-1 ${isTop ? "text-yellow-300 font-bold" : "text-white"}`}>
                       {r.asset}{isTop && " 🔥"}
                     </span>

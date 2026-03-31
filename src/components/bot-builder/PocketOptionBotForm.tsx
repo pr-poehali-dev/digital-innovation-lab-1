@@ -77,28 +77,43 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
               OTC-версии доступны 24/7, включая выходные, и не зависят от биржевой ликвидности — поэтому брокер всегда принимает сделку.
             </p>
           </div>
-          {results.map((r) => (
-            <button
-              key={r.asset}
-              type="button"
-              onClick={() => onSelect(r.asset_otc)}
-              className="w-full flex items-center justify-between bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded px-2.5 py-1.5 transition-colors group"
-            >
-              <div className="flex items-center gap-2">
-                <span className={`text-xs font-bold ${r.direction === "UP" ? "text-green-400" : "text-red-400"}`}>
-                  {r.direction === "UP" ? "▲" : "▼"}
-                </span>
-                <span className="text-white font-space-mono text-xs">{r.asset}</span>
-                <span className="text-zinc-600 font-space-mono text-xs">→ OTC</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`font-space-mono text-xs ${r.change_pct > 0 ? "text-green-400" : "text-red-400"}`}>
-                  {r.change_pct > 0 ? "+" : ""}{r.change_pct}%
-                </span>
-                <span className="text-zinc-500 font-space-mono text-xs group-hover:text-yellow-400 transition-colors">выбрать →</span>
-              </div>
-            </button>
-          ))}
+          {(() => {
+            const maxStrength = Math.max(...results.map((r) => r.trend_strength))
+            return results.map((r) => {
+              const barPct = maxStrength > 0 ? (r.trend_strength / maxStrength) * 100 : 0
+              const isUp = r.direction === "UP"
+              return (
+                <button
+                  key={r.asset}
+                  type="button"
+                  onClick={() => onSelect(r.asset_otc)}
+                  className="w-full flex flex-col bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded px-2.5 pt-1.5 pb-1 transition-colors group"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold ${isUp ? "text-green-400" : "text-red-400"}`}>
+                        {isUp ? "▲" : "▼"}
+                      </span>
+                      <span className="text-white font-space-mono text-xs">{r.asset}</span>
+                      <span className="text-zinc-600 font-space-mono text-xs">OTC</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`font-space-mono text-xs font-bold ${isUp ? "text-green-400" : "text-red-400"}`}>
+                        {r.change_pct > 0 ? "+" : ""}{r.change_pct}%
+                      </span>
+                      <span className="text-zinc-500 font-space-mono text-xs group-hover:text-yellow-400 transition-colors">выбрать →</span>
+                    </div>
+                  </div>
+                  <div className="w-full bg-zinc-700 rounded-full h-1 mt-1.5">
+                    <div
+                      className={`h-1 rounded-full transition-all ${isUp ? "bg-green-500" : "bg-red-500"}`}
+                      style={{ width: `${barPct}%` }}
+                    />
+                  </div>
+                </button>
+              )
+            })
+          })()}
           <p className="text-zinc-600 font-space-mono text-xs text-center pt-0.5">Нажми на актив — выберется OTC-версия</p>
         </div>
       )}

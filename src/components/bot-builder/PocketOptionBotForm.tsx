@@ -46,6 +46,7 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
       const raw = await resp.json()
       const data = typeof raw === "string" ? JSON.parse(raw) : raw
       setResults(data.top)
+      if (data.top?.[0]) onSelect(data.top[0].asset_otc)
     } catch {
       setError("Не удалось получить данные")
     } finally {

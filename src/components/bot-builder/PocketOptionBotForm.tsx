@@ -79,22 +79,24 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
           </div>
           {(() => {
             const maxStrength = Math.max(...results.map((r) => r.trend_strength))
-            return results.map((r) => {
+            return results.map((r, i) => {
               const barPct = maxStrength > 0 ? (r.trend_strength / maxStrength) * 100 : 0
               const isUp = r.direction === "UP"
+              const isTop = i === 0
               return (
                 <button
                   key={r.asset}
                   type="button"
                   onClick={() => onSelect(r.asset_otc)}
-                  className="w-full flex flex-col bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded px-2.5 pt-1.5 pb-1 transition-colors group"
+                  className={`w-full flex flex-col rounded px-2.5 pt-1.5 pb-1 transition-colors group border ${isTop ? "bg-yellow-500/5 hover:bg-yellow-500/10 border-yellow-500/30" : "bg-zinc-800 hover:bg-zinc-700 border-zinc-700"}`}
                 >
                   <div className="flex items-center justify-between w-full">
                     <div className="flex items-center gap-2">
                       <span className={`text-xs font-bold ${isUp ? "text-green-400" : "text-red-400"}`}>
                         {isUp ? "▲" : "▼"}
                       </span>
-                      <span className="text-white font-space-mono text-xs">{r.asset}</span>
+                      <span className={`font-space-mono text-xs ${isTop ? "text-yellow-300 font-bold" : "text-white"}`}>{r.asset}</span>
+                      {isTop && <span className="text-xs">🔥</span>}
                       <span className="text-zinc-600 font-space-mono text-xs">OTC</span>
                     </div>
                     <div className="flex items-center gap-2">

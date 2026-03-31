@@ -36,6 +36,12 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<TrendResult[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [minPayout, setMinPayout] = useState(80)
+
+  const filtered = useMemo(() => {
+    if (!results) return null
+    return results.filter((r) => r.payout == null || r.payout >= minPayout)
+  }, [results, minPayout])
 
   async function scan() {
     setLoading(true)
@@ -56,31 +62,61 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
 
   return (
     <div className="space-y-2">
-      <Button
-        type="button"
-        onClick={scan}
-        disabled={loading}
-        className="w-full bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 font-space-mono text-xs h-8"
-        variant="outline"
-      >
-        {loading ? (
-          <><Icon name="Loader2" size={13} className="mr-1.5 animate-spin" />Сканирую рынок...</>
-        ) : (
-          <><Icon name="Zap" size={13} className="mr-1.5" />Найти сильный тренд (Binance)</>
-        )}
-      </Button>
-      {error && <p className="text-red-400 font-space-mono text-xs">{error}</p>}
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          onClick={scan}
+          disabled={loading}
+          className="flex-1 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 font-space-mono text-xs h-8"
+          variant="outline"
+        >
+          {loading ? (
+            <><Icon name="Loader2" size={13} className="mr-1.5 animate-spin" />Сканирую рынок...</>
+          ) : (
+            <><Icon name="Zap" size={13} className="mr-1.5" />Найти сильный тренд (Binance)</>
+          )}
+        </Button>
+        <div className="flex items-center gap-1.5 bg-zinc-800 border border-zinc-700 rounded px-2.5 h-8 shrink-0">
+          <Icon name="Percent" size={11} className="text-zinc-400" />
+          <input
+            type="number"
+            min={50}
+            max={99}
+            value={minPayout}
+            onChange={(e) => setMinPayout(Number(e.target.value))}
+            className="w-10 bg-transparent text-white font-space-mono text-xs outline-none"
+            title="Минимальная выплата брокера %"
+          />
+          <span className="text-zinc-500 font-space-mono text-xs">мин</span>
+        </div>
+      </div>
       {results && (
+        <p className="text-zinc-600 font-space-mono text-xs">
+          Фильтр выплат: ≥{minPayout}% — введи реальный % с PO для этого актива
+        </p>
+      )}
+      {error && <p className="text-red-400 font-space-mono text-xs">{error}</p>}
+      {filtered !== null && (
         <div className="space-y-1">
+          {filtered.length === 0 ? (
+            <p className="text-zinc-500 font-space-mono text-xs text-center py-2">Нет активов с выплатой ≥{minPayout}% — снизь фильтр</p>
+          ) : (<>
           <div className="bg-zinc-900 border border-yellow-500/20 rounded-lg px-3 py-2 flex items-start gap-2">
             <Icon name="Info" size={12} className="text-yellow-500/70 mt-0.5 shrink-0" />
             <p className="text-yellow-500/70 font-space-mono text-xs leading-relaxed">
               OTC-версии доступны 24/7, включая выходные, и не зависят от биржевой ликвидности — поэтому брокер всегда принимает сделку.
             </p>
           </div>
-          {(() => {
-            const maxStrength = Math.max(...results.map((r) => r.trend_strength))
-            return results.map((r, i) => {
+          {/* убираем старый блок info, он теперь выше */}
+          </>)}
+        </div>
+      )}
+      {/* оставляем рендер активов отдельно */}
+      {filtered !== null && filtered.length > 0 && (() => {
+        const maxStrength = Math.max(...filtered.map((r) => r.trend_strength))
+        return (
+          <div className="space-y-1">
+            {filtered.map((r, i) => {
               const barPct = maxStrength > 0 ? (r.trend_strength / maxStrength) * 100 : 0
               const isUp = r.direction === "UP"
               const isTop = i === 0
@@ -115,14 +151,16 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
                   </div>
                 </button>
               )
-            })
-          })()}
-          <p className="text-zinc-600 font-space-mono text-xs text-center pt-0.5">Нажми на актив — выберется OTC-версия</p>
-        </div>
-      )}
+            })}
+            <p className="text-zinc-600 font-space-mono text-xs text-center pt-0.5">Нажми на актив — выберется OTC-версия</p>
+          </div>
+        )
+      })()}
     </div>
   )
 }
+
+
 
 function AssetSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [search, setSearch] = useState("")

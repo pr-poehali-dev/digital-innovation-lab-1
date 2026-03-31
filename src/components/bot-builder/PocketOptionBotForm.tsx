@@ -36,12 +36,25 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<TrendResult[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [minPayout, setMinPayout] = useState(80)
+  // payouts[asset] — выплата введённая вручную для каждого актива
+  const [payouts, setPayouts] = useState<Record<string, string>>({})
+  // минимальная выплата для фильтра
+  const [minPayout, setMinPayout] = useState<string>("80")
 
-  const filtered = useMemo(() => {
+  function setPayout(asset: string, val: string) {
+    setPayouts((p) => ({ ...p, [asset]: val }))
+  }
+
+  const minPct = Number(minPayout) || 0
+
+  const visible = useMemo(() => {
     if (!results) return null
-    return results.filter((r) => r.payout == null || r.payout >= minPayout)
-  }, [results, minPayout])
+    return results.filter((r) => {
+      const pct = Number(payouts[r.asset])
+      if (!pct) return true // не введена — показываем
+      return pct >= minPct
+    })
+  }, [results, payouts, minPct])
 
   async function scan() {
     setLoading(true)
@@ -60,102 +73,122 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
     }
   }
 
+  const maxStrength = visible && visible.length > 0 ? Math.max(...visible.map((r) => r.trend_strength)) : 1
+
   return (
     <div className="space-y-2">
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          onClick={scan}
-          disabled={loading}
-          className="flex-1 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 font-space-mono text-xs h-8"
-          variant="outline"
-        >
-          {loading ? (
-            <><Icon name="Loader2" size={13} className="mr-1.5 animate-spin" />Сканирую рынок...</>
-          ) : (
-            <><Icon name="Zap" size={13} className="mr-1.5" />Найти сильный тренд (Binance)</>
-          )}
-        </Button>
-        <div className="flex items-center gap-1.5 bg-zinc-800 border border-zinc-700 rounded px-2.5 h-8 shrink-0">
-          <Icon name="Percent" size={11} className="text-zinc-400" />
-          <input
-            type="number"
-            min={50}
-            max={99}
-            value={minPayout}
-            onChange={(e) => setMinPayout(Number(e.target.value))}
-            className="w-10 bg-transparent text-white font-space-mono text-xs outline-none"
-            title="Минимальная выплата брокера %"
-          />
-          <span className="text-zinc-500 font-space-mono text-xs">мин</span>
-        </div>
-      </div>
-      {results && (
-        <p className="text-zinc-600 font-space-mono text-xs">
-          Фильтр выплат: ≥{minPayout}% — введи реальный % с PO для этого актива
-        </p>
-      )}
+      {/* Кнопка сканирования */}
+      <Button
+        type="button"
+        onClick={scan}
+        disabled={loading}
+        className="w-full bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 font-space-mono text-xs h-8"
+        variant="outline"
+      >
+        {loading
+          ? <><Icon name="Loader2" size={13} className="mr-1.5 animate-spin" />Сканирую рынок...</>
+          : <><Icon name="Zap" size={13} className="mr-1.5" />Найти сильный тренд (Binance)</>
+        }
+      </Button>
+
       {error && <p className="text-red-400 font-space-mono text-xs">{error}</p>}
-      {filtered !== null && (
-        <div className="space-y-1">
-          {filtered.length === 0 ? (
-            <p className="text-zinc-500 font-space-mono text-xs text-center py-2">Нет активов с выплатой ≥{minPayout}% — снизь фильтр</p>
-          ) : (<>
+
+      {results && (
+        <>
+          {/* Фильтр по минимальной выплате */}
+          <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2">
+            <Icon name="Filter" size={12} className="text-zinc-400 shrink-0" />
+            <span className="text-zinc-400 font-space-mono text-xs">Скрыть если выплата менее</span>
+            <input
+              type="number"
+              min={0}
+              max={99}
+              value={minPayout}
+              onChange={(e) => setMinPayout(e.target.value)}
+              className="w-12 bg-zinc-800 border border-zinc-600 rounded px-1.5 text-white font-space-mono text-xs outline-none text-center"
+            />
+            <span className="text-zinc-400 font-space-mono text-xs">%</span>
+          </div>
+
+          {/* Подсказка OTC */}
           <div className="bg-zinc-900 border border-yellow-500/20 rounded-lg px-3 py-2 flex items-start gap-2">
             <Icon name="Info" size={12} className="text-yellow-500/70 mt-0.5 shrink-0" />
             <p className="text-yellow-500/70 font-space-mono text-xs leading-relaxed">
-              OTC-версии доступны 24/7, включая выходные, и не зависят от биржевой ликвидности — поэтому брокер всегда принимает сделку.
+              OTC-версии доступны 24/7 — поэтому брокер всегда принимает сделку. Введи выплату с PO рядом с каждым активом.
             </p>
           </div>
-          {/* убираем старый блок info, он теперь выше */}
-          </>)}
-        </div>
-      )}
-      {/* оставляем рендер активов отдельно */}
-      {filtered !== null && filtered.length > 0 && (() => {
-        const maxStrength = Math.max(...filtered.map((r) => r.trend_strength))
-        return (
-          <div className="space-y-1">
-            {filtered.map((r, i) => {
-              const barPct = maxStrength > 0 ? (r.trend_strength / maxStrength) * 100 : 0
+
+          {/* Список активов */}
+          <div className="space-y-1.5">
+            {visible && visible.length === 0 && (
+              <p className="text-zinc-500 font-space-mono text-xs text-center py-2">Все активы скрыты фильтром — снизь минимум</p>
+            )}
+            {visible && visible.map((r, i) => {
+              const barPct = (r.trend_strength / maxStrength) * 100
               const isUp = r.direction === "UP"
               const isTop = i === 0
+              const payoutVal = payouts[r.asset] ?? ""
+              const payoutNum = Number(payoutVal)
+              const payoutColor = payoutNum >= 85 ? "text-green-400" : payoutNum >= 75 ? "text-yellow-400" : payoutNum > 0 ? "text-red-400" : "text-zinc-500"
+
               return (
-                <button
+                <div
                   key={r.asset}
-                  type="button"
-                  onClick={() => onSelect(r.asset_otc)}
-                  className={`w-full flex flex-col rounded px-2.5 pt-1.5 pb-1 transition-colors group border ${isTop ? "bg-yellow-500/5 hover:bg-yellow-500/10 border-yellow-500/30" : "bg-zinc-800 hover:bg-zinc-700 border-zinc-700"}`}
+                  className={`rounded border ${isTop ? "bg-yellow-500/5 border-yellow-500/30" : "bg-zinc-800 border-zinc-700"}`}
                 >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs font-bold ${isUp ? "text-green-400" : "text-red-400"}`}>
-                        {isUp ? "▲" : "▼"}
-                      </span>
-                      <span className={`font-space-mono text-xs ${isTop ? "text-yellow-300 font-bold" : "text-white"}`}>{r.asset}</span>
-                      {isTop && <span className="text-xs">🔥</span>}
-                      <span className="text-zinc-600 font-space-mono text-xs">OTC</span>
+                  {/* Верхняя строка: актив + выплата + кнопка выбрать */}
+                  <div className="flex items-center gap-2 px-2.5 pt-1.5 pb-1">
+                    <span className={`text-xs font-bold shrink-0 ${isUp ? "text-green-400" : "text-red-400"}`}>
+                      {isUp ? "▲" : "▼"}
+                    </span>
+                    <span className={`font-space-mono text-xs flex-1 ${isTop ? "text-yellow-300 font-bold" : "text-white"}`}>
+                      {r.asset}{isTop && " 🔥"}
+                    </span>
+
+                    {/* Поле ввода выплаты */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <input
+                        type="number"
+                        min={0}
+                        max={99}
+                        placeholder="—"
+                        value={payoutVal}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => setPayout(r.asset, e.target.value)}
+                        className={`w-10 bg-zinc-900 border border-zinc-600 rounded px-1 text-center font-space-mono text-xs outline-none ${payoutColor}`}
+                      />
+                      <span className="text-zinc-500 font-space-mono text-xs">%</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`font-space-mono text-xs font-bold ${isUp ? "text-green-400" : "text-red-400"}`}>
-                        {r.change_pct > 0 ? "+" : ""}{r.change_pct}%
-                      </span>
-                      <span className="text-zinc-500 font-space-mono text-xs group-hover:text-yellow-400 transition-colors">выбрать →</span>
-                    </div>
+
+                    <span className={`font-space-mono text-xs font-bold shrink-0 ${isUp ? "text-green-400" : "text-red-400"}`}>
+                      {r.change_pct > 0 ? "+" : ""}{r.change_pct}%
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => onSelect(r.asset_otc)}
+                      className="shrink-0 text-zinc-500 hover:text-yellow-400 font-space-mono text-xs transition-colors"
+                    >
+                      OTC →
+                    </button>
                   </div>
-                  <div className="w-full bg-zinc-700 rounded-full h-1 mt-1.5">
+
+                  {/* Полоска силы тренда */}
+                  <div className="w-full bg-zinc-700 rounded-b h-1">
                     <div
-                      className={`h-1 rounded-full transition-all ${isUp ? "bg-green-500" : "bg-red-500"}`}
+                      className={`h-1 rounded-b transition-all ${isUp ? "bg-green-500" : "bg-red-500"}`}
                       style={{ width: `${barPct}%` }}
                     />
                   </div>
-                </button>
+                </div>
               )
             })}
-            <p className="text-zinc-600 font-space-mono text-xs text-center pt-0.5">Нажми на актив — выберется OTC-версия</p>
+            {visible && visible.length > 0 && (
+              <p className="text-zinc-600 font-space-mono text-xs text-center pt-0.5">Нажми "OTC →" — актив выберется автоматически</p>
+            )}
           </div>
-        )
-      })()}
+        </>
+      )}
     </div>
   )
 }

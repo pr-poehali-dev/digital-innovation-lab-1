@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
@@ -19,6 +19,62 @@ import {
   PO_ASSETS_GROUPS,
   PO_EXPIRY_LABELS,
 } from "./PocketOptionBotTypes"
+
+function AssetSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [search, setSearch] = useState("")
+  const [open, setOpen] = useState(false)
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim()
+    if (!q) return PO_ASSETS_GROUPS
+    return PO_ASSETS_GROUPS
+      .map((g) => ({ ...g, assets: g.assets.filter((a) => a.toLowerCase().includes(q)) }))
+      .filter((g) => g.assets.length > 0)
+  }, [search])
+
+  return (
+    <div>
+      <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Торговый актив</Label>
+      <Select
+        value={value}
+        onValueChange={(v) => { onChange(v); setOpen(false); setSearch("") }}
+        open={open}
+        onOpenChange={(o) => { setOpen(o); if (!o) setSearch("") }}
+      >
+        <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent className="bg-zinc-800 border-zinc-700 max-h-80 p-0">
+          <div className="sticky top-0 z-10 bg-zinc-800 border-b border-zinc-700 p-2">
+            <Input
+              placeholder="Поиск актива..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="bg-zinc-900 border-zinc-600 text-white font-space-mono text-xs h-7 placeholder:text-zinc-500"
+              autoFocus
+            />
+          </div>
+          <div className="overflow-y-auto max-h-64">
+            {filtered.length === 0 ? (
+              <p className="text-zinc-500 font-space-mono text-xs text-center py-4">Ничего не найдено</p>
+            ) : (
+              filtered.map((group) => (
+                <SelectGroup key={group.label}>
+                  <SelectLabel className="text-zinc-500 font-space-mono text-xs px-2 py-1">{group.label}</SelectLabel>
+                  {group.assets.map((a) => (
+                    <SelectItem key={a} value={a} className="text-white font-space-mono text-xs hover:bg-zinc-700">
+                      {a}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ))
+            )}
+          </div>
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
 
 const EMA_PRESETS: { mode: POEmaTrendMode; label: string; fast: number; slow: number; hint: string }[] = [
   { mode: "ema9_21",   label: "9/21",    fast: 9,  slow: 21,  hint: "Скальпинг и короткие сделки" },
@@ -636,26 +692,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
           <CardTitle className="font-orbitron text-white text-base">Актив и экспирация</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Торговый актив</Label>
-            <Select value={config.asset} onValueChange={(v) => set({ asset: v })}>
-              <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-zinc-800 border-zinc-700 max-h-72">
-                {PO_ASSETS_GROUPS.map((group) => (
-                  <SelectGroup key={group.label}>
-                    <SelectLabel className="text-zinc-500 font-space-mono text-xs px-2 py-1">{group.label}</SelectLabel>
-                    {group.assets.map((a) => (
-                      <SelectItem key={a} value={a} className="text-white font-space-mono text-xs hover:bg-zinc-700">
-                        {a}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <AssetSelector value={config.asset} onChange={(v) => set({ asset: v })} />
 
           <div>
             <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Экспирация опциона</Label>

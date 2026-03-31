@@ -769,15 +769,16 @@ async def get_candles_data(client):
         except Exception as e:
             print(f"[CACHE_ERR] {e}")
             continue
-    print(f"[ERROR] Актив {ASSET} не найден ни в одном формате")
+    print(f"[FATAL] Актив {ASSET} не найден ни в одном формате — бот остановлен")
+    print(f"[HINT] Выбери другой актив из списка сканера тренда")
     try:
         assets = await client.get_available_assets()
         if assets:
-            names = [str(a) for a in list(assets)[:10]]
+            names = [str(a) for a in list(assets)[:20]]
             print(f"[HINT] Доступные активы: {', '.join(names)}")
     except Exception:
         pass
-    return [], []
+    import sys; sys.exit(1)
 
 async def place_trade(client, direction, amount):
     """Открытие опциона"""

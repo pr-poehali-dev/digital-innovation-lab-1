@@ -708,7 +708,9 @@ async def try_get_candles(client, asset_name):
     for attempt in range(3):
         try:
             raw = await client.get_candles(asset=asset_name, timeframe=EXPIRY_SEC, count=100)
-            return raw if raw else None
+            if raw:
+                return raw
+            return None  # пустой ответ — актив не найден, не повторяем
         except Exception as e:
             err = str(e)
             if "Not connected" in err or "reconnection failed" in err:
@@ -719,8 +721,8 @@ async def try_get_candles(client, asset_name):
                 except Exception:
                     pass
             else:
-                return None
-    print("[ERROR] Не удалось получить свечи после 3 попыток переподключения")
+                return None  # любая другая ошибка — не повторяем
+    print("[ERROR] Не удалось подключиться после 3 попыток")
     return None
 
 async def get_candles_data(client):

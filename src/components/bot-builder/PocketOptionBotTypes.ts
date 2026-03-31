@@ -644,6 +644,7 @@ _last_trend = None
 _candle_cache     = []
 _candle_asset     = None
 _last_candle_time = None
+_resolved_asset   = None
 
 def candle_color(c):
     return "UP" if c[3] >= c[0] else "DOWN"
@@ -724,9 +725,9 @@ async def try_get_candles(client, asset_name):
 
 async def get_candles_data(client):
     """Получение свечей с кэшем — обновляет только когда закрывается новая свеча"""
-    global _candle_cache, _candle_asset, _last_candle_time
+    global _candle_cache, _candle_asset, _last_candle_time, _resolved_asset
     base = ASSET.replace("_otc", "").replace("#", "")
-    candidates = [ASSET, f"#{ASSET}", base, f"{base}_otc", f"#{base}_otc"]
+    candidates = [ASSET, f"#{ASSET}", f"{base}_otc", f"#{base}_otc", base]
     seen = []
     for name in candidates:
         if name in seen:
@@ -736,6 +737,7 @@ async def get_candles_data(client):
             raw = await try_get_candles(client, name)
             if not raw:
                 continue
+            _resolved_asset = name
             if name != ASSET:
                 print(f"[INFO] Актив найден как: {name}")
             if hasattr(raw[0], 'time'):
@@ -779,7 +781,8 @@ async def place_trade(client, direction, amount):
     """Открытие опциона"""
     try:
         dir_val = OrderDirection.CALL if direction == "CALL" else OrderDirection.PUT
-        order = await client.place_order(asset=ASSET, amount=amount, direction=dir_val, duration=EXPIRY_SEC)
+        trade_asset = _resolved_asset or ASSET
+        order = await client.place_order(asset=trade_asset, amount=amount, direction=dir_val, duration=EXPIRY_SEC)
         print(f"[TRADE] {direction} | {amount} | {EXPIRY_SEC//60} мин | ID: {order.order_id}")
         return order.order_id
     except Exception as e:
@@ -1400,6 +1403,7 @@ _last_trend = None
 _candle_cache     = []
 _candle_asset     = None
 _last_candle_time = None
+_resolved_asset   = None
 
 def candle_color(c):
     return "UP" if c[3] >= c[0] else "DOWN"

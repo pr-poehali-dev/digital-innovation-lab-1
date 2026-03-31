@@ -180,12 +180,9 @@ export const PO_ASSETS = [
   "NZD/USD (OTC)", "NZD/JPY (OTC)", "NZD/CHF (OTC)", "NZD/CAD (OTC)",
   "CAD/JPY (OTC)", "CAD/CHF (OTC)", "CHF/JPY (OTC)",
   // Криптовалюты
-  "BTC/USD", "ETH/USD", "LTC/USD", "XRP/USD", "SOL/USD",
-  "BNB/USD", "DOGE/USD", "ADA/USD", "DOT/USD", "AVAX/USD",
-  "MATIC/USD", "LINK/USD", "UNI/USD", "ATOM/USD", "TRX/USD",
+  "BTC/USD", "ETH/USD", "SOL/USD", "BNB/USD", "DOGE/USD",
   // Криптовалюты OTC
-  "BTC/USD (OTC)", "ETH/USD (OTC)", "LTC/USD (OTC)", "XRP/USD (OTC)", "SOL/USD (OTC)",
-  "BNB/USD (OTC)", "DOGE/USD (OTC)", "ADA/USD (OTC)", "DOT/USD (OTC)", "AVAX/USD (OTC)",
+  "BTC/USD (OTC)", "ETH/USD (OTC)", "SOL/USD (OTC)", "BNB/USD (OTC)", "DOGE/USD (OTC)",
   // Акции OTC
   "Apple (OTC)", "Google (OTC)", "Amazon (OTC)", "Tesla (OTC)", "Microsoft (OTC)",
   "Meta (OTC)", "Netflix (OTC)", "Twitter (OTC)", "Alibaba (OTC)", "Nvidia (OTC)",
@@ -227,11 +224,11 @@ export const PO_ASSETS_GROUPS = [
   },
   {
     label: "₿ Крипто",
-    assets: ["BTC/USD", "ETH/USD", "LTC/USD", "XRP/USD", "SOL/USD", "BNB/USD", "DOGE/USD", "ADA/USD", "DOT/USD", "AVAX/USD", "MATIC/USD", "LINK/USD", "UNI/USD", "ATOM/USD", "TRX/USD"],
+    assets: ["BTC/USD", "ETH/USD", "SOL/USD", "BNB/USD", "DOGE/USD"],
   },
   {
     label: "₿ Крипто OTC",
-    assets: ["BTC/USD (OTC)", "ETH/USD (OTC)", "LTC/USD (OTC)", "XRP/USD (OTC)", "SOL/USD (OTC)", "BNB/USD (OTC)", "DOGE/USD (OTC)", "ADA/USD (OTC)", "DOT/USD (OTC)", "AVAX/USD (OTC)"],
+    assets: ["BTC/USD (OTC)", "ETH/USD (OTC)", "SOL/USD (OTC)", "BNB/USD (OTC)", "DOGE/USD (OTC)"],
   },
   {
     label: "📈 Акции OTC",

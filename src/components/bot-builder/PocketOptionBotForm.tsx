@@ -51,8 +51,9 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
   const visible = useMemo(() => {
     if (!results) return null
     return results.filter((r) => {
+      if (r.category === "crypto") return false
       const pct = Number(payouts[r.asset])
-      if (!pct) return true // не введена — показываем
+      if (!pct) return true
       return pct >= minPct
     })
   }, [results, payouts, minPct])

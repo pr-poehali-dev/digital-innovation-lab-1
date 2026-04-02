@@ -114,10 +114,8 @@ export default function BotBuilder() {
       a.click()
       URL.revokeObjectURL(url)
     }
-    const name1 = (poConfig.botName || "Бот 1").replace(/\s+/g, "_")
-    const name2 = (poConfig2.botName || "Бот 2").replace(/\s+/g, "_")
-    download(poCode, `${name1}_${poConfig.strategy}.py`)
-    setTimeout(() => download(poCode2, `${name2}_${poConfig2.strategy}.py`), 300)
+    download(poCode, `bot1.py`)
+    setTimeout(() => download(poCode2, `bot2.py`), 300)
     setDualDownloaded(true)
   }
 
@@ -143,7 +141,7 @@ export default function BotBuilder() {
 
   // Download .py file
   const handlePODownload = () => {
-    const filename = `pocket_option_bot_${poConfig.strategy}.py`
+    const filename = `bot.py`
     const blob = new Blob([poCode], { type: "text/x-python" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")

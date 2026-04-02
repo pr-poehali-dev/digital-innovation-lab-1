@@ -1534,7 +1534,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
               placeholder="Бот 1"
               className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-sm"
             />
-            <p className="text-zinc-600 font-space-mono text-xs mt-1">Если запущено 2 бота — задай разные имена</p>
+            <p className="text-zinc-500 font-space-mono text-xs mt-1">⚠️ При двух ботах задай разные имена. Управление: <span className="text-purple-400">/stop {config.botName ?? "Бот 1"}</span> или <span className="text-zinc-400">/stop all</span></p>
           </div>
         </CardContent>
       </Card>

@@ -867,22 +867,30 @@ async def check_result(client, order_id, balance_before, bet):
     print(f"[WAIT] Ожидаем результат {EXPIRY_SEC//60} мин...")
     await asyncio.sleep(EXPIRY_SEC + 10)
     try:
-        for attempt in range(15):
+        for attempt in range(20):
             balance_after, _ = await get_balance(client)
             if balance_after == 0.0:
-                await asyncio.sleep(5)
+                await asyncio.sleep(3)
                 continue
             diff = round(balance_after - balance_before, 2)
-            if diff == 0.0 and attempt < 10:
-                await asyncio.sleep(5)
+            # Ждём пока баланс реально изменится (минимум 10% от ставки)
+            if abs(diff) < bet * 0.1 and attempt < 15:
+                await asyncio.sleep(3)
                 continue
-            won = diff > -(bet * 0.5)
+            # Выигрыш: баланс вырос (получили ставку + прибыль)
+            # Проигрыш: баланс упал примерно на размер ставки
+            won = diff > 0
             profit = round(bet * PAYOUT, 2) if won else -bet
             status = "ВЫИГРЫШ ✅" if won else "ПРОИГРЫШ ❌"
-            print(f"[RESULT] {status} | Профит: {profit} | diff: {diff}")
+            print(f"[RESULT] {status} | diff: {diff} | bet: {bet} | Профит: {profit}")
             return won, profit
-        print("[WARN] Не удалось определить результат сделки")
-        return False, 0.0
+        # Если за 20 попыток баланс не изменился — считаем по последнему diff
+        balance_after, _ = await get_balance(client)
+        diff = round(balance_after - balance_before, 2)
+        won = diff > 0
+        profit = round(bet * PAYOUT, 2) if won else -bet
+        print(f"[WARN] Таймаут результата. diff={diff} → {'ВЫИГРЫШ ✅' if won else 'ПРОИГРЫШ ❌'}")
+        return won, profit
     except Exception as e:
         print(f"[ERROR] Результат: {e}")
         return False, 0.0

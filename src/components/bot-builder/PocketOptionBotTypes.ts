@@ -917,7 +917,23 @@ async def main():
     print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин")
     print(f"  Баланс: {round(balance, 2)} {CURRENCY} | TP: {TAKE_PROFIT} {CURRENCY} | SL: {STOP_LOSS} {CURRENCY}")
     print("=" * 50 + "\\n")
-    tg_info(f"🤖 <b>Бот запущен</b>\\nСчёт: {account_type}\\nСтратегия: ${strategyLabel}\\nАктив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} {CURRENCY} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
+    tg(
+        f"🤖 <b>Бот запущен</b>\\n"
+        f"━━━━━━━━━━━━━━━━━━━━\\n"
+        f"📋 <b>Параметры сессии</b>\\n"
+        f"  Счёт: {account_type}\\n"
+        f"  Стратегия: <b>${strategyLabel}</b>\\n"
+        f"  Начальный баланс: <b>{balance:.2f} {CURRENCY}</b>\\n"
+        f"  Take Profit: <b>+{TAKE_PROFIT} {CURRENCY}</b>\\n"
+        f"  Stop Loss: <b>-{STOP_LOSS} {CURRENCY}</b>\\n"
+        f"━━━━━━━━━━━━━━━━━━━━\\n"
+        f"📊 <b>Актив</b>\\n"
+        f"  Инструмент: <b>{ASSET}</b>\\n"
+        f"  Экспирация: <b>{EXPIRY_SEC//60} мин</b>\\n"
+        f"  Начальная ставка: <b>{BET} {CURRENCY}</b>\\n"
+        f"━━━━━━━━━━━━━━━━━━━━\\n"
+        f"⏳ Ожидаю сигналы..."
+    )
 
     _reconnect_attempts = 0
 

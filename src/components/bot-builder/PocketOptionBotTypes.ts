@@ -880,7 +880,7 @@ async def check_result(client, order_id, balance_before, bet):
             # Выигрыш: баланс вырос (получили ставку + прибыль)
             # Проигрыш: баланс упал примерно на размер ставки
             won = diff > 0
-            profit = diff if won else -bet
+            profit = diff
             status = "ВЫИГРЫШ ✅" if won else "ПРОИГРЫШ ❌"
             print(f"[RESULT] {status} | diff: {diff} | bet: {bet} | Профит: {profit}")
             return won, profit
@@ -888,7 +888,7 @@ async def check_result(client, order_id, balance_before, bet):
         balance_after, _ = await get_balance(client)
         diff = round(balance_after - balance_before, 2)
         won = diff > 0
-        profit = diff if won else -bet
+        profit = diff
         print(f"[WARN] Таймаут результата. diff={diff} → {'ВЫИГРЫШ ✅' if won else 'ПРОИГРЫШ ❌'}")
         return won, profit
     except Exception as e:

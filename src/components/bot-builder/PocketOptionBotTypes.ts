@@ -4,6 +4,7 @@ export type POComboLogic = "AND" | "OR"
 export type POEmaTrendMode = "ema9_21" | "ema20_50" | "ema50_200" | "custom"
 
 export interface POBotConfig {
+  botName: string
   strategy: POStrategy
   // combo
   comboMode: boolean
@@ -246,6 +247,7 @@ export const PO_EXPIRY_LABELS: Record<POExpiry, string> = {
 }
 
 export const PO_DEFAULT_CONFIG: POBotConfig = {
+  botName: "Бот 1",
   strategy: "rsi_reversal",
   comboMode: false,
   comboStrategies: ["rsi_reversal", "ema_cross"],
@@ -587,6 +589,7 @@ except Exception:
     print(f"[INFO] Режим (из настроек): {'ДЕМО' if IS_DEMO else 'РЕАЛЬНЫЙ'}")
 
 # ===== TELEGRAM =====
+BOT_NAME        = "${cfg.botName || "Бот"}"
 TG_TOKEN   = "${cfg.tgToken}"
 TG_CHAT_ID = "${cfg.tgChatId}"
 TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
@@ -918,7 +921,7 @@ async def main():
     print(f"  Баланс: {round(balance, 2)} {CURRENCY} | TP: {TAKE_PROFIT} {CURRENCY} | SL: {STOP_LOSS} {CURRENCY}")
     print("=" * 50 + "\\n")
     tg(
-        f"🤖 <b>Бот запущен</b>\\n"
+        f"🤖 <b>{BOT_NAME} запущен</b>\\n"
         f"━━━━━━━━━━━━━━━━━━━━\\n"
         f"📋 <b>Параметры сессии</b>\\n"
         f"  Счёт: {account_type}\\n"
@@ -1078,7 +1081,7 @@ async def main():
                 if signal_info:
                     print(f"[SIGNAL] {signal_info}")
                 sig_line = f"📊 Сигнал: {signal_info}" if signal_info else ""
-                tg_parts = [f"{emoji} <b>Сделка открыта</b>", f"{signal} | {bet} {currency} | {ASSET} | {EXPIRY_SEC//60} мин", trend_label]
+                tg_parts = [f"{emoji} <b>[{BOT_NAME}] Сделка открыта</b>", f"{signal} | {bet} {currency} | {ASSET} | {EXPIRY_SEC//60} мин", trend_label]
                 if sig_line:
                     tg_parts.append(sig_line)
                 tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")
@@ -1100,7 +1103,7 @@ async def main():
                     wins  = sum(1 for t in trade_log if t["won"])
                     wr    = wins / len(trade_log) * 100
                     res_emoji = "✅" if won else "❌"
-                    tg(f"{res_emoji} <b>{'Выигрыш' if won else 'Проигрыш'}</b>\\n{signal} | {bet} {currency} | {ASSET}\\nПрофит: {profit:+.2f} {currency}\\nСессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
+                    tg(f"{res_emoji} <b>[{BOT_NAME}] {'Выигрыш' if won else 'Проигрыш'}</b>\\n{signal} | {bet} {currency} | {ASSET}\\nПрофит: {profit:+.2f} {currency}\\nСессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
                     print_stats()
             else:
                 ts = datetime.now().strftime("%H:%M:%S")
@@ -1410,6 +1413,7 @@ except Exception:
     print(f"[INFO] Режим (из настроек): {'ДЕМО' if IS_DEMO else 'РЕАЛЬНЫЙ'}")
 
 # ===== TELEGRAM =====
+BOT_NAME        = "${cfg.botName || "Бот"}"
 TG_TOKEN   = "${cfg.tgToken}"
 TG_CHAT_ID = "${cfg.tgChatId}"
 TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
@@ -1638,7 +1642,7 @@ async def main():
     print(f"  Режим тренда: {trend_mode_label}")
     print("=" * 55 + "\\n")
     tg(
-        f"🤖 <b>КОМБО-Бот запущен</b>\\n"
+        f"🤖 <b>{BOT_NAME} запущен</b>\\n"
         f"━━━━━━━━━━━━━━━━━━━━\\n"
         f"📋 <b>Параметры сессии</b>\\n"
         f"  Счёт: {account_type}\\n"
@@ -1753,7 +1757,7 @@ async def main():
             emoji = "📈" if signal == "CALL" else "📉"
             _tlabels2 = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
             trend_info = _tlabels2.get(trend, "— нет тренда")
-            tg_parts = [f"{emoji} <b>Комбо-сделка</b>", f"{signal} | {bet} {currency} | {ASSET}", f"Тренд: {trend_info}"]
+            tg_parts = [f"{emoji} <b>[{BOT_NAME}] Комбо-сделка</b>", f"{signal} | {bet} {currency} | {ASSET}", f"Тренд: {trend_info}"]
             if signal_info:
                 tg_parts.append(f"📊 Сигнал: {signal_info}")
             tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")
@@ -1769,7 +1773,7 @@ async def main():
                 wins = sum(1 for t in trade_log if t["won"])
                 wr   = wins / len(trade_log) * 100
                 res_emoji = "✅" if won else "❌"
-                tg(f"{res_emoji} <b>{'Выигрыш' if won else 'Проигрыш'}</b>\\n{signal} | {bet} {currency} | {ASSET}\\nПрофит: {profit:+.2f} {currency}\\nСессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
+                tg(f"{res_emoji} <b>[{BOT_NAME}] {'Выигрыш' if won else 'Проигрыш'}</b>\\n{signal} | {bet} {currency} | {ASSET}\\nПрофит: {profit:+.2f} {currency}\\nСессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
                 print_stats()
         else:
             ts = datetime.now().strftime("%H:%M:%S")

@@ -1519,6 +1519,28 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
 
       <Card className="bg-zinc-900 border-zinc-700">
         <CardHeader className="pb-3">
+          <CardTitle className="font-orbitron text-white text-sm flex items-center gap-2">
+            <Icon name="Bot" size={16} className="text-purple-400" />
+            Имя бота
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Название для Telegram</Label>
+            <Input
+              type="text"
+              value={config.botName ?? "Бот 1"}
+              onChange={(e) => set({ botName: e.target.value })}
+              placeholder="Бот 1"
+              className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-sm"
+            />
+            <p className="text-zinc-600 font-space-mono text-xs mt-1">Если запущено 2 бота — задай разные имена</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-zinc-900 border-zinc-700">
+        <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="font-orbitron text-white text-sm flex items-center gap-2">
               <Icon name="Send" size={16} className="text-blue-400" />

@@ -810,10 +810,10 @@ async def check_result(client, order_id, balance_before, bet):
             if diff == 0.0 and attempt < 10:
                 await asyncio.sleep(5)
                 continue
-            won = diff > 0
+            won = diff > -(bet * 0.5)
             profit = round(bet * PAYOUT, 2) if won else -bet
             status = "ВЫИГРЫШ ✅" if won else "ПРОИГРЫШ ❌"
-            print(f"[RESULT] {status} | Профит: {profit}")
+            print(f"[RESULT] {status} | Профит: {profit} | diff: {diff}")
             return won, profit
         print("[WARN] Не удалось определить результат сделки")
         return False, 0.0

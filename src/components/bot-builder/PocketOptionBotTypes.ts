@@ -874,7 +874,7 @@ async def check_result(client, order_id, balance_before, bet):
                 continue
             diff = round(balance_after - balance_before, 2)
             # Ждём пока баланс реально изменится (минимум 10% от ставки)
-            if abs(diff) < bet * 0.1 and attempt < 15:
+            if abs(diff) < 0.01 and attempt < 15:
                 await asyncio.sleep(3)
                 continue
             # Выигрыш: баланс вырос (получили ставку + прибыль)

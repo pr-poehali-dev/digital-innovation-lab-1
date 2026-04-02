@@ -630,6 +630,63 @@ def tg_info(text):
         return
     tg(text)
 
+# ===== УПРАВЛЕНИЕ ЧЕРЕЗ TELEGRAM =====
+_tg_paused   = False
+_tg_stopped  = False
+_tg_offset   = 0
+
+def tg_poll_commands():
+    """Получить новые команды из Telegram и обработать их"""
+    global _tg_paused, _tg_stopped, _tg_offset, TAKE_PROFIT, STOP_LOSS, BASE_BET
+    if not TG_ENABLED:
+        return
+    import urllib.request, json as _json
+    try:
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/getUpdates?offset={_tg_offset}&timeout=1&limit=5"
+        resp = urllib.request.urlopen(url, timeout=5).read()
+        data = _json.loads(resp)
+        for upd in data.get("result", []):
+            _tg_offset = upd["update_id"] + 1
+            msg = upd.get("message", {})
+            text = msg.get("text", "").strip().lower()
+            chat = str(msg.get("chat", {}).get("id", ""))
+            if chat != str(TG_CHAT_ID):
+                continue
+            if text == "/stop":
+                _tg_stopped = True
+                tg("🛑 <b>Бот остановлен командой /stop</b>")
+            elif text == "/pause":
+                _tg_paused = True
+                tg("⏸ <b>Бот на паузе. /resume для продолжения</b>")
+            elif text == "/resume":
+                _tg_paused = False
+                tg("▶️ <b>Бот возобновлён</b>")
+            elif text == "/status":
+                wins_s = sum(1 for t in trade_log if t["won"])
+                tg(f"📊 <b>Статус [{BOT_NAME}]</b>\\n💰 Профит: {total_profit:+.2f} {CURRENCY}\\n📈 Сделок: {trades_today} (✅{wins_s}/❌{trades_today-wins_s})\\n{'⏸ На паузе' if _tg_paused else '▶️ Работает'}")
+            elif text.startswith("/settp "):
+                try:
+                    TAKE_PROFIT = float(text.split()[1])
+                    tg(f"✅ Take Profit установлен: <b>{TAKE_PROFIT} {CURRENCY}</b>")
+                except:
+                    tg("❌ Формат: /settp 50")
+            elif text.startswith("/setsl "):
+                try:
+                    STOP_LOSS = float(text.split()[1])
+                    tg(f"✅ Stop Loss установлен: <b>{STOP_LOSS} {CURRENCY}</b>")
+                except:
+                    tg("❌ Формат: /setsl 20")
+            elif text.startswith("/setbet "):
+                try:
+                    BASE_BET = float(text.split()[1])
+                    tg(f"✅ Ставка установлена: <b>{BASE_BET} {CURRENCY}</b>")
+                except:
+                    tg("❌ Формат: /setbet 10")
+            elif text == "/help":
+                tg("📋 <b>Команды управления:</b>\\n/stop — остановить бота\\n/pause — пауза\\n/resume — продолжить\\n/status — статистика сессии\\n/settp 50 — установить Take Profit\\n/setsl 20 — установить Stop Loss\\n/setbet 10 — изменить ставку")
+    except Exception:
+        pass
+
 # ===== СОСТОЯНИЕ =====
 total_profit  = 0.0
 trades_today  = 0
@@ -1021,6 +1078,15 @@ async def main():
                     f"━━━━━━━━━━━━━━━━━━━━"
                 )
                 break
+
+            tg_poll_commands()
+            if _tg_stopped:
+                print("[TG] Бот остановлен командой из Telegram")
+                break
+            if _tg_paused:
+                print("[TG] Пауза... Ожидаю команду /resume")
+                await asyncio.sleep(CHECK_INTERVAL)
+                continue
 
             await asyncio.sleep(3)
             candles, prices = await get_candles_data(client)
@@ -1454,6 +1520,63 @@ def tg_info(text):
         return
     tg(text)
 
+# ===== УПРАВЛЕНИЕ ЧЕРЕЗ TELEGRAM =====
+_tg_paused   = False
+_tg_stopped  = False
+_tg_offset   = 0
+
+def tg_poll_commands():
+    """Получить новые команды из Telegram и обработать их"""
+    global _tg_paused, _tg_stopped, _tg_offset, TAKE_PROFIT, STOP_LOSS, BASE_BET
+    if not TG_ENABLED:
+        return
+    import urllib.request, json as _json
+    try:
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/getUpdates?offset={_tg_offset}&timeout=1&limit=5"
+        resp = urllib.request.urlopen(url, timeout=5).read()
+        data = _json.loads(resp)
+        for upd in data.get("result", []):
+            _tg_offset = upd["update_id"] + 1
+            msg = upd.get("message", {})
+            text = msg.get("text", "").strip().lower()
+            chat = str(msg.get("chat", {}).get("id", ""))
+            if chat != str(TG_CHAT_ID):
+                continue
+            if text == "/stop":
+                _tg_stopped = True
+                tg("🛑 <b>Бот остановлен командой /stop</b>")
+            elif text == "/pause":
+                _tg_paused = True
+                tg("⏸ <b>Бот на паузе. /resume для продолжения</b>")
+            elif text == "/resume":
+                _tg_paused = False
+                tg("▶️ <b>Бот возобновлён</b>")
+            elif text == "/status":
+                wins_s = sum(1 for t in trade_log if t["won"])
+                tg(f"📊 <b>Статус [{BOT_NAME}]</b>\\n💰 Профит: {total_profit:+.2f} {CURRENCY}\\n📈 Сделок: {trades_today} (✅{wins_s}/❌{trades_today-wins_s})\\n{'⏸ На паузе' if _tg_paused else '▶️ Работает'}")
+            elif text.startswith("/settp "):
+                try:
+                    TAKE_PROFIT = float(text.split()[1])
+                    tg(f"✅ Take Profit установлен: <b>{TAKE_PROFIT} {CURRENCY}</b>")
+                except:
+                    tg("❌ Формат: /settp 50")
+            elif text.startswith("/setsl "):
+                try:
+                    STOP_LOSS = float(text.split()[1])
+                    tg(f"✅ Stop Loss установлен: <b>{STOP_LOSS} {CURRENCY}</b>")
+                except:
+                    tg("❌ Формат: /setsl 20")
+            elif text.startswith("/setbet "):
+                try:
+                    BASE_BET = float(text.split()[1])
+                    tg(f"✅ Ставка установлена: <b>{BASE_BET} {CURRENCY}</b>")
+                except:
+                    tg("❌ Формат: /setbet 10")
+            elif text == "/help":
+                tg("📋 <b>Команды управления:</b>\\n/stop — остановить бота\\n/pause — пауза\\n/resume — продолжить\\n/status — статистика сессии\\n/settp 50 — установить Take Profit\\n/setsl 20 — установить Stop Loss\\n/setbet 10 — изменить ставку")
+    except Exception:
+        pass
+
 # ===== СОСТОЯНИЕ =====
 total_profit  = 0.0
 trades_today  = 0
@@ -1714,6 +1837,15 @@ async def main():
                 f"━━━━━━━━━━━━━━━━━━━━"
             )
             break
+
+        tg_poll_commands()
+        if _tg_stopped:
+            print("[TG] Бот остановлен командой из Telegram")
+            break
+        if _tg_paused:
+            print("[TG] Пауза... Ожидаю команду /resume")
+            await asyncio.sleep(CHECK_INTERVAL)
+            continue
 
         await asyncio.sleep(3)
         candles, prices = await get_candles_data(client)

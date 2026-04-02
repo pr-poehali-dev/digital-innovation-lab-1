@@ -71,7 +71,7 @@ export default function BotBuilder() {
 
   // Pocket Option state — Bot 2
   const [dualMode, setDualMode] = useState(false)
-  const [poConfig2, setPoConfig2] = useState<POBotConfig>({ ...PO_DEFAULT_CONFIG, strategy: "ema_cross", betAmount: 1, tgToken: savedTg.tgToken || "", tgChatId: savedTg.tgChatId || "" })
+  const [poConfig2, setPoConfig2] = useState<POBotConfig>({ ...PO_DEFAULT_CONFIG, botName: "Бот 2", strategy: "ema_cross", betAmount: 1, tgToken: savedTg.tgToken || "", tgChatId: savedTg.tgChatId || "" })
 
   // Автосохранение TG настроек при изменении + синхронизация валюты и TG с Bot2
   useEffect(() => {
@@ -114,8 +114,10 @@ export default function BotBuilder() {
       a.click()
       URL.revokeObjectURL(url)
     }
-    download(poCode, `bot1_${poConfig.strategy}.py`)
-    setTimeout(() => download(poCode2, `bot2_${poConfig2.strategy}.py`), 300)
+    const name1 = (poConfig.botName || "Бот 1").replace(/\s+/g, "_")
+    const name2 = (poConfig2.botName || "Бот 2").replace(/\s+/g, "_")
+    download(poCode, `${name1}_${poConfig.strategy}.py`)
+    setTimeout(() => download(poCode2, `${name2}_${poConfig2.strategy}.py`), 300)
     setDualDownloaded(true)
   }
 

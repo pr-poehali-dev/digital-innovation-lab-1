@@ -942,7 +942,22 @@ async def main():
             if total_profit >= TAKE_PROFIT:
                 msg = f"[TP] Take Profit достигнут: +{round(total_profit, 2)} {CURRENCY}"
                 print(msg)
-                tg(f"✅ <b>Take Profit достигнут!</b>\\n+{total_profit:.2f} {CURRENCY} за сессию\\n📊 Сделок: {trades_today} | По тренду: {calls_follow} | Против/комбо: {calls_reverse}\\n🚫 Отклонено: {rejected_signals} (нет тренда: {rejected_no_trend}, конфликт: {rejected_conflict})")
+                wins_count = sum(1 for t in trade_log if t["won"])
+                loss_count = trades_today - wins_count
+                winrate = round(wins_count / trades_today * 100, 1) if trades_today > 0 else 0
+                tg(
+                    f"✅ <b>Take Profit достигнут!</b>\\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\\n"
+                    f"💰 <b>Итог сессии</b>\\n"
+                    f"  Профит: <b>+{total_profit:.2f} {CURRENCY}</b>\\n"
+                    f"  Баланс: <b>{balance_before + total_profit:.2f} {CURRENCY}</b>\\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\\n"
+                    f"📊 <b>Статистика</b>\\n"
+                    f"  Сделок: {trades_today} (✅ {wins_count} / ❌ {loss_count})\\n"
+                    f"  Винрейт: <b>{winrate}%</b>\\n"
+                    f"  Отклонено сигналов: {rejected_signals}\\n"
+                    f"━━━━━━━━━━━━━━━━━━━━"
+                )
                 if AUTO_RESTART:
                     total_profit = 0; trades_today = 0; calls_follow = 0; calls_reverse = 0
                     rejected_signals = 0; rejected_no_trend = 0; rejected_conflict = 0
@@ -957,7 +972,22 @@ async def main():
             if total_profit <= -STOP_LOSS:
                 msg = f"[SL] Stop Loss достигнут: {round(total_profit, 2)} {CURRENCY}"
                 print(msg)
-                tg(f"🛑 <b>Stop Loss достигнут!</b>\\n{total_profit:.2f} {CURRENCY} за сессию\\n📊 Сделок: {trades_today} | По тренду: {calls_follow} | Против/комбо: {calls_reverse}\\n🚫 Отклонено: {rejected_signals} (нет тренда: {rejected_no_trend}, конфликт: {rejected_conflict})")
+                wins_count_sl = sum(1 for t in trade_log if t["won"])
+                loss_count_sl = trades_today - wins_count_sl
+                winrate_sl = round(wins_count_sl / trades_today * 100, 1) if trades_today > 0 else 0
+                tg(
+                    f"🛑 <b>Stop Loss достигнут!</b>\\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\\n"
+                    f"💸 <b>Итог сессии</b>\\n"
+                    f"  Убыток: <b>{total_profit:.2f} {CURRENCY}</b>\\n"
+                    f"  Баланс: <b>{balance_before + total_profit:.2f} {CURRENCY}</b>\\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\\n"
+                    f"📊 <b>Статистика</b>\\n"
+                    f"  Сделок: {trades_today} (✅ {wins_count_sl} / ❌ {loss_count_sl})\\n"
+                    f"  Винрейт: <b>{winrate_sl}%</b>\\n"
+                    f"  Отклонено сигналов: {rejected_signals}\\n"
+                    f"━━━━━━━━━━━━━━━━━━━━"
+                )
                 if AUTO_RESTART:
                     total_profit = 0; trades_today = 0; calls_follow = 0; calls_reverse = 0
                     rejected_signals = 0; rejected_no_trend = 0; rejected_conflict = 0
@@ -971,7 +1001,22 @@ async def main():
 
             if trades_today >= DAILY_LIMIT:
                 print(f"[LIMIT] Дневной лимит {DAILY_LIMIT} сделок исчерпан")
-                tg_info(f"⚠️ <b>Дневной лимит исчерпан</b>\\n{DAILY_LIMIT} сделок | Итог: {total_profit:.2f} {CURRENCY}\\n📊 По тренду: {calls_follow} | Против/комбо: {calls_reverse}\\n🚫 Отклонено: {rejected_signals} (нет тренда: {rejected_no_trend}, конфликт: {rejected_conflict})")
+                wins_lim = sum(1 for t in trade_log if t["won"])
+                loss_lim = trades_today - wins_lim
+                winrate_lim = round(wins_lim / trades_today * 100, 1) if trades_today > 0 else 0
+                tg(
+                    f"⚠️ <b>Дневной лимит исчерпан</b>\\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\\n"
+                    f"💰 <b>Итог сессии</b>\\n"
+                    f"  Профит: <b>{total_profit:+.2f} {CURRENCY}</b>\\n"
+                    f"  Баланс: <b>{balance_before + total_profit:.2f} {CURRENCY}</b>\\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\\n"
+                    f"📊 <b>Статистика</b>\\n"
+                    f"  Сделок: {trades_today} / {DAILY_LIMIT} (✅ {wins_lim} / ❌ {loss_lim})\\n"
+                    f"  Винрейт: <b>{winrate_lim}%</b>\\n"
+                    f"  Отклонено сигналов: {rejected_signals}\\n"
+                    f"━━━━━━━━━━━━━━━━━━━━"
+                )
                 break
 
             await asyncio.sleep(3)
@@ -1592,25 +1637,78 @@ async def main():
     trend_mode_label = "🟢🟢/🔴🔴 Одинаковые" if TREND_MODE == "same" else "🔴🟢/🟢🔴 Разворот"
     print(f"  Режим тренда: {trend_mode_label}")
     print("=" * 55 + "\\n")
-    tg_info(f"🤖 <b>КОМБО-Бот запущен</b>\\nСчёт: {account_type}\\n${labels} (${cfg.comboLogic})\\nАктив: {ASSET} | {EXPIRY_SEC//60} мин\\nБаланс: {balance:.2f} {CURRENCY} | TP: {TAKE_PROFIT} | SL: {STOP_LOSS}")
+    tg(
+        f"🤖 <b>КОМБО-Бот запущен</b>\\n"
+        f"━━━━━━━━━━━━━━━━━━━━\\n"
+        f"📋 <b>Параметры сессии</b>\\n"
+        f"  Счёт: {account_type}\\n"
+        f"  Стратегия: <b>${labels}</b>\\n"
+        f"  Логика: <b>${cfg.comboLogic}</b>\\n"
+        f"  Начальный баланс: <b>{balance:.2f} {CURRENCY}</b>\\n"
+        f"  Take Profit: <b>+{TAKE_PROFIT} {CURRENCY}</b>\\n"
+        f"  Stop Loss: <b>-{STOP_LOSS} {CURRENCY}</b>\\n"
+        f"━━━━━━━━━━━━━━━━━━━━\\n"
+        f"📊 <b>Актив</b>\\n"
+        f"  Инструмент: <b>{ASSET}</b>\\n"
+        f"  Экспирация: <b>{EXPIRY_SEC//60} мин</b>\\n"
+        f"  Начальная ставка: <b>{BET} {CURRENCY}</b>\\n"
+        f"━━━━━━━━━━━━━━━━━━━━\\n"
+        f"⏳ Ожидаю сигналы..."
+    )
 
     last_lost_signal = None
     while True:
         if total_profit >= TAKE_PROFIT:
             print(f"[TP] +{total_profit:.2f} {CURRENCY}")
-            tg(f"✅ <b>Take Profit достигнут!</b>\\n+{total_profit:.2f} {CURRENCY} за сессию\\n📊 Сделок: {trades_today} | По тренду: {calls_follow} | Против/комбо: {calls_reverse}")
+            _w = sum(1 for t in trade_log if t["won"]); _l = trades_today - _w; _wr = round(_w/trades_today*100,1) if trades_today else 0
+            tg(
+                f"✅ <b>Take Profit достигнут!</b>\\n"
+                f"━━━━━━━━━━━━━━━━━━━━\\n"
+                f"💰 <b>Итог сессии</b>\\n"
+                f"  Профит: <b>+{total_profit:.2f} {CURRENCY}</b>\\n"
+                f"  Баланс: <b>{balance_before + total_profit:.2f} {CURRENCY}</b>\\n"
+                f"━━━━━━━━━━━━━━━━━━━━\\n"
+                f"📊 <b>Статистика</b>\\n"
+                f"  Сделок: {trades_today} (✅ {_w} / ❌ {_l})\\n"
+                f"  Винрейт: <b>{_wr}%</b>\\n"
+                f"━━━━━━━━━━━━━━━━━━━━"
+            )
             if AUTO_RESTART:
                 total_profit = 0; trades_today = 0; calls_follow = 0; calls_reverse = 0; await asyncio.sleep(300); continue
             break
         if total_profit <= -STOP_LOSS:
             print(f"[SL] {total_profit:.2f} {CURRENCY}")
-            tg(f"🛑 <b>Stop Loss достигнут!</b>\\n{total_profit:.2f} {CURRENCY} за сессию\\n📊 Сделок: {trades_today} | По тренду: {calls_follow} | Против/комбо: {calls_reverse}")
+            _w2 = sum(1 for t in trade_log if t["won"]); _l2 = trades_today - _w2; _wr2 = round(_w2/trades_today*100,1) if trades_today else 0
+            tg(
+                f"🛑 <b>Stop Loss достигнут!</b>\\n"
+                f"━━━━━━━━━━━━━━━━━━━━\\n"
+                f"💸 <b>Итог сессии</b>\\n"
+                f"  Убыток: <b>{total_profit:.2f} {CURRENCY}</b>\\n"
+                f"  Баланс: <b>{balance_before + total_profit:.2f} {CURRENCY}</b>\\n"
+                f"━━━━━━━━━━━━━━━━━━━━\\n"
+                f"📊 <b>Статистика</b>\\n"
+                f"  Сделок: {trades_today} (✅ {_w2} / ❌ {_l2})\\n"
+                f"  Винрейт: <b>{_wr2}%</b>\\n"
+                f"━━━━━━━━━━━━━━━━━━━━"
+            )
             if AUTO_RESTART:
                 total_profit = 0; trades_today = 0; calls_follow = 0; calls_reverse = 0; await asyncio.sleep(300); continue
             break
         if trades_today >= DAILY_LIMIT:
             print(f"[LIMIT] Лимит {DAILY_LIMIT} сделок исчерпан")
-            tg_info(f"⚠️ <b>Дневной лимит исчерпан</b>\\n{DAILY_LIMIT} сделок | Итог: {total_profit:.2f} {CURRENCY}\\n📊 По тренду: {calls_follow} | Против/комбо: {calls_reverse}")
+            _w3 = sum(1 for t in trade_log if t["won"]); _l3 = trades_today - _w3; _wr3 = round(_w3/trades_today*100,1) if trades_today else 0
+            tg(
+                f"⚠️ <b>Дневной лимит исчерпан</b>\\n"
+                f"━━━━━━━━━━━━━━━━━━━━\\n"
+                f"💰 <b>Итог сессии</b>\\n"
+                f"  Профит: <b>{total_profit:+.2f} {CURRENCY}</b>\\n"
+                f"  Баланс: <b>{balance_before + total_profit:.2f} {CURRENCY}</b>\\n"
+                f"━━━━━━━━━━━━━━━━━━━━\\n"
+                f"📊 <b>Статистика</b>\\n"
+                f"  Сделок: {trades_today} / {DAILY_LIMIT} (✅ {_w3} / ❌ {_l3})\\n"
+                f"  Винрейт: <b>{_wr3}%</b>\\n"
+                f"━━━━━━━━━━━━━━━━━━━━"
+            )
             break
 
         await asyncio.sleep(3)

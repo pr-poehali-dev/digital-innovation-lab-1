@@ -696,6 +696,7 @@ calls_reverse = 0
 rejected_signals  = 0
 rejected_no_trend = 0
 rejected_conflict = 0
+_last_report_time = 0
 ${martingaleBlock}
 # ===== ТРЕНД ПО 2 ПОСЛЕДНИМ СВЕЧАМ =====
 _last_trend = None
@@ -1094,6 +1095,21 @@ async def main():
                 print("[TG] Пауза... Ожидаю команду /resume")
                 await asyncio.sleep(CHECK_INTERVAL)
                 continue
+
+            import time as _time
+            global _last_report_time
+            if TG_ENABLED and (_time.time() - _last_report_time) >= 3600:
+                _wins_r = sum(1 for t in trade_log if t["won"])
+                _wr_r   = round(_wins_r / trades_today * 100, 1) if trades_today > 0 else 0
+                tg(
+                    f"⏰ <b>Авто-отчёт [{BOT_NAME}]</b>\\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\\n"
+                    f"💰 Профит: <b>{total_profit:+.2f} {CURRENCY}</b>\\n"
+                    f"📈 Сделок: {trades_today} (✅ {_wins_r} / ❌ {trades_today - _wins_r})\\n"
+                    f"🎯 Винрейт: <b>{_wr_r}%</b>\\n"
+                    f"━━━━━━━━━━━━━━━━━━━━"
+                )
+                _last_report_time = _time.time()
 
             await asyncio.sleep(3)
             candles, prices = await get_candles_data(client)
@@ -1593,6 +1609,7 @@ calls_reverse = 0
 rejected_signals  = 0
 rejected_no_trend = 0
 rejected_conflict = 0
+_last_report_time = 0
 ${martingaleBlock}
 # ===== ТРЕНД ПО 2 ПОСЛЕДНИМ СВЕЧАМ =====
 _last_trend = None
@@ -1860,6 +1877,21 @@ async def main():
             print("[TG] Пауза... Ожидаю команду /resume")
             await asyncio.sleep(CHECK_INTERVAL)
             continue
+
+        import time as _time
+        global _last_report_time
+        if TG_ENABLED and (_time.time() - _last_report_time) >= 3600:
+            _wins_r = sum(1 for t in trade_log if t["won"])
+            _wr_r   = round(_wins_r / trades_today * 100, 1) if trades_today > 0 else 0
+            tg(
+                f"⏰ <b>Авто-отчёт [{BOT_NAME}]</b>\\n"
+                f"━━━━━━━━━━━━━━━━━━━━\\n"
+                f"💰 Профит: <b>{total_profit:+.2f} {CURRENCY}</b>\\n"
+                f"📈 Сделок: {trades_today} (✅ {_wins_r} / ❌ {trades_today - _wins_r})\\n"
+                f"🎯 Винрейт: <b>{_wr_r}%</b>\\n"
+                f"━━━━━━━━━━━━━━━━━━━━"
+            )
+            _last_report_time = _time.time()
 
         await asyncio.sleep(3)
         candles, prices = await get_candles_data(client)

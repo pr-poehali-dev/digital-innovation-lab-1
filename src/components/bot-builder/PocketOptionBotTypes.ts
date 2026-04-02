@@ -873,6 +873,7 @@ async def check_result(client, order_id, balance_before, bet):
                 await asyncio.sleep(3)
                 continue
             diff = round(balance_after - balance_before, 2)
+            print(f"[DEBUG] Попытка {attempt+1} | Баланс до: {balance_before} | Баланс после: {balance_after} | Diff: {diff} | Ставка: {bet}")
             # Ждём пока баланс реально изменился хоть немного
             if abs(diff) < 0.01 and attempt < 15:
                 await asyncio.sleep(3)
@@ -882,7 +883,7 @@ async def check_result(client, order_id, balance_before, bet):
             won = diff > 0
             profit = round(bet * PAYOUT, 2) if won else -bet
             status = "ВЫИГРЫШ ✅" if won else "ПРОИГРЫШ ❌"
-            print(f"[RESULT] {status} | diff: {diff} | bet: {bet} | Профит: {profit}")
+            print(f"[RESULT] {status} | Баланс до: {balance_before} | Баланс после: {balance_after} | diff: {diff} | bet: {bet} | Профит: {profit}")
             return won, profit
         # Таймаут — берём последний diff
         balance_after, _ = await get_balance(client)

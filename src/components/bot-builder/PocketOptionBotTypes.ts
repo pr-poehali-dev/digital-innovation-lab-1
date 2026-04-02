@@ -862,7 +862,7 @@ async def place_trade(client, direction, amount):
         return None
 
 async def check_result(client, order_id, balance_before, bet):
-    """Ожидание результата. Профит считается по формуле: выигрыш = +bet*PAYOUT, проигрыш = -bet"""
+    """Ожидание результата. Победа определяется по знаку diff, профит считается по ставке (корректно при 2 ботах)."""
     PAYOUT = ${cfg.payoutRate} / 100
     print(f"[WAIT] Ожидаем результат {EXPIRY_SEC//60} мин...")
     await asyncio.sleep(EXPIRY_SEC + 10)
@@ -873,22 +873,22 @@ async def check_result(client, order_id, balance_before, bet):
                 await asyncio.sleep(3)
                 continue
             diff = round(balance_after - balance_before, 2)
-            # Ждём пока баланс реально изменится (минимум 10% от ставки)
+            # Ждём пока баланс реально изменился хоть немного
             if abs(diff) < 0.01 and attempt < 15:
                 await asyncio.sleep(3)
                 continue
-            # Выигрыш: баланс вырос (получили ставку + прибыль)
-            # Проигрыш: баланс упал примерно на размер ставки
+            # Победу определяем по знаку diff, профит — по размеру ставки
+            # (так корректно работает даже если 2 бота торгуют одновременно)
             won = diff > 0
-            profit = diff
+            profit = round(bet * PAYOUT, 2) if won else -bet
             status = "ВЫИГРЫШ ✅" if won else "ПРОИГРЫШ ❌"
             print(f"[RESULT] {status} | diff: {diff} | bet: {bet} | Профит: {profit}")
             return won, profit
-        # Если за 20 попыток баланс не изменился — считаем по последнему diff
+        # Таймаут — берём последний diff
         balance_after, _ = await get_balance(client)
         diff = round(balance_after - balance_before, 2)
         won = diff > 0
-        profit = diff
+        profit = round(bet * PAYOUT, 2) if won else -bet
         print(f"[WARN] Таймаут результата. diff={diff} → {'ВЫИГРЫШ ✅' if won else 'ПРОИГРЫШ ❌'}")
         return won, profit
     except Exception as e:

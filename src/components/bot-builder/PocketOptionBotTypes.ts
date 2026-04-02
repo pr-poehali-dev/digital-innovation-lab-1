@@ -645,45 +645,53 @@ def tg_poll_commands():
         url = f"https://api.telegram.org/bot{TG_TOKEN}/getUpdates?offset={_tg_offset}&timeout=1&limit=5"
         resp = urllib.request.urlopen(url, timeout=5).read()
         data = _json.loads(resp)
+        _bot_name_lower = BOT_NAME.lower()
         for upd in data.get("result", []):
             _tg_offset = upd["update_id"] + 1
             msg = upd.get("message", {})
-            text = msg.get("text", "").strip().lower()
+            text = msg.get("text", "").strip()
             chat = str(msg.get("chat", {}).get("id", ""))
             if chat != str(TG_CHAT_ID):
                 continue
-            if text == "/stop":
+            parts = text.split()
+            if not parts:
+                continue
+            cmd = parts[0].lower()
+            target = parts[1].lower() if len(parts) > 1 else ""
+            val = parts[1] if len(parts) > 1 else ""
+            for_me = (target == _bot_name_lower or target == "all" or target == "")
+            if cmd == "/stop" and for_me:
                 _tg_stopped = True
-                tg("🛑 <b>Бот остановлен командой /stop</b>")
-            elif text == "/pause":
+                tg(f"🛑 <b>[{BOT_NAME}] остановлен</b>")
+            elif cmd == "/pause" and for_me:
                 _tg_paused = True
-                tg("⏸ <b>Бот на паузе. /resume для продолжения</b>")
-            elif text == "/resume":
+                tg(f"⏸ <b>[{BOT_NAME}] на паузе.</b> /resume {BOT_NAME} для продолжения")
+            elif cmd == "/resume" and for_me:
                 _tg_paused = False
-                tg("▶️ <b>Бот возобновлён</b>")
-            elif text == "/status":
+                tg(f"▶️ <b>[{BOT_NAME}] возобновлён</b>")
+            elif cmd == "/status" and for_me:
                 wins_s = sum(1 for t in trade_log if t["won"])
                 tg(f"📊 <b>Статус [{BOT_NAME}]</b>\\n💰 Профит: {total_profit:+.2f} {CURRENCY}\\n📈 Сделок: {trades_today} (✅{wins_s}/❌{trades_today-wins_s})\\n{'⏸ На паузе' if _tg_paused else '▶️ Работает'}")
-            elif text.startswith("/settp "):
+            elif cmd == "/settp" and for_me:
                 try:
-                    TAKE_PROFIT = float(text.split()[1])
-                    tg(f"✅ Take Profit установлен: <b>{TAKE_PROFIT} {CURRENCY}</b>")
+                    TAKE_PROFIT = float(val)
+                    tg(f"✅ <b>[{BOT_NAME}]</b> Take Profit: <b>{TAKE_PROFIT} {CURRENCY}</b>")
                 except:
-                    tg("❌ Формат: /settp 50")
-            elif text.startswith("/setsl "):
+                    tg(f"❌ Формат: /settp {BOT_NAME} 50")
+            elif cmd == "/setsl" and for_me:
                 try:
-                    STOP_LOSS = float(text.split()[1])
-                    tg(f"✅ Stop Loss установлен: <b>{STOP_LOSS} {CURRENCY}</b>")
+                    STOP_LOSS = float(val)
+                    tg(f"✅ <b>[{BOT_NAME}]</b> Stop Loss: <b>{STOP_LOSS} {CURRENCY}</b>")
                 except:
-                    tg("❌ Формат: /setsl 20")
-            elif text.startswith("/setbet "):
+                    tg(f"❌ Формат: /setsl {BOT_NAME} 20")
+            elif cmd == "/setbet" and for_me:
                 try:
-                    BASE_BET = float(text.split()[1])
-                    tg(f"✅ Ставка установлена: <b>{BASE_BET} {CURRENCY}</b>")
+                    BASE_BET = float(val)
+                    tg(f"✅ <b>[{BOT_NAME}]</b> Ставка: <b>{BASE_BET} {CURRENCY}</b>")
                 except:
-                    tg("❌ Формат: /setbet 10")
-            elif text == "/help":
-                tg("📋 <b>Команды управления:</b>\\n/stop — остановить бота\\n/pause — пауза\\n/resume — продолжить\\n/status — статистика сессии\\n/settp 50 — установить Take Profit\\n/setsl 20 — установить Stop Loss\\n/setbet 10 — изменить ставку")
+                    tg(f"❌ Формат: /setbet {BOT_NAME} 10")
+            elif cmd == "/help":
+                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статистика\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
     except Exception:
         pass
 
@@ -994,11 +1002,12 @@ async def main():
         f"  Начальная ставка: <b>{BASE_BET} {CURRENCY}</b>\\n"
         f"━━━━━━━━━━━━━━━━━━━━\\n"
         f"🎮 <b>Команды управления:</b>\\n"
-        f"  /stop — остановить бота\\n"
-        f"  /pause — пауза\\n"
-        f"  /resume — продолжить\\n"
-        f"  /status — статистика\\n"
-        f"  /settp 50 | /setsl 20 | /setbet 10\\n"
+        f"  /stop {BOT_NAME}\\n"
+        f"  /pause {BOT_NAME}\\n"
+        f"  /resume {BOT_NAME}\\n"
+        f"  /status {BOT_NAME}\\n"
+        f"  /settp {BOT_NAME} 50 | /setsl {BOT_NAME} 20\\n"
+        f"  <i>all вместо имени — управлять всеми</i>\\n"
         f"━━━━━━━━━━━━━━━━━━━━\\n"
         f"⏳ Ожидаю сигналы..."
     )
@@ -1558,45 +1567,53 @@ def tg_poll_commands():
         url = f"https://api.telegram.org/bot{TG_TOKEN}/getUpdates?offset={_tg_offset}&timeout=1&limit=5"
         resp = urllib.request.urlopen(url, timeout=5).read()
         data = _json.loads(resp)
+        _bot_name_lower = BOT_NAME.lower()
         for upd in data.get("result", []):
             _tg_offset = upd["update_id"] + 1
             msg = upd.get("message", {})
-            text = msg.get("text", "").strip().lower()
+            text = msg.get("text", "").strip()
             chat = str(msg.get("chat", {}).get("id", ""))
             if chat != str(TG_CHAT_ID):
                 continue
-            if text == "/stop":
+            parts = text.split()
+            if not parts:
+                continue
+            cmd = parts[0].lower()
+            target = parts[1].lower() if len(parts) > 1 else ""
+            val = parts[1] if len(parts) > 1 else ""
+            for_me = (target == _bot_name_lower or target == "all" or target == "")
+            if cmd == "/stop" and for_me:
                 _tg_stopped = True
-                tg("🛑 <b>Бот остановлен командой /stop</b>")
-            elif text == "/pause":
+                tg(f"🛑 <b>[{BOT_NAME}] остановлен</b>")
+            elif cmd == "/pause" and for_me:
                 _tg_paused = True
-                tg("⏸ <b>Бот на паузе. /resume для продолжения</b>")
-            elif text == "/resume":
+                tg(f"⏸ <b>[{BOT_NAME}] на паузе.</b> /resume {BOT_NAME} для продолжения")
+            elif cmd == "/resume" and for_me:
                 _tg_paused = False
-                tg("▶️ <b>Бот возобновлён</b>")
-            elif text == "/status":
+                tg(f"▶️ <b>[{BOT_NAME}] возобновлён</b>")
+            elif cmd == "/status" and for_me:
                 wins_s = sum(1 for t in trade_log if t["won"])
                 tg(f"📊 <b>Статус [{BOT_NAME}]</b>\\n💰 Профит: {total_profit:+.2f} {CURRENCY}\\n📈 Сделок: {trades_today} (✅{wins_s}/❌{trades_today-wins_s})\\n{'⏸ На паузе' if _tg_paused else '▶️ Работает'}")
-            elif text.startswith("/settp "):
+            elif cmd == "/settp" and for_me:
                 try:
-                    TAKE_PROFIT = float(text.split()[1])
-                    tg(f"✅ Take Profit установлен: <b>{TAKE_PROFIT} {CURRENCY}</b>")
+                    TAKE_PROFIT = float(val)
+                    tg(f"✅ <b>[{BOT_NAME}]</b> Take Profit: <b>{TAKE_PROFIT} {CURRENCY}</b>")
                 except:
-                    tg("❌ Формат: /settp 50")
-            elif text.startswith("/setsl "):
+                    tg(f"❌ Формат: /settp {BOT_NAME} 50")
+            elif cmd == "/setsl" and for_me:
                 try:
-                    STOP_LOSS = float(text.split()[1])
-                    tg(f"✅ Stop Loss установлен: <b>{STOP_LOSS} {CURRENCY}</b>")
+                    STOP_LOSS = float(val)
+                    tg(f"✅ <b>[{BOT_NAME}]</b> Stop Loss: <b>{STOP_LOSS} {CURRENCY}</b>")
                 except:
-                    tg("❌ Формат: /setsl 20")
-            elif text.startswith("/setbet "):
+                    tg(f"❌ Формат: /setsl {BOT_NAME} 20")
+            elif cmd == "/setbet" and for_me:
                 try:
-                    BASE_BET = float(text.split()[1])
-                    tg(f"✅ Ставка установлена: <b>{BASE_BET} {CURRENCY}</b>")
+                    BASE_BET = float(val)
+                    tg(f"✅ <b>[{BOT_NAME}]</b> Ставка: <b>{BASE_BET} {CURRENCY}</b>")
                 except:
-                    tg("❌ Формат: /setbet 10")
-            elif text == "/help":
-                tg("📋 <b>Команды управления:</b>\\n/stop — остановить бота\\n/pause — пауза\\n/resume — продолжить\\n/status — статистика сессии\\n/settp 50 — установить Take Profit\\n/setsl 20 — установить Stop Loss\\n/setbet 10 — изменить ставку")
+                    tg(f"❌ Формат: /setbet {BOT_NAME} 10")
+            elif cmd == "/help":
+                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статистика\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
     except Exception:
         pass
 
@@ -1805,11 +1822,12 @@ async def main():
         f"  Начальная ставка: <b>{BASE_BET} {CURRENCY}</b>\\n"
         f"━━━━━━━━━━━━━━━━━━━━\\n"
         f"🎮 <b>Команды управления:</b>\\n"
-        f"  /stop — остановить бота\\n"
-        f"  /pause — пауза\\n"
-        f"  /resume — продолжить\\n"
-        f"  /status — статистика\\n"
-        f"  /settp 50 | /setsl 20 | /setbet 10\\n"
+        f"  /stop {BOT_NAME}\\n"
+        f"  /pause {BOT_NAME}\\n"
+        f"  /resume {BOT_NAME}\\n"
+        f"  /status {BOT_NAME}\\n"
+        f"  /settp {BOT_NAME} 50 | /setsl {BOT_NAME} 20\\n"
+        f"  <i>all вместо имени — управлять всеми</i>\\n"
         f"━━━━━━━━━━━━━━━━━━━━\\n"
         f"⏳ Ожидаю сигналы..."
     )

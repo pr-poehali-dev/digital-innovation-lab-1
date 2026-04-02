@@ -267,6 +267,7 @@ interface Props {
   config: POBotConfig
   onChange: (config: POBotConfig) => void
   onGenerate: () => void
+  botIndex?: number
 }
 
 const RISK_COLORS: Record<string, string> = {
@@ -525,7 +526,7 @@ function indicatorComment(cfg: POBotConfig): { level: CommentLevel; text: string
   return null
 }
 
-export default function PocketOptionBotForm({ config, onChange, onGenerate }: Props) {
+export default function PocketOptionBotForm({ config, onChange, onGenerate, botIndex = 1 }: Props) {
   const set = (patch: Partial<POBotConfig>) => onChange({ ...config, ...patch })
   const [detailOpen, setDetailOpen] = useState<Record<string, boolean>>({})
 
@@ -1529,12 +1530,12 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate }: Pr
             <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Название для Telegram</Label>
             <Input
               type="text"
-              value={config.botName ?? "Бот 1"}
+              value={config.botName ?? `Бот ${botIndex}`}
               onChange={(e) => set({ botName: e.target.value })}
-              placeholder="Бот 1"
+              placeholder={`Бот ${botIndex}`}
               className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-sm"
             />
-            <p className="text-zinc-500 font-space-mono text-xs mt-1">⚠️ При двух ботах задай разные имена. Управление: <span className="text-purple-400">/stop {config.botName ?? "Бот 1"}</span> или <span className="text-zinc-400">/stop all</span></p>
+            <p className="text-zinc-500 font-space-mono text-xs mt-1">⚠️ При двух ботах задай разные имена. Управление: <span className="text-purple-400">/stop {config.botName ?? `Бот ${botIndex}`}</span> или <span className="text-zinc-400">/stop all</span></p>
           </div>
         </CardContent>
       </Card>

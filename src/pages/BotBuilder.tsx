@@ -854,6 +854,7 @@ export default function BotBuilder() {
                       config={poConfig2}
                       onChange={setPoConfig2}
                       onGenerate={handlePOGenerate}
+                      botIndex={2}
                     />
                     {/* Telegram for Bot 2 */}
                     <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-4 space-y-2">

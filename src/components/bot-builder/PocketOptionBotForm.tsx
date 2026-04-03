@@ -1620,6 +1620,84 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
         </CardContent>
       </Card>
 
+      {/* Фильтр по времени */}
+      <Card className="bg-zinc-900 border-zinc-700">
+        <CardHeader className="pb-2 pt-4 px-4">
+          <CardTitle className="text-sm font-space-mono text-zinc-200 flex items-center gap-2">
+            <span>🕐</span> Фильтр по времени
+            <Switch checked={config.timeFilterEnabled ?? false} onCheckedChange={(v) => set({ timeFilterEnabled: v })} className="ml-auto scale-90" />
+          </CardTitle>
+        </CardHeader>
+        {(config.timeFilterEnabled) && (
+          <CardContent className="px-4 pb-4 space-y-3">
+            <p className="text-zinc-500 text-xs font-space-mono">Бот будет открывать сделки только в указанный промежуток (по московскому времени)</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-zinc-400 font-space-mono text-xs mb-1 block">С</Label>
+                <Input type="time" value={config.timeFilterFrom ?? "09:00"} onChange={(e) => set({ timeFilterFrom: e.target.value })} className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-sm h-9" />
+              </div>
+              <div>
+                <Label className="text-zinc-400 font-space-mono text-xs mb-1 block">До</Label>
+                <Input type="time" value={config.timeFilterTo ?? "21:00"} onChange={(e) => set({ timeFilterTo: e.target.value })} className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-sm h-9" />
+              </div>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* RSI-порог */}
+      <Card className="bg-zinc-900 border-zinc-700">
+        <CardHeader className="pb-2 pt-4 px-4">
+          <CardTitle className="text-sm font-space-mono text-zinc-200 flex items-center gap-2">
+            <span>📉</span> Жёсткий RSI-порог
+            <Switch checked={config.rsiThresholdEnabled ?? false} onCheckedChange={(v) => set({ rsiThresholdEnabled: v })} className="ml-auto scale-90" />
+          </CardTitle>
+        </CardHeader>
+        {(config.rsiThresholdEnabled) && (
+          <CardContent className="px-4 pb-4 space-y-3">
+            <p className="text-zinc-500 text-xs font-space-mono">Бот войдёт только при экстремальных значениях RSI — меньше сигналов, но точнее</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-zinc-400 font-space-mono text-xs mb-1 block">Перепроданность ≤</Label>
+                <Input type="number" min={5} max={40} value={config.rsiThresholdOversold ?? 25} onChange={(e) => set({ rsiThresholdOversold: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-green-400 font-space-mono text-sm h-9" />
+              </div>
+              <div>
+                <Label className="text-zinc-400 font-space-mono text-xs mb-1 block">Перекупленность ≥</Label>
+                <Input type="number" min={60} max={95} value={config.rsiThresholdOverbought ?? 75} onChange={(e) => set({ rsiThresholdOverbought: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-red-400 font-space-mono text-sm h-9" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 bg-blue-950/40 border border-blue-500/30 rounded-lg px-2.5 py-2">
+              <span className="text-blue-400 text-xs font-space-mono">Стандарт RSI 30/70. Здесь ты задаёшь более жёсткие границы — бот пропустит слабые сигналы.</span>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Пауза после серии проигрышей */}
+      <Card className="bg-zinc-900 border-zinc-700">
+        <CardHeader className="pb-2 pt-4 px-4">
+          <CardTitle className="text-sm font-space-mono text-zinc-200 flex items-center gap-2">
+            <span>⏸️</span> Пауза после проигрышей
+            <Switch checked={config.lossStreakPauseEnabled ?? false} onCheckedChange={(v) => set({ lossStreakPauseEnabled: v })} className="ml-auto scale-90" />
+          </CardTitle>
+        </CardHeader>
+        {(config.lossStreakPauseEnabled) && (
+          <CardContent className="px-4 pb-4 space-y-3">
+            <p className="text-zinc-500 text-xs font-space-mono">Бот автоматически останавливается при серии проигрышей подряд</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-zinc-400 font-space-mono text-xs mb-1 block">Проигрышей подряд</Label>
+                <Input type="number" min={1} max={20} value={config.lossStreakCount ?? 3} onChange={(e) => set({ lossStreakCount: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-orange-400 font-space-mono text-sm h-9" />
+              </div>
+              <div>
+                <Label className="text-zinc-400 font-space-mono text-xs mb-1 block">Пауза (минут)</Label>
+                <Input type="number" min={5} max={480} value={config.lossStreakPauseMin ?? 30} onChange={(e) => set({ lossStreakPauseMin: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-orange-400 font-space-mono text-sm h-9" />
+              </div>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
       <Button
         onClick={onGenerate}
         className="w-full bg-red-600 hover:bg-red-500 text-white font-orbitron font-bold py-4 text-base rounded-xl transition-all duration-200 shadow-lg shadow-red-500/20"

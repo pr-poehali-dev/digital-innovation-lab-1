@@ -38,6 +38,18 @@ export interface POBotConfig {
   checkInterval: number
   payoutRate: number
   tradeDirection: "all" | "call_only" | "put_only"
+  // Фильтр по времени
+  timeFilterEnabled: boolean
+  timeFilterFrom: string
+  timeFilterTo: string
+  // RSI-порог
+  rsiThresholdEnabled: boolean
+  rsiThresholdOversold: number
+  rsiThresholdOverbought: number
+  // Пауза после серии проигрышей
+  lossStreakPauseEnabled: boolean
+  lossStreakCount: number
+  lossStreakPauseMin: number
 }
 
 export interface StrategyMeta {
@@ -279,6 +291,15 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   checkInterval: 30,
   payoutRate: 92,
   tradeDirection: "all",
+  timeFilterEnabled: false,
+  timeFilterFrom: "09:00",
+  timeFilterTo: "21:00",
+  rsiThresholdEnabled: false,
+  rsiThresholdOversold: 25,
+  rsiThresholdOverbought: 75,
+  lossStreakPauseEnabled: false,
+  lossStreakCount: 3,
+  lossStreakPauseMin: 30,
 }
 
 // Helper to avoid TS template literal conflicts with Python f-strings
@@ -548,6 +569,18 @@ MARTINGALE_STEPS = ${cfg.martingaleSteps}
 
 CHECK_INTERVAL   = ${cfg.checkInterval}      # Интервал проверки сигнала (сек)
 TRADE_DIRECTION  = "${cfg.tradeDirection ?? "all"}"  # "all" | "call_only" | "put_only"
+
+TIME_FILTER_ENABLED   = ${cfg.timeFilterEnabled ? "True" : "False"}
+TIME_FILTER_FROM      = "${cfg.timeFilterFrom ?? "09:00"}"
+TIME_FILTER_TO        = "${cfg.timeFilterTo ?? "21:00"}"
+
+RSI_THRESHOLD_ENABLED    = ${cfg.rsiThresholdEnabled ? "True" : "False"}
+RSI_THRESHOLD_OVERSOLD   = ${cfg.rsiThresholdOversold ?? 25}
+RSI_THRESHOLD_OVERBOUGHT = ${cfg.rsiThresholdOverbought ?? 75}
+
+LOSS_STREAK_PAUSE_ENABLED = ${cfg.lossStreakPauseEnabled ? "True" : "False"}
+LOSS_STREAK_COUNT         = ${cfg.lossStreakCount ?? 3}
+LOSS_STREAK_PAUSE_MIN     = ${cfg.lossStreakPauseMin ?? 30}
 
 try:
     from dotenv import load_dotenv; load_dotenv()
@@ -1006,6 +1039,8 @@ async def main():
     )
 
     _reconnect_attempts = 0
+    _loss_streak = 0
+    _loss_streak_pause_until = 0
 
     while True:
         try:
@@ -1133,6 +1168,20 @@ async def main():
             trend_sig = trend_to_signal(trend)
             signal, signal_info = get_signal(prices, candles)
 
+            import time as _time_mod
+            if TIME_FILTER_ENABLED:
+                _now = datetime.now().strftime("%H:%M")
+                if not (TIME_FILTER_FROM <= _now <= TIME_FILTER_TO):
+                    print(f"[TIME] {_now} вне окна {TIME_FILTER_FROM}–{TIME_FILTER_TO}, ожидание...")
+                    await asyncio.sleep(CHECK_INTERVAL)
+                    continue
+
+            if LOSS_STREAK_PAUSE_ENABLED and _loss_streak_pause_until > _time_mod.time():
+                _left = int((_loss_streak_pause_until - _time_mod.time()) / 60)
+                print(f"[PAUSE] Пауза после {LOSS_STREAK_COUNT} проигрышей подряд. Осталось ~{_left} мин.")
+                await asyncio.sleep(CHECK_INTERVAL)
+                continue
+
             if signal:
                 if TRADE_DIRECTION == "call_only" and signal != "CALL":
                     print(f"[FILTER] Сигнал {signal} пропущен — фильтр: только CALL")
@@ -1142,6 +1191,19 @@ async def main():
                     print(f"[FILTER] Сигнал {signal} пропущен — фильтр: только PUT")
                     await asyncio.sleep(CHECK_INTERVAL)
                     continue
+                if RSI_THRESHOLD_ENABLED and signal_info:
+                    import re as _re
+                    _rsi_m = _re.search(r'RSI[=:]\\s*(\\d+\\.?\\d*)', signal_info)
+                    if _rsi_m:
+                        _rsi_val = float(_rsi_m.group(1))
+                        if signal == "CALL" and _rsi_val > RSI_THRESHOLD_OVERSOLD:
+                            print(f"[RSI-THRESHOLD] RSI={_rsi_val} > {RSI_THRESHOLD_OVERSOLD}, сигнал CALL слабый, пропуск")
+                            await asyncio.sleep(CHECK_INTERVAL)
+                            continue
+                        if signal == "PUT" and _rsi_val < RSI_THRESHOLD_OVERBOUGHT:
+                            print(f"[RSI-THRESHOLD] RSI={_rsi_val} < {RSI_THRESHOLD_OVERBOUGHT}, сигнал PUT слабый, пропуск")
+                            await asyncio.sleep(CHECK_INTERVAL)
+                            continue
 
             if signal:
                 if BET_PERCENT:
@@ -1181,6 +1243,16 @@ async def main():
                     res_emoji = "✅" if won else "❌"
                     tg(f"{res_emoji} <b>[{BOT_NAME}] {'Выигрыш' if won else 'Проигрыш'}</b>\\n{signal} | {bet} {currency} | {ASSET}\\nПрофит: {profit:+.2f} {currency}\\nСессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
                     print_stats()
+                    if LOSS_STREAK_PAUSE_ENABLED:
+                        if won:
+                            _loss_streak = 0
+                        else:
+                            _loss_streak += 1
+                            if _loss_streak >= LOSS_STREAK_COUNT:
+                                _loss_streak_pause_until = _time_mod.time() + LOSS_STREAK_PAUSE_MIN * 60
+                                _loss_streak = 0
+                                tg(f"⏸ <b>[{BOT_NAME}] Пауза {LOSS_STREAK_PAUSE_MIN} мин</b> — {LOSS_STREAK_COUNT} проигрышей подряд")
+                                print(f"[PAUSE] {LOSS_STREAK_COUNT} проигрышей подряд — пауза {LOSS_STREAK_PAUSE_MIN} мин")
             else:
                 ts = datetime.now().strftime("%H:%M:%S")
                 print(f"[{ts}] Нет сигнала, ожидание {CHECK_INTERVAL} сек...")
@@ -1451,6 +1523,18 @@ MARTINGALE_MULT  = ${cfg.martingaleMultiplier}
 MARTINGALE_STEPS = ${cfg.martingaleSteps}
 
 CHECK_INTERVAL   = ${cfg.checkInterval}      # Интервал проверки сигнала (сек)
+
+TIME_FILTER_ENABLED   = ${cfg.timeFilterEnabled ? "True" : "False"}
+TIME_FILTER_FROM      = "${cfg.timeFilterFrom ?? "09:00"}"
+TIME_FILTER_TO        = "${cfg.timeFilterTo ?? "21:00"}"
+
+RSI_THRESHOLD_ENABLED    = ${cfg.rsiThresholdEnabled ? "True" : "False"}
+RSI_THRESHOLD_OVERSOLD   = ${cfg.rsiThresholdOversold ?? 25}
+RSI_THRESHOLD_OVERBOUGHT = ${cfg.rsiThresholdOverbought ?? 75}
+
+LOSS_STREAK_PAUSE_ENABLED = ${cfg.lossStreakPauseEnabled ? "True" : "False"}
+LOSS_STREAK_COUNT         = ${cfg.lossStreakCount ?? 3}
+LOSS_STREAK_PAUSE_MIN     = ${cfg.lossStreakPauseMin ?? 30}
 
 try:
     from dotenv import load_dotenv; load_dotenv()
@@ -1807,6 +1891,8 @@ async def main():
     )
 
     last_lost_signal = None
+    _loss_streak = 0
+    _loss_streak_pause_until = 0
     while True:
         if total_profit >= TAKE_PROFIT:
             print(f"[TP] +{total_profit:.2f} {CURRENCY}")
@@ -1903,6 +1989,20 @@ async def main():
         trend_sig = trend_to_signal(trend)
         signal, signal_info = get_combined_signal(prices, candles)
 
+        import time as _time_mod2
+        if TIME_FILTER_ENABLED:
+            _now = datetime.now().strftime("%H:%M")
+            if not (TIME_FILTER_FROM <= _now <= TIME_FILTER_TO):
+                print(f"[TIME] {_now} вне окна {TIME_FILTER_FROM}–{TIME_FILTER_TO}, ожидание...")
+                await asyncio.sleep(CHECK_INTERVAL)
+                continue
+
+        if LOSS_STREAK_PAUSE_ENABLED and _loss_streak_pause_until > _time_mod2.time():
+            _left = int((_loss_streak_pause_until - _time_mod2.time()) / 60)
+            print(f"[PAUSE] Пауза после {LOSS_STREAK_COUNT} проигрышей. Осталось ~{_left} мин.")
+            await asyncio.sleep(CHECK_INTERVAL)
+            continue
+
         if signal:
             if TRADE_DIRECTION == "call_only" and signal != "CALL":
                 print(f"[FILTER] Сигнал {signal} пропущен — фильтр: только CALL")
@@ -1912,6 +2012,19 @@ async def main():
                 print(f"[FILTER] Сигнал {signal} пропущен — фильтр: только PUT")
                 await asyncio.sleep(CHECK_INTERVAL)
                 continue
+            if RSI_THRESHOLD_ENABLED and signal_info:
+                import re as _re2
+                _rsi_m = _re2.search(r'RSI[=:]\\s*(\\d+\\.?\\d*)', signal_info)
+                if _rsi_m:
+                    _rsi_val = float(_rsi_m.group(1))
+                    if signal == "CALL" and _rsi_val > RSI_THRESHOLD_OVERSOLD:
+                        print(f"[RSI-THRESHOLD] RSI={_rsi_val} > {RSI_THRESHOLD_OVERSOLD}, пропуск")
+                        await asyncio.sleep(CHECK_INTERVAL)
+                        continue
+                    if signal == "PUT" and _rsi_val < RSI_THRESHOLD_OVERBOUGHT:
+                        print(f"[RSI-THRESHOLD] RSI={_rsi_val} < {RSI_THRESHOLD_OVERBOUGHT}, пропуск")
+                        await asyncio.sleep(CHECK_INTERVAL)
+                        continue
 
         if signal:
             if BET_PERCENT:
@@ -1939,6 +2052,16 @@ async def main():
                 res_emoji = "✅" if won else "❌"
                 tg(f"{res_emoji} <b>[{BOT_NAME}] {'Выигрыш' if won else 'Проигрыш'}</b>\\n{signal} | {bet} {currency} | {ASSET}\\nПрофит: {profit:+.2f} {currency}\\nСессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
                 print_stats()
+                if LOSS_STREAK_PAUSE_ENABLED:
+                    if won:
+                        _loss_streak = 0
+                    else:
+                        _loss_streak += 1
+                        if _loss_streak >= LOSS_STREAK_COUNT:
+                            _loss_streak_pause_until = _time_mod2.time() + LOSS_STREAK_PAUSE_MIN * 60
+                            _loss_streak = 0
+                            tg(f"⏸ <b>[{BOT_NAME}] Пауза {LOSS_STREAK_PAUSE_MIN} мин</b> — {LOSS_STREAK_COUNT} проигрышей подряд")
+                            print(f"[PAUSE] {LOSS_STREAK_COUNT} проигрышей подряд — пауза {LOSS_STREAK_PAUSE_MIN} мин")
         else:
             ts = datetime.now().strftime("%H:%M:%S")
             print(f"[{ts}] Нет подтверждённого сигнала, ожидание {CHECK_INTERVAL} сек...")

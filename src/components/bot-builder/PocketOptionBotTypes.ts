@@ -1708,6 +1708,8 @@ def check_trend_change(candles):
     return None, None
 
 # ===== СТРАТЕГИИ =====
+PAYOUT = ${cfg.payoutRate ?? 92} / 100
+
 ${fnBlocks.join("\n")}
 
 # ===== КОМБО-ЛОГИКА (${cfg.comboLogic}) =====
@@ -1743,23 +1745,24 @@ async def check_result(client, order_id, balance_before, bet):
             if balance_after == 0.0:
                 await asyncio.sleep(3)
                 continue
-            profit = round(balance_after - balance_before, 2)
-            if profit == 0.0 and attempt < 3:
+            diff = round(balance_after - balance_before, 2)
+            if diff == 0.0 and attempt < 3:
                 await asyncio.sleep(3)
                 continue
-            if profit > bet * 2.5 and attempt < 8:
-                print(f"[WAIT] Аномальный профит {profit} при ставке {bet}, ждём обновления баланса (попытка {attempt+1})...")
+            if diff > bet * 2.5 and attempt < 8:
+                print(f"[WAIT] Аномальный профит {diff} при ставке {bet}, ждём обновления баланса (попытка {attempt+1})...")
                 await asyncio.sleep(3)
                 continue
-            won = profit > 0
-            loss_amount = round(bet, 2) if not won else 0.0
+            won = diff > 0
+            _payout = globals().get("PAYOUT", 0.92)
+            profit = round(bet * _payout, 2) if won else round(-bet, 2)
             print(f"[RESULT] {'ВЫИГРЫШ ✅' if won else 'ПРОИГРЫШ ❌'} | Профит: {profit}")
-            return won, profit, loss_amount
+            return won, profit
         print("[WARN] Не удалось определить результат сделки")
-        return False, 0.0, round(bet, 2)
+        return False, round(-bet, 2)
     except Exception as e:
         print(f"[ERROR] check_result: {e}")
-        return False, 0.0, round(bet, 2)
+        return False, round(-bet, 2)
 
 async def get_balance(client):
     try:
@@ -1818,6 +1821,7 @@ async def main():
     print("  Логика: ${cfg.comboLogic} — ${logicWord}")
     print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин | Баланс: {balance:.2f} {CURRENCY}")
     print(f"  TP: {TAKE_PROFIT} {CURRENCY} | SL: {STOP_LOSS} {CURRENCY} | Лимит: {DAILY_LIMIT}")
+    print(f"  Пейаут: {int(PAYOUT * 100)}%")
     trend_mode_label = "🟢🟢/🔴🔴 Одинаковые" if TREND_MODE == "same" else "🔴🟢/🟢🔴 Разворот"
     print(f"  Режим тренда: {trend_mode_label}")
     print("=" * 55 + "\\n")
@@ -1977,11 +1981,8 @@ async def main():
             balance_before, _ = await get_balance(client)
             order_id = await place_trade(client, signal, bet)
             if order_id:
-                won, profit, loss_amount = await check_result(client, order_id, balance_before, bet)
-                if won:
-                    total_profit += profit
-                else:
-                    total_profit -= loss_amount
+                won, profit = await check_result(client, order_id, balance_before, bet)
+                total_profit += profit
                 trades_today += 1
                 current_bet   = adjust_bet(won)
                 trade_log.append({"won": won, "profit": profit})

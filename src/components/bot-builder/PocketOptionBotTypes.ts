@@ -556,6 +556,7 @@ MARTINGALE_STEPS = ${cfg.martingaleSteps}
 CHECK_INTERVAL   = ${cfg.checkInterval}      # Интервал проверки сигнала (сек)
 TREND_MODE       = "${cfg.trendMode ?? "same"}"     # "same" = 2 одинаковых, "reverse" = разворот, "any" = любой паттерн
 TREND_FOLLOW     = "${cfg.trendFollow}"              # "follow" = по тренду, "reverse" = против, "combo" = без фильтра
+TRADE_DIRECTION  = "${cfg.tradeDirection ?? "all"}"  # "all" | "call_only" | "put_only"
 
 try:
     from dotenv import load_dotenv; load_dotenv()
@@ -1156,6 +1157,16 @@ async def main():
             trend = get_trend(candles)
             trend_sig = trend_to_signal(trend)
             signal, signal_info = get_signal(prices, candles)
+
+            if signal:
+                if TRADE_DIRECTION == "call_only" and signal != "CALL":
+                    print(f"[FILTER] Сигнал {signal} пропущен — фильтр: только CALL")
+                    await asyncio.sleep(CHECK_INTERVAL)
+                    continue
+                if TRADE_DIRECTION == "put_only" and signal != "PUT":
+                    print(f"[FILTER] Сигнал {signal} пропущен — фильтр: только PUT")
+                    await asyncio.sleep(CHECK_INTERVAL)
+                    continue
 
             if signal:
                 labels = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "DOWN_UP": "🔴🟢", "UP_DOWN": "🟢🔴"}

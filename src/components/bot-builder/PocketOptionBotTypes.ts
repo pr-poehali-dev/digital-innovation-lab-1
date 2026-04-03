@@ -26,7 +26,6 @@ export interface POBotConfig {
   emaFast: number
   emaSlow: number
   emaTrendMode: POEmaTrendMode
-  trendMode: "same" | "reverse" | "any"
   trendFollow: "follow" | "reverse" | "combo"
   useOTC: boolean
   autoRestart: boolean
@@ -269,7 +268,6 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   emaFast: 9,
   emaSlow: 21,
   emaTrendMode: "ema9_21",
-  trendMode: "same",
   trendFollow: "follow",
   useOTC: true,
   autoRestart: false,
@@ -552,7 +550,6 @@ MARTINGALE_MULT  = ${cfg.martingaleMultiplier}
 MARTINGALE_STEPS = ${cfg.martingaleSteps}
 
 CHECK_INTERVAL   = ${cfg.checkInterval}      # Интервал проверки сигнала (сек)
-TREND_MODE       = "${cfg.trendMode ?? "same"}"     # "same" = 2 одинаковых, "reverse" = разворот, "any" = любой паттерн
 TREND_FOLLOW     = "${cfg.trendFollow}"              # "follow" = по тренду, "reverse" = против, "combo" = без фильтра
 TRADE_DIRECTION  = "${cfg.tradeDirection ?? "all"}"  # "all" | "call_only" | "put_only"
 
@@ -744,21 +741,10 @@ def get_trend(candles):
     return None
 
 def trend_to_signal(trend):
-    if TREND_MODE == "any":
-        if trend in ("UP_UP", "DOWN_UP"):
-            return "CALL"
-        if trend in ("DOWN_DOWN", "UP_DOWN"):
-            return "PUT"
-    elif TREND_MODE == "same":
-        if trend == "UP_UP":
-            return "CALL"
-        if trend == "DOWN_DOWN":
-            return "PUT"
-    else:
-        if trend == "DOWN_UP":
-            return "CALL"
-        if trend == "UP_DOWN":
-            return "PUT"
+    if trend in ("UP_UP", "DOWN_UP"):
+        return "CALL"
+    if trend in ("DOWN_DOWN", "UP_DOWN"):
+        return "PUT"
     return None
 
 def check_trend_change(candles):
@@ -1489,7 +1475,6 @@ MARTINGALE_MULT  = ${cfg.martingaleMultiplier}
 MARTINGALE_STEPS = ${cfg.martingaleSteps}
 
 CHECK_INTERVAL   = ${cfg.checkInterval}      # Интервал проверки сигнала (сек)
-TREND_MODE       = "${cfg.trendMode ?? "same"}"     # "same" = 2 одинаковых, "reverse" = разворот, "any" = любой паттерн
 TREND_FOLLOW     = "${cfg.trendFollow}"              # "follow" = по тренду, "reverse" = против, "combo" = без фильтра
 
 try:
@@ -1680,21 +1665,10 @@ def get_trend(candles):
     return None
 
 def trend_to_signal(trend):
-    if TREND_MODE == "any":
-        if trend in ("UP_UP", "DOWN_UP"):
-            return "CALL"
-        if trend in ("DOWN_DOWN", "UP_DOWN"):
-            return "PUT"
-    elif TREND_MODE == "same":
-        if trend == "UP_UP":
-            return "CALL"
-        if trend == "DOWN_DOWN":
-            return "PUT"
-    else:
-        if trend == "DOWN_UP":
-            return "CALL"
-        if trend == "UP_DOWN":
-            return "PUT"
+    if trend in ("UP_UP", "DOWN_UP"):
+        return "CALL"
+    if trend in ("DOWN_DOWN", "UP_DOWN"):
+        return "PUT"
     return None
 
 def check_trend_change(candles):

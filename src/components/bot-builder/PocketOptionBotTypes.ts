@@ -1752,13 +1752,14 @@ async def check_result(client, order_id, balance_before, bet):
                 await asyncio.sleep(3)
                 continue
             won = profit > 0
+            loss_amount = round(bet, 2) if not won else 0.0
             print(f"[RESULT] {'ВЫИГРЫШ ✅' if won else 'ПРОИГРЫШ ❌'} | Профит: {profit}")
-            return won, profit
+            return won, profit, loss_amount
         print("[WARN] Не удалось определить результат сделки")
-        return False, 0.0
+        return False, 0.0, round(bet, 2)
     except Exception as e:
         print(f"[ERROR] check_result: {e}")
-        return False, 0.0
+        return False, 0.0, round(bet, 2)
 
 async def get_balance(client):
     try:
@@ -1977,7 +1978,10 @@ async def main():
             order_id = await place_trade(client, signal, bet)
             if order_id:
                 won, profit, loss_amount = await check_result(client, order_id, balance_before, bet)
-                total_profit += profit - loss_amount
+                if won:
+                    total_profit += profit
+                else:
+                    total_profit -= loss_amount
                 trades_today += 1
                 current_bet   = adjust_bet(won)
                 trade_log.append({"won": won, "profit": profit})

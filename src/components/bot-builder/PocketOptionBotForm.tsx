@@ -1559,9 +1559,12 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
       </Card>
 
       {/* Итоговая сводка — одиночный режим */}
-      {!config.comboMode && (config.timeFilterEnabled || config.rsiThresholdEnabled || config.lossStreakPauseEnabled) && (
+      {!config.comboMode && (config.timeFilterEnabled || config.rsiThresholdEnabled || config.lossStreakPauseEnabled || (config.tradeDirection ?? "all") !== "all") && (
         <div className="rounded-xl border border-zinc-600 bg-zinc-900 px-4 py-3 space-y-2 font-space-mono text-xs">
           <p className="text-zinc-300 font-semibold">🛡 Активные защиты:</p>
+          {(config.tradeDirection ?? "all") !== "all" && (
+            <p className="text-red-400">🚦 Только {config.tradeDirection === "call_only" ? "CALL (рост)" : "PUT (падение)"} — {config.tradeDirection === "call_only" ? "PUT" : "CALL"} игнорируется</p>
+          )}
           {config.timeFilterEnabled && (
             <p className="text-blue-400">🕐 Торговое окно: {config.timeFilterFrom}–{config.timeFilterTo}</p>
           )}
@@ -1596,9 +1599,12 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                 : `⚠️ TP/SL = ${(config.takeProfitRub / config.stopLossRub).toFixed(1)}x — рекомендуем TP выше SL в 1.5x`}
             </p>
           )}
-          {(config.timeFilterEnabled || config.rsiThresholdEnabled || config.lossStreakPauseEnabled) && (
+          {(config.timeFilterEnabled || config.rsiThresholdEnabled || config.lossStreakPauseEnabled || (config.tradeDirection ?? "all") !== "all") && (
             <div className="mt-2 pt-2 border-t border-zinc-700 space-y-1">
               <p className="text-zinc-400 text-[11px] font-semibold">🛡 Активные защиты:</p>
+              {(config.tradeDirection ?? "all") !== "all" && (
+                <p className="text-red-400 text-[11px]">🚦 Только {config.tradeDirection === "call_only" ? "CALL (рост)" : "PUT (падение)"} — {config.tradeDirection === "call_only" ? "PUT" : "CALL"} игнорируется</p>
+              )}
               {config.timeFilterEnabled && (
                 <p className="text-blue-400 text-[11px]">🕐 Торговое окно: {config.timeFilterFrom}–{config.timeFilterTo}</p>
               )}

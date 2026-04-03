@@ -26,7 +26,6 @@ export interface POBotConfig {
   emaFast: number
   emaSlow: number
   emaTrendMode: POEmaTrendMode
-  trendFollow: "follow" | "reverse" | "combo"
   useOTC: boolean
   autoRestart: boolean
   isDemo: boolean
@@ -268,7 +267,6 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   emaFast: 9,
   emaSlow: 21,
   emaTrendMode: "ema9_21",
-  trendFollow: "follow",
   useOTC: true,
   autoRestart: false,
   isDemo: true,
@@ -326,7 +324,7 @@ def calculate_ema(prices, period):
     return ema
 
 def get_signal(prices, candles=None):
-    """Сигнал по пересечению EMA ${cfg.emaFast} / EMA ${cfg.emaSlow}${cfg.trendFollow === "follow" ? " (по тренду)" : cfg.trendFollow === "reverse" ? " (против тренда)" : " (комбо)"}"""
+    """Сигнал по пересечению EMA ${cfg.emaFast} / EMA ${cfg.emaSlow}"""
     prices = prices[:-1]
     if len(prices) < ${cfg.emaSlow} + 2:
         return None, ""
@@ -336,9 +334,9 @@ def get_signal(prices, candles=None):
     cross_down = ema_fast[-1] < ema_slow[-1] and ema_fast[-2] >= ema_slow[-2]
     info = f"EMA${cfg.emaFast}={ema_fast[-1]:.5f} / EMA${cfg.emaSlow}={ema_slow[-1]:.5f}"
     if cross_up:
-        return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", f"{info} (пересечение вверх ↑)"
+        return "CALL", f"{info} (пересечение вверх ↑)"
     if cross_down:
-        return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", f"{info} (пересечение вниз ↓)"
+        return "PUT", f"{info} (пересечение вниз ↓)"
     return None, info`,
 
     martingale: `
@@ -515,7 +513,6 @@ Pocket Option Bot — ${strategyLabel}
   Экспирация : ${cfg.expiry} мин
   Ставка     : ${cfg.betAmount}${cfg.betPercent ? "% от баланса" : " " + cfg.currency}
   Режим      : ${cfg.isDemo ? "ДЕМО-СЧЁТ" : "РЕАЛЬНЫЙ СЧЁТ"}
-  Направление: ${cfg.trendFollow === "follow" ? "По тренду ↗" : cfg.trendFollow === "reverse" ? "Против тренда ↙" : "Комбо ↗↙"}
   Режим свечей: ${(cfg.trendMode ?? "same") === "same" ? "Одинаковые (2 зелёных=CALL / 2 красных=PUT)" : (cfg.trendMode === "reverse") ? "Разворот (красн+зел=PUT / зел+красн=CALL)" : "Любой паттерн (UP=CALL, DOWN=PUT)"}
   Take Profit: ${cfg.takeProfitRub} ${cfg.currency}
   Stop Loss  : ${cfg.stopLossRub} ${cfg.currency}
@@ -550,7 +547,6 @@ MARTINGALE_MULT  = ${cfg.martingaleMultiplier}
 MARTINGALE_STEPS = ${cfg.martingaleSteps}
 
 CHECK_INTERVAL   = ${cfg.checkInterval}      # Интервал проверки сигнала (сек)
-TREND_FOLLOW     = "${cfg.trendFollow}"              # "follow" = по тренду, "reverse" = против, "combo" = без фильтра
 TRADE_DIRECTION  = "${cfg.tradeDirection ?? "all"}"  # "all" | "call_only" | "put_only"
 
 try:
@@ -697,8 +693,6 @@ def tg_poll_commands():
 total_profit  = 0.0
 trades_today  = 0
 trade_log     = []
-calls_follow  = 0
-calls_reverse = 0
 rejected_signals  = 0
 rejected_no_trend = 0
 rejected_conflict = 0
@@ -921,18 +915,15 @@ def print_stats():
     total   = len(trade_log)
     winrate = (wins / total * 100) if total else 0
     print(f"\\n[STATS] {wins}/{total} сделок | Winrate: {winrate:.1f}% | Сессия: {round(total_profit, 2)} {CURRENCY}")
-    print(f"[STATS] По тренду: {calls_follow} ставок | Против/комбо: {calls_reverse} ставок")
+    print(f"[STATS] Всего сделок: {trades_today} | Профит: {total_profit:+.2f}")
     print(f"[STATS] Отклонено сигналов: {rejected_signals} (нет тренда: {rejected_no_trend}, конфликт: {rejected_conflict})\\n")
 
 async def main():
     global total_profit, trades_today, current_bet, rejected_signals, rejected_no_trend, rejected_conflict
     global _candle_cache, _candle_asset, _last_candle_time, _last_trend
-    global calls_follow, calls_reverse
     rejected_signals = 0
     rejected_no_trend = 0
     rejected_conflict = 0
-    calls_follow  = 0
-    calls_reverse = 0
     _candle_cache     = []
     _candle_asset     = None
     _last_candle_time = None
@@ -1038,7 +1029,7 @@ async def main():
                     f"━━━━━━━━━━━━━━━━━━━━"
                 )
                 if AUTO_RESTART:
-                    total_profit = 0; trades_today = 0; calls_follow = 0; calls_reverse = 0
+                    total_profit = 0; trades_today = 0
                     rejected_signals = 0; rejected_no_trend = 0; rejected_conflict = 0
                     _candle_cache[:] = []
                     _last_candle_time = None
@@ -1068,7 +1059,7 @@ async def main():
                     f"━━━━━━━━━━━━━━━━━━━━"
                 )
                 if AUTO_RESTART:
-                    total_profit = 0; trades_today = 0; calls_follow = 0; calls_reverse = 0
+                    total_profit = 0; trades_today = 0
                     rejected_signals = 0; rejected_no_trend = 0; rejected_conflict = 0
                     _candle_cache[:] = []
                     _last_candle_time = None
@@ -1153,12 +1144,6 @@ async def main():
                     continue
 
             if signal:
-                labels = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "DOWN_UP": "🔴🟢", "UP_DOWN": "🟢🔴"}
-                ts = datetime.now().strftime("%H:%M:%S")
-                if trend:
-                    print(f"[{ts}] RSI сигнал {signal} | Тренд свечей: {labels.get(trend, trend)} (не фильтруется)")
-
-            if signal:
                 if BET_PERCENT:
                     balance, currency = await get_balance(client)
                     CURRENCY = currency
@@ -1168,19 +1153,11 @@ async def main():
                     CURRENCY = currency
                     bet = current_bet
 
-                if trend_sig and signal == trend_sig:
-                    calls_follow += 1
-                elif trend_sig and signal != trend_sig:
-                    calls_reverse += 1
-                elif not trend_sig:
-                    calls_reverse += 1
                 emoji = "📈" if signal == "CALL" else "📉"
-                _tlabels = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
-                trend_label = f"Тренд: {_tlabels.get(trend, '— нет')}"
                 if signal_info:
                     print(f"[SIGNAL] {signal_info}")
                 sig_line = f"📊 Сигнал: {signal_info}" if signal_info else ""
-                tg_parts = [f"{emoji} <b>[{BOT_NAME}] Сделка открыта</b>", f"{signal} | {bet} {currency} | {ASSET} | {EXPIRY_SEC//60} мин", trend_label]
+                tg_parts = [f"{emoji} <b>[{BOT_NAME}] Сделка открыта</b>", f"{signal} | {bet} {currency} | {ASSET} | {EXPIRY_SEC//60} мин"]
                 if sig_line:
                     tg_parts.append(sig_line)
                 tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")
@@ -1318,8 +1295,8 @@ def signal_ema(prices, candles):
     fast = calculate_ema(prices, ${cfg.emaFast})
     slow = calculate_ema(prices, ${cfg.emaSlow})
     info = f"EMA${cfg.emaFast}={fast[-1]:.5f}/EMA${cfg.emaSlow}={slow[-1]:.5f}"
-    if fast[-1] > slow[-1] and fast[-2] <= slow[-2]: return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", f"{info}↑"
-    if fast[-1] < slow[-1] and fast[-2] >= slow[-2]: return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", f"{info}↓"
+    if fast[-1] > slow[-1] and fast[-2] <= slow[-2]: return "CALL", f"{info}↑"
+    if fast[-1] < slow[-1] and fast[-2] >= slow[-2]: return "PUT", f"{info}↓"
     return None, info`)
     callLines.push("signal_ema(prices, candles)")
   }
@@ -1334,10 +1311,10 @@ def signal_candle_pattern(prices, candles):
     body2 = abs(c2 - o2)
     low_sh = min(o2, c2) - l2
     up_sh  = h2 - max(o2, c2)
-    if low_sh > body2 * 2 and up_sh < body2 * 0.5 and c1 < o1: return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", "Молот🔨"
-    if up_sh > body2 * 2 and low_sh < body2 * 0.5 and c1 > o1: return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", "Звезда⭐"
-    if c1 < o1 and c2 > o2 and c2 > o1 and o2 < c1: return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", "Поглощение🟢"
-    if c1 > o1 and c2 < o2 and c2 < o1 and o2 > c1: return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", "Поглощение🔴"
+    if low_sh > body2 * 2 and up_sh < body2 * 0.5 and c1 < o1: return "CALL", "Молот🔨"
+    if up_sh > body2 * 2 and low_sh < body2 * 0.5 and c1 > o1: return "PUT", "Звезда⭐"
+    if c1 < o1 and c2 > o2 and c2 > o1 and o2 < c1: return "CALL", "Поглощение🟢"
+    if c1 > o1 and c2 < o2 and c2 < o1 and o2 > c1: return "PUT", "Поглощение🔴"
     return None, "Нет паттерна"`)
     callLines.push("signal_candle_pattern(prices, candles)")
   }
@@ -1358,9 +1335,9 @@ def signal_support_resistance(prices, candles):
     cur = prices[-1]
     thr = cur * 0.001
     for s in sup:
-        if abs(cur - s) < thr: return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", f"Поддержка={s:.5f}"
+        if abs(cur - s) < thr: return "CALL", f"Поддержка={s:.5f}"
     for r in res:
-        if abs(cur - r) < thr: return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", f"Сопротивление={r:.5f}"
+        if abs(cur - r) < thr: return "PUT", f"Сопротивление={r:.5f}"
     return None, "Нет уровня"`)
     callLines.push("signal_support_resistance(prices, candles)")
   }
@@ -1442,7 +1419,6 @@ Pocket Option КОМБО-Бот
   Экспирация : ${cfg.expiry} мин
   Ставка     : ${cfg.betAmount}${cfg.betPercent ? "% от баланса" : " " + cfg.currency}
   Режим      : ${cfg.isDemo ? "ДЕМО-СЧЁТ" : "РЕАЛЬНЫЙ СЧЁТ"}
-  Направление: ${cfg.trendFollow === "follow" ? "По тренду ↗" : cfg.trendFollow === "reverse" ? "Против тренда ↙" : "Комбо ↗↙"}
   Режим свечей: ${(cfg.trendMode ?? "same") === "same" ? "Одинаковые (2 зелёных=CALL / 2 красных=PUT)" : (cfg.trendMode === "reverse") ? "Разворот (красн+зел=PUT / зел+красн=CALL)" : "Любой паттерн (UP=CALL, DOWN=PUT)"}
   Take Profit: ${cfg.takeProfitRub} ${cfg.currency}
   Stop Loss  : ${cfg.stopLossRub} ${cfg.currency}
@@ -1475,7 +1451,6 @@ MARTINGALE_MULT  = ${cfg.martingaleMultiplier}
 MARTINGALE_STEPS = ${cfg.martingaleSteps}
 
 CHECK_INTERVAL   = ${cfg.checkInterval}      # Интервал проверки сигнала (сек)
-TREND_FOLLOW     = "${cfg.trendFollow}"              # "follow" = по тренду, "reverse" = против, "combo" = без фильтра
 
 try:
     from dotenv import load_dotenv; load_dotenv()
@@ -1621,8 +1596,6 @@ def tg_poll_commands():
 total_profit  = 0.0
 trades_today  = 0
 trade_log     = []
-calls_follow  = 0
-calls_reverse = 0
 rejected_signals  = 0
 rejected_no_trend = 0
 rejected_conflict = 0
@@ -1774,12 +1747,10 @@ def print_stats():
     total = len(trade_log)
     wr    = (wins / total * 100) if total else 0
     print(f"[STATS] {wins}/{total} | WR: {wr:.1f}% | Сессия: {total_profit:.2f} {CURRENCY}")
-    print(f"[STATS] По тренду: {calls_follow} ставок | Против/комбо: {calls_reverse} ставок")
+    print(f"[STATS] Всего сделок: {trades_today} | Профит: {total_profit:+.2f}")
 
 async def main():
-    global total_profit, trades_today, current_bet, calls_follow, calls_reverse
-    calls_follow  = 0
-    calls_reverse = 0
+    global total_profit, trades_today, current_bet
 
     client = AsyncPocketOptionClient(SESSION_ID, is_demo=IS_DEMO, enable_logging=False)
     await client.connect()
@@ -1853,7 +1824,7 @@ async def main():
                 f"━━━━━━━━━━━━━━━━━━━━"
             )
             if AUTO_RESTART:
-                total_profit = 0; trades_today = 0; calls_follow = 0; calls_reverse = 0; await asyncio.sleep(300); continue
+                total_profit = 0; trades_today = 0; await asyncio.sleep(300); continue
             break
         if total_profit <= -STOP_LOSS:
             print(f"[SL] {total_profit:.2f} {CURRENCY}")
@@ -1871,7 +1842,7 @@ async def main():
                 f"━━━━━━━━━━━━━━━━━━━━"
             )
             if AUTO_RESTART:
-                total_profit = 0; trades_today = 0; calls_follow = 0; calls_reverse = 0; await asyncio.sleep(300); continue
+                total_profit = 0; trades_today = 0; await asyncio.sleep(300); continue
             break
         if trades_today >= DAILY_LIMIT:
             print(f"[LIMIT] Лимит {DAILY_LIMIT} сделок исчерпан")
@@ -1943,26 +1914,14 @@ async def main():
                 continue
 
         if signal:
-            labels = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "DOWN_UP": "🔴🟢", "UP_DOWN": "🟢🔴"}
-            ts = datetime.now().strftime("%H:%M:%S")
-            if trend:
-                print(f"[{ts}] Сигнал {signal} | Тренд свечей: {labels.get(trend, trend)} (RSI не фильтруется)")
-
-        if signal:
             if BET_PERCENT:
                 balance, currency = await get_balance(client)
                 bet = round(balance * (BASE_BET / 100), 2)
             else:
                 balance, currency = await get_balance(client)
                 bet = current_bet
-            if trend_sig and signal == trend_sig:
-                calls_follow += 1
-            else:
-                calls_reverse += 1
             emoji = "📈" if signal == "CALL" else "📉"
-            _tlabels2 = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
-            trend_info = _tlabels2.get(trend, "— нет тренда")
-            tg_parts = [f"{emoji} <b>[{BOT_NAME}] Комбо-сделка</b>", f"{signal} | {bet} {currency} | {ASSET}", f"Тренд: {trend_info}"]
+            tg_parts = [f"{emoji} <b>[{BOT_NAME}] Комбо-сделка</b>", f"{signal} | {bet} {currency} | {ASSET}"]
             if signal_info:
                 tg_parts.append(f"📊 Сигнал: {signal_info}")
             tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")

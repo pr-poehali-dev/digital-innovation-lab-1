@@ -1523,6 +1523,8 @@ MARTINGALE_MULT  = ${cfg.martingaleMultiplier}
 MARTINGALE_STEPS = ${cfg.martingaleSteps}
 
 CHECK_INTERVAL   = ${cfg.checkInterval}      # Интервал проверки сигнала (сек)
+TRADE_DIRECTION  = "${cfg.tradeDirection ?? "all"}"
+TREND_MODE       = "${cfg.trendMode ?? "same"}"
 
 TIME_FILTER_ENABLED   = ${cfg.timeFilterEnabled ? "True" : "False"}
 TIME_FILTER_FROM      = "${cfg.timeFilterFrom ?? "09:00"}"

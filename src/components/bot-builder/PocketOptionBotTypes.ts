@@ -881,10 +881,11 @@ async def check_result(client, order_id, balance_before, bet):
                     continue
                 profit_val = float(profit_raw)
                 won = profit_val > 0
-                profit = round(bet * PAYOUT, 2) if won else -bet
+                profit = round(profit_val, 2) if won else 0.0
+                loss_amount = round(bet, 2) if not won else 0.0
                 status = "ВЫИГРЫШ ✅" if won else "ПРОИГРЫШ ❌"
                 print(f"[RESULT] {status} | deal.profit={profit_val} | bet={bet} | Профит: {profit}")
-                return won, profit
+                return won, profit, loss_amount
             except Exception as e_inner:
                 print(f"[WAIT] Попытка {attempt+1}: {e_inner}")
                 await asyncio.sleep(3)
@@ -893,9 +894,10 @@ async def check_result(client, order_id, balance_before, bet):
         balance_after, _ = await get_balance(client)
         diff = round(balance_after - balance_before, 2)
         won = diff > 0
-        profit = round(bet * PAYOUT, 2) if won else -bet
+        profit = round(diff, 2) if won else 0.0
+        loss_amount = round(bet, 2) if not won else 0.0
         print(f"[WARN] diff={diff} → {'ВЫИГРЫШ ✅' if won else 'ПРОИГРЫШ ❌'} | Профит: {profit}")
-        return won, profit
+        return won, profit, loss_amount
     except Exception as e:
         print(f"[ERROR] Результат: {e}")
         return False, 0.0
@@ -1200,8 +1202,8 @@ async def main():
                 balance_before, _ = await get_balance(client)
                 order_id = await place_trade(client, signal, bet)
                 if order_id:
-                    won, profit = await check_result(client, order_id, balance_before, bet)
-                    total_profit += profit
+                    won, profit, loss_amount = await check_result(client, order_id, balance_before, bet)
+                    total_profit += profit - loss_amount
                     trades_today += 1
                     current_bet   = adjust_bet(won)
                     trade_log.append({
@@ -1974,8 +1976,8 @@ async def main():
             balance_before, _ = await get_balance(client)
             order_id = await place_trade(client, signal, bet)
             if order_id:
-                won, profit = await check_result(client, order_id, balance_before, bet)
-                total_profit += profit
+                won, profit, loss_amount = await check_result(client, order_id, balance_before, bet)
+                total_profit += profit - loss_amount
                 trades_today += 1
                 current_bet   = adjust_bet(won)
                 trade_log.append({"won": won, "profit": profit})

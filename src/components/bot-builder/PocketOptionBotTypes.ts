@@ -1739,27 +1739,35 @@ async def place_trade(client, direction, amount):
 async def check_result(client, order_id, balance_before, bet):
     print(f"[WAIT] Ожидаем результат {EXPIRY_SEC//60} мин...")
     await asyncio.sleep(EXPIRY_SEC + 5)
+    _payout = globals().get("PAYOUT", 0.92)
     try:
-        for attempt in range(10):
-            balance_after, _ = await get_balance(client)
-            if balance_after == 0.0:
+        for attempt in range(30):
+            try:
+                deal = await client.get_deal(order_id)
+                if deal is None:
+                    await asyncio.sleep(3)
+                    continue
+                profit_raw = getattr(deal, 'profit', None) or getattr(deal, 'win', None) or getattr(deal, 'result', None)
+                if profit_raw is None and hasattr(deal, '__dict__'):
+                    profit_raw = deal.__dict__.get('profit') or deal.__dict__.get('win') or deal.__dict__.get('result')
+                if profit_raw is None:
+                    await asyncio.sleep(3)
+                    continue
+                profit_val = float(profit_raw)
+                won = profit_val > 0
+                profit = round(bet * _payout, 2) if won else round(-bet, 2)
+                print(f"[RESULT] {'ВЫИГРЫШ ✅' if won else 'ПРОИГРЫШ ❌'} | Профит: {profit}")
+                return won, profit
+            except Exception as e_inner:
                 await asyncio.sleep(3)
                 continue
-            diff = round(balance_after - balance_before, 2)
-            if diff == 0.0 and attempt < 3:
-                await asyncio.sleep(3)
-                continue
-            if diff > bet * 2.5 and attempt < 8:
-                print(f"[WAIT] Аномальный профит {diff} при ставке {bet}, ждём обновления баланса (попытка {attempt+1})...")
-                await asyncio.sleep(3)
-                continue
-            won = diff > 0
-            _payout = globals().get("PAYOUT", 0.92)
-            profit = round(bet * _payout, 2) if won else round(-bet, 2)
-            print(f"[RESULT] {'ВЫИГРЫШ ✅' if won else 'ПРОИГРЫШ ❌'} | Профит: {profit}")
-            return won, profit
-        print("[WARN] Не удалось определить результат сделки")
-        return False, round(-bet, 2)
+        print(f"[WARN] get_deal таймаут — fallback по балансу")
+        balance_after, _ = await get_balance(client)
+        diff = round(balance_after - balance_before, 2)
+        won = diff > 0
+        profit = round(bet * _payout, 2) if won else round(-bet, 2)
+        print(f"[WARN] Fallback: {'ВЫИГРЫШ ✅' if won else 'ПРОИГРЫШ ❌'} | Профит: {profit}")
+        return won, profit
     except Exception as e:
         print(f"[ERROR] check_result: {e}")
         return False, round(-bet, 2)

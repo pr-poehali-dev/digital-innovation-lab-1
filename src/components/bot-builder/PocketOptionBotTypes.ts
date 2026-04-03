@@ -900,7 +900,7 @@ async def check_result(client, order_id, balance_before, bet):
         return won, profit, loss_amount
     except Exception as e:
         print(f"[ERROR] Результат: {e}")
-        return False, 0.0
+        return False, 0.0, round(bet, 2)
 
 async def get_balance(client):
     """Текущий баланс"""

@@ -39,6 +39,7 @@ export interface POBotConfig {
   tgNotifyMode: "all" | "bets_only"
   checkInterval: number
   payoutRate: number
+  tradeDirection: "all" | "call_only" | "put_only"
 }
 
 export interface StrategyMeta {
@@ -281,6 +282,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   tgProxy: "",
   checkInterval: 30,
   payoutRate: 92,
+  tradeDirection: "all",
 }
 
 // Helper to avoid TS template literal conflicts with Python f-strings
@@ -1708,7 +1710,8 @@ def check_trend_change(candles):
     return None, None
 
 # ===== СТРАТЕГИИ =====
-PAYOUT = ${cfg.payoutRate ?? 92} / 100
+PAYOUT           = ${cfg.payoutRate ?? 92} / 100
+TRADE_DIRECTION  = "${cfg.tradeDirection ?? "all"}"  # "all" | "call_only" | "put_only"
 
 ${fnBlocks.join("\n")}
 
@@ -1956,6 +1959,16 @@ async def main():
         trend = get_trend(candles)
         trend_sig = trend_to_signal(trend)
         signal, signal_info = get_combined_signal(prices, candles)
+
+        if signal:
+            if TRADE_DIRECTION == "call_only" and signal != "CALL":
+                print(f"[FILTER] Сигнал {signal} пропущен — фильтр: только CALL")
+                await asyncio.sleep(CHECK_INTERVAL)
+                continue
+            if TRADE_DIRECTION == "put_only" and signal != "PUT":
+                print(f"[FILTER] Сигнал {signal} пропущен — фильтр: только PUT")
+                await asyncio.sleep(CHECK_INTERVAL)
+                continue
 
         if signal:
             labels = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "DOWN_UP": "🔴🟢", "UP_DOWN": "🟢🔴"}

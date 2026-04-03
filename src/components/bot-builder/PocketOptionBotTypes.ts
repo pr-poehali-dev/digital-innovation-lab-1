@@ -306,18 +306,16 @@ def calculate_rsi(prices, period=${cfg.rsiPeriod}):
     return 100 - (100 / (1 + rs))
 
 def get_signal(prices, candles=None):
-    """Сигнал по RSI${cfg.trendFollow === "follow" ? " — по тренду (перепроданность=CALL, перекупленность=PUT)" : cfg.trendFollow === "reverse" ? " — против тренда (перепроданность=PUT, перекупленность=CALL)" : " — комбо (без фильтрации)"}"""
+    """Сигнал по RSI — перепроданность=CALL, перекупленность=PUT (режим свечей не влияет)"""
     prices = prices[:-1]
     if len(prices) < ${cfg.rsiPeriod} + 1:
         return None, ""
     rsi = calculate_rsi(prices)
-    oversold  = rsi <= ${cfg.rsiOversold}
-    overbought = rsi >= ${cfg.rsiOverbought}
     info = f"RSI(${cfg.rsiPeriod}): {rsi:.1f}"
-    if oversold:
-        return ("CALL" if ${cfg.trendFollow !== "reverse" ? "True" : "False"} else "PUT"), f"{info} ≤ ${cfg.rsiOversold} (перепроданность)"
-    if overbought:
-        return ("PUT" if ${cfg.trendFollow !== "reverse" ? "True" : "False"} else "CALL"), f"{info} ≥ ${cfg.rsiOverbought} (перекупленность)"
+    if rsi <= ${cfg.rsiOversold}:
+        return "CALL", f"{info} ≤ ${cfg.rsiOversold} (перепроданность)"
+    if rsi >= ${cfg.rsiOverbought}:
+        return "PUT", f"{info} ≥ ${cfg.rsiOverbought} (перекупленность)"
     return None, info`,
 
     ema_cross: `
@@ -1171,19 +1169,8 @@ async def main():
             if signal:
                 labels = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "DOWN_UP": "🔴🟢", "UP_DOWN": "🟢🔴"}
                 ts = datetime.now().strftime("%H:%M:%S")
-                if TREND_FOLLOW != "combo":
-                    if not trend_sig:
-                        print(f"[{ts}] Сигнал {signal} отклонён — тренд неподходящий {labels.get(trend, trend or '?')}")
-                        rejected_signals += 1
-                        rejected_no_trend += 1
-                        await asyncio.sleep(CHECK_INTERVAL)
-                        continue
-                    if signal != trend_sig:
-                        print(f"[{ts}] Сигнал {signal} отклонён — не совпадает с трендом {trend_sig} ({labels.get(trend, trend or '?')})")
-                        rejected_signals += 1
-                        rejected_conflict += 1
-                        await asyncio.sleep(CHECK_INTERVAL)
-                        continue
+                if trend:
+                    print(f"[{ts}] RSI сигнал {signal} | Тренд свечей: {labels.get(trend, trend)} (не фильтруется)")
 
             if signal:
                 if BET_PERCENT:
@@ -1324,8 +1311,8 @@ def calculate_rsi(prices, period=${cfg.rsiPeriod}):
 
 def signal_rsi(prices, candles):
     rsi = calculate_rsi(prices)
-    if rsi <= ${cfg.rsiOversold}: return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", f"RSI={rsi:.1f}≤${cfg.rsiOversold}"
-    if rsi >= ${cfg.rsiOverbought}: return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", f"RSI={rsi:.1f}≥${cfg.rsiOverbought}"
+    if rsi <= ${cfg.rsiOversold}: return "CALL", f"RSI={rsi:.1f}≤${cfg.rsiOversold}"
+    if rsi >= ${cfg.rsiOverbought}: return "PUT", f"RSI={rsi:.1f}≥${cfg.rsiOverbought}"
     return None, f"RSI={rsi:.1f}"`)
     callLines.push("signal_rsi(prices, candles)")
   }
@@ -1984,12 +1971,8 @@ async def main():
         if signal:
             labels = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "DOWN_UP": "🔴🟢", "UP_DOWN": "🟢🔴"}
             ts = datetime.now().strftime("%H:%M:%S")
-            if TREND_FOLLOW != "combo":
-                if not trend_sig:
-                    print(f"[{ts}] Комбо-сигнал {signal} отклонён — тренд неподходящий {labels.get(trend, trend or '?')}")
-                    await asyncio.sleep(CHECK_INTERVAL)
-                    continue
-                signal = trend_sig
+            if trend:
+                print(f"[{ts}] Сигнал {signal} | Тренд свечей: {labels.get(trend, trend)} (RSI не фильтруется)")
 
         if signal:
             if BET_PERCENT:

@@ -534,7 +534,7 @@ Pocket Option Bot — ${strategyLabel}
   Экспирация : ${cfg.expiry} мин
   Ставка     : ${cfg.betAmount}${cfg.betPercent ? "% от баланса" : " " + cfg.currency}
   Режим      : ${cfg.isDemo ? "ДЕМО-СЧЁТ" : "РЕАЛЬНЫЙ СЧЁТ"}
-  Режим свечей: ${(cfg.trendMode ?? "same") === "same" ? "Одинаковые (2 зелёных=CALL / 2 красных=PUT)" : (cfg.trendMode === "reverse") ? "Разворот (красн+зел=PUT / зел+красн=CALL)" : "Любой паттерн (UP=CALL, DOWN=PUT)"}
+  Режим свечей: Одинаковые (2 зелёных=CALL / 2 красных=PUT)
   Take Profit: ${cfg.takeProfitRub} ${cfg.currency}
   Stop Loss  : ${cfg.stopLossRub} ${cfg.currency}
   Лимит/день : ${cfg.dailyLimit} сделок
@@ -1290,7 +1290,6 @@ if __name__ == "__main__":
     print(f"  Take Profit: {TAKE_PROFIT} {CURRENCY}")
     print(f"  Stop Loss  : {STOP_LOSS} {CURRENCY}")
     print(f"  Лимит/день : {DAILY_LIMIT} сделок")
-    print(f"  Режим свечей: {TREND_MODE}")
     print("════════════════════════════════════════")
     asyncio.run(main())
 `
@@ -1491,7 +1490,7 @@ Pocket Option КОМБО-Бот
   Экспирация : ${cfg.expiry} мин
   Ставка     : ${cfg.betAmount}${cfg.betPercent ? "% от баланса" : " " + cfg.currency}
   Режим      : ${cfg.isDemo ? "ДЕМО-СЧЁТ" : "РЕАЛЬНЫЙ СЧЁТ"}
-  Режим свечей: ${(cfg.trendMode ?? "same") === "same" ? "Одинаковые (2 зелёных=CALL / 2 красных=PUT)" : (cfg.trendMode === "reverse") ? "Разворот (красн+зел=PUT / зел+красн=CALL)" : "Любой паттерн (UP=CALL, DOWN=PUT)"}
+  Режим свечей: Одинаковые (2 зелёных=CALL / 2 красных=PUT)
   Take Profit: ${cfg.takeProfitRub} ${cfg.currency}
   Stop Loss  : ${cfg.stopLossRub} ${cfg.currency}
   Лимит/день : ${cfg.dailyLimit} сделок
@@ -1524,7 +1523,7 @@ MARTINGALE_STEPS = ${cfg.martingaleSteps}
 
 CHECK_INTERVAL   = ${cfg.checkInterval}      # Интервал проверки сигнала (сек)
 TRADE_DIRECTION  = "${cfg.tradeDirection ?? "all"}"
-TREND_MODE       = "${cfg.trendMode ?? "same"}"
+TREND_MODE       = "same"
 
 TIME_FILTER_ENABLED   = ${cfg.timeFilterEnabled ? "True" : "False"}
 TIME_FILTER_FROM      = "${cfg.timeFilterFrom ?? "09:00"}"
@@ -1862,8 +1861,6 @@ async def main():
     print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин | Баланс: {balance:.2f} {CURRENCY}")
     print(f"  TP: {TAKE_PROFIT} {CURRENCY} | SL: {STOP_LOSS} {CURRENCY} | Лимит: {DAILY_LIMIT}")
     print(f"  Пейаут: {int(PAYOUT * 100)}%")
-    trend_mode_label = "🟢🟢/🔴🔴 Одинаковые" if TREND_MODE == "same" else "🔴🟢/🟢🔴 Разворот"
-    print(f"  Режим тренда: {trend_mode_label}")
     print("=" * 55 + "\\n")
     tg(
         f"🤖 <b>{BOT_NAME} запущен</b>\\n"

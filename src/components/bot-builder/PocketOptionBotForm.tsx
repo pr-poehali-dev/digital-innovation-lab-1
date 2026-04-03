@@ -1105,34 +1105,6 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
               </div>
             </div>
             <AIComment {...rsiComment(config)} />
-            {/* Trend mode */}
-            <div className="space-y-2">
-              <Label className="text-zinc-300 text-sm">Режим анализа свечей</Label>
-              <p className="text-zinc-500 text-xs font-space-mono">Как бот читает 2 последних свечи перед входом</p>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => set({ trendMode: "same" })}
-                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "same" ? "border-green-500/60 bg-green-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
-                >
-                  <span className="text-sm font-medium text-zinc-200">🟢🟢 / 🔴🔴</span>
-                  <span className="text-xs font-space-mono text-zinc-500">Одинаковые</span>
-                </button>
-                <button
-                  onClick={() => set({ trendMode: "reverse" })}
-                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "reverse" ? "border-blue-500/60 bg-blue-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
-                >
-                  <span className="text-sm font-medium text-zinc-200">🔴🟢 / 🟢🔴</span>
-                  <span className="text-xs font-space-mono text-zinc-500">Разворот</span>
-                </button>
-                <button
-                  onClick={() => set({ trendMode: "any" })}
-                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "any" ? "border-purple-500/60 bg-purple-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
-                >
-                  <span className="text-sm font-medium text-zinc-200">🔀 Любой</span>
-                  <span className="text-xs font-space-mono text-zinc-500">Все паттерны</span>
-                </button>
-              </div>
-            </div>
           </CardContent>
         </Card>
       )}
@@ -1163,34 +1135,6 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                 </div>
               )}
             </div>
-            {/* Trend mode */}
-            <div className="space-y-2">
-              <Label className="text-zinc-300 text-sm">Режим анализа свечей</Label>
-              <p className="text-zinc-500 text-xs font-space-mono">Как бот читает 2 последних свечи перед входом</p>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => set({ trendMode: "same" })}
-                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "same" ? "border-green-500/60 bg-green-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
-                >
-                  <span className="text-sm font-medium text-zinc-200">🟢🟢 / 🔴🔴</span>
-                  <span className="text-xs font-space-mono text-zinc-500">Одинаковые</span>
-                </button>
-                <button
-                  onClick={() => set({ trendMode: "reverse" })}
-                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "reverse" ? "border-blue-500/60 bg-blue-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
-                >
-                  <span className="text-sm font-medium text-zinc-200">🔴🟢 / 🟢🔴</span>
-                  <span className="text-xs font-space-mono text-zinc-500">Разворот</span>
-                </button>
-                <button
-                  onClick={() => set({ trendMode: "any" })}
-                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "any" ? "border-purple-500/60 bg-purple-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
-                >
-                  <span className="text-sm font-medium text-zinc-200">🔀 Любой</span>
-                  <span className="text-xs font-space-mono text-zinc-500">Все паттерны</span>
-                </button>
-              </div>
-            </div>
           </CardContent>
         </Card>
       )}
@@ -1220,33 +1164,6 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                   <span className="text-blue-400 text-xs font-space-mono leading-relaxed">Комбо: бот ставит по любому сигналу стратегии без фильтра тренда.</span>
                 </div>
               )}
-            </div>
-            <div className="space-y-2 pt-1">
-              <Label className="text-zinc-300 text-sm">Режим анализа свечей</Label>
-              <p className="text-zinc-500 text-xs font-space-mono">Как бот читает 2 последних свечи перед входом</p>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => set({ trendMode: "same" })}
-                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "same" ? "border-green-500/60 bg-green-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
-                >
-                  <span className="text-sm font-medium text-zinc-200">🟢🟢 / 🔴🔴</span>
-                  <span className="text-xs font-space-mono text-zinc-500">Одинаковые</span>
-                </button>
-                <button
-                  onClick={() => set({ trendMode: "reverse" })}
-                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "reverse" ? "border-blue-500/60 bg-blue-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
-                >
-                  <span className="text-sm font-medium text-zinc-200">🔴🟢 / 🟢🔴</span>
-                  <span className="text-xs font-space-mono text-zinc-500">Разворот</span>
-                </button>
-                <button
-                  onClick={() => set({ trendMode: "any" })}
-                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "any" ? "border-purple-500/60 bg-purple-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
-                >
-                  <span className="text-sm font-medium text-zinc-200">🔀 Любой</span>
-                  <span className="text-xs font-space-mono text-zinc-500">Все паттерны</span>
-                </button>
-              </div>
             </div>
           </CardContent>
         </Card>
@@ -1310,33 +1227,6 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                   <span className="text-blue-400 text-xs font-space-mono leading-relaxed">Комбо: бот ставит по любому сигналу стратегии без фильтра тренда.</span>
                 </div>
               )}
-            </div>
-            <div className="space-y-2 pt-1">
-              <Label className="text-zinc-300 text-sm">Режим анализа свечей</Label>
-              <p className="text-zinc-500 text-xs font-space-mono">Как бот читает 2 последних свечи перед входом</p>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => set({ trendMode: "same" })}
-                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "same" ? "border-green-500/60 bg-green-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
-                >
-                  <span className="text-sm font-medium text-zinc-200">🟢🟢 / 🔴🔴</span>
-                  <span className="text-xs font-space-mono text-zinc-500">Одинаковые</span>
-                </button>
-                <button
-                  onClick={() => set({ trendMode: "reverse" })}
-                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "reverse" ? "border-blue-500/60 bg-blue-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
-                >
-                  <span className="text-sm font-medium text-zinc-200">🔴🟢 / 🟢🔴</span>
-                  <span className="text-xs font-space-mono text-zinc-500">Разворот</span>
-                </button>
-                <button
-                  onClick={() => set({ trendMode: "any" })}
-                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "any" ? "border-purple-500/60 bg-purple-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
-                >
-                  <span className="text-sm font-medium text-zinc-200">🔀 Любой</span>
-                  <span className="text-xs font-space-mono text-zinc-500">Все паттерны</span>
-                </button>
-              </div>
             </div>
             <AIComment {...emaComment(config)} />
           </CardContent>

@@ -1558,6 +1558,22 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
         )}
       </Card>
 
+      {/* Итоговая сводка — одиночный режим */}
+      {!config.comboMode && (config.timeFilterEnabled || config.rsiThresholdEnabled || config.lossStreakPauseEnabled) && (
+        <div className="rounded-xl border border-zinc-600 bg-zinc-900 px-4 py-3 space-y-2 font-space-mono text-xs">
+          <p className="text-zinc-300 font-semibold">🛡 Активные защиты:</p>
+          {config.timeFilterEnabled && (
+            <p className="text-blue-400">🕐 Торговое окно: {config.timeFilterFrom}–{config.timeFilterTo}</p>
+          )}
+          {config.rsiThresholdEnabled && (
+            <p className="text-purple-400">📉 RSI-порог: вход только ≤{config.rsiThresholdOversold} / ≥{config.rsiThresholdOverbought}</p>
+          )}
+          {config.lossStreakPauseEnabled && (
+            <p className="text-orange-400">⏸️ Пауза {config.lossStreakPauseMin} мин после {config.lossStreakCount} проигрышей подряд</p>
+          )}
+        </div>
+      )}
+
       {/* Итоговая сводка перед генерацией */}
       {config.comboMode && (
         <div className="rounded-xl border border-zinc-600 bg-zinc-900 px-4 py-3 space-y-2 font-space-mono text-xs">

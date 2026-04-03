@@ -534,7 +534,7 @@ Pocket Option Bot — ${strategyLabel}
   Экспирация : ${cfg.expiry} мин
   Ставка     : ${cfg.betAmount}${cfg.betPercent ? "% от баланса" : " " + cfg.currency}
   Режим      : ${cfg.isDemo ? "ДЕМО-СЧЁТ" : "РЕАЛЬНЫЙ СЧЁТ"}
-  Режим свечей: Одинаковые (2 зелёных=CALL / 2 красных=PUT)
+
   Take Profit: ${cfg.takeProfitRub} ${cfg.currency}
   Stop Loss  : ${cfg.stopLossRub} ${cfg.currency}
   Лимит/день : ${cfg.dailyLimit} сделок
@@ -1490,7 +1490,7 @@ Pocket Option КОМБО-Бот
   Экспирация : ${cfg.expiry} мин
   Ставка     : ${cfg.betAmount}${cfg.betPercent ? "% от баланса" : " " + cfg.currency}
   Режим      : ${cfg.isDemo ? "ДЕМО-СЧЁТ" : "РЕАЛЬНЫЙ СЧЁТ"}
-  Режим свечей: Одинаковые (2 зелёных=CALL / 2 красных=PUT)
+
   Take Profit: ${cfg.takeProfitRub} ${cfg.currency}
   Stop Loss  : ${cfg.stopLossRub} ${cfg.currency}
   Лимит/день : ${cfg.dailyLimit} сделок

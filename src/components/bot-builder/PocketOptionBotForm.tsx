@@ -37,6 +37,7 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<TrendResult[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [collapsed, setCollapsed] = useState(false)
   // payouts[asset] — выплата введённая вручную для каждого актива
   const [payouts, setPayouts] = useState<Record<string, string>>({})
   // минимальная выплата для фильтра
@@ -80,23 +81,45 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
 
   return (
     <div className="space-y-2">
-      {/* Кнопка сканирования */}
-      <Button
-        type="button"
-        onClick={scan}
-        disabled={loading}
-        className="w-full bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 font-space-mono text-xs h-8"
-        variant="outline"
-      >
-        {loading
-          ? <><Icon name="Loader2" size={13} className="mr-1.5 animate-spin" />Сканирую рынок...</>
-          : <><Icon name="Zap" size={13} className="mr-1.5" />Найти сильный тренд (Binance)</>
-        }
-      </Button>
+      {/* Кнопка сканирования + закрытие */}
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          onClick={scan}
+          disabled={loading}
+          className="flex-1 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 font-space-mono text-xs h-8"
+          variant="outline"
+        >
+          {loading
+            ? <><Icon name="Loader2" size={13} className="mr-1.5 animate-spin" />Сканирую рынок...</>
+            : <><Icon name="Zap" size={13} className="mr-1.5" />Найти сильный тренд (Binance)</>
+          }
+        </Button>
+        {results && (
+          <Button
+            type="button"
+            onClick={() => setCollapsed((v) => !v)}
+            variant="outline"
+            className="border-zinc-700 bg-zinc-800 text-zinc-400 hover:text-white h-8 px-2.5"
+          >
+            <Icon name={collapsed ? "ChevronDown" : "ChevronUp"} size={14} />
+          </Button>
+        )}
+        {results && (
+          <Button
+            type="button"
+            onClick={() => { setResults(null); setCollapsed(false) }}
+            variant="outline"
+            className="border-zinc-700 bg-zinc-800 text-zinc-400 hover:text-red-400 h-8 px-2.5"
+          >
+            <Icon name="X" size={14} />
+          </Button>
+        )}
+      </div>
 
       {error && <p className="text-red-400 font-space-mono text-xs">{error}</p>}
 
-      {results && (
+      {results && !collapsed && (
         <>
           {/* Фильтр по минимальной выплате */}
           <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2">
@@ -824,14 +847,36 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
               const winrateBonus = config.comboLogic === "AND" ? Math.min(8, active.length * 3) : 0
               const estWinrate = `${winrateMin + winrateBonus}–${winrateMin + winrateBonus + 8}%`
 
+              const winrateNum = winrateMin + winrateBonus
+              const payout = config.payoutRate / 100
+              const estDailyWins = Math.round(sigMax * 0.6 * (winrateNum / 100) * (config.comboLogic === "AND" ? 0.7 : 1))
+              const estBet = config.betAmount
+              const estDayProfit = estDailyWins > 0
+                ? (estDailyWins * estBet * payout - (sigMax - estDailyWins > 0 ? sigMax - estDailyWins : 0) * estBet).toFixed(0)
+                : "0"
+              const overlapNote = config.comboLogic === "OR"
+                ? "Стратегии дублируют ~30% сигналов"
+                : "Все стратегии должны совпасть"
+
               return (
                 <div className="bg-zinc-800 rounded-xl px-4 py-3 text-xs font-space-mono space-y-1.5">
-                  <p className="text-zinc-300 font-semibold mb-2">📊 Оценка текущего комбо ({active.length} стратегии, {config.comboLogic}):</p>
-                  <p className="text-zinc-500">• Стратегии: <span className="text-zinc-300">{active.map(s => PO_STRATEGIES[s].label).join(", ")}</span></p>
-                  <p className="text-zinc-500">• Сигналов/день: <span className="text-white">~{sigMin}–{sigMax}</span></p>
-                  <p className="text-zinc-500">• Расчётный winrate: <span className={config.comboLogic === "AND" ? "text-green-400" : "text-yellow-400"}>{estWinrate}</span></p>
-                  <p className="text-zinc-500">• Качество сигналов: <span className={qualityColor}>{qualityText}</span></p>
-                  <p className="text-zinc-500">• Риск ложных входов: <span className={falseColor}>{falseRisk}</span></p>
+                  <p className="text-zinc-300 font-semibold mb-2">📊 Оценка комбо ({active.length} стратегии, {config.comboLogic}):</p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                    <p className="text-zinc-500">Стратегии: <span className="text-zinc-300">{active.map(s => PO_STRATEGIES[s].label).join(" + ")}</span></p>
+                    <p className="text-zinc-500">Логика: <span className={config.comboLogic === "AND" ? "text-green-400" : "text-yellow-400"}>{config.comboLogic} — {overlapNote}</span></p>
+                    <p className="text-zinc-500">Сигналов/день: <span className="text-white">~{sigMin}–{sigMax}</span></p>
+                    <p className="text-zinc-500">Расч. winrate: <span className={config.comboLogic === "AND" ? "text-green-400" : "text-yellow-400"}>{estWinrate}</span></p>
+                    <p className="text-zinc-500">Качество сигналов: <span className={qualityColor}>{qualityText}</span></p>
+                    <p className="text-zinc-500">Риск ложных входов: <span className={falseColor}>{falseRisk}</span></p>
+                    <p className="text-zinc-500">Проигрышей до SL: <span className={config.stopLossRub > 0 && estBet > 0 ? (Math.floor(config.stopLossRub / estBet) < 5 ? "text-orange-400" : "text-green-400") : "text-zinc-400"}>{config.stopLossRub > 0 && estBet > 0 ? `${Math.floor(config.stopLossRub / estBet)} подряд` : "—"}</span></p>
+                    <p className="text-zinc-500">Прогноз/день: <span className={Number(estDayProfit) >= 0 ? "text-green-400" : "text-red-400"}>{Number(estDayProfit) >= 0 ? "+" : ""}{config.currency || "$"}{estDayProfit}</span></p>
+                  </div>
+                  {config.comboLogic === "AND" && active.length >= 3 && (
+                    <p className="text-green-400/80 text-[10px] mt-1">✅ AND + 3 стратегии — максимальная фильтрация, меньше сделок, выше точность</p>
+                  )}
+                  {config.comboLogic === "OR" && hasHigh && (
+                    <p className="text-orange-400/80 text-[10px] mt-1">⚠️ OR с высокорисковой стратегией — возможны ложные входы</p>
+                  )}
                 </div>
               )
             })()}
@@ -1625,6 +1670,32 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
           </CardContent>
         )}
       </Card>
+
+      {/* Итоговая сводка перед генерацией */}
+      {config.comboMode && (
+        <div className="rounded-xl border border-zinc-600 bg-zinc-900 px-4 py-3 space-y-2 font-space-mono text-xs">
+          <p className="text-zinc-300 font-semibold">📋 Итог настройки комбо-бота</p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-zinc-500">
+            <p>Актив: <span className="text-white">{config.asset}</span></p>
+            <p>Экспирация: <span className="text-white">{config.expiry} мин</span></p>
+            <p>Ставка: <span className="text-white">{config.currency || "$"}{config.betAmount}</span></p>
+            <p>Выплата: <span className="text-white">{config.payoutRate}%</span></p>
+            <p>Take Profit: <span className="text-green-400">{config.currency || "$"}{config.takeProfitRub}</span></p>
+            <p>Stop Loss: <span className="text-red-400">{config.currency || "$"}{config.stopLossRub}</span></p>
+            <p>Лимит/день: <span className="text-white">{config.dailyLimit} сделок</span></p>
+            <p>Режим свечей: <span className="text-white">{config.trendMode === "same" ? "Одинаковые" : config.trendMode === "reverse" ? "Разворот" : "Любой"}</span></p>
+            <p>Стратегии: <span className="text-white">{config.comboStrategies.filter(s => s !== "martingale").map(s => PO_STRATEGIES[s]?.label).join(", ") || "—"}</span></p>
+            <p>Логика: <span className={config.comboLogic === "AND" ? "text-green-400" : "text-yellow-400"}>{config.comboLogic}</span></p>
+          </div>
+          {config.stopLossRub > 0 && config.takeProfitRub > 0 && (
+            <p className={`text-[11px] mt-1 ${config.takeProfitRub >= config.stopLossRub * 1.5 ? "text-green-400" : "text-orange-400"}`}>
+              {config.takeProfitRub >= config.stopLossRub * 1.5
+                ? `✅ TP/SL = ${(config.takeProfitRub / config.stopLossRub).toFixed(1)}x — хорошее соотношение`
+                : `⚠️ TP/SL = ${(config.takeProfitRub / config.stopLossRub).toFixed(1)}x — рекомендуем TP выше SL в 1.5x`}
+            </p>
+          )}
+        </div>
+      )}
 
       <Button
         onClick={onGenerate}

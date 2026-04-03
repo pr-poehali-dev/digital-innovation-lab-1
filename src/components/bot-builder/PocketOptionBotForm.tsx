@@ -1580,6 +1580,20 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                 : `⚠️ TP/SL = ${(config.takeProfitRub / config.stopLossRub).toFixed(1)}x — рекомендуем TP выше SL в 1.5x`}
             </p>
           )}
+          {(config.timeFilterEnabled || config.rsiThresholdEnabled || config.lossStreakPauseEnabled) && (
+            <div className="mt-2 pt-2 border-t border-zinc-700 space-y-1">
+              <p className="text-zinc-400 text-[11px] font-semibold">🛡 Активные защиты:</p>
+              {config.timeFilterEnabled && (
+                <p className="text-blue-400 text-[11px]">🕐 Торговое окно: {config.timeFilterFrom}–{config.timeFilterTo}</p>
+              )}
+              {config.rsiThresholdEnabled && (
+                <p className="text-purple-400 text-[11px]">📉 RSI-порог: вход только ≤{config.rsiThresholdOversold} / ≥{config.rsiThresholdOverbought}</p>
+              )}
+              {config.lossStreakPauseEnabled && (
+                <p className="text-orange-400 text-[11px]">⏸️ Пауза {config.lossStreakPauseMin} мин после {config.lossStreakCount} проигрышей подряд</p>
+              )}
+            </div>
+          )}
         </div>
       )}
 

@@ -862,35 +862,39 @@ async def place_trade(client, direction, amount):
         return None
 
 async def check_result(client, order_id, balance_before, bet):
-    """Ожидание результата. Победа определяется по знаку diff, профит считается по ставке (корректно при 2 ботах)."""
+    """Ожидание результата по конкретной сделке через get_deal (точно, не зависит от других ботов)."""
     PAYOUT = ${cfg.payoutRate} / 100
     print(f"[WAIT] Ожидаем результат {EXPIRY_SEC//60} мин...")
-    await asyncio.sleep(EXPIRY_SEC + 10)
+    await asyncio.sleep(EXPIRY_SEC + 5)
     try:
-        for attempt in range(20):
-            balance_after, _ = await get_balance(client)
-            if balance_after == 0.0:
+        for attempt in range(30):
+            try:
+                deal = await client.get_deal(order_id)
+                if deal is None:
+                    await asyncio.sleep(3)
+                    continue
+                profit_raw = getattr(deal, 'profit', None) or getattr(deal, 'win', None) or getattr(deal, 'result', None)
+                if profit_raw is None and hasattr(deal, '__dict__'):
+                    profit_raw = deal.__dict__.get('profit') or deal.__dict__.get('win') or deal.__dict__.get('result')
+                if profit_raw is None:
+                    await asyncio.sleep(3)
+                    continue
+                profit_val = float(profit_raw)
+                won = profit_val > 0
+                profit = round(bet * PAYOUT, 2) if won else -bet
+                status = "ВЫИГРЫШ ✅" if won else "ПРОИГРЫШ ❌"
+                print(f"[RESULT] {status} | deal.profit={profit_val} | bet={bet} | Профит: {profit}")
+                return won, profit
+            except Exception as e_inner:
+                print(f"[WAIT] Попытка {attempt+1}: {e_inner}")
                 await asyncio.sleep(3)
                 continue
-            diff = round(balance_after - balance_before, 2)
-            print(f"[DEBUG] Попытка {attempt+1} | Баланс до: {balance_before} | Баланс после: {balance_after} | Diff: {diff} | Ставка: {bet}")
-            # Ждём пока баланс реально изменился хоть немного
-            if abs(diff) < 0.01 and attempt < 15:
-                await asyncio.sleep(3)
-                continue
-            # Победу определяем по знаку diff, профит — по размеру ставки
-            # (так корректно работает даже если 2 бота торгуют одновременно)
-            won = diff > 0
-            profit = round(bet * PAYOUT, 2) if won else -bet
-            status = "ВЫИГРЫШ ✅" if won else "ПРОИГРЫШ ❌"
-            print(f"[RESULT] {status} | Баланс до: {balance_before} | Баланс после: {balance_after} | diff: {diff} | bet: {bet} | Профит: {profit}")
-            return won, profit
-        # Таймаут — берём последний diff
+        print(f"[WARN] Таймаут get_deal — fallback по балансу")
         balance_after, _ = await get_balance(client)
         diff = round(balance_after - balance_before, 2)
         won = diff > 0
         profit = round(bet * PAYOUT, 2) if won else -bet
-        print(f"[WARN] Таймаут результата. diff={diff} → {'ВЫИГРЫШ ✅' if won else 'ПРОИГРЫШ ❌'}")
+        print(f"[WARN] diff={diff} → {'ВЫИГРЫШ ✅' if won else 'ПРОИГРЫШ ❌'} | Профит: {profit}")
         return won, profit
     except Exception as e:
         print(f"[ERROR] Результат: {e}")

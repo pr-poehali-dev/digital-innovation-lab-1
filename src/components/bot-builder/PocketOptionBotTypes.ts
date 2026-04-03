@@ -50,6 +50,9 @@ export interface POBotConfig {
   lossStreakPauseEnabled: boolean
   lossStreakCount: number
   lossStreakPauseMin: number
+  // Rufus — алгоритм уровней
+  rufusPips: number
+  rufusLookback: number
 }
 
 export interface StrategyMeta {
@@ -300,6 +303,8 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   lossStreakPauseEnabled: false,
   lossStreakCount: 3,
   lossStreakPauseMin: 30,
+  rufusPips: 5,
+  rufusLookback: 10,
 }
 
 // Helper to avoid TS template literal conflicts with Python f-strings
@@ -407,31 +412,34 @@ def get_signal(prices, candles=None):
     return None, ""`,
 
     support_resistance: `
-def find_levels(prices, window=10):
-    """Поиск уровней поддержки и сопротивления"""
-    supports, resistances = [], []
-    for i in range(window, len(prices) - window):
-        if prices[i] == min(prices[i-window:i+window]):
-            supports.append(prices[i])
-        if prices[i] == max(prices[i-window:i+window]):
-            resistances.append(prices[i])
-    return supports[-3:], resistances[-3:]
+# ===== RUFUS — алгоритм уровней поддержки/сопротивления =====
+RUFUS_PIPS     = ${cfg.rufusPips ?? 5}       # Радиус приближения к уровню (в пипсах)
+RUFUS_LOOKBACK = ${cfg.rufusLookback ?? 10}  # Свечей назад для определения направления
+
+def get_rufus_levels(price):
+    """Ближайшие круглые уровни (каждые 0.0100)"""
+    step = 0.01
+    lower = round(int(price / step) * step, 5)
+    upper = round(lower + step, 5)
+    return lower, upper
 
 def get_signal(prices, candles=None):
-    """Вход от уровней поддержки/сопротивления"""
+    """Rufus: вход от круглых уровней по направлению подхода"""
     prices = prices[:-1]
-    if len(prices) < 30:
+    if len(prices) < RUFUS_LOOKBACK + 2:
         return None, ""
-    supports, resistances = find_levels(prices)
     current = prices[-1]
-    threshold = current * 0.001
-    for sup in supports:
-        if abs(current - sup) < threshold:
-            return "CALL", f"Цена {current:.5f} у поддержки {sup:.5f} (отскок вверх)"
-    for res in resistances:
-        if abs(current - res) < threshold:
-            return "PUT", f"Цена {current:.5f} у сопротивления {res:.5f} (отскок вниз)"
-    return None, f"Цена {current:.5f} | sup={[round(s,5) for s in supports]} res={[round(r,5) for r in resistances]}"`,
+    pip = 0.0001
+    threshold = RUFUS_PIPS * pip
+    lower_level, upper_level = get_rufus_levels(current)
+    for level in [lower_level, upper_level]:
+        if abs(current - level) <= threshold:
+            past_avg = sum(prices[-RUFUS_LOOKBACK-1:-1]) / RUFUS_LOOKBACK
+            if past_avg > level and current <= level + threshold:
+                return "CALL", f"[RUFUS] Цена {current:.5f} подходит к {level:.4f} СВЕРХУ → поддержка → CALL"
+            elif past_avg < level and current >= level - threshold:
+                return "PUT", f"[RUFUS] Цена {current:.5f} подходит к {level:.4f} СНИЗУ → сопротивление → PUT"
+    return None, f"[RUFUS] Цена {current:.5f} | уровни: {lower_level:.4f} / {upper_level:.4f} | dist_low={abs(current-lower_level)/pip:.1f} pip"`,
   }
 
   const martingaleBlock = cfg.martingaleEnabled

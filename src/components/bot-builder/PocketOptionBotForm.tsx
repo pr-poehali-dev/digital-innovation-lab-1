@@ -1121,14 +1121,45 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
         </Card>
       )}
 
-      {/* Support/Resistance settings */}
+      {/* Support/Resistance settings — RUFUS */}
       {!config.comboMode && config.strategy === "support_resistance" && (
         <Card className="bg-zinc-900 border-purple-500/20">
-          <CardHeader className="pb-3"><CardTitle className="font-orbitron text-white text-base">Настройки уровней</CardTitle></CardHeader>
+          <CardHeader className="pb-3">
+            <CardTitle className="font-orbitron text-white text-base flex items-center gap-2">
+              Настройки уровней
+              <span className="text-[10px] font-space-mono font-normal bg-purple-500/20 border border-purple-500/40 text-purple-300 rounded px-1.5 py-0.5">RUFUS</span>
+            </CardTitle>
+          </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-zinc-500 text-xs font-space-mono leading-relaxed">
-              Бот торгует от уровней поддержки и сопротивления. Вход при отбое от уровня.
+              Алгоритм <b className="text-purple-400">Rufus</b> торгует от круглых уровней (каждые 0.0100). Подход сверху → поддержка → <span className="text-green-400">CALL</span>. Подход снизу → сопротивление → <span className="text-red-400">PUT</span>.
             </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Радиус входа (пипсов)</Label>
+                <Input
+                  type="number" min={1} max={50}
+                  value={config.rufusPips ?? 5}
+                  onChange={(e) => set({ rufusPips: Number(e.target.value) })}
+                  className="bg-zinc-800 border-zinc-700 text-purple-400 font-space-mono text-sm"
+                />
+                <p className="text-zinc-600 font-space-mono text-[10px] mt-1">Как близко к уровню должна быть цена</p>
+              </div>
+              <div>
+                <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Свечей для направления</Label>
+                <Input
+                  type="number" min={3} max={50}
+                  value={config.rufusLookback ?? 10}
+                  onChange={(e) => set({ rufusLookback: Number(e.target.value) })}
+                  className="bg-zinc-800 border-zinc-700 text-purple-400 font-space-mono text-sm"
+                />
+                <p className="text-zinc-600 font-space-mono text-[10px] mt-1">За сколько свечей смотреть направление</p>
+              </div>
+            </div>
+            <div className="bg-purple-950/30 border border-purple-500/20 rounded-lg px-3 py-2 space-y-1">
+              <p className="text-purple-300 text-xs font-space-mono font-semibold">Пример при {config.rufusPips ?? 5} пипс:</p>
+              <p className="text-zinc-400 text-xs font-space-mono">Уровень 1.1300 → вход в диапазоне {(1.1300 - (config.rufusPips ?? 5) * 0.0001).toFixed(4)}–{(1.1300 + (config.rufusPips ?? 5) * 0.0001).toFixed(4)}</p>
+            </div>
           </CardContent>
         </Card>
       )}

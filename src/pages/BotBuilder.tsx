@@ -336,107 +336,7 @@ export default function BotBuilder() {
                   }
                 </div>
 
-                {/* Divider */}
-                <div className="border-t border-zinc-800" />
 
-                {/* Telegram */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-blue-400">✈️</span>
-                    <p className="text-white font-orbitron text-sm font-semibold">Telegram уведомления</p>
-                    <span className="text-zinc-500 font-space-mono text-xs">— необязательно</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div>
-                      <p className="text-zinc-500 font-space-mono text-xs mb-1 flex items-center gap-1">
-                        Bot Token (от @BotFather)
-                        {poConfig.tgToken && <span className="text-green-400 flex items-center gap-1"><Icon name="Check" size={11} />сохранён</span>}
-                        {(poConfig.tgToken || poConfig.tgChatId) && (
-                          <button onClick={clearTgSettings} className="ml-auto flex items-center gap-0.5 text-zinc-600 hover:text-red-400 transition-colors text-xs">
-                            <Icon name="X" size={10} />очистить
-                          </button>
-                        )}
-                      </p>
-                      <input
-                        type="text"
-                        value={poConfig.tgToken}
-                        onChange={(e) => setPoConfig((p) => ({ ...p, tgToken: e.target.value }))}
-                        placeholder="1234567890:AAF..."
-                        className="w-full bg-black border border-zinc-700 focus:border-blue-500/60 rounded-lg px-3 py-2 text-blue-300 font-space-mono text-xs outline-none transition-colors placeholder:text-zinc-600"
-                      />
-                    </div>
-                    <div>
-                      <p className="text-zinc-500 font-space-mono text-xs mb-1 flex items-center gap-1">
-                        Chat ID (ваш Telegram ID)
-                        {poConfig.tgChatId && <span className="text-green-400 flex items-center gap-1"><Icon name="Check" size={11} />сохранён</span>}
-                      </p>
-                      <input
-                        type="text"
-                        value={poConfig.tgChatId}
-                        onChange={(e) => setPoConfig((p) => ({ ...p, tgChatId: e.target.value }))}
-                        placeholder="123456789"
-                        className="w-full bg-black border border-zinc-700 focus:border-blue-500/60 rounded-lg px-3 py-2 text-blue-300 font-space-mono text-xs outline-none transition-colors placeholder:text-zinc-600"
-                      />
-                    </div>
-                  </div>
-                  {poConfig.tgToken && poConfig.tgChatId
-                    ? <div className="flex items-center gap-3 flex-wrap">
-                        <div className="flex items-center gap-2 text-blue-400 font-space-mono text-xs"><Icon name="CheckCircle" size={13} />Telegram подключён — уведомления будут вшиты в бота</div>
-                        <button
-                          onClick={sendTgTest}
-                          disabled={tgTestStatus === "sending"}
-                          className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-space-mono font-bold border transition-all ${
-                            tgTestStatus === "ok" ? "bg-green-500/20 border-green-500/40 text-green-400" :
-                            tgTestStatus === "error" ? "bg-red-500/20 border-red-500/40 text-red-400" :
-                            tgTestStatus === "sending" ? "bg-zinc-700 border-zinc-600 text-zinc-400" :
-                            "bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20"
-                          }`}
-                        >
-                          <Icon name={tgTestStatus === "ok" ? "Check" : tgTestStatus === "error" ? "X" : "Send"} size={11} />
-                          {tgTestStatus === "sending" ? "Отправка..." : tgTestStatus === "ok" ? "Пришло!" : tgTestStatus === "error" ? "Ошибка — проверьте токен" : "Отправить тест"}
-                        </button>
-                      </div>
-                    : (
-                      <button
-                        onClick={() => setTgGuideOpen((v) => !v)}
-                        className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 font-space-mono text-xs transition-colors"
-                      >
-                        <Icon name={tgGuideOpen ? "ChevronUp" : "ChevronDown"} size={12} />
-                        Как создать Telegram бота за 1 минуту?
-                      </button>
-                    )
-                  }
-
-                  {tgGuideOpen && !poConfig.tgToken && (
-                    <div className="mt-2 bg-zinc-800/60 border border-zinc-700 rounded-xl p-4 space-y-3">
-                      <p className="text-zinc-400 font-space-mono text-xs">Нужен Telegram — всё делается прямо в нём:</p>
-                      <div className="space-y-2">
-                        {[
-                          { step: "1", icon: "🤖", color: "border-blue-500/30 bg-blue-500/5", title: "Откройте @BotFather", desc: "Перейдите в Telegram и найдите бота", link: { href: "https://t.me/BotFather", label: "@BotFather" } },
-                          { step: "2", icon: "💬", color: "border-zinc-600 bg-zinc-800/40", title: 'Отправьте команду /newbot', desc: "BotFather спросит имя — введите любое, например: MyTradeBot" },
-                          { step: "3", icon: "🔑", color: "border-green-500/30 bg-green-500/5", title: "Скопируйте Token", desc: "BotFather пришлёт сообщение с токеном вида 1234567890:AAF... — вставьте его в поле Bot Token выше" },
-                          { step: "4", icon: "🆔", color: "border-zinc-600 bg-zinc-800/40", title: "Получите ваш Chat ID", desc: "Откройте", link: { href: "https://t.me/userinfobot", label: "@userinfobot" }, descAfter: "— он пришлёт ваш ID. Вставьте в поле Chat ID выше" },
-                          { step: "5", icon: "✅", color: "border-purple-500/30 bg-purple-500/5", title: "Напишите своему боту /start", desc: "Найдите своего нового бота в Telegram и нажмите Start — без этого уведомления не придут!" },
-                        ].map(({ step, icon, color, title, desc, link, descAfter }) => (
-                          <div key={step} className={`flex gap-3 p-3 rounded-lg border ${color}`}>
-                            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center font-orbitron font-bold text-xs text-zinc-300">{step}</div>
-                            <div>
-                              <p className="text-white font-orbitron text-xs font-semibold mb-0.5">{icon} {title}</p>
-                              <p className="text-zinc-400 font-space-mono text-xs">
-                                {desc}{" "}
-                                {link && <a href={link.href} target="_blank" rel="noreferrer" className="text-blue-400 underline">{link.label}</a>}
-                                {descAfter && ` ${descAfter}`}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-3">
-                        <p className="text-yellow-400/80 font-space-mono text-xs">💡 Один и тот же бот и chat ID можно использовать для обоих ботов — уведомления придут в один чат</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
 
               </div>
 
@@ -1070,18 +970,78 @@ export default function BotBuilder() {
                           ))}
                         </div>
                       </div>
-                      {/* Статус */}
+                      {/* Статус + тест */}
                       {poConfig.tgToken && poConfig.tgChatId ? (
-                        <div className="flex items-center gap-2 bg-green-950/40 border border-green-500/30 rounded-lg px-2.5 py-2">
-                          <Icon name="CheckCircle" size={14} className="text-green-400" />
-                          <span className="text-green-400 text-xs font-space-mono">Уведомления настроены{dualMode ? " для обоих ботов" : ""}</span>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <div className="flex items-center gap-2 text-green-400 font-space-mono text-xs">
+                              <Icon name="CheckCircle" size={13} className="text-green-400" />
+                              Telegram подключён{dualMode ? " — один чат для обоих ботов" : ""}
+                            </div>
+                            <button
+                              onClick={sendTgTest}
+                              disabled={tgTestStatus === "sending"}
+                              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-space-mono font-bold border transition-all ${
+                                tgTestStatus === "ok" ? "bg-green-500/20 border-green-500/40 text-green-400" :
+                                tgTestStatus === "error" ? "bg-red-500/20 border-red-500/40 text-red-400" :
+                                tgTestStatus === "sending" ? "bg-zinc-700 border-zinc-600 text-zinc-400" :
+                                "bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20"
+                              }`}
+                            >
+                              <Icon name={tgTestStatus === "ok" ? "Check" : tgTestStatus === "error" ? "X" : "Send"} size={11} />
+                              {tgTestStatus === "sending" ? "Отправка..." : tgTestStatus === "ok" ? "Пришло!" : tgTestStatus === "error" ? "Ошибка — проверьте токен" : "Отправить тест"}
+                            </button>
+                            <button onClick={clearTgSettings} className="flex items-center gap-1 text-zinc-600 hover:text-red-400 transition-colors text-xs font-space-mono">
+                              <Icon name="X" size={10} />очистить
+                            </button>
+                          </div>
                         </div>
-                      ) : poConfig.tgEnabled ? (
-                        <div className="flex items-center gap-2 bg-yellow-950/40 border border-yellow-500/30 rounded-lg px-2.5 py-2">
-                          <Icon name="AlertTriangle" size={14} className="text-yellow-400" />
-                          <span className="text-yellow-400 text-xs font-space-mono">Заполни Token и Chat ID</span>
+                      ) : (
+                        <div className="space-y-2">
+                          {poConfig.tgEnabled && (
+                            <div className="flex items-center gap-2 bg-yellow-950/40 border border-yellow-500/30 rounded-lg px-2.5 py-2">
+                              <Icon name="AlertTriangle" size={14} className="text-yellow-400" />
+                              <span className="text-yellow-400 text-xs font-space-mono">Заполни Token и Chat ID</span>
+                            </div>
+                          )}
+                          <button
+                            onClick={() => setTgGuideOpen((v) => !v)}
+                            className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 font-space-mono text-xs transition-colors"
+                          >
+                            <Icon name={tgGuideOpen ? "ChevronUp" : "ChevronDown"} size={12} />
+                            Как создать Telegram бота за 1 минуту?
+                          </button>
+                          {tgGuideOpen && (
+                            <div className="bg-zinc-800/60 border border-zinc-700 rounded-xl p-4 space-y-3">
+                              <p className="text-zinc-400 font-space-mono text-xs">Нужен Telegram — всё делается прямо в нём:</p>
+                              <div className="space-y-2">
+                                {[
+                                  { step: "1", icon: "🤖", color: "border-blue-500/30 bg-blue-500/5", title: "Откройте @BotFather", desc: "Перейдите в Telegram и найдите бота", link: { href: "https://t.me/BotFather", label: "@BotFather" } },
+                                  { step: "2", icon: "💬", color: "border-zinc-600 bg-zinc-800/40", title: "Отправьте команду /newbot", desc: "BotFather спросит имя — введите любое, например: MyTradeBot" },
+                                  { step: "3", icon: "🔑", color: "border-green-500/30 bg-green-500/5", title: "Скопируйте Token", desc: "BotFather пришлёт токен вида 1234567890:AAF... — вставьте его в поле Bot Token выше" },
+                                  { step: "4", icon: "🆔", color: "border-zinc-600 bg-zinc-800/40", title: "Получите ваш Chat ID", desc: "Откройте", link: { href: "https://t.me/userinfobot", label: "@userinfobot" }, descAfter: "— он пришлёт ваш ID. Вставьте в поле Chat ID выше" },
+                                  { step: "5", icon: "✅", color: "border-purple-500/30 bg-purple-500/5", title: "Напишите своему боту /start", desc: "Найдите своего нового бота в Telegram и нажмите Start — без этого уведомления не придут!" },
+                                ].map(({ step, icon, color, title, desc, link, descAfter }) => (
+                                  <div key={step} className={`flex gap-3 p-3 rounded-lg border ${color}`}>
+                                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center font-orbitron font-bold text-xs text-zinc-300">{step}</div>
+                                    <div>
+                                      <p className="text-white font-orbitron text-xs font-semibold mb-0.5">{icon} {title}</p>
+                                      <p className="text-zinc-400 font-space-mono text-xs">
+                                        {desc}{" "}
+                                        {link && <a href={link.href} target="_blank" rel="noreferrer" className="text-blue-400 underline">{link.label}</a>}
+                                        {descAfter && ` ${descAfter}`}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-3">
+                                <p className="text-yellow-400/80 font-space-mono text-xs">💡 Один и тот же бот и chat ID можно использовать для обоих ботов</p>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      ) : null}
+                      )}
                     </div>
                   </CardContent>
                 )}

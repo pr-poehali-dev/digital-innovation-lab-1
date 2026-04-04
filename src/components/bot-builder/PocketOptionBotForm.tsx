@@ -1555,48 +1555,6 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
         </div>
       )}
 
-      {/* Итоговая сводка перед генерацией */}
-      {config.comboMode && (
-        <div className="rounded-xl border border-zinc-600 bg-zinc-900 px-4 py-3 space-y-2 font-space-mono text-xs">
-          <p className="text-zinc-300 font-semibold">📋 Итог настройки комбо-бота</p>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-zinc-500">
-            <p>Актив: <span className="text-white">{config.asset}</span></p>
-            <p>Экспирация: <span className="text-white">{config.expiry} мин</span></p>
-            <p>Ставка: <span className="text-white">{config.currency || "$"}{config.betAmount}</span></p>
-            <p>Выплата: <span className="text-white">{config.payoutRate}%</span></p>
-            <p>Take Profit: <span className="text-green-400">{config.currency || "$"}{config.takeProfitRub}</span></p>
-            <p>Stop Loss: <span className="text-red-400">{config.currency || "$"}{config.stopLossRub}</span></p>
-            <p>Лимит/день: <span className="text-white">{config.dailyLimit} сделок</span></p>
-            <p>Стратегии: <span className="text-white">{config.comboStrategies.filter(s => s !== "martingale").map(s => PO_STRATEGIES[s]?.label).join(", ") || "—"}</span></p>
-            <p>Логика: <span className={config.comboLogic === "AND" ? "text-green-400" : "text-yellow-400"}>{config.comboLogic}</span></p>
-          </div>
-          {config.stopLossRub > 0 && config.takeProfitRub > 0 && (
-            <p className={`text-[11px] mt-1 ${config.takeProfitRub >= config.stopLossRub * 1.5 ? "text-green-400" : "text-orange-400"}`}>
-              {config.takeProfitRub >= config.stopLossRub * 1.5
-                ? `✅ TP/SL = ${(config.takeProfitRub / config.stopLossRub).toFixed(1)}x — хорошее соотношение`
-                : `⚠️ TP/SL = ${(config.takeProfitRub / config.stopLossRub).toFixed(1)}x — рекомендуем TP выше SL в 1.5x`}
-            </p>
-          )}
-          {(config.timeFilterEnabled || config.rsiThresholdEnabled || config.lossStreakPauseEnabled || (config.tradeDirection ?? "all") !== "all") && (
-            <div className="mt-2 pt-2 border-t border-zinc-700 space-y-1">
-              <p className="text-zinc-400 text-[11px] font-semibold">🛡 Активные защиты:</p>
-              {(config.tradeDirection ?? "all") !== "all" && (
-                <p className="text-red-400 text-[11px]">🚦 Только {config.tradeDirection === "call_only" ? "CALL (рост)" : "PUT (падение)"} — {config.tradeDirection === "call_only" ? "PUT" : "CALL"} игнорируется</p>
-              )}
-              {config.timeFilterEnabled && (
-                <p className="text-blue-400 text-[11px]">🕐 Торговое окно: {config.timeFilterFrom}–{config.timeFilterTo}</p>
-              )}
-              {config.rsiThresholdEnabled && (
-                <p className="text-purple-400 text-[11px]">📉 RSI-порог: вход только ≤{config.rsiThresholdOversold} / ≥{config.rsiThresholdOverbought}</p>
-              )}
-              {config.lossStreakPauseEnabled && (
-                <p className="text-orange-400 text-[11px]">⏸️ Пауза {config.lossStreakPauseMin} мин после {config.lossStreakCount} проигрышей подряд</p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Фильтр направления сделок */}
       <Card className="bg-zinc-900 border-zinc-700">
         <CardHeader className="pb-2 pt-4 px-4 cursor-pointer" onClick={() => {}}>
@@ -1711,6 +1669,48 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
           </CardContent>
         )}
       </Card>
+
+      {/* Итоговая сводка перед генерацией */}
+      {config.comboMode && (
+        <div className="rounded-xl border border-zinc-600 bg-zinc-900 px-4 py-3 space-y-2 font-space-mono text-xs">
+          <p className="text-zinc-300 font-semibold">📋 Итог настройки комбо-бота</p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-zinc-500">
+            <p>Актив: <span className="text-white">{config.asset}</span></p>
+            <p>Экспирация: <span className="text-white">{config.expiry} мин</span></p>
+            <p>Ставка: <span className="text-white">{config.currency || "$"}{config.betAmount}</span></p>
+            <p>Выплата: <span className="text-white">{config.payoutRate}%</span></p>
+            <p>Take Profit: <span className="text-green-400">{config.currency || "$"}{config.takeProfitRub}</span></p>
+            <p>Stop Loss: <span className="text-red-400">{config.currency || "$"}{config.stopLossRub}</span></p>
+            <p>Лимит/день: <span className="text-white">{config.dailyLimit} сделок</span></p>
+            <p>Стратегии: <span className="text-white">{config.comboStrategies.filter(s => s !== "martingale").map(s => PO_STRATEGIES[s]?.label).join(", ") || "—"}</span></p>
+            <p>Логика: <span className={config.comboLogic === "AND" ? "text-green-400" : "text-yellow-400"}>{config.comboLogic}</span></p>
+          </div>
+          {config.stopLossRub > 0 && config.takeProfitRub > 0 && (
+            <p className={`text-[11px] mt-1 ${config.takeProfitRub >= config.stopLossRub * 1.5 ? "text-green-400" : "text-orange-400"}`}>
+              {config.takeProfitRub >= config.stopLossRub * 1.5
+                ? `✅ TP/SL = ${(config.takeProfitRub / config.stopLossRub).toFixed(1)}x — хорошее соотношение`
+                : `⚠️ TP/SL = ${(config.takeProfitRub / config.stopLossRub).toFixed(1)}x — рекомендуем TP выше SL в 1.5x`}
+            </p>
+          )}
+          {(config.timeFilterEnabled || config.rsiThresholdEnabled || config.lossStreakPauseEnabled || (config.tradeDirection ?? "all") !== "all") && (
+            <div className="mt-2 pt-2 border-t border-zinc-700 space-y-1">
+              <p className="text-zinc-400 text-[11px] font-semibold">🛡 Активные защиты:</p>
+              {(config.tradeDirection ?? "all") !== "all" && (
+                <p className="text-red-400 text-[11px]">🚦 Только {config.tradeDirection === "call_only" ? "CALL (рост)" : "PUT (падение)"} — {config.tradeDirection === "call_only" ? "PUT" : "CALL"} игнорируется</p>
+              )}
+              {config.timeFilterEnabled && (
+                <p className="text-blue-400 text-[11px]">🕐 Торговое окно: {config.timeFilterFrom}–{config.timeFilterTo}</p>
+              )}
+              {config.rsiThresholdEnabled && (
+                <p className="text-purple-400 text-[11px]">📉 RSI-порог: вход только ≤{config.rsiThresholdOversold} / ≥{config.rsiThresholdOverbought}</p>
+              )}
+              {config.lossStreakPauseEnabled && (
+                <p className="text-orange-400 text-[11px]">⏸️ Пауза {config.lossStreakPauseMin} мин после {config.lossStreakCount} проигрышей подряд</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <Button
         onClick={onGenerate}

@@ -289,7 +289,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   currency: "RUB",
   tgToken: "",
   tgChatId: "",
-  tgEnabled: false,
+  tgEnabled: true,
   tgNotifyMode: "all",
   tgProxy: "",
   checkInterval: 30,

@@ -77,8 +77,8 @@ export default function BotBuilder() {
   // Автосохранение TG настроек при изменении + синхронизация валюты и TG с Bot2
   useEffect(() => {
     saveTgSettings(poConfig.tgToken, poConfig.tgChatId)
-    setPoConfig2(p => ({ ...p, tgToken: poConfig.tgToken, tgChatId: poConfig.tgChatId }))
-  }, [poConfig.tgToken, poConfig.tgChatId])
+    setPoConfig2(p => ({ ...p, tgToken: poConfig.tgToken, tgChatId: poConfig.tgChatId, tgEnabled: poConfig.tgEnabled, tgProxy: poConfig.tgProxy, tgNotifyMode: poConfig.tgNotifyMode }))
+  }, [poConfig.tgToken, poConfig.tgChatId, poConfig.tgEnabled, poConfig.tgProxy, poConfig.tgNotifyMode])
 
   useEffect(() => {
     setPoConfig2(p => ({ ...p, currency: poConfig.currency, isDemo: poConfig.isDemo }))

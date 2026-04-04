@@ -15,6 +15,7 @@ type Tab = "pocket_option" | "crypto"
 
 export default function BotBuilder() {
   const [tab, setTab] = useState<Tab>("pocket_option")
+  const [tgBlockOpen, setTgBlockOpen] = useState(false)
   const [sessionGuideOpen, setSessionGuideOpen] = useState(false)
   const [strategyGuideOpen, setStrategyGuideOpen] = useState(false)
   const [tgGuideOpen, setTgGuideOpen] = useState(false)
@@ -891,279 +892,202 @@ export default function BotBuilder() {
                       onGenerate={handlePOGenerate}
                       botIndex={2}
                     />
-                    {/* Telegram for Bot 2 */}
-                    <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-4 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-blue-400">✈️</span>
-                        <p className="text-white font-orbitron text-xs font-semibold">Telegram для Бота 2</p>
-                        <span className="text-zinc-500 font-space-mono text-xs">— необязательно</span>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div>
-                          <p className="text-zinc-500 font-space-mono text-xs mb-1">Bot Token</p>
-                          <input
-                            type="text"
-                            value={poConfig2.tgToken}
-                            onChange={(e) => setPoConfig2((p) => ({ ...p, tgToken: e.target.value }))}
-                            placeholder="1234567890:AAF..."
-                            className="w-full bg-black border border-zinc-700 focus:border-blue-500/60 rounded-lg px-3 py-2 text-blue-300 font-space-mono text-xs outline-none transition-colors placeholder:text-zinc-600"
-                          />
-                        </div>
-                        <div>
-                          <p className="text-zinc-500 font-space-mono text-xs mb-1">Chat ID</p>
-                          <input
-                            type="text"
-                            value={poConfig2.tgChatId}
-                            onChange={(e) => setPoConfig2((p) => ({ ...p, tgChatId: e.target.value }))}
-                            placeholder="123456789"
-                            className="w-full bg-black border border-zinc-700 focus:border-blue-500/60 rounded-lg px-3 py-2 text-blue-300 font-space-mono text-xs outline-none transition-colors placeholder:text-zinc-600"
-                          />
-                        </div>
-                      </div>
-                      {poConfig2.tgToken && poConfig2.tgChatId
-                        ? <div className="flex items-center gap-2 text-blue-400 font-space-mono text-xs"><Icon name="CheckCircle" size={12} />Telegram подключён для Бота 2</div>
-                        : <p className="text-zinc-600 font-space-mono text-xs">Можно использовать тот же бот и chat id что и для Бота 1</p>
-                      }
-                    </div>
                   </div>
                 )}
 
                 {!dualMode && (
                   <>
-                {/* Code output */}
-                <div className="space-y-4" ref={poCodeRef}>
-                  <Card className="bg-zinc-900 border-red-500/20 h-full">
-                    <CardHeader className="flex flex-row items-center justify-between gap-2">
-                      <CardTitle className="font-orbitron text-white text-lg">Python-код бота</CardTitle>
-                      {poGenerated && (
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handlePOCopy}
-                            className="border-red-500/40 text-red-400 hover:bg-red-500/10 font-space-mono text-xs"
-                          >
-                            <Icon name="Copy" size={12} className="mr-1" />
-                            {poCopied ? "Скопировано ✓" : "Копировать"}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handlePODownload}
-                            className="border-green-500/40 text-green-400 hover:bg-green-500/10 font-space-mono text-xs"
-                          >
-                            <Icon name="Download" size={12} className="mr-1" />
-                            .py
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleEnvDownload}
-                            className="border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/10 font-space-mono text-xs"
-                          >
-                            <Icon name="Download" size={12} className="mr-1" />
-                            .env
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => copyCmd(`$env:PO_SESSION_ID='${sessionId || "ВСТАВЬТЕ_SESSION_ID"}'; python bot.py`, "header")}
-                            className="border-blue-500/40 text-blue-400 hover:bg-blue-500/10 font-space-mono text-xs"
-                          >
-                            <Icon name={copiedCmd === "header" ? "Check" : "Terminal"} size={12} className="mr-1" />
-                            {copiedCmd === "header" ? "Скопировано ✓" : "Команда запуска"}
-                          </Button>
-                        </div>
-                      )}
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {poGenerated ? (
-                        <pre className="bg-black rounded-lg p-4 text-xs text-green-400 font-space-mono overflow-auto max-h-[700px] whitespace-pre-wrap leading-relaxed border border-zinc-800">
-                          {poCode}
-                        </pre>
-                      ) : (
-                        <div className="bg-black rounded-lg p-8 border border-zinc-800 text-center min-h-[400px] flex flex-col items-center justify-center">
-                          <div className="text-6xl mb-4">🎯</div>
-                          <p className="text-zinc-400 font-space-mono text-sm mb-2">Код появится здесь</p>
-                          <p className="text-zinc-600 font-space-mono text-xs">Настройте параметры и нажмите «Сгенерировать»</p>
-                        </div>
-                      )}
-                      {poGenerated && (
-                        <div className="space-y-3 border-t border-zinc-800 pt-4">
-                          <p className="text-white font-orbitron text-sm font-semibold">Как запустить бота</p>
-
-                          {/* Step 1 */}
-                          <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-1">
-                            <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 1 — Скачайте файл</p>
-                            <p className="text-zinc-400 font-space-mono text-xs">Нажмите кнопку <span className="text-green-400">.py</span> выше — файл сохранится на ваш компьютер.</p>
-                            <p className="text-zinc-400 font-space-mono text-xs">Переименуйте скачанный файл в <span className="text-white">bot.py</span> (правая кнопка → <span className="text-green-400">«Переименовать»</span>).</p>
-                          </div>
-
-                          {/* Step 2 */}
-                          <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-2">
-                            <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 2 — Установите Python</p>
-                            <p className="text-zinc-400 font-space-mono text-xs">Скачайте <a href="https://www.python.org/downloads/release/python-3119/" target="_blank" rel="noreferrer" className="text-blue-400 underline">Python 3.11</a> (Windows installer 64-bit). При установке отметьте галочку <span className="text-white">«Add to PATH»</span>.</p>
-                            <div className="bg-yellow-500/5 border border-yellow-500/20 rounded p-2">
-                              <p className="text-yellow-400/80 font-space-mono text-xs">⚠️ Используйте именно <span className="text-white">Python 3.11</span> — версии 3.12+ не совместимы с библиотекой Pocket Option.</p>
+                    <div className="space-y-4" ref={poCodeRef}>
+                      <Card className="bg-zinc-900 border-red-500/20 h-full">
+                        <CardHeader className="flex flex-row items-center justify-between gap-2">
+                          <CardTitle className="font-orbitron text-white text-lg">Python-код бота</CardTitle>
+                          {poGenerated && (
+                            <div className="flex items-center gap-2">
+                              <Button variant="outline" size="sm" onClick={handlePOCopy} className="border-red-500/40 text-red-400 hover:bg-red-500/10 font-space-mono text-xs">
+                                <Icon name="Copy" size={12} className="mr-1" />{poCopied ? "Скопировано ✓" : "Копировать"}
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={handlePODownload} className="border-green-500/40 text-green-400 hover:bg-green-500/10 font-space-mono text-xs">
+                                <Icon name="Download" size={12} className="mr-1" />.py
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={handleEnvDownload} className="border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/10 font-space-mono text-xs">
+                                <Icon name="Download" size={12} className="mr-1" />.env
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => copyCmd(`$env:PO_SESSION_ID='${sessionId || "ВСТАВЬТЕ_SESSION_ID"}'; python bot.py`, "header")} className="border-blue-500/40 text-blue-400 hover:bg-blue-500/10 font-space-mono text-xs">
+                                <Icon name={copiedCmd === "header" ? "Check" : "Terminal"} size={12} className="mr-1" />{copiedCmd === "header" ? "Скопировано ✓" : "Команда запуска"}
+                              </Button>
                             </div>
-                          </div>
-
-                          {/* Step 3 */}
-                          <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-2">
-                            <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 3 — Установите зависимости</p>
-                            <p className="text-zinc-400 font-space-mono text-xs">Библиотека Pocket Option устанавливается вручную — через ZIP с GitHub:</p>
-                            <ol className="text-zinc-400 font-space-mono text-xs space-y-1 ml-2 list-decimal list-inside">
-                              <li>Скачайте ZIP-архив: <a href="https://github.com/ChipaDevTeam/PocketOptionAPI/archive/refs/heads/main.zip" target="_blank" rel="noreferrer" className="text-blue-400 underline">github.com/ChipaDevTeam/PocketOptionAPI</a></li>
-                              <li>Распакуйте архив (правая кнопка → <span className="text-white">«Извлечь всё»</span>)</li>
-                              <li>Зайдите в распакованную папку <span className="text-white">PocketOptionAPI-main</span></li>
-                              <li>В адресной строке проводника напечатайте <span className="text-green-400">powershell</span> → Enter</li>
-                              <li>Выполните команду:</li>
-                            </ol>
-                            <div className="relative">
-                              <pre className="bg-black rounded p-2 pr-24 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`pip install .`}</pre>
-                              <button
-                                onClick={() => copyCmd("pip install .", "pip1")}
-                                className={`absolute right-2 top-2 px-2 py-1 rounded text-xs font-space-mono font-bold transition-all ${copiedCmd === "pip1" ? "bg-green-500/30 text-green-300" : "bg-zinc-700 text-zinc-300 hover:bg-zinc-600"}`}
-                              >
-                                {copiedCmd === "pip1" ? "✓" : "Копировать"}
-                              </button>
+                          )}
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {poGenerated ? (
+                            <pre className="bg-black rounded-lg p-4 text-xs text-green-400 font-space-mono overflow-auto max-h-[700px] whitespace-pre-wrap leading-relaxed border border-zinc-800">{poCode}</pre>
+                          ) : (
+                            <div className="bg-black rounded-lg p-8 border border-zinc-800 text-center min-h-[400px] flex flex-col items-center justify-center">
+                              <div className="text-6xl mb-4">🎯</div>
+                              <p className="text-zinc-400 font-space-mono text-sm mb-2">Код появится здесь</p>
+                              <p className="text-zinc-600 font-space-mono text-xs">Настройте параметры и нажмите «Сгенерировать»</p>
                             </div>
-                            <p className="text-zinc-500 font-space-mono text-xs">Увидите <span className="text-green-400">Successfully installed</span> — готово, переходите к шагу 4.</p>
-                            <div className="bg-yellow-500/5 border border-yellow-500/20 rounded p-2">
-                              <p className="text-yellow-400/80 font-space-mono text-xs">Видите сообщение <span className="text-white">«new version of pip available»</span>? Это не ошибка — можно проигнорировать.</p>
-                            </div>
-                          </div>
-
-                          {/* Step 4 */}
-                          <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-2">
-                            <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 4 — Получите Session ID</p>
-                            <p className="text-zinc-400 font-space-mono text-xs">Войдите в <a href="https://po-fcm.com/ru" target="_blank" rel="noreferrer" className="text-blue-400 underline">po-fcm.com/ru</a>. Session ID — это WebSocket-сообщение авторизации. Вот как его найти:</p>
-                            <div className="space-y-2">
-                              <div className="bg-black/40 rounded p-2">
-                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-1">Chrome / Edge / Opera</p>
-                                <ol className="text-zinc-500 font-space-mono text-xs space-y-0.5 ml-2 list-decimal list-inside">
-                                  <li>Нажмите <span className="text-white">F12</span> — откроется DevTools</li>
-                                  <li>Вкладка <span className="text-white">Network</span> (Сеть)</li>
-                                  <li>В фильтре выберите <span className="text-white">WS</span> (WebSocket)</li>
-                                  <li>Обновите страницу <span className="text-white">F5</span></li>
-                                  <li>Нажмите на соединение в списке → вкладка <span className="text-white">Messages</span></li>
-                                  <li>Найдите сообщение начинающееся с <span className="text-red-400">42["auth",</span> → скопируйте его целиком</li>
-                                </ol>
+                          )}
+                          {poGenerated && (
+                            <div className="space-y-3 border-t border-zinc-800 pt-4">
+                              <p className="text-white font-orbitron text-sm font-semibold">Как запустить бота</p>
+                              <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-1">
+                                <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 1 — Скачайте файл</p>
+                                <p className="text-zinc-400 font-space-mono text-xs">Нажмите кнопку <span className="text-green-400">.py</span> выше — файл сохранится на ваш компьютер.</p>
+                                <p className="text-zinc-400 font-space-mono text-xs">Переименуйте скачанный файл в <span className="text-white">bot.py</span>.</p>
                               </div>
-                              <div className="bg-black/40 rounded p-2">
-                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-1">Firefox</p>
-                                <ol className="text-zinc-500 font-space-mono text-xs space-y-0.5 ml-2 list-decimal list-inside">
-                                  <li>Нажмите <span className="text-white">F12</span></li>
-                                  <li>Вкладка <span className="text-white">Сеть</span> → фильтр <span className="text-white">WS</span></li>
-                                  <li>Обновите страницу <span className="text-white">F5</span></li>
-                                  <li>Кликните на WS-соединение → <span className="text-white">Ответ</span></li>
-                                  <li>Найдите сообщение <span className="text-red-400">42["auth",...]</span> → скопируйте целиком</li>
-                                </ol>
-                              </div>
-                              <div className="bg-black/40 rounded p-2">
-                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-1">Firefox</p>
-                                <ol className="text-zinc-500 font-space-mono text-xs space-y-0.5 ml-2 list-decimal list-inside">
-                                  <li>Нажмите <span className="text-white">F12</span></li>
-                                  <li>Вкладка <span className="text-white">Хранилище</span> (Storage)</li>
-                                  <li>Слева: <span className="text-white">Куки → po-fcm.com</span></li>
-                                  <li>Найдите строку <span className="text-red-400">ci_session</span> → скопируйте значение</li>
-                                </ol>
+                              <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-2">
+                                <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 2 — Установите Python</p>
+                                <p className="text-zinc-400 font-space-mono text-xs">Скачайте <a href="https://www.python.org/downloads/release/python-3119/" target="_blank" rel="noreferrer" className="text-blue-400 underline">Python 3.11</a>. При установке отметьте <span className="text-white">«Add to PATH»</span>.</p>
+                                <div className="bg-yellow-500/5 border border-yellow-500/20 rounded p-2"><p className="text-yellow-400/80 font-space-mono text-xs">⚠️ Python 3.11 — версии 3.12+ не совместимы с библиотекой Pocket Option.</p></div>
                               </div>
                             </div>
-                            <p className="text-zinc-500 font-space-mono text-xs">Сообщение выглядит так: <span className="text-green-400">42["auth",{"{"}{"\"session\""}:{"\"abc123...\""},{"\"isDemo\""}:1,...{"}"}]</span> — скопируйте его целиком.</p>
-                          </div>
-
-                          {/* Step 5 */}
-                          <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-2">
-                            <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 5 — Запустите бота</p>
-                            <p className="text-zinc-400 font-space-mono text-xs">Положите <span className="text-white">bot.py</span> в папку <span className="text-white">PocketOptionAPI-main</span> (туда же, где делали <span className="text-green-400">pip install .</span>).</p>
-                            <p className="text-zinc-400 font-space-mono text-xs font-semibold">Как открыть терминал в нужной папке:</p>
-                            <ol className="text-zinc-400 font-space-mono text-xs space-y-1 ml-2 list-decimal list-inside">
-                              <li>Откройте папку <span className="text-white">PocketOptionAPI-main</span> в Проводнике</li>
-                              <li>В адресной строке проводника напечатайте <span className="text-green-400">powershell</span> → Enter</li>
-                            </ol>
-                            <p className="text-zinc-400 font-space-mono text-xs mt-1 mb-1">Скопируйте сообщение <span className="text-red-400">42["auth",...]</span> целиком из DevTools и вставьте в поле <span className="text-green-400">🔑 выше</span> — команда готова:</p>
-                            <div className="relative group">
-                              <pre className="bg-black rounded p-2 pr-24 text-xs text-green-400 font-space-mono border border-zinc-800 overflow-x-auto whitespace-pre-wrap break-all">{`$env:PO_SESSION_ID='${sessionId || "ВСТАВЬТЕ_SESSION_ID_В_ПОЛЕ_ВЫШЕ"}'; python bot.py`}</pre>
-                              <button
-                                onClick={() => copyCmd(`$env:PO_SESSION_ID='${sessionId || "ВСТАВЬТЕ_SESSION_ID_В_ПОЛЕ_ВЫШЕ"}'; python bot.py`, "step5")}
-                                className={`absolute right-2 top-2 px-2 py-1 rounded text-xs font-space-mono font-bold transition-all ${copiedCmd === "step5" ? "bg-green-500/30 text-green-300" : "bg-zinc-700 text-zinc-300 hover:bg-zinc-600"}`}
-                              >
-                                {copiedCmd === "step5" ? "✓" : "Копировать"}
-                              </button>
-                            </div>
-                            <p className="text-zinc-500 font-space-mono text-xs">Если всё верно — в терминале появятся логи бота и он начнёт работать. Не закрывайте окно PowerShell — бот остановится.</p>
-                          </div>
-
-                          {/* Errors */}
-                          <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 space-y-2">
-                            <p className="text-red-400 font-orbitron text-xs font-semibold">❓ Бот выдал ошибку — что делать</p>
-                            <div className="space-y-2">
-                              <div className="bg-black/40 rounded p-2">
-                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-0.5">«python не является внутренней командой»</p>
-                                <p className="text-zinc-500 font-space-mono text-xs">Python не установлен или не добавлен в PATH. Переустановите Python с <a href="https://python.org/downloads" target="_blank" rel="noreferrer" className="text-blue-400 underline">python.org</a> и обязательно отметьте <span className="text-white">«Add to PATH»</span>.</p>
-                              </div>
-                              <div className="bg-black/40 rounded p-2">
-                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-0.5">«No module named 'pocketoptionapi'»</p>
-                                <p className="text-zinc-500 font-space-mono text-xs">Зависимости не установились. Вернитесь к шагу 3 — скачайте ZIP и выполните <span className="text-green-400">pip install .</span> в папке PocketOptionAPI-main.</p>
-                              </div>
-                              <div className="bg-black/40 rounded p-2">
-                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-0.5">«Invalid session» или «Unauthorized»</p>
-                                <p className="text-zinc-500 font-space-mono text-xs">Session ID устарел или скопирован неверно. Зайдите в Pocket Option заново, не выходя из аккаунта — и повторите шаг 4.</p>
-                              </div>
-                              <div className="bg-black/40 rounded p-2">
-                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-0.5">«No such file or directory» / «bot.py не найден»</p>
-                                <p className="text-zinc-500 font-space-mono text-xs mb-1">PowerShell открыт не в той папке где лежит файл. Исправление:</p>
-                                <ol className="text-zinc-500 font-space-mono text-xs space-y-0.5 ml-2 list-decimal list-inside">
-                                  <li>Откройте папку с <span className="text-white">bot.py</span> в Проводнике</li>
-                                  <li>Зажмите <span className="text-white">Shift</span> → правая кнопка мыши на пустом месте папки</li>
-                                  <li>Выберите <span className="text-green-400">«Открыть окно PowerShell здесь»</span> — только так PowerShell сразу окажется в нужной папке</li>
-                                  <li>Теперь вводите команду запуска</li>
-                                </ol>
-                              </div>
-                              <div className="bg-black/40 rounded p-2">
-                                <p className="text-zinc-300 font-space-mono text-xs font-semibold mb-0.5">Терминал сразу закрылся</p>
-                                <p className="text-zinc-500 font-space-mono text-xs">Запустите через PowerShell (не двойным кликом по файлу) — так увидите текст ошибки.</p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Step 6 */}
-                          <div className="rounded-lg border border-green-500/30 bg-green-500/5 p-3 space-y-2">
-                            <p className="text-green-400 font-orbitron text-xs font-semibold">Шаг 6 — Сначала демо-счёт</p>
-                            <p className="text-zinc-400 font-space-mono text-xs">Обязательно протестируйте бота на <span className="text-white">демо-счёте</span> Pocket Option минимум 1–2 дня перед запуском на реальные деньги.</p>
-                            <div className="bg-black/40 rounded p-2 space-y-1">
-                              <p className="text-green-400 font-space-mono text-xs font-semibold">Как переключиться на демо в Pocket Option:</p>
-                              <ol className="text-zinc-400 font-space-mono text-xs space-y-1 ml-2 list-decimal list-inside">
-                                <li>Войдите на <a href="https://po-fcm.com/ru/cabinet/demo-quick-high-low/" target="_blank" rel="noreferrer" className="text-blue-400 underline">po-fcm.com — Демо счёт</a></li>
-                                <li>В правом верхнем углу кликните на <span className="text-white">баланс</span></li>
-                                <li>Выберите <span className="text-green-400">«Демо-счёт»</span> — там уже есть $10 000 виртуальных</li>
-                                <li>Получите Session ID именно с этой страницы (шаг 4) и запускайте бота</li>
-                              </ol>
-                            </div>
-                            <p className="text-zinc-500 font-space-mono text-xs">Бот не знает на каком счёте работает — он торгует там, где активен Session ID.</p>
-                          </div>
-
-                          {/* Warning */}
-                          <div className="flex gap-2 bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-3">
-                            <span className="text-yellow-400 text-base shrink-0">⚠️</span>
-                            <p className="text-yellow-400/80 font-space-mono text-xs">Session ID действует до выхода из аккаунта. Не передавайте его третьим лицам — это полный доступ к вашему счёту.</p>
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Trade Journal — 3rd column */}
-                <TradeJournal
-                  defaultAsset={poConfig.asset}
-                  defaultBet={poConfig.betAmount}
-                />
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+                    <TradeJournal defaultAsset={poConfig.asset} defaultBet={poConfig.betAmount} />
                   </>
                 )}
+              </div>
 
-                {/* Dual mode: code output + download both */}
+              {/* ===== ЕДИНЫЙ БЛОК: Имена ботов + Telegram — всегда в самом низу ===== */}
+              <Card className="bg-zinc-900 border-blue-500/20 mt-2">
+                <CardHeader
+                  className="pb-3 cursor-pointer select-none"
+                  onClick={() => setTgBlockOpen((v) => !v)}
+                >
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="font-orbitron text-white text-sm flex items-center gap-2">
+                      <Icon name="Send" size={16} className="text-blue-400" />
+                      Имена ботов и Telegram уведомления
+                      {poConfig.tgToken && poConfig.tgChatId && (
+                        <span className="text-[10px] font-space-mono font-normal bg-green-500/20 border border-green-500/30 text-green-400 rounded px-1.5 py-0.5">настроено</span>
+                      )}
+                    </CardTitle>
+                    <Icon name={tgBlockOpen ? "ChevronUp" : "ChevronDown"} size={16} className="text-zinc-500" />
+                  </div>
+                </CardHeader>
+                {tgBlockOpen && (
+                  <CardContent className="space-y-5">
+                    {/* Имена ботов */}
+                    <div className={`grid gap-3 ${dualMode ? "grid-cols-2" : "grid-cols-1"}`}>
+                      <div>
+                        <label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Имя Бота 1</label>
+                        <input
+                          type="text"
+                          value={poConfig.botName ?? "Бот 1"}
+                          onChange={(e) => setPoConfig(p => ({ ...p, botName: e.target.value }))}
+                          placeholder="Бот 1"
+                          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white font-space-mono text-sm outline-none focus:border-purple-500/60 transition-colors"
+                        />
+                      </div>
+                      {dualMode && (
+                        <div>
+                          <label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Имя Бота 2</label>
+                          <input
+                            type="text"
+                            value={poConfig2.botName ?? "Бот 2"}
+                            onChange={(e) => setPoConfig2(p => ({ ...p, botName: e.target.value }))}
+                            placeholder="Бот 2"
+                            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white font-space-mono text-sm outline-none focus:border-blue-500/60 transition-colors"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {dualMode && (
+                      <p className="text-zinc-500 font-space-mono text-xs -mt-1">⚠️ Задай разные имена. Управление: <span className="text-purple-400">/stop {poConfig.botName ?? "Бот 1"}</span>, <span className="text-blue-400">/stop {poConfig2.botName ?? "Бот 2"}</span> или <span className="text-zinc-400">/stop all</span></p>
+                    )}
+
+                    <div className="border-t border-zinc-700/60 pt-4 space-y-3">
+                      {/* TG включить/выключить */}
+                      <div className="flex items-center justify-between">
+                        <p className="text-zinc-300 font-space-mono text-xs font-semibold">Telegram уведомления</p>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-space-mono ${!poConfig.tgEnabled ? "text-zinc-400" : "text-zinc-600"}`}>Выкл</span>
+                          <button
+                            onClick={() => setPoConfig(p => ({ ...p, tgEnabled: !p.tgEnabled }))}
+                            className={`relative w-10 h-5 rounded-full transition-colors ${poConfig.tgEnabled ? "bg-green-500" : "bg-zinc-600"}`}
+                          >
+                            <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${poConfig.tgEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
+                          </button>
+                          <span className={`text-xs font-space-mono ${poConfig.tgEnabled ? "text-green-400" : "text-zinc-600"}`}>Вкл</span>
+                        </div>
+                      </div>
+                      {/* Bot Token */}
+                      <div>
+                        <label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Bot Token</label>
+                        <input
+                          type="password"
+                          value={poConfig.tgToken}
+                          onChange={(e) => setPoConfig(p => ({ ...p, tgToken: e.target.value }))}
+                          placeholder="123456:ABCdef..."
+                          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white font-space-mono text-sm outline-none focus:border-blue-500/60 transition-colors"
+                        />
+                        <p className="text-zinc-600 font-space-mono text-xs mt-1">Получи у @BotFather в Telegram{dualMode ? " — один токен для обоих ботов" : ""}</p>
+                      </div>
+                      {/* Chat ID */}
+                      <div>
+                        <label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Chat ID</label>
+                        <input
+                          type="text"
+                          value={poConfig.tgChatId}
+                          onChange={(e) => setPoConfig(p => ({ ...p, tgChatId: e.target.value }))}
+                          placeholder="123456789"
+                          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white font-space-mono text-sm outline-none focus:border-blue-500/60 transition-colors"
+                        />
+                        <p className="text-zinc-600 font-space-mono text-xs mt-1">Узнай у @userinfobot</p>
+                      </div>
+                      {/* Прокси */}
+                      <div>
+                        <label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">SOCKS5 прокси (если Telegram заблокирован)</label>
+                        <input
+                          type="text"
+                          value={poConfig.tgProxy}
+                          onChange={(e) => setPoConfig(p => ({ ...p, tgProxy: e.target.value }))}
+                          placeholder="socks5://user:pass@host:1080"
+                          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white font-space-mono text-sm outline-none focus:border-blue-500/60 transition-colors"
+                        />
+                        <p className="text-zinc-600 font-space-mono text-xs mt-1">Оставь пустым если Telegram работает</p>
+                      </div>
+                      {/* Режим уведомлений */}
+                      <div>
+                        <label className="text-zinc-400 font-space-mono text-xs mb-2 block">Какие уведомления получать</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {([
+                            { value: "all", icon: "📡", title: "Все события", desc: "Запуск, тренды, ставки, реконнект" },
+                            { value: "bets_only", icon: "🎯", title: "Только ставки", desc: "TP/SL + результат каждой сделки" },
+                          ] as const).map((opt) => (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => setPoConfig(p => ({ ...p, tgNotifyMode: opt.value }))}
+                              className={`rounded-lg px-3 py-2 text-xs font-space-mono border transition-all text-left ${(poConfig.tgNotifyMode ?? "all") === opt.value ? "bg-blue-600/20 border-blue-500/50 text-blue-300" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}
+                            >
+                              <div className="font-bold mb-0.5">{opt.icon} {opt.title}</div>
+                              <div className="text-zinc-500 text-[10px]">{opt.desc}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Статус */}
+                      {poConfig.tgToken && poConfig.tgChatId ? (
+                        <div className="flex items-center gap-2 bg-green-950/40 border border-green-500/30 rounded-lg px-2.5 py-2">
+                          <Icon name="CheckCircle" size={14} className="text-green-400" />
+                          <span className="text-green-400 text-xs font-space-mono">Уведомления настроены{dualMode ? " для обоих ботов" : ""}</span>
+                        </div>
+                      ) : poConfig.tgEnabled ? (
+                        <div className="flex items-center gap-2 bg-yellow-950/40 border border-yellow-500/30 rounded-lg px-2.5 py-2">
+                          <Icon name="AlertTriangle" size={14} className="text-yellow-400" />
+                          <span className="text-yellow-400 text-xs font-space-mono">Заполни Token и Chat ID</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+
+              {/* Dual mode: code output + download both */}
                 {dualMode && poGenerated && (
                   <div className="lg:col-span-2 space-y-4" ref={poCodeRef}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1240,7 +1164,6 @@ export default function BotBuilder() {
                     )}
                   </div>
                 )}
-              </div>
             </>
           )}
 

@@ -1134,29 +1134,53 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
             <p className="text-zinc-500 text-xs font-space-mono leading-relaxed">
               Алгоритм <b className="text-purple-400">Rufus</b> торгует от круглых уровней. Подход сверху → поддержка → <span className="text-green-400">CALL</span>. Подход снизу → сопротивление → <span className="text-red-400">PUT</span>.
             </p>
-            <div>
-              <Label className="text-zinc-400 font-space-mono text-xs mb-2 block">Шаг уровней</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {([0.01, 0.001] as const).map((step) => (
-                  <button
-                    key={step}
-                    onClick={() => set({ rufusStep: step })}
-                    className={`rounded-md px-3 py-2 text-xs font-space-mono font-semibold border transition-all ${
-                      (config.rufusStep ?? 0.01) === step
-                        ? "bg-purple-500/20 border-purple-500/50 text-purple-300"
-                        : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"
-                    }`}
-                  >
-                    {step === 0.01 ? "0.0100 — сотые" : "0.0010 — тысячные"}
-                  </button>
-                ))}
-              </div>
-              <p className="text-zinc-600 font-space-mono text-[10px] mt-1.5">
-                {(config.rufusStep ?? 0.01) === 0.01
-                  ? "Для EUR/USD, GBP/USD и большинства форекс-пар"
-                  : "Для USD/JPY, пар с иеной и нестандартных котировок"}
-              </p>
-            </div>
+            {(() => {
+              const asset = config.asset ?? ""
+              const isJpy = asset.includes("JPY")
+              const isCrypto = ["BTC","ETH","SOL","BNB","DOGE"].some(c => asset.includes(c))
+              const isStock = ["Nvidia","Apple","Tesla","VISA","Palantir","GameStop","ExxonMobil","Netflix","McDonald","Intel","Boeing","Alibaba"].some(c => asset.includes(c))
+              const isCommodity = ["Gold","Silver","Oil","Gas","Platinum","Palladium"].some(c => asset.includes(c))
+              const suggestedStep: 0.01 | 0.001 = isJpy ? 0.01 : 0.01
+              const hint = isJpy
+                ? "Для иены уровни — целые числа (109.00, 110.00). Сотые подходят."
+                : isCrypto
+                ? "Крипта — уровни на круглых тысячах (30000, 31000). Rufus здесь даёт мало сигналов."
+                : isStock || isCommodity
+                ? "Акции и товары — уровни на целых ценах. Сотые подходят."
+                : "EUR/USD, GBP/USD — уровни 1.1300, 1.1400. Сотые для большинства пар."
+              const recommend = isJpy || isStock || isCommodity || (!isCrypto)
+                ? "сотые (0.0100)"
+                : "сотые (0.0100)"
+              return (
+                <div>
+                  <Label className="text-zinc-400 font-space-mono text-xs mb-2 block">Шаг уровней</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([0.01, 0.001] as const).map((step) => (
+                      <button
+                        key={step}
+                        onClick={() => set({ rufusStep: step })}
+                        className={`rounded-md px-3 py-2 text-xs font-space-mono font-semibold border transition-all ${
+                          (config.rufusStep ?? 0.01) === step
+                            ? "bg-purple-500/20 border-purple-500/50 text-purple-300"
+                            : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"
+                        }`}
+                      >
+                        {step === 0.01 ? "0.0100 — сотые" : "0.0010 — тысячные"}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-1.5 bg-zinc-800/50 border border-zinc-700/50 rounded px-2 py-1.5">
+                    <p className="text-zinc-400 font-space-mono text-[10px] leading-relaxed">
+                      <span className="text-purple-400 font-semibold">💡 {asset ? asset : "Выберите актив"}:</span>{" "}
+                      {hint}
+                    </p>
+                    {isCrypto && (
+                      <p className="text-amber-500/80 font-space-mono text-[10px] mt-0.5">⚠ Rufus лучше работает на форекс-парах</p>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Радиус входа (пипсов)</Label>

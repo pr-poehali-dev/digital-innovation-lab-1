@@ -1148,17 +1148,38 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
               const isCrypto = ["BTC","ETH","SOL","BNB","DOGE"].some(c => asset.includes(c))
               const isStock = ["Nvidia","Apple","Tesla","VISA","Palantir","GameStop","ExxonMobil","Netflix","McDonald","Intel","Boeing","Alibaba"].some(c => asset.includes(c))
               const isCommodity = ["Gold","Silver","Oil","Gas","Platinum","Palladium"].some(c => asset.includes(c))
-              const suggestedStep: 0.01 | 0.001 = isJpy ? 0.01 : 0.01
-              const hint = isJpy
-                ? "Для иены уровни — целые числа (109.00, 110.00). Сотые подходят."
-                : isCrypto
-                ? "Крипта — уровни на круглых тысячах (30000, 31000). Rufus здесь даёт мало сигналов."
-                : isStock || isCommodity
-                ? "Акции и товары — уровни на целых ценах. Сотые подходят."
-                : "EUR/USD, GBP/USD — уровни 1.1300, 1.1400. Сотые для большинства пар."
-              const recommend = isJpy || isStock || isCommodity || (!isCrypto)
-                ? "сотые (0.0100)"
-                : "сотые (0.0100)"
+              const currentStep = config.rufusStep ?? 0.01
+
+              type StepInfo = { label: string; badge: string; when: string; example: string; warning?: string }
+              const stepInfo: Record<string, StepInfo> = {
+                "0.01": {
+                  label: "0.0100 — сотые",
+                  badge: "рекомендовано",
+                  when: isJpy
+                    ? "Для USD/JPY уровни на целых числах (109.00, 110.00)"
+                    : isCrypto
+                    ? "Для крипты круглые уровни — тысячи (30000, 31000)"
+                    : isStock
+                    ? "Для акций уровни на целых ценах ($150, $200)"
+                    : isCommodity
+                    ? "Для Gold/Oil уровни на круглых ценах ($1900, $2000)"
+                    : "Стандарт для EUR/USD, GBP/USD, AUD/USD",
+                  example: isJpy ? "109.00 / 110.00 / 111.00" : isCrypto ? "30000 / 31000 / 32000" : "1.1200 / 1.1300 / 1.1400",
+                },
+                "0.001": {
+                  label: "0.0010 — тысячные",
+                  badge: "для скальпинга",
+                  when: "Больше сигналов — уровни через каждые 10 пипсов",
+                  example: isJpy ? "109.00 / 109.10 / 109.20" : "1.1290 / 1.1300 / 1.1310",
+                  warning: isCrypto
+                    ? "Для крипты 0.001 не имеет смысла — цены в тысячах"
+                    : isStock
+                    ? "Для акций 0.001 не имеет смысла — цены в долларах"
+                    : "Больше шума и ложных сигналов. Подходит опытным трейдерам."
+                },
+              }
+              const info = stepInfo[String(currentStep)]
+
               return (
                 <div>
                   <Label className="text-zinc-400 font-space-mono text-xs mb-2 block">Шаг уровней</Label>
@@ -1167,23 +1188,31 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                       <button
                         key={step}
                         onClick={() => set({ rufusStep: step })}
-                        className={`rounded-md px-3 py-2 text-xs font-space-mono font-semibold border transition-all ${
-                          (config.rufusStep ?? 0.01) === step
+                        className={`rounded-md px-3 py-2 text-xs font-space-mono font-semibold border transition-all text-left ${
+                          currentStep === step
                             ? "bg-purple-500/20 border-purple-500/50 text-purple-300"
                             : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"
                         }`}
                       >
-                        {step === 0.01 ? "0.0100 — сотые" : "0.0010 — тысячные"}
+                        <div>{step === 0.01 ? "0.0100 — сотые" : "0.0010 — тысячные"}</div>
+                        <div className={`text-[9px] mt-0.5 font-normal ${currentStep === step ? "text-purple-400" : "text-zinc-600"}`}>
+                          {step === 0.01 ? stepInfo["0.01"].badge : stepInfo["0.001"].badge}
+                        </div>
                       </button>
                     ))}
                   </div>
-                  <div className="mt-1.5 bg-zinc-800/50 border border-zinc-700/50 rounded px-2 py-1.5">
-                    <p className="text-zinc-400 font-space-mono text-[10px] leading-relaxed">
-                      <span className="text-purple-400 font-semibold">💡 {asset ? asset : "Выберите актив"}:</span>{" "}
-                      {hint}
+                  <div className="mt-2 bg-zinc-800/50 border border-zinc-700/40 rounded-lg px-3 py-2 space-y-1.5">
+                    <p className="text-zinc-300 font-space-mono text-[10px] font-semibold">
+                      💡 {info.when}
                     </p>
-                    {isCrypto && (
-                      <p className="text-amber-500/80 font-space-mono text-[10px] mt-0.5">⚠ Rufus лучше работает на форекс-парах</p>
+                    <p className="text-zinc-500 font-space-mono text-[10px]">
+                      Уровни: {info.example}
+                    </p>
+                    {info.warning && (
+                      <p className="text-amber-500/80 font-space-mono text-[10px]">⚠ {info.warning}</p>
+                    )}
+                    {isCrypto && currentStep === 0.01 && (
+                      <p className="text-amber-500/80 font-space-mono text-[10px]">⚠ Rufus даёт мало сигналов на крипте — рассмотри форекс-пары</p>
                     )}
                   </div>
                 </div>

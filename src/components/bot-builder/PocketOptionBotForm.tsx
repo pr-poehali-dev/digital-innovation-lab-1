@@ -891,8 +891,16 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
           <CardTitle className="font-orbitron text-white text-base">Актив и экспирация</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <TrendScanner onSelect={(v) => set({ asset: v })} />
-          <AssetSelector value={config.asset} onChange={(v) => set({ asset: v })} />
+          <TrendScanner onSelect={(v) => {
+            const isCrypto = ["BTC","ETH","SOL","BNB","DOGE"].some(c => v.includes(c))
+            set({ asset: v, rufusStep: isCrypto ? 0.01 : 0.01 })
+          }} />
+          <AssetSelector value={config.asset} onChange={(v) => {
+            const isCrypto = ["BTC","ETH","SOL","BNB","DOGE"].some(c => v.includes(c))
+            const isJpy = v.includes("JPY")
+            const rufusStep: 0.01 | 0.001 = isJpy ? 0.01 : isCrypto ? 0.01 : 0.01
+            set({ asset: v, rufusStep })
+          }} />
 
           <div>
             <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Экспирация опциона</Label>

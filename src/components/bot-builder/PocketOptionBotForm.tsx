@@ -1357,38 +1357,71 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                 <AIComment {...emaComment(config)} />
               </div>
             )}
-            {config.comboStrategies.includes("support_resistance") && (
-              <div className="space-y-2">
-                <p className="text-purple-400 font-space-mono text-xs font-semibold flex items-center gap-1.5">
-                  RUFUS <span className="text-[9px] bg-purple-500/20 border border-purple-500/30 rounded px-1 py-0.5 text-purple-300">уровни</span>
-                </p>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {([0.01, 0.001] as const).map((step) => (
-                    <button
-                      key={step}
-                      onClick={() => set({ rufusStep: step })}
-                      className={`rounded px-2 py-1.5 text-[10px] font-space-mono font-semibold border transition-all ${
-                        (config.rufusStep ?? 0.01) === step
-                          ? "bg-purple-500/20 border-purple-500/50 text-purple-300"
-                          : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"
-                      }`}
-                    >
-                      {step === 0.01 ? "0.0100 сотые" : "0.0010 тысячные"}
-                    </button>
-                  ))}
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Радиус (пипсов)</Label>
-                    <Input type="number" min={1} max={50} value={config.rufusPips ?? 5} onChange={(e) => set({ rufusPips: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-purple-400 font-space-mono text-xs h-8" />
+            {config.comboStrategies.includes("support_resistance") && (() => {
+              const asset = config.asset ?? ""
+              const isJpy = asset.includes("JPY")
+              const isCrypto = ["BTC","ETH","SOL","BNB","DOGE"].some(c => asset.includes(c))
+              const isStock = ["Nvidia","Apple","Tesla","VISA","Palantir","GameStop","ExxonMobil","Netflix","McDonald","Intel","Boeing","Alibaba"].some(c => asset.includes(c))
+              const isCommodity = ["Gold","Silver","Oil","Gas","Platinum","Palladium"].some(c => asset.includes(c))
+              const currentStep = config.rufusStep ?? 0.01
+              const when01 = isJpy ? "USD/JPY — целые числа (109.00, 110.00)"
+                : isCrypto ? "Крипта — уровни на тысячах (30000, 31000)"
+                : isStock ? "Акции — целые цены ($150, $200)"
+                : isCommodity ? "Gold/Oil — круглые цены ($1900, $2000)"
+                : "EUR/USD, GBP/USD — стандарт (1.1300, 1.1400)"
+              const example01 = isJpy ? "109.00 / 110.00 / 111.00" : isCrypto ? "30000 / 31000 / 32000" : "1.1200 / 1.1300 / 1.1400"
+              const example001 = isJpy ? "109.00 / 109.10 / 109.20" : "1.1290 / 1.1300 / 1.1310"
+              const warning001 = isCrypto ? "Для крипты 0.001 не имеет смысла" : isStock ? "Для акций 0.001 не имеет смысла" : "Больше шума. Для опытных трейдеров."
+              return (
+                <div className="space-y-2">
+                  <p className="text-purple-400 font-space-mono text-xs font-semibold flex items-center gap-1.5">
+                    RUFUS <span className="text-[9px] bg-purple-500/20 border border-purple-500/30 rounded px-1 py-0.5 text-purple-300">уровни</span>
+                  </p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {([0.01, 0.001] as const).map((step) => (
+                      <button
+                        key={step}
+                        onClick={() => set({ rufusStep: step })}
+                        className={`rounded px-2 py-2 text-[10px] font-space-mono font-semibold border transition-all text-left ${
+                          currentStep === step
+                            ? "bg-purple-500/20 border-purple-500/50 text-purple-300"
+                            : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"
+                        }`}
+                      >
+                        <div>{step === 0.01 ? "0.0100 — сотые" : "0.0010 — тысячные"}</div>
+                        <div className={`text-[9px] mt-0.5 font-normal ${currentStep === step ? "text-purple-400" : "text-zinc-600"}`}>
+                          {step === 0.01 ? "рекомендовано" : "для скальпинга"}
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                  <div>
-                    <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Свечей назад</Label>
-                    <Input type="number" min={3} max={50} value={config.rufusLookback ?? 10} onChange={(e) => set({ rufusLookback: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-purple-400 font-space-mono text-xs h-8" />
+                  <div className="bg-zinc-800/50 border border-zinc-700/40 rounded-lg px-2.5 py-2 space-y-1">
+                    <p className="text-zinc-300 font-space-mono text-[10px] font-semibold">
+                      💡 {currentStep === 0.01 ? when01 : "Уровни через каждые 10 пипсов"}
+                    </p>
+                    <p className="text-zinc-500 font-space-mono text-[10px]">
+                      Уровни: {currentStep === 0.01 ? example01 : example001}
+                    </p>
+                    {currentStep === 0.001 && (
+                      <p className="text-amber-500/80 font-space-mono text-[10px]">⚠ {warning001}</p>
+                    )}
+                    {isCrypto && currentStep === 0.01 && (
+                      <p className="text-amber-500/80 font-space-mono text-[10px]">⚠ Rufus даёт мало сигналов на крипте</p>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Радиус (пипсов)</Label>
+                      <Input type="number" min={1} max={50} value={config.rufusPips ?? 5} onChange={(e) => set({ rufusPips: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-purple-400 font-space-mono text-xs h-8" />
+                    </div>
+                    <div>
+                      <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Свечей назад</Label>
+                      <Input type="number" min={3} max={50} value={config.rufusLookback ?? 10} onChange={(e) => set({ rufusLookback: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-purple-400 font-space-mono text-xs h-8" />
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )
+            })()}
           </CardContent>
         </Card>
       )}

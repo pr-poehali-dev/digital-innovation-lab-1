@@ -53,6 +53,7 @@ export interface POBotConfig {
   // Rufus — алгоритм уровней
   rufusPips: number
   rufusLookback: number
+  rufusStep: 0.01 | 0.001
 }
 
 export interface StrategyMeta {
@@ -305,6 +306,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   lossStreakPauseMin: 30,
   rufusPips: 5,
   rufusLookback: 10,
+  rufusStep: 0.01,
 }
 
 // Helper to avoid TS template literal conflicts with Python f-strings
@@ -415,10 +417,11 @@ def get_signal(prices, candles=None):
 # ===== RUFUS — алгоритм уровней поддержки/сопротивления =====
 RUFUS_PIPS     = ${cfg.rufusPips ?? 5}       # Радиус приближения к уровню (в пипсах)
 RUFUS_LOOKBACK = ${cfg.rufusLookback ?? 10}  # Свечей назад для определения направления
+RUFUS_STEP     = ${cfg.rufusStep ?? 0.01}    # Шаг уровней: 0.01 (сотые) или 0.001 (тысячные)
 
 def get_rufus_levels(price):
-    """Ближайшие круглые уровни (каждые 0.0100)"""
-    step = 0.01
+    """Ближайшие круглые уровни (каждые RUFUS_STEP)"""
+    step = RUFUS_STEP
     lower = round(int(price / step) * step, 5)
     upper = round(lower + step, 5)
     return lower, upper
@@ -1403,9 +1406,10 @@ def signal_candle_pattern(prices, candles):
 # Rufus — уровни в комбо
 _RUFUS_PIPS     = ${cfg.rufusPips ?? 5}
 _RUFUS_LOOKBACK = ${cfg.rufusLookback ?? 10}
+_RUFUS_STEP     = ${cfg.rufusStep ?? 0.01}
 
 def _rufus_levels(price):
-    step = 0.01
+    step = _RUFUS_STEP
     lower = round(int(price / step) * step, 5)
     return lower, round(lower + step, 5)
 

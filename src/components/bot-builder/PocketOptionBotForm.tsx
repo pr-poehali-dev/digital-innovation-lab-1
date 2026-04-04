@@ -1132,8 +1132,31 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-zinc-500 text-xs font-space-mono leading-relaxed">
-              Алгоритм <b className="text-purple-400">Rufus</b> торгует от круглых уровней (каждые 0.0100). Подход сверху → поддержка → <span className="text-green-400">CALL</span>. Подход снизу → сопротивление → <span className="text-red-400">PUT</span>.
+              Алгоритм <b className="text-purple-400">Rufus</b> торгует от круглых уровней. Подход сверху → поддержка → <span className="text-green-400">CALL</span>. Подход снизу → сопротивление → <span className="text-red-400">PUT</span>.
             </p>
+            <div>
+              <Label className="text-zinc-400 font-space-mono text-xs mb-2 block">Шаг уровней</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {([0.01, 0.001] as const).map((step) => (
+                  <button
+                    key={step}
+                    onClick={() => set({ rufusStep: step })}
+                    className={`rounded-md px-3 py-2 text-xs font-space-mono font-semibold border transition-all ${
+                      (config.rufusStep ?? 0.01) === step
+                        ? "bg-purple-500/20 border-purple-500/50 text-purple-300"
+                        : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"
+                    }`}
+                  >
+                    {step === 0.01 ? "0.0100 — сотые" : "0.0010 — тысячные"}
+                  </button>
+                ))}
+              </div>
+              <p className="text-zinc-600 font-space-mono text-[10px] mt-1.5">
+                {(config.rufusStep ?? 0.01) === 0.01
+                  ? "Для EUR/USD, GBP/USD и большинства форекс-пар"
+                  : "Для USD/JPY, пар с иеной и нестандартных котировок"}
+              </p>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Радиус входа (пипсов)</Label>
@@ -1158,7 +1181,12 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
             </div>
             <div className="bg-purple-950/30 border border-purple-500/20 rounded-lg px-3 py-2 space-y-1">
               <p className="text-purple-300 text-xs font-space-mono font-semibold">Пример при {config.rufusPips ?? 5} пипс:</p>
-              <p className="text-zinc-400 text-xs font-space-mono">Уровень 1.1300 → вход в диапазоне {(1.1300 - (config.rufusPips ?? 5) * 0.0001).toFixed(4)}–{(1.1300 + (config.rufusPips ?? 5) * 0.0001).toFixed(4)}</p>
+              <p className="text-zinc-400 text-xs font-space-mono">
+                Уровень {(config.rufusStep ?? 0.01) === 0.01 ? "1.1300" : "1.1300"} → вход в диапазоне {(1.1300 - (config.rufusPips ?? 5) * 0.0001).toFixed(5)}–{(1.1300 + (config.rufusPips ?? 5) * 0.0001).toFixed(5)}
+              </p>
+              <p className="text-zinc-500 text-[10px] font-space-mono">
+                Уровни: каждые {config.rufusStep ?? 0.01} ({(config.rufusStep ?? 0.01) === 0.01 ? "сотые" : "тысячные"})
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -1273,6 +1301,21 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                 <p className="text-purple-400 font-space-mono text-xs font-semibold flex items-center gap-1.5">
                   RUFUS <span className="text-[9px] bg-purple-500/20 border border-purple-500/30 rounded px-1 py-0.5 text-purple-300">уровни</span>
                 </p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {([0.01, 0.001] as const).map((step) => (
+                    <button
+                      key={step}
+                      onClick={() => set({ rufusStep: step })}
+                      className={`rounded px-2 py-1.5 text-[10px] font-space-mono font-semibold border transition-all ${
+                        (config.rufusStep ?? 0.01) === step
+                          ? "bg-purple-500/20 border-purple-500/50 text-purple-300"
+                          : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"
+                      }`}
+                    >
+                      {step === 0.01 ? "0.0100 сотые" : "0.0010 тысячные"}
+                    </button>
+                  ))}
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Радиус (пипсов)</Label>

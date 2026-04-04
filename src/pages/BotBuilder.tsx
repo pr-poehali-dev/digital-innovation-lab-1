@@ -684,92 +684,7 @@ export default function BotBuilder() {
                 </button>
               </div>
 
-              {/* Dual risk summary */}
-              {dualMode && (() => {
-                const totalSL = poConfig.stopLossRub + poConfig2.stopLossRub
-                const totalTP = poConfig.takeProfitRub + poConfig2.takeProfitRub
-                const totalBet = poConfig.betAmount + poConfig2.betAmount
-                const tpSlRatio = totalSL > 0 ? totalTP / totalSL : 0
-                const tpSlGood = tpSlRatio >= 1.5
-                const cur = poConfig.currency || "$"
-                // Сколько проигрышей подряд выдержит SL
-                const maxLosses1 = poConfig.betAmount > 0 ? Math.floor(poConfig.stopLossRub / poConfig.betAmount) : 0
-                const maxLosses2 = poConfig2.betAmount > 0 ? Math.floor(poConfig2.stopLossRub / poConfig2.betAmount) : 0
-                // Теоретический доход в день при winrate 60%
-                const dailyTrades = poConfig.dailyLimit + poConfig2.dailyLimit
-                const estWins = Math.round(dailyTrades * 0.6)
-                const estLosses = dailyTrades - estWins
-                const payout = ((poConfig.payoutRate + poConfig2.payoutRate) / 2) / 100
-                const estDayProfit = estWins * (totalBet / 2) * payout - estLosses * (totalBet / 2)
 
-                return (
-                  <div className="mb-6 space-y-3">
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-3">
-                        <p className="text-zinc-500 font-space-mono text-xs mb-1">Суммарный стоп-лосс</p>
-                        <p className="font-orbitron font-bold text-xl text-red-400">{cur}{totalSL}</p>
-                        <p className="text-zinc-600 font-space-mono text-xs mt-0.5">Бот 1: {cur}{poConfig.stopLossRub} + Бот 2: {cur}{poConfig2.stopLossRub}</p>
-                      </div>
-                      <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-3">
-                        <p className="text-zinc-500 font-space-mono text-xs mb-1">Суммарный тейк-профит</p>
-                        <p className="font-orbitron font-bold text-xl text-green-400">{cur}{totalTP}</p>
-                        <p className="text-zinc-600 font-space-mono text-xs mt-0.5">Бот 1: {cur}{poConfig.takeProfitRub} + Бот 2: {cur}{poConfig2.takeProfitRub}</p>
-                      </div>
-                      <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-3">
-                        <p className="text-zinc-500 font-space-mono text-xs mb-1">Суммарная ставка</p>
-                        <p className="font-orbitron font-bold text-xl text-yellow-400">{cur}{totalBet}</p>
-                        <p className="text-zinc-600 font-space-mono text-xs mt-0.5">Бот 1: {cur}{poConfig.betAmount} + Бот 2: {cur}{poConfig2.betAmount}</p>
-                      </div>
-                      <div className={`rounded-xl border p-3 ${tpSlGood ? "border-blue-500/30 bg-blue-500/5" : "border-orange-500/30 bg-orange-500/5"}`}>
-                        <p className="text-zinc-500 font-space-mono text-xs mb-1">Соотношение TP/SL</p>
-                        <p className={`font-orbitron font-bold text-xl ${tpSlGood ? "text-blue-400" : "text-orange-400"}`}>
-                          {totalSL > 0 ? `${tpSlRatio.toFixed(1)}x` : "—"}
-                        </p>
-                        <p className="text-zinc-600 font-space-mono text-xs mt-0.5">{tpSlGood ? "Хорошее соотношение" : "SL превышает TP"}</p>
-                      </div>
-                    </div>
-                    {/* Расширенная аналитика */}
-                    <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 px-4 py-3 space-y-2 font-space-mono text-xs">
-                      <p className="text-purple-300 font-semibold mb-1">⚡ Аналитика режима двух ботов</p>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5">
-                        <div>
-                          <span className="text-zinc-500">Сделок/день (сумм.): </span>
-                          <span className="text-white">{dailyTrades}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-500">Выплата (ср.): </span>
-                          <span className="text-white">{((poConfig.payoutRate + poConfig2.payoutRate) / 2).toFixed(0)}%</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-500">Проигрышей до SL Б1: </span>
-                          <span className={maxLosses1 < 5 ? "text-orange-400" : "text-green-400"}>{maxLosses1} подряд</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-500">Проигрышей до SL Б2: </span>
-                          <span className={maxLosses2 < 5 ? "text-orange-400" : "text-green-400"}>{maxLosses2} подряд</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-500">Прогноз/день (WR60%): </span>
-                          <span className={estDayProfit >= 0 ? "text-green-400" : "text-red-400"}>{estDayProfit >= 0 ? "+" : ""}{cur}{estDayProfit.toFixed(0)}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-500">Риск на одну свечу: </span>
-                          <span className="text-white">{cur}{totalBet}</span>
-                        </div>
-                      </div>
-                      {totalSL < totalBet * 3 && (
-                        <p className="text-orange-400 mt-1">⚠️ SL покрывает менее 3 проигрышей подряд — рекомендуем увеличить</p>
-                      )}
-                      {tpSlRatio > 0 && tpSlRatio < 1 && (
-                        <p className="text-red-400 mt-1">🔴 TP меньше SL — при нейтральном WR будете в убытке</p>
-                      )}
-                      {tpSlGood && totalSL >= totalBet * 5 && (
-                        <p className="text-green-400 mt-1">✅ Хорошая конфигурация — запас прочности достаточный</p>
-                      )}
-                    </div>
-                  </div>
-                )
-              })()}
 
               <div className={`grid gap-8 ${dualMode ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1 lg:grid-cols-3"}`}>
                 {/* Bot 1 Form */}
@@ -1046,6 +961,69 @@ export default function BotBuilder() {
                   </CardContent>
                 )}
               </Card>
+
+              {/* Dual mode: аналитика + кнопка генерации */}
+              {dualMode && (() => {
+                const totalSL = poConfig.stopLossRub + poConfig2.stopLossRub
+                const totalTP = poConfig.takeProfitRub + poConfig2.takeProfitRub
+                const totalBet = poConfig.betAmount + poConfig2.betAmount
+                const tpSlRatio = totalSL > 0 ? totalTP / totalSL : 0
+                const tpSlGood = tpSlRatio >= 1.5
+                const cur = poConfig.currency || "$"
+                const maxLosses1 = poConfig.betAmount > 0 ? Math.floor(poConfig.stopLossRub / poConfig.betAmount) : 0
+                const maxLosses2 = poConfig2.betAmount > 0 ? Math.floor(poConfig2.stopLossRub / poConfig2.betAmount) : 0
+                const dailyTrades = poConfig.dailyLimit + poConfig2.dailyLimit
+                const estWins = Math.round(dailyTrades * 0.6)
+                const estLosses = dailyTrades - estWins
+                const payout = ((poConfig.payoutRate + poConfig2.payoutRate) / 2) / 100
+                const estDayProfit = estWins * (totalBet / 2) * payout - estLosses * (totalBet / 2)
+                return (
+                  <div className="mt-4 space-y-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-3">
+                        <p className="text-zinc-500 font-space-mono text-xs mb-1">Суммарный стоп-лосс</p>
+                        <p className="font-orbitron font-bold text-xl text-red-400">{cur}{totalSL}</p>
+                        <p className="text-zinc-600 font-space-mono text-xs mt-0.5">Бот 1: {cur}{poConfig.stopLossRub} + Бот 2: {cur}{poConfig2.stopLossRub}</p>
+                      </div>
+                      <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-3">
+                        <p className="text-zinc-500 font-space-mono text-xs mb-1">Суммарный тейк-профит</p>
+                        <p className="font-orbitron font-bold text-xl text-green-400">{cur}{totalTP}</p>
+                        <p className="text-zinc-600 font-space-mono text-xs mt-0.5">Бот 1: {cur}{poConfig.takeProfitRub} + Бот 2: {cur}{poConfig2.takeProfitRub}</p>
+                      </div>
+                      <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-3">
+                        <p className="text-zinc-500 font-space-mono text-xs mb-1">Суммарная ставка</p>
+                        <p className="font-orbitron font-bold text-xl text-yellow-400">{cur}{totalBet}</p>
+                        <p className="text-zinc-600 font-space-mono text-xs mt-0.5">Бот 1: {cur}{poConfig.betAmount} + Бот 2: {cur}{poConfig2.betAmount}</p>
+                      </div>
+                      <div className={`rounded-xl border p-3 ${tpSlGood ? "border-blue-500/30 bg-blue-500/5" : "border-orange-500/30 bg-orange-500/5"}`}>
+                        <p className="text-zinc-500 font-space-mono text-xs mb-1">Соотношение TP/SL</p>
+                        <p className={`font-orbitron font-bold text-xl ${tpSlGood ? "text-blue-400" : "text-orange-400"}`}>{totalSL > 0 ? `${tpSlRatio.toFixed(1)}x` : "—"}</p>
+                        <p className="text-zinc-600 font-space-mono text-xs mt-0.5">{tpSlGood ? "Хорошее соотношение" : "SL превышает TP"}</p>
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 px-4 py-3 space-y-2 font-space-mono text-xs">
+                      <p className="text-purple-300 font-semibold mb-1">⚡ Аналитика режима двух ботов</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5">
+                        <div><span className="text-zinc-500">Сделок/день (сумм.): </span><span className="text-white">{dailyTrades}</span></div>
+                        <div><span className="text-zinc-500">Выплата (ср.): </span><span className="text-white">{((poConfig.payoutRate + poConfig2.payoutRate) / 2).toFixed(0)}%</span></div>
+                        <div><span className="text-zinc-500">Проигрышей до SL Б1: </span><span className={maxLosses1 < 5 ? "text-orange-400" : "text-green-400"}>{maxLosses1} подряд</span></div>
+                        <div><span className="text-zinc-500">Проигрышей до SL Б2: </span><span className={maxLosses2 < 5 ? "text-orange-400" : "text-green-400"}>{maxLosses2} подряд</span></div>
+                        <div><span className="text-zinc-500">Прогноз/день (WR60%): </span><span className={estDayProfit >= 0 ? "text-green-400" : "text-red-400"}>{estDayProfit >= 0 ? "+" : ""}{cur}{estDayProfit.toFixed(0)}</span></div>
+                        <div><span className="text-zinc-500">Риск на одну свечу: </span><span className="text-white">{cur}{totalBet}</span></div>
+                      </div>
+                      {totalSL < totalBet * 3 && <p className="text-orange-400 mt-1">⚠️ SL покрывает менее 3 проигрышей подряд — рекомендуем увеличить</p>}
+                      {tpSlRatio > 0 && tpSlRatio < 1 && <p className="text-red-400 mt-1">🔴 TP меньше SL — при нейтральном WR будете в убытке</p>}
+                      {tpSlGood && totalSL >= totalBet * 5 && <p className="text-green-400 mt-1">✅ Хорошая конфигурация — запас прочности достаточный</p>}
+                    </div>
+                    <Button
+                      onClick={handlePOGenerate}
+                      className="w-full bg-red-600 hover:bg-red-500 text-white font-orbitron font-bold py-4 text-base rounded-xl transition-all duration-200 shadow-lg shadow-red-500/20"
+                    >
+                      🔀 Сгенерировать код для обоих ботов
+                    </Button>
+                  </div>
+                )
+              })()}
 
               {/* Dual mode: code output + download both */}
                 {dualMode && poGenerated && (

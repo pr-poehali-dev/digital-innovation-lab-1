@@ -1400,24 +1400,30 @@ def signal_candle_pattern(prices, candles):
 
   if (selected.includes("support_resistance")) {
     fnBlocks.push(`
-def find_levels(prices, window=10):
-    sup, res = [], []
-    for i in range(window, len(prices) - window):
-        if prices[i] == min(prices[i-window:i+window]): sup.append(prices[i])
-        if prices[i] == max(prices[i-window:i+window]): res.append(prices[i])
-    return sup[-3:], res[-3:]
+# Rufus — уровни в комбо
+_RUFUS_PIPS     = ${cfg.rufusPips ?? 5}
+_RUFUS_LOOKBACK = ${cfg.rufusLookback ?? 10}
+
+def _rufus_levels(price):
+    step = 0.01
+    lower = round(int(price / step) * step, 5)
+    return lower, round(lower + step, 5)
 
 def signal_support_resistance(prices, candles):
-    if len(prices) < 30:
+    if len(prices) < _RUFUS_LOOKBACK + 2:
         return None, ""
-    sup, res = find_levels(prices)
     cur = prices[-1]
-    thr = cur * 0.001
-    for s in sup:
-        if abs(cur - s) < thr: return "CALL", f"Поддержка={s:.5f}"
-    for r in res:
-        if abs(cur - r) < thr: return "PUT", f"Сопротивление={r:.5f}"
-    return None, "Нет уровня"`)
+    pip = 0.0001
+    thr = _RUFUS_PIPS * pip
+    lower, upper = _rufus_levels(cur)
+    for level in [lower, upper]:
+        if abs(cur - level) <= thr:
+            past_avg = sum(prices[-_RUFUS_LOOKBACK-1:-1]) / _RUFUS_LOOKBACK
+            if past_avg > level and cur <= level + thr:
+                return "CALL", f"[RUFUS] {cur:.5f}→{level:.4f} сверху→CALL"
+            elif past_avg < level and cur >= level - thr:
+                return "PUT", f"[RUFUS] {cur:.5f}→{level:.4f} снизу→PUT"
+    return None, f"[RUFUS] {cur:.5f} далеко от {lower:.4f}/{upper:.4f}"`)
     callLines.push("signal_support_resistance(prices, candles)")
   }
 

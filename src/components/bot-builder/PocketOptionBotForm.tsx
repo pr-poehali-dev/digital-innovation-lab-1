@@ -1209,8 +1209,8 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
         </Card>
       )}
 
-      {/* Combo RSI+EMA settings */}
-      {config.comboMode && (config.comboStrategies.includes("rsi_reversal") || config.comboStrategies.includes("ema_cross")) && (
+      {/* Combo RSI+EMA+Rufus settings */}
+      {config.comboMode && (config.comboStrategies.includes("rsi_reversal") || config.comboStrategies.includes("ema_cross") || config.comboStrategies.includes("support_resistance")) && (
         <Card className="bg-zinc-900 border-zinc-700">
           <CardHeader className="pb-3"><CardTitle className="font-orbitron text-white text-base">Параметры индикаторов</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -1266,6 +1266,23 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                   </div>
                 </div>
                 <AIComment {...emaComment(config)} />
+              </div>
+            )}
+            {config.comboStrategies.includes("support_resistance") && (
+              <div className="space-y-2">
+                <p className="text-purple-400 font-space-mono text-xs font-semibold flex items-center gap-1.5">
+                  RUFUS <span className="text-[9px] bg-purple-500/20 border border-purple-500/30 rounded px-1 py-0.5 text-purple-300">уровни</span>
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Радиус (пипсов)</Label>
+                    <Input type="number" min={1} max={50} value={config.rufusPips ?? 5} onChange={(e) => set({ rufusPips: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-purple-400 font-space-mono text-xs h-8" />
+                  </div>
+                  <div>
+                    <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Свечей назад</Label>
+                    <Input type="number" min={3} max={50} value={config.rufusLookback ?? 10} onChange={(e) => set({ rufusLookback: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-purple-400 font-space-mono text-xs h-8" />
+                  </div>
+                </div>
               </div>
             )}
           </CardContent>

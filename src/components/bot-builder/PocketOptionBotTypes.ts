@@ -1264,11 +1264,7 @@ async def main():
 
             new_trend, old_trend = check_trend_change(candles)
             if new_trend:
-                arrow = "📈" if new_trend in ("UP_UP", "DOWN_UP") else "📉"
-                labels = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
-                msg = f"{arrow} <b>Тренд изменился!</b>\\n{labels.get(old_trend, old_trend or '?')} → {labels.get(new_trend, new_trend)} | {ASSET}"
                 print(f"[TREND] {old_trend} → {new_trend}")
-                tg_info(msg)
 
             trend = get_trend(candles)
             trend_sig = trend_to_signal(trend)

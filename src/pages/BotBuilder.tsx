@@ -9,6 +9,7 @@ import BotBuilderForm from "@/components/bot-builder/BotBuilderForm"
 import { POBotConfig, PO_DEFAULT_CONFIG, generatePOCode, generatePOComboCode } from "@/components/bot-builder/PocketOptionBotTypes"
 import PocketOptionBotForm from "@/components/bot-builder/PocketOptionBotForm"
 import TradeJournal from "@/components/bot-builder/TradeJournal"
+import TradeSessions from "@/components/bot-builder/TradeSessions"
 import BotHistory, { saveBotToHistory } from "@/components/bot-builder/BotHistory"
 import Icon from "@/components/ui/icon"
 
@@ -775,6 +776,7 @@ export default function BotBuilder() {
                       </Card>
                     </div>
                     <TradeJournal defaultAsset={poConfig.asset} defaultBet={poConfig.betAmount} />
+                    <TradeSessions />
                   </>
                 )}
               </div>

@@ -634,6 +634,59 @@ TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_C
 TG_PROXY        = "${cfg.tgProxy}"
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 
+# ===== ЖУРНАЛ СДЕЛОК =====
+JOURNAL_URL = "https://functions.poehali.dev/317c9913-52da-4683-920f-963c978a3202"
+_session_id = None
+
+def _journal_request(path, method="POST", data=None):
+    import urllib.request, json as _json
+    try:
+        url = JOURNAL_URL + path
+        body = _json.dumps(data or {}).encode()
+        req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method=method)
+        resp = urllib.request.urlopen(req, timeout=5).read()
+        return _json.loads(resp)
+    except Exception as e:
+        print(f"[JOURNAL] Ошибка: {e}")
+        return {}
+
+def journal_start_session():
+    global _session_id
+    result = _journal_request("/session", data={
+        "bot_name": BOT_NAME,
+        "strategy": "${cfg.comboMode ? "combo" : cfg.strategy}",
+        "asset": ASSET,
+        "bet_amount": BASE_BET,
+        "currency": CURRENCY,
+        "is_demo": IS_DEMO,
+    })
+    _session_id = result.get("session_id")
+    if _session_id:
+        print(f"[JOURNAL] Сессия создана: {_session_id}")
+
+def journal_log_trade(direction, bet, payout_pct, won):
+    if not _session_id:
+        return
+    import threading
+    threading.Thread(
+        target=_journal_request,
+        args=("/trade",),
+        kwargs={"data": {
+            "session_id": _session_id,
+            "asset": ASSET,
+            "direction": direction,
+            "bet": bet,
+            "payout_pct": payout_pct,
+            "won": won,
+        }},
+        daemon=True
+    ).start()
+
+def journal_end_session():
+    if not _session_id:
+        return
+    _journal_request("/session/end", method="PUT", data={"session_id": _session_id})
+
 def _tg_send(text, retries=3, delay=5):
     import urllib.request, urllib.parse, time
     url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
@@ -1048,6 +1101,7 @@ async def main():
         f"━━━━━━━━━━━━━━━━━━━━\\n"
         f"⏳ Ожидаю сигналы..."
     )
+    journal_start_session()
 
     _reconnect_attempts = 0
     _loss_streak = 0
@@ -1249,6 +1303,7 @@ async def main():
                         "won": won,
                         "profit": profit,
                     })
+                    journal_log_trade(signal, bet, PAYOUT_RATE, won)
                     wins  = sum(1 for t in trade_log if t["won"])
                     wr    = wins / len(trade_log) * 100
                     res_emoji = "✅" if won else "❌"
@@ -1596,6 +1651,59 @@ TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_C
 TG_PROXY        = "${cfg.tgProxy}"
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 
+# ===== ЖУРНАЛ СДЕЛОК =====
+JOURNAL_URL = "https://functions.poehali.dev/317c9913-52da-4683-920f-963c978a3202"
+_session_id = None
+
+def _journal_request(path, method="POST", data=None):
+    import urllib.request, json as _json
+    try:
+        url = JOURNAL_URL + path
+        body = _json.dumps(data or {}).encode()
+        req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method=method)
+        resp = urllib.request.urlopen(req, timeout=5).read()
+        return _json.loads(resp)
+    except Exception as e:
+        print(f"[JOURNAL] Ошибка: {e}")
+        return {}
+
+def journal_start_session():
+    global _session_id
+    result = _journal_request("/session", data={
+        "bot_name": BOT_NAME,
+        "strategy": "combo",
+        "asset": ASSET,
+        "bet_amount": BASE_BET,
+        "currency": CURRENCY,
+        "is_demo": IS_DEMO,
+    })
+    _session_id = result.get("session_id")
+    if _session_id:
+        print(f"[JOURNAL] Сессия создана: {_session_id}")
+
+def journal_log_trade(direction, bet, payout_pct, won):
+    if not _session_id:
+        return
+    import threading
+    threading.Thread(
+        target=_journal_request,
+        args=("/trade",),
+        kwargs={"data": {
+            "session_id": _session_id,
+            "asset": ASSET,
+            "direction": direction,
+            "bet": bet,
+            "payout_pct": payout_pct,
+            "won": won,
+        }},
+        daemon=True
+    ).start()
+
+def journal_end_session():
+    if not _session_id:
+        return
+    _journal_request("/session/end", method="PUT", data={"session_id": _session_id})
+
 def _tg_send(text, retries=3, delay=5):
     import urllib.request, urllib.parse, time
     url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
@@ -1906,6 +2014,7 @@ async def main():
         f"━━━━━━━━━━━━━━━━━━━━\\n"
         f"⏳ Ожидаю сигналы..."
     )
+    journal_start_session()
 
     last_lost_signal = None
     _loss_streak = 0
@@ -2064,6 +2173,7 @@ async def main():
                 trades_today += 1
                 current_bet   = adjust_bet(won)
                 trade_log.append({"won": won, "profit": profit})
+                journal_log_trade(signal, bet, PAYOUT, won)
                 wins = sum(1 for t in trade_log if t["won"])
                 wr   = wins / len(trade_log) * 100
                 res_emoji = "✅" if won else "❌"

@@ -21,6 +21,7 @@ export default function BotBuilder() {
   const [strategyGuideOpen, setStrategyGuideOpen] = useState(false)
   const [tgGuideOpen, setTgGuideOpen] = useState(false)
   const [tgTestStatus, setTgTestStatus] = useState<"idle" | "sending" | "ok" | "error">("idle")
+  const [restoreToast, setRestoreToast] = useState(false)
 
   const sendTgTest = async () => {
     if (!poConfig.tgToken || !poConfig.tgChatId) return
@@ -1251,12 +1252,22 @@ API_KEY="ваш_api_key" API_SECRET="ваш_secret" python bot.py`}</pre>
             <BotHistory
               onRestore={(cfg) => {
                 setPoConfig(cfg)
+                setRestoreToast(true)
+                setTimeout(() => setRestoreToast(false), 3000)
                 window.scrollTo({ top: 0, behavior: "smooth" })
               }}
             />
           </div>
         )}
       </main>
+
+      {restoreToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-zinc-900 border border-green-500/40 text-green-400 text-sm font-space-mono px-5 py-3 rounded-xl shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <Icon name="CheckCircle" size={16} />
+          Настройки загружены — можно генерировать!
+        </div>
+      )}
+
       <Footer />
     </div>
   )

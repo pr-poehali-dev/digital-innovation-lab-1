@@ -50,6 +50,8 @@ export interface POBotConfig {
   lossStreakPauseEnabled: boolean
   lossStreakCount: number
   lossStreakPauseMin: number
+  // Фильтр тренда по EMA200
+  emaTrendFilterEnabled: boolean
   // Rufus — алгоритм уровней
   rufusPips: number
   rufusLookback: number
@@ -304,6 +306,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   lossStreakPauseEnabled: false,
   lossStreakCount: 3,
   lossStreakPauseMin: 30,
+  emaTrendFilterEnabled: false,
   rufusPips: 5,
   rufusLookback: 10,
   rufusStep: 0.01,
@@ -592,6 +595,8 @@ RSI_THRESHOLD_OVERBOUGHT = ${cfg.rsiThresholdOverbought ?? 75}
 LOSS_STREAK_PAUSE_ENABLED = ${cfg.lossStreakPauseEnabled ? "True" : "False"}
 LOSS_STREAK_COUNT         = ${cfg.lossStreakCount ?? 3}
 LOSS_STREAK_PAUSE_MIN     = ${cfg.lossStreakPauseMin ?? 30}
+
+EMA_TREND_FILTER = ${cfg.emaTrendFilterEnabled ? "True" : "False"}
 
 try:
     from dotenv import load_dotenv; load_dotenv()
@@ -1305,6 +1310,19 @@ async def main():
                             print(f"[RSI-THRESHOLD] RSI={_rsi_val} < {RSI_THRESHOLD_OVERBOUGHT}, сигнал PUT слабый, пропуск")
                             await asyncio.sleep(CHECK_INTERVAL)
                             continue
+                if EMA_TREND_FILTER and len(prices) >= 200:
+                    _ema200 = sum(prices[-200:]) / 200
+                    _price_now = prices[-1]
+                    if signal == "CALL" and _price_now < _ema200:
+                        print(f"[EMA200] Цена {_price_now:.5f} < EMA200 {_ema200:.5f}, CALL отвергнут")
+                        rejected_signals += 1
+                        await asyncio.sleep(CHECK_INTERVAL)
+                        continue
+                    if signal == "PUT" and _price_now > _ema200:
+                        print(f"[EMA200] Цена {_price_now:.5f} > EMA200 {_ema200:.5f}, PUT отвергнут")
+                        rejected_signals += 1
+                        await asyncio.sleep(CHECK_INTERVAL)
+                        continue
 
             if signal:
                 if BET_PERCENT:
@@ -1646,6 +1664,8 @@ RSI_THRESHOLD_OVERBOUGHT = ${cfg.rsiThresholdOverbought ?? 75}
 LOSS_STREAK_PAUSE_ENABLED = ${cfg.lossStreakPauseEnabled ? "True" : "False"}
 LOSS_STREAK_COUNT         = ${cfg.lossStreakCount ?? 3}
 LOSS_STREAK_PAUSE_MIN     = ${cfg.lossStreakPauseMin ?? 30}
+
+EMA_TREND_FILTER = ${cfg.emaTrendFilterEnabled ? "True" : "False"}
 
 try:
     from dotenv import load_dotenv; load_dotenv()
@@ -2224,6 +2244,17 @@ async def main():
                         print(f"[RSI-THRESHOLD] RSI={_rsi_val} < {RSI_THRESHOLD_OVERBOUGHT}, пропуск")
                         await asyncio.sleep(CHECK_INTERVAL)
                         continue
+            if EMA_TREND_FILTER and len(prices) >= 200:
+                _ema200 = sum(prices[-200:]) / 200
+                _price_now = prices[-1]
+                if signal == "CALL" and _price_now < _ema200:
+                    print(f"[EMA200] Цена {_price_now:.5f} < EMA200 {_ema200:.5f}, CALL отвергнут")
+                    await asyncio.sleep(CHECK_INTERVAL)
+                    continue
+                if signal == "PUT" and _price_now > _ema200:
+                    print(f"[EMA200] Цена {_price_now:.5f} > EMA200 {_ema200:.5f}, PUT отвергнут")
+                    await asyncio.sleep(CHECK_INTERVAL)
+                    continue
 
         if signal:
             if BET_PERCENT:

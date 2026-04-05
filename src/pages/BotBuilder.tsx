@@ -1261,7 +1261,8 @@ API_KEY="ваш_api_key" API_SECRET="ваш_secret" python bot.py`}</pre>
         </div>
 
         {tab === "pocket_option" && (
-          <div className="max-w-7xl mx-auto px-4 pb-8">
+          <div className="max-w-7xl mx-auto px-4 pb-8 space-y-4">
+            <TradeSessions />
             <BotHistory
               onRestore={(cfg) => {
                 setPoConfig(cfg)

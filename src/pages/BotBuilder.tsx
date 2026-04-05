@@ -775,10 +775,13 @@ export default function BotBuilder() {
                         </CardContent>
                       </Card>
                     </div>
-                    <TradeJournal defaultAsset={poConfig.asset} defaultBet={poConfig.betAmount} />
-                    <TradeSessions />
                   </>
                 )}
+              </div>
+
+              <div className="space-y-4 mt-4">
+                <TradeJournal defaultAsset={poConfig.asset} defaultBet={poConfig.betAmount} />
+                <TradeSessions />
               </div>
 
               {/* ===== ЕДИНЫЙ БЛОК: Имена ботов + Telegram — всегда в самом низу ===== */}

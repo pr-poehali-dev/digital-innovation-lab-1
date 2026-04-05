@@ -58,6 +58,9 @@ export default function TradeSessions() {
   const [trades, setTrades] = useState<Trade[]>([])
   const [tradesLoading, setTradesLoading] = useState(false)
   const [open, setOpen] = useState(false)
+  const [filterName, setFilterName] = useState("")
+  const [filterDateFrom, setFilterDateFrom] = useState("")
+  const [filterDateTo, setFilterDateTo] = useState("")
 
   const loadSessions = useCallback(async () => {
     setLoading(true)
@@ -150,6 +153,13 @@ export default function TradeSessions() {
     const positive = values[values.length - 1] >= 0
     return { pts, polyline, fill, zeroY, positive, W, H }
   }
+
+  const filteredSessions = sessions.filter((s) => {
+    if (filterName && !s.bot_name.toLowerCase().includes(filterName.toLowerCase())) return false
+    if (filterDateFrom && s.started_at < filterDateFrom) return false
+    if (filterDateTo && s.started_at > filterDateTo + "T23:59:59") return false
+    return true
+  })
 
   const totalSessions = sessions.length
   const activeSessions = sessions.filter((s) => !s.ended_at).length
@@ -254,6 +264,44 @@ export default function TradeSessions() {
             </div>
           )}
 
+          {/* Filters */}
+          {sessions.length > 0 && (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <Icon name="Search" size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <input
+                  type="text"
+                  placeholder="Поиск по имени бота..."
+                  value={filterName}
+                  onChange={(e) => setFilterName(e.target.value)}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg pl-7 pr-3 py-1.5 text-xs text-white font-space-mono placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+                />
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={filterDateFrom}
+                  onChange={(e) => setFilterDateFrom(e.target.value)}
+                  className="bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs text-zinc-300 font-space-mono focus:outline-none focus:border-zinc-500"
+                />
+                <input
+                  type="date"
+                  value={filterDateTo}
+                  onChange={(e) => setFilterDateTo(e.target.value)}
+                  className="bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs text-zinc-300 font-space-mono focus:outline-none focus:border-zinc-500"
+                />
+                {(filterName || filterDateFrom || filterDateTo) && (
+                  <button
+                    onClick={() => { setFilterName(""); setFilterDateFrom(""); setFilterDateTo("") }}
+                    className="text-zinc-500 hover:text-white transition-colors px-2"
+                  >
+                    <Icon name="X" size={12} />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Session list */}
           {sessions.length === 0 && !loading && (
             <div className="text-center py-8 text-zinc-600 font-space-mono text-xs">
@@ -262,8 +310,15 @@ export default function TradeSessions() {
             </div>
           )}
 
+          {sessions.length > 0 && filteredSessions.length === 0 && (
+            <div className="text-center py-6 text-zinc-600 font-space-mono text-xs">
+              <Icon name="SearchX" size={24} className="mx-auto mb-2 opacity-30" />
+              Ничего не найдено. Попробуй изменить фильтры.
+            </div>
+          )}
+
           <div className="space-y-2">
-            {sessions.map((s) => {
+            {filteredSessions.map((s) => {
               const wr = s.total_trades > 0 ? Math.round((s.wins / s.total_trades) * 100) : 0
               const wrColor = wr >= 60 ? "text-green-400" : wr >= 50 ? "text-yellow-400" : "text-red-400"
               const profColor = s.total_profit >= 0 ? "text-green-400" : "text-red-400"

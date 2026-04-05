@@ -70,7 +70,10 @@ export default function TradeSessions() {
   }, [])
 
   useEffect(() => {
-    if (open) loadSessions()
+    if (!open) return
+    loadSessions()
+    const interval = setInterval(loadSessions, 60 * 60 * 1000)
+    return () => clearInterval(interval)
   }, [open, loadSessions])
 
   const loadTrades = async (session: Session) => {

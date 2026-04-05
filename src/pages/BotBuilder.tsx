@@ -9,6 +9,7 @@ import BotBuilderForm from "@/components/bot-builder/BotBuilderForm"
 import { POBotConfig, PO_DEFAULT_CONFIG, generatePOCode, generatePOComboCode } from "@/components/bot-builder/PocketOptionBotTypes"
 import PocketOptionBotForm from "@/components/bot-builder/PocketOptionBotForm"
 import TradeJournal from "@/components/bot-builder/TradeJournal"
+import BotHistory, { saveBotToHistory } from "@/components/bot-builder/BotHistory"
 import Icon from "@/components/ui/icon"
 
 type Tab = "pocket_option" | "crypto"
@@ -118,6 +119,8 @@ export default function BotBuilder() {
     download(poCode, `bot1.py`)
     setTimeout(() => download(poCode2, `bot2.py`), 300)
     setDualDownloaded(true)
+    saveBotToHistory(poConfig)
+    saveBotToHistory(poConfig2)
   }
 
   const handlePOCopy = () => {
@@ -150,6 +153,7 @@ export default function BotBuilder() {
     a.download = filename
     a.click()
     URL.revokeObjectURL(url)
+    saveBotToHistory(poConfig)
   }
 
   const handleEnvDownload = () => {
@@ -1241,6 +1245,17 @@ API_KEY="ваш_api_key" API_SECRET="ваш_secret" python bot.py`}</pre>
           )}
 
         </div>
+
+        {tab === "pocket_option" && (
+          <div className="max-w-7xl mx-auto px-4 pb-8">
+            <BotHistory
+              onRestore={(cfg) => {
+                setPoConfig(cfg)
+                window.scrollTo({ top: 0, behavior: "smooth" })
+              }}
+            />
+          </div>
+        )}
       </main>
       <Footer />
     </div>

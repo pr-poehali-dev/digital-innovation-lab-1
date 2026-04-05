@@ -1263,8 +1263,6 @@ async def main():
             _reconnect_attempts = 0
 
             new_trend, old_trend = check_trend_change(candles)
-            if new_trend:
-                print(f"[TREND] {old_trend} → {new_trend}")
 
             trend = get_trend(candles)
             trend_sig = trend_to_signal(trend)

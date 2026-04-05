@@ -1562,29 +1562,29 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
         )}
       </Card>
 
-      {/* Следование тренду EMA200 */}
+      {/* Следование тренду EMA100 */}
       <Card className="bg-zinc-900 border-zinc-700">
         <CardHeader className="pb-2 pt-4 px-4">
           <CardTitle className="text-sm font-space-mono text-zinc-200 flex items-center gap-2">
-            <span>📈</span> Следование тренду (EMA200)
+            <span>📈</span> Следование тренду (EMA100)
             <Switch checked={config.emaTrendFilterEnabled ?? false} onCheckedChange={(v) => set({ emaTrendFilterEnabled: v })} className="ml-auto scale-90" />
           </CardTitle>
         </CardHeader>
         {config.emaTrendFilterEnabled && (
           <CardContent className="px-4 pb-4 space-y-3">
-            <p className="text-zinc-500 text-xs font-space-mono">Бот проверяет цену относительно EMA200 перед каждой сделкой</p>
+            <p className="text-zinc-500 text-xs font-space-mono">Бот проверяет цену относительно EMA100 перед каждой сделкой</p>
             <div className="space-y-2">
               <div className="flex items-center gap-3 bg-green-500/5 border border-green-500/20 rounded-lg px-3 py-2">
                 <span className="text-green-400 text-base">📈</span>
                 <div>
-                  <p className="text-green-400 font-space-mono text-xs font-semibold">Цена выше EMA200 → только CALL</p>
+                  <p className="text-green-400 font-space-mono text-xs font-semibold">Цена выше EMA100 → только CALL</p>
                   <p className="text-zinc-500 font-space-mono text-xs">Сигналы PUT отвергаются</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-red-500/5 border border-red-500/20 rounded-lg px-3 py-2">
                 <span className="text-red-400 text-base">📉</span>
                 <div>
-                  <p className="text-red-400 font-space-mono text-xs font-semibold">Цена ниже EMA200 → только PUT</p>
+                  <p className="text-red-400 font-space-mono text-xs font-semibold">Цена ниже EMA100 → только PUT</p>
                   <p className="text-zinc-500 font-space-mono text-xs">Сигналы CALL отвергаются</p>
                 </div>
               </div>

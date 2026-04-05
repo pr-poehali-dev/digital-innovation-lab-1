@@ -1115,6 +1115,13 @@ async def main():
                 wins_count = sum(1 for t in trade_log if t["won"])
                 loss_count = trades_today - wins_count
                 winrate = round(wins_count / trades_today * 100, 1) if trades_today > 0 else 0
+                _ss_tp = {}
+                for _t in trade_log:
+                    _sk = str(_t.get("strategy", "${cfg.strategy}"))[:40]
+                    _ss_tp.setdefault(_sk, {"w": 0, "l": 0})
+                    if _t["won"]: _ss_tp[_sk]["w"] += 1
+                    else: _ss_tp[_sk]["l"] += 1
+                _sl_tp = "\\n".join(f"  {k}: ✅{v['w']} / ❌{v['l']}" for k, v in _ss_tp.items())
                 tg(
                     f"✅ <b>Take Profit достигнут!</b>\\n"
                     f"━━━━━━━━━━━━━━━━━━━━\\n"
@@ -1126,6 +1133,8 @@ async def main():
                     f"  Сделок: {trades_today} (✅ {wins_count} / ❌ {loss_count})\\n"
                     f"  Винрейт: <b>{winrate}%</b>\\n"
                     f"  Отклонено сигналов: {rejected_signals}\\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\\n"
+                    f"🔬 <b>По сигналам:</b>\\n{_sl_tp}\\n"
                     f"━━━━━━━━━━━━━━━━━━━━"
                 )
                 if AUTO_RESTART:
@@ -1145,6 +1154,13 @@ async def main():
                 wins_count_sl = sum(1 for t in trade_log if t["won"])
                 loss_count_sl = trades_today - wins_count_sl
                 winrate_sl = round(wins_count_sl / trades_today * 100, 1) if trades_today > 0 else 0
+                _ss_sl = {}
+                for _t in trade_log:
+                    _sk = str(_t.get("strategy", "${cfg.strategy}"))[:40]
+                    _ss_sl.setdefault(_sk, {"w": 0, "l": 0})
+                    if _t["won"]: _ss_sl[_sk]["w"] += 1
+                    else: _ss_sl[_sk]["l"] += 1
+                _sl_sl = "\\n".join(f"  {k}: ✅{v['w']} / ❌{v['l']}" for k, v in _ss_sl.items())
                 tg(
                     f"🛑 <b>Stop Loss достигнут!</b>\\n"
                     f"━━━━━━━━━━━━━━━━━━━━\\n"
@@ -1156,6 +1172,8 @@ async def main():
                     f"  Сделок: {trades_today} (✅ {wins_count_sl} / ❌ {loss_count_sl})\\n"
                     f"  Винрейт: <b>{winrate_sl}%</b>\\n"
                     f"  Отклонено сигналов: {rejected_signals}\\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\\n"
+                    f"🔬 <b>По сигналам:</b>\\n{_sl_sl}\\n"
                     f"━━━━━━━━━━━━━━━━━━━━"
                 )
                 if AUTO_RESTART:
@@ -1174,6 +1192,13 @@ async def main():
                 wins_lim = sum(1 for t in trade_log if t["won"])
                 loss_lim = trades_today - wins_lim
                 winrate_lim = round(wins_lim / trades_today * 100, 1) if trades_today > 0 else 0
+                _ss_lim = {}
+                for _t in trade_log:
+                    _sk = str(_t.get("strategy", "${cfg.strategy}"))[:40]
+                    _ss_lim.setdefault(_sk, {"w": 0, "l": 0})
+                    if _t["won"]: _ss_lim[_sk]["w"] += 1
+                    else: _ss_lim[_sk]["l"] += 1
+                _sl_lim = "\\n".join(f"  {k}: ✅{v['w']} / ❌{v['l']}" for k, v in _ss_lim.items())
                 tg(
                     f"⚠️ <b>Дневной лимит исчерпан</b>\\n"
                     f"━━━━━━━━━━━━━━━━━━━━\\n"
@@ -1185,6 +1210,8 @@ async def main():
                     f"  Сделок: {trades_today} / {DAILY_LIMIT} (✅ {wins_lim} / ❌ {loss_lim})\\n"
                     f"  Винрейт: <b>{winrate_lim}%</b>\\n"
                     f"  Отклонено сигналов: {rejected_signals}\\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\\n"
+                    f"🔬 <b>По сигналам:</b>\\n{_sl_lim}\\n"
                     f"━━━━━━━━━━━━━━━━━━━━"
                 )
                 break
@@ -1203,12 +1230,21 @@ async def main():
             if TG_ENABLED and (_time.time() - _last_report_time) >= 3600:
                 _wins_r = sum(1 for t in trade_log if t["won"])
                 _wr_r   = round(_wins_r / trades_today * 100, 1) if trades_today > 0 else 0
+                _ss_hr = {}
+                for _t in trade_log:
+                    _sk = str(_t.get("strategy", "${cfg.strategy}"))[:40]
+                    _ss_hr.setdefault(_sk, {"w": 0, "l": 0})
+                    if _t["won"]: _ss_hr[_sk]["w"] += 1
+                    else: _ss_hr[_sk]["l"] += 1
+                _sl_hr = "\\n".join(f"  {k}: ✅{v['w']} / ❌{v['l']}" for k, v in _ss_hr.items())
                 tg(
                     f"⏰ <b>Авто-отчёт [{BOT_NAME}]</b>\\n"
                     f"━━━━━━━━━━━━━━━━━━━━\\n"
                     f"💰 Профит: <b>{total_profit:+.2f} {CURRENCY}</b>\\n"
                     f"📈 Сделок: {trades_today} (✅ {_wins_r} / ❌ {trades_today - _wins_r})\\n"
                     f"🎯 Винрейт: <b>{_wr_r}%</b>\\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\\n"
+                    f"🔬 <b>По сигналам:</b>\\n{_sl_hr}\\n"
                     f"━━━━━━━━━━━━━━━━━━━━"
                 )
                 _last_report_time = _time.time()
@@ -1302,6 +1338,7 @@ async def main():
                         "amount": bet,
                         "won": won,
                         "profit": profit,
+                        "strategy": signal_info or "${cfg.strategy}",
                     })
                     journal_log_trade(signal, bet, PAYOUT_RATE, won)
                     wins  = sum(1 for t in trade_log if t["won"])

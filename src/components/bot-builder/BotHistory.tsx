@@ -63,6 +63,8 @@ export default function BotHistory({ onRestore }: BotHistoryProps) {
   const [history, setHistory] = useState<BotHistoryEntry[]>(loadBotHistory)
   const [expanded, setExpanded] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingName, setEditingName] = useState("")
 
   const removeEntry = (id: string) => {
     const updated = history.filter((e) => e.id !== id)
@@ -74,6 +76,21 @@ export default function BotHistory({ onRestore }: BotHistoryProps) {
     setHistory([])
     localStorage.removeItem(STORAGE_KEY)
     setConfirmClear(false)
+  }
+
+  const startEdit = (entry: BotHistoryEntry) => {
+    setEditingId(entry.id)
+    setEditingName(entry.botName)
+  }
+
+  const saveEdit = (id: string) => {
+    const name = editingName.trim() || history.find((e) => e.id === id)?.botName || ""
+    const updated = history.map((e) =>
+      e.id === id ? { ...e, botName: name, config: { ...e.config, botName: name } } : e
+    )
+    setHistory(updated)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+    setEditingId(null)
   }
 
   if (history.length === 0) return null
@@ -99,7 +116,24 @@ export default function BotHistory({ onRestore }: BotHistoryProps) {
               <div key={entry.id} className="flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors group">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium text-white truncate">{entry.botName}</span>
+                    {editingId === entry.id ? (
+                      <input
+                        autoFocus
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        onBlur={() => saveEdit(entry.id)}
+                        onKeyDown={(e) => { if (e.key === "Enter") saveEdit(entry.id); if (e.key === "Escape") setEditingId(null) }}
+                        className="text-sm font-medium text-white bg-white/10 border border-white/20 rounded px-2 py-0.5 outline-none focus:border-blue-400/60 w-40"
+                      />
+                    ) : (
+                      <button
+                        className="text-sm font-medium text-white truncate hover:text-blue-300 transition-colors text-left"
+                        onClick={() => startEdit(entry)}
+                        title="Нажми чтобы переименовать"
+                      >
+                        {entry.botName}
+                      </button>
+                    )}
                     <span className={`text-xs px-1.5 py-0.5 rounded ${entry.isDemo ? "bg-yellow-500/20 text-yellow-400" : "bg-green-500/20 text-green-400"}`}>
                       {entry.isDemo ? "Демо" : "Реал"}
                     </span>

@@ -948,7 +948,7 @@ async def check_result(client, order_id, balance_before, bet):
     """Ожидание результата по конкретной сделке через get_deal (точно, не зависит от других ботов)."""
     PAYOUT = ${cfg.payoutRate} / 100
     print(f"[WAIT] Ожидаем результат {EXPIRY_SEC//60} мин...")
-    await asyncio.sleep(EXPIRY_SEC + 5)
+    await asyncio.sleep(EXPIRY_SEC)
     try:
         for attempt in range(30):
             try:

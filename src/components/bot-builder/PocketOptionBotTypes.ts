@@ -294,7 +294,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   tgEnabled: true,
   tgNotifyMode: "all",
   tgProxy: "",
-  checkInterval: 30,
+  checkInterval: 10,
   payoutRate: 92,
   tradeDirection: "all",
   timeFilterEnabled: false,

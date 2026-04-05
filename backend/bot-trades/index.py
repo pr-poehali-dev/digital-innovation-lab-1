@@ -14,7 +14,18 @@ CORS = {
 
 
 def get_conn():
-    return psycopg2.connect(os.environ["DATABASE_URL"])
+    conn = psycopg2.connect(os.environ["DATABASE_URL"])
+    return conn
+
+
+def esc(val):
+    if val is None:
+        return "NULL"
+    if isinstance(val, bool):
+        return "TRUE" if val else "FALSE"
+    if isinstance(val, (int, float)):
+        return str(val)
+    return "'" + str(val).replace("'", "''") + "'"
 
 
 def handler(event: dict, context) -> dict:
@@ -30,23 +41,23 @@ def handler(event: dict, context) -> dict:
         except Exception:
             pass
 
+    schema = os.environ.get("MAIN_DB_SCHEMA", "public")
+
     # POST /bot-trades/session — создать новую сессию, вернуть session_id
     if method == "POST" and path.endswith("/session"):
+        bot_name = esc(body.get("bot_name", "Бот"))
+        strategy = esc(body.get("strategy", "unknown"))
+        asset = esc(body.get("asset", "EUR/USD"))
+        bet_amount = esc(body.get("bet_amount", 0))
+        currency = esc(body.get("currency", "RUB"))
+        is_demo = esc(body.get("is_demo", True))
+
         conn = get_conn()
         cur = conn.cursor()
+        cur.execute(f"SET search_path TO {schema}, public")
         cur.execute(
-            """
-            INSERT INTO bot_sessions (bot_name, strategy, asset, bet_amount, currency, is_demo)
-            VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
-            """,
-            (
-                body.get("bot_name", "Бот"),
-                body.get("strategy", "unknown"),
-                body.get("asset", "EUR/USD"),
-                body.get("bet_amount", 0),
-                body.get("currency", "RUB"),
-                body.get("is_demo", True),
-            ),
+            f"INSERT INTO bot_sessions (bot_name, strategy, asset, bet_amount, currency, is_demo) "
+            f"VALUES ({bot_name}, {strategy}, {asset}, {bet_amount}, {currency}, {is_demo}) RETURNING id"
         )
         session_id = str(cur.fetchone()[0])
         conn.commit()
@@ -65,37 +76,31 @@ def handler(event: dict, context) -> dict:
         payout_pct = float(body.get("payout_pct", 82))
         profit = round(bet * payout_pct / 100, 2) if won else -bet
 
+        s_id = esc(session_id)
+        s_asset = esc(body.get("asset", "EUR/USD"))
+        s_direction = esc(body.get("direction", "CALL"))
+        s_bet = esc(bet)
+        s_payout = esc(payout_pct)
+        s_won = esc(won)
+        s_profit = esc(profit)
+        s_wins = esc(1 if won else 0)
+        s_losses = esc(0 if won else 1)
+
         conn = get_conn()
         cur = conn.cursor()
-
+        cur.execute(f"SET search_path TO {schema}, public")
         cur.execute(
-            """
-            INSERT INTO bot_trades (session_id, asset, direction, bet, payout_pct, won, profit)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """,
-            (
-                session_id,
-                body.get("asset", "EUR/USD"),
-                body.get("direction", "CALL"),
-                bet,
-                payout_pct,
-                won,
-                profit,
-            ),
+            f"INSERT INTO bot_trades (session_id, asset, direction, bet, payout_pct, won, profit) "
+            f"VALUES ({s_id}, {s_asset}, {s_direction}, {s_bet}, {s_payout}, {s_won}, {s_profit})"
         )
-
         cur.execute(
-            """
-            UPDATE bot_sessions SET
-                total_trades = total_trades + 1,
-                wins = wins + %s,
-                losses = losses + %s,
-                total_profit = total_profit + %s
-            WHERE id = %s
-            """,
-            (1 if won else 0, 0 if won else 1, profit, session_id),
+            f"UPDATE bot_sessions SET "
+            f"total_trades = total_trades + 1, "
+            f"wins = wins + {s_wins}, "
+            f"losses = losses + {s_losses}, "
+            f"total_profit = total_profit + {s_profit} "
+            f"WHERE id = {s_id}"
         )
-
         conn.commit()
         cur.close()
         conn.close()
@@ -108,10 +113,8 @@ def handler(event: dict, context) -> dict:
             return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "session_id required"})}
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute(
-            "UPDATE bot_sessions SET ended_at = NOW() WHERE id = %s",
-            (session_id,),
-        )
+        cur.execute(f"SET search_path TO {schema}, public")
+        cur.execute(f"UPDATE bot_sessions SET ended_at = NOW() WHERE id = {esc(session_id)}")
         conn.commit()
         cur.close()
         conn.close()
@@ -121,14 +124,11 @@ def handler(event: dict, context) -> dict:
     if method == "GET" and path.endswith("/sessions"):
         conn = get_conn()
         cur = conn.cursor()
+        cur.execute(f"SET search_path TO {schema}, public")
         cur.execute(
-            """
-            SELECT id, bot_name, strategy, asset, bet_amount, currency, is_demo,
-                   started_at, ended_at, total_trades, wins, losses, total_profit
-            FROM bot_sessions
-            ORDER BY started_at DESC
-            LIMIT 100
-            """
+            "SELECT id, bot_name, strategy, asset, bet_amount, currency, is_demo, "
+            "started_at, ended_at, total_trades, wins, losses, total_profit "
+            "FROM bot_sessions ORDER BY started_at DESC LIMIT 100"
         )
         rows = cur.fetchall()
         cur.close()
@@ -139,7 +139,7 @@ def handler(event: dict, context) -> dict:
                 "bot_name": r[1],
                 "strategy": r[2],
                 "asset": r[3],
-                "bet_amount": float(r[4]),
+                "bet_amount": float(r[4]) if r[4] is not None else 0,
                 "currency": r[5],
                 "is_demo": r[6],
                 "started_at": r[7].isoformat() if r[7] else None,
@@ -147,7 +147,7 @@ def handler(event: dict, context) -> dict:
                 "total_trades": r[9],
                 "wins": r[10],
                 "losses": r[11],
-                "total_profit": float(r[12]),
+                "total_profit": float(r[12]) if r[12] is not None else 0,
             }
             for r in rows
         ]
@@ -161,12 +161,10 @@ def handler(event: dict, context) -> dict:
             return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "session_id required"})}
         conn = get_conn()
         cur = conn.cursor()
+        cur.execute(f"SET search_path TO {schema}, public")
         cur.execute(
-            """
-            SELECT id, traded_at, asset, direction, bet, payout_pct, won, profit
-            FROM bot_trades WHERE session_id = %s ORDER BY traded_at ASC
-            """,
-            (session_id,),
+            f"SELECT id, created_at, asset, direction, bet, payout_pct, won, profit "
+            f"FROM bot_trades WHERE session_id = {esc(session_id)} ORDER BY created_at ASC"
         )
         rows = cur.fetchall()
         cur.close()
@@ -174,13 +172,13 @@ def handler(event: dict, context) -> dict:
         trades = [
             {
                 "id": str(r[0]),
-                "traded_at": r[1].isoformat(),
+                "traded_at": r[1].isoformat() if r[1] else None,
                 "asset": r[2],
                 "direction": r[3],
-                "bet": float(r[4]),
-                "payout_pct": float(r[5]),
+                "bet": float(r[4]) if r[4] is not None else 0,
+                "payout_pct": float(r[5]) if r[5] is not None else 0,
                 "won": r[6],
-                "profit": float(r[7]),
+                "profit": float(r[7]) if r[7] is not None else 0,
             }
             for r in rows
         ]

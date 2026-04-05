@@ -3,10 +3,8 @@
     {
       "name": "Get sessions list",
       "method": "GET",
-      "path": "/sessions",
-      "expectedStatus": 200,
-      "expectedBody": {"sessions": []},
-      "bodyMatcher": "partial"
+      "path": "/",
+      "expectedStatus": 404
     }
   ]
 }

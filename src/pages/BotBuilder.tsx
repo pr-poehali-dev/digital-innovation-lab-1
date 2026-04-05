@@ -22,6 +22,12 @@ export default function BotBuilder() {
   const [tgGuideOpen, setTgGuideOpen] = useState(false)
   const [tgTestStatus, setTgTestStatus] = useState<"idle" | "sending" | "ok" | "error">("idle")
   const [restoreToast, setRestoreToast] = useState(false)
+  const [savedToast, setSavedToast] = useState(false)
+
+  const showSavedToast = () => {
+    setSavedToast(true)
+    setTimeout(() => setSavedToast(false), 3000)
+  }
 
   const sendTgTest = async () => {
     if (!poConfig.tgToken || !poConfig.tgChatId) return
@@ -122,6 +128,7 @@ export default function BotBuilder() {
     setDualDownloaded(true)
     saveBotToHistory(poConfig)
     saveBotToHistory(poConfig2)
+    showSavedToast()
   }
 
   const handlePOCopy = () => {
@@ -155,6 +162,7 @@ export default function BotBuilder() {
     a.click()
     URL.revokeObjectURL(url)
     saveBotToHistory(poConfig)
+    showSavedToast()
   }
 
   const handleEnvDownload = () => {
@@ -1265,6 +1273,13 @@ API_KEY="ваш_api_key" API_SECRET="ваш_secret" python bot.py`}</pre>
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-zinc-900 border border-green-500/40 text-green-400 text-sm font-space-mono px-5 py-3 rounded-xl shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-300">
           <Icon name="CheckCircle" size={16} />
           Настройки загружены — можно генерировать!
+        </div>
+      )}
+
+      {savedToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-zinc-900 border border-blue-500/40 text-blue-400 text-sm font-space-mono px-5 py-3 rounded-xl shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <Icon name="History" size={16} />
+          Бот сохранён в историю
         </div>
       )}
 

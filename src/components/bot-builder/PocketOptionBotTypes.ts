@@ -2023,6 +2023,13 @@ async def main():
         if total_profit >= TAKE_PROFIT:
             print(f"[TP] +{total_profit:.2f} {CURRENCY}")
             _w = sum(1 for t in trade_log if t["won"]); _l = trades_today - _w; _wr = round(_w/trades_today*100,1) if trades_today else 0
+            _ss = {}
+            for _t in trade_log:
+                _sk = str(_t.get("strategy", "комбо"))[:30]
+                _ss.setdefault(_sk, {"w": 0, "l": 0})
+                if _t["won"]: _ss[_sk]["w"] += 1
+                else: _ss[_sk]["l"] += 1
+            _sl = "\\n".join(f"  {k}: ✅{v['w']} / ❌{v['l']}" for k, v in _ss.items())
             tg(
                 f"✅ <b>Take Profit достигнут!</b>\\n"
                 f"━━━━━━━━━━━━━━━━━━━━\\n"
@@ -2033,6 +2040,8 @@ async def main():
                 f"📊 <b>Статистика</b>\\n"
                 f"  Сделок: {trades_today} (✅ {_w} / ❌ {_l})\\n"
                 f"  Винрейт: <b>{_wr}%</b>\\n"
+                f"━━━━━━━━━━━━━━━━━━━━\\n"
+                f"🔬 <b>По стратегиям:</b>\\n{_sl}\\n"
                 f"━━━━━━━━━━━━━━━━━━━━"
             )
             if AUTO_RESTART:
@@ -2041,6 +2050,13 @@ async def main():
         if total_profit <= -STOP_LOSS:
             print(f"[SL] {total_profit:.2f} {CURRENCY}")
             _w2 = sum(1 for t in trade_log if t["won"]); _l2 = trades_today - _w2; _wr2 = round(_w2/trades_today*100,1) if trades_today else 0
+            _ss2 = {}
+            for _t in trade_log:
+                _sk2 = str(_t.get("strategy", "комбо"))[:30]
+                _ss2.setdefault(_sk2, {"w": 0, "l": 0})
+                if _t["won"]: _ss2[_sk2]["w"] += 1
+                else: _ss2[_sk2]["l"] += 1
+            _sl2 = "\\n".join(f"  {k}: ✅{v['w']} / ❌{v['l']}" for k, v in _ss2.items())
             tg(
                 f"🛑 <b>Stop Loss достигнут!</b>\\n"
                 f"━━━━━━━━━━━━━━━━━━━━\\n"
@@ -2051,6 +2067,8 @@ async def main():
                 f"📊 <b>Статистика</b>\\n"
                 f"  Сделок: {trades_today} (✅ {_w2} / ❌ {_l2})\\n"
                 f"  Винрейт: <b>{_wr2}%</b>\\n"
+                f"━━━━━━━━━━━━━━━━━━━━\\n"
+                f"🔬 <b>По стратегиям:</b>\\n{_sl2}\\n"
                 f"━━━━━━━━━━━━━━━━━━━━"
             )
             if AUTO_RESTART:
@@ -2059,6 +2077,13 @@ async def main():
         if trades_today >= DAILY_LIMIT:
             print(f"[LIMIT] Лимит {DAILY_LIMIT} сделок исчерпан")
             _w3 = sum(1 for t in trade_log if t["won"]); _l3 = trades_today - _w3; _wr3 = round(_w3/trades_today*100,1) if trades_today else 0
+            _ss3 = {}
+            for _t in trade_log:
+                _sk3 = str(_t.get("strategy", "комбо"))[:30]
+                _ss3.setdefault(_sk3, {"w": 0, "l": 0})
+                if _t["won"]: _ss3[_sk3]["w"] += 1
+                else: _ss3[_sk3]["l"] += 1
+            _sl3 = "\\n".join(f"  {k}: ✅{v['w']} / ❌{v['l']}" for k, v in _ss3.items())
             tg(
                 f"⚠️ <b>Дневной лимит исчерпан</b>\\n"
                 f"━━━━━━━━━━━━━━━━━━━━\\n"
@@ -2069,6 +2094,8 @@ async def main():
                 f"📊 <b>Статистика</b>\\n"
                 f"  Сделок: {trades_today} / {DAILY_LIMIT} (✅ {_w3} / ❌ {_l3})\\n"
                 f"  Винрейт: <b>{_wr3}%</b>\\n"
+                f"━━━━━━━━━━━━━━━━━━━━\\n"
+                f"🔬 <b>По стратегиям:</b>\\n{_sl3}\\n"
                 f"━━━━━━━━━━━━━━━━━━━━"
             )
             break
@@ -2087,12 +2114,21 @@ async def main():
         if TG_ENABLED and (_time.time() - _last_report_time) >= 3600:
             _wins_r = sum(1 for t in trade_log if t["won"])
             _wr_r   = round(_wins_r / trades_today * 100, 1) if trades_today > 0 else 0
+            _strat_stat = {}
+            for _t in trade_log:
+                _s = str(_t.get("strategy", "комбо"))[:30]
+                _strat_stat.setdefault(_s, {"w": 0, "l": 0})
+                if _t["won"]: _strat_stat[_s]["w"] += 1
+                else: _strat_stat[_s]["l"] += 1
+            _strat_lines = "\\n".join(f"  {_s}: ✅{v['w']} / ❌{v['l']}" for _s, v in _strat_stat.items())
             tg(
                 f"⏰ <b>Авто-отчёт [{BOT_NAME}]</b>\\n"
                 f"━━━━━━━━━━━━━━━━━━━━\\n"
                 f"💰 Профит: <b>{total_profit:+.2f} {CURRENCY}</b>\\n"
                 f"📈 Сделок: {trades_today} (✅ {_wins_r} / ❌ {trades_today - _wins_r})\\n"
                 f"🎯 Винрейт: <b>{_wr_r}%</b>\\n"
+                f"━━━━━━━━━━━━━━━━━━━━\\n"
+                f"📊 <b>По стратегиям:</b>\\n{_strat_lines}\\n"
                 f"━━━━━━━━━━━━━━━━━━━━"
             )
             _last_report_time = _time.time()
@@ -2172,7 +2208,7 @@ async def main():
                 total_profit += profit
                 trades_today += 1
                 current_bet   = adjust_bet(won)
-                trade_log.append({"won": won, "profit": profit})
+                trade_log.append({"won": won, "profit": profit, "strategy": signal_info or "комбо"})
                 journal_log_trade(signal, bet, PAYOUT, won)
                 wins = sum(1 for t in trade_log if t["won"])
                 wr   = wins / len(trade_log) * 100

@@ -154,6 +154,13 @@ export default function TradeSessions() {
   const totalSessions = sessions.length
   const activeSessions = sessions.filter((s) => !s.ended_at).length
 
+  const totalTrades = sessions.reduce((a, s) => a + s.total_trades, 0)
+  const totalWins = sessions.reduce((a, s) => a + s.wins, 0)
+  const totalProfit = sessions.reduce((a, s) => a + s.total_profit, 0)
+  const avgWinrate = totalTrades > 0 ? Math.round((totalWins / totalTrades) * 100) : 0
+  const bestSession = sessions.reduce((best, s) => (!best || s.total_profit > best.total_profit ? s : best), null as Session | null)
+  const worstSession = sessions.reduce((worst, s) => (!worst || s.total_profit < worst.total_profit ? s : worst), null as Session | null)
+
   return (
     <Card className="bg-zinc-900 border-zinc-700">
       <CardHeader className="pb-3">
@@ -195,6 +202,57 @@ export default function TradeSessions() {
               Обновить
             </Button>
           </div>
+
+          {/* Summary stats */}
+          {sessions.length > 0 && (
+            <div className="rounded-xl border border-zinc-700 bg-zinc-800/40 p-4 space-y-3">
+              <p className="text-zinc-400 font-orbitron text-xs font-semibold uppercase tracking-wider">Общая статистика</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-zinc-900 rounded-lg p-3 text-center">
+                  <p className="text-zinc-500 font-space-mono text-xs mb-1">Сессий</p>
+                  <p className="text-white font-orbitron text-lg font-bold">{totalSessions}</p>
+                </div>
+                <div className="bg-zinc-900 rounded-lg p-3 text-center">
+                  <p className="text-zinc-500 font-space-mono text-xs mb-1">Сделок</p>
+                  <p className="text-white font-orbitron text-lg font-bold">{totalTrades}</p>
+                </div>
+                <div className="bg-zinc-900 rounded-lg p-3 text-center">
+                  <p className="text-zinc-500 font-space-mono text-xs mb-1">Винрейт</p>
+                  <p className={`font-orbitron text-lg font-bold ${avgWinrate >= 60 ? "text-green-400" : avgWinrate >= 50 ? "text-yellow-400" : "text-red-400"}`}>
+                    {avgWinrate}%
+                  </p>
+                </div>
+                <div className="bg-zinc-900 rounded-lg p-3 text-center">
+                  <p className="text-zinc-500 font-space-mono text-xs mb-1">Профит</p>
+                  <p className={`font-orbitron text-lg font-bold ${totalProfit >= 0 ? "text-green-400" : "text-red-400"}`}>
+                    {totalProfit >= 0 ? "+" : ""}{totalProfit.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+              {(bestSession || worstSession) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  {bestSession && bestSession.total_profit > 0 && (
+                    <div className="flex items-center gap-2 bg-green-500/5 border border-green-500/20 rounded-lg px-3 py-2">
+                      <Icon name="TrendingUp" size={14} className="text-green-400 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-zinc-500 font-space-mono text-xs">Лучшая сессия</p>
+                        <p className="text-green-400 font-orbitron text-xs truncate">{bestSession.bot_name} <span className="text-green-300">+{bestSession.total_profit.toFixed(2)}</span></p>
+                      </div>
+                    </div>
+                  )}
+                  {worstSession && worstSession.total_profit < 0 && (
+                    <div className="flex items-center gap-2 bg-red-500/5 border border-red-500/20 rounded-lg px-3 py-2">
+                      <Icon name="TrendingDown" size={14} className="text-red-400 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-zinc-500 font-space-mono text-xs">Худшая сессия</p>
+                        <p className="text-red-400 font-orbitron text-xs truncate">{worstSession.bot_name} <span className="text-red-300">{worstSession.total_profit.toFixed(2)}</span></p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Session list */}
           {sessions.length === 0 && !loading && (

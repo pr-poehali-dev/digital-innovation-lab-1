@@ -948,19 +948,18 @@ async def check_result(client, order_id, balance_before, bet):
     """Ожидание результата по конкретной сделке через get_deal (точно, не зависит от других ботов)."""
     PAYOUT = ${cfg.payoutRate} / 100
     print(f"[WAIT] Ожидаем результат...")
-    await asyncio.sleep(5)
     try:
-        for attempt in range(30):
+        for attempt in range(120):
             try:
                 deal = await client.get_deal(order_id)
                 if deal is None:
-                    await asyncio.sleep(3)
+                    await asyncio.sleep(1)
                     continue
                 profit_raw = getattr(deal, 'profit', None) or getattr(deal, 'win', None) or getattr(deal, 'result', None)
                 if profit_raw is None and hasattr(deal, '__dict__'):
                     profit_raw = deal.__dict__.get('profit') or deal.__dict__.get('win') or deal.__dict__.get('result')
                 if profit_raw is None:
-                    await asyncio.sleep(3)
+                    await asyncio.sleep(1)
                     continue
                 profit_val = float(profit_raw)
                 won = profit_val > 0
@@ -971,7 +970,7 @@ async def check_result(client, order_id, balance_before, bet):
                 return won, profit, loss_amount
             except Exception as e_inner:
                 print(f"[WAIT] Попытка {attempt+1}: {e_inner}")
-                await asyncio.sleep(3)
+                await asyncio.sleep(1)
                 continue
         print(f"[WARN] Таймаут get_deal — fallback по балансу")
         balance_after, _ = await get_balance(client)

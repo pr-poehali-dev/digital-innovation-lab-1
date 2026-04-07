@@ -831,7 +831,22 @@ def tg_poll_commands():
                 tg(f"▶️ <b>[{BOT_NAME}] возобновлён</b>")
             elif cmd == "/status" and for_me:
                 wins_s = sum(1 for t in trade_log if t["won"])
-                tg(f"📊 <b>Статус [{BOT_NAME}]</b>\\n💰 Профит: {total_profit:+.2f} {CURRENCY}\\n📈 Сделок: {trades_today} (✅{wins_s}/❌{trades_today-wins_s})\\n{'⏸ На паузе' if _tg_paused else '▶️ Работает'}")
+                strat_stats: dict = {}
+                for t in trade_log:
+                    key = t.get("strategy", "—")
+                    if key not in strat_stats:
+                        strat_stats[key] = {"wins": 0, "losses": 0}
+                    if t["won"]:
+                        strat_stats[key]["wins"] += 1
+                    else:
+                        strat_stats[key]["losses"] += 1
+                strat_lines = []
+                for strat, st in strat_stats.items():
+                    strat_label = strat.split("(")[0].strip() if strat else "—"
+                    verdict = "⚠️ корректировка" if st["losses"] > st["wins"] else "✅ ок"
+                    strat_lines.append(f"  • {strat_label}: {st['wins']}W/{st['losses']}L — {verdict}")
+                strat_block = "\\n".join(strat_lines) if strat_lines else "  нет сделок"
+                tg(f"📊 <b>Статус [{BOT_NAME}]</b>\\n💰 Профит: {total_profit:+.2f} {CURRENCY}\\n📈 Сделок: {trades_today} (✅{wins_s}/❌{trades_today-wins_s})\\n{'⏸ На паузе' if _tg_paused else '▶️ Работает'}\\n\\n<b>По стратегиям:</b>\\n{strat_block}")
             elif cmd == "/settp" and for_me:
                 try:
                     TAKE_PROFIT = float(val)
@@ -1960,7 +1975,22 @@ def tg_poll_commands():
                 tg(f"▶️ <b>[{BOT_NAME}] возобновлён</b>")
             elif cmd == "/status" and for_me:
                 wins_s = sum(1 for t in trade_log if t["won"])
-                tg(f"📊 <b>Статус [{BOT_NAME}]</b>\\n💰 Профит: {total_profit:+.2f} {CURRENCY}\\n📈 Сделок: {trades_today} (✅{wins_s}/❌{trades_today-wins_s})\\n{'⏸ На паузе' if _tg_paused else '▶️ Работает'}")
+                strat_stats: dict = {}
+                for t in trade_log:
+                    key = t.get("strategy", "—")
+                    if key not in strat_stats:
+                        strat_stats[key] = {"wins": 0, "losses": 0}
+                    if t["won"]:
+                        strat_stats[key]["wins"] += 1
+                    else:
+                        strat_stats[key]["losses"] += 1
+                strat_lines = []
+                for strat, st in strat_stats.items():
+                    strat_label = strat.split("(")[0].strip() if strat else "—"
+                    verdict = "⚠️ корректировка" if st["losses"] > st["wins"] else "✅ ок"
+                    strat_lines.append(f"  • {strat_label}: {st['wins']}W/{st['losses']}L — {verdict}")
+                strat_block = "\\n".join(strat_lines) if strat_lines else "  нет сделок"
+                tg(f"📊 <b>Статус [{BOT_NAME}]</b>\\n💰 Профит: {total_profit:+.2f} {CURRENCY}\\n📈 Сделок: {trades_today} (✅{wins_s}/❌{trades_today-wins_s})\\n{'⏸ На паузе' if _tg_paused else '▶️ Работает'}\\n\\n<b>По стратегиям:</b>\\n{strat_block}")
             elif cmd == "/settp" and for_me:
                 try:
                     TAKE_PROFIT = float(val)

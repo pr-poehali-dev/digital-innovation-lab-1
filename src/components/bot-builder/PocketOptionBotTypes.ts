@@ -845,8 +845,10 @@ def tg_poll_commands():
                     tg(f"✅ <b>[{BOT_NAME}]</b> Ставка: <b>{BASE_BET} {CURRENCY}</b>")
                 except:
                     tg(f"❌ Формат: /setbet {BOT_NAME} 10")
+            elif cmd == "/report" and for_me:
+                _send_daily_report()
             elif cmd == "/help":
-                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статистика\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
+                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статистика\\n/report {BOT_NAME} — отчёт за день\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
     except Exception:
         pass
 
@@ -1964,8 +1966,10 @@ def tg_poll_commands():
                     tg(f"✅ <b>[{BOT_NAME}]</b> Ставка: <b>{BASE_BET} {CURRENCY}</b>")
                 except:
                     tg(f"❌ Формат: /setbet {BOT_NAME} 10")
+            elif cmd == "/report" and for_me:
+                _send_daily_report()
             elif cmd == "/help":
-                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статистика\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
+                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статистика\\n/report {BOT_NAME} — отчёт за день\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
     except Exception:
         pass
 

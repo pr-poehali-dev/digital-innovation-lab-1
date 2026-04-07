@@ -757,6 +757,78 @@ def _update_daily_stats(won, profit_val, loss_val):
         if s["_cur_loss"] > s["max_loss_streak"]:
             s["max_loss_streak"] = s["_cur_loss"]
 
+def _get_strategy_recommendation(strategy_key):
+    """Рекомендация по корректировке параметров стратегии"""
+    s = strategy_key or ""
+    if "RSI" in s or "${cfg.strategy}" == "rsi_reversal":
+        return (
+            "💡 Рекомендации:\\n"
+            "  — Если много ложных сигналов CALL: повысьте RSI oversold ${cfg.rsiOversold} → попробуйте ${cfg.rsiOversold - 5}\\n"
+            "  — Если много ложных сигналов PUT: понизьте RSI overbought ${cfg.rsiOverbought} → попробуйте ${cfg.rsiOverbought + 5}\\n"
+            "  — Или увеличьте период RSI ${cfg.rsiPeriod} → ${cfg.rsiPeriod + 2} для фильтрации шума"
+        )
+    elif "EMA" in s or "${cfg.strategy}" == "ema_cross":
+        return (
+            "💡 Рекомендации:\\n"
+            "  — Много ложных пересечений? Увеличьте разрыв: EMA быстрая ${cfg.emaFast}→${cfg.emaFast + 3}, медленная ${cfg.emaSlow}→${cfg.emaSlow + 5}\\n"
+            "  — Сигналы запаздывают? Уменьшите периоды: ${cfg.emaFast}→${cfg.emaFast - 2} / ${cfg.emaSlow}→${cfg.emaSlow - 3}\\n"
+            "  — Попробуйте добавить фильтр по RSI чтобы отсеять боковик"
+        )
+    elif "Паттерн" in s or "${cfg.strategy}" == "candle_pattern":
+        return (
+            "💡 Рекомендации:\\n"
+            "  — Паттерны дают ложные сигналы? Торгуйте только в направлении тренда EMA\\n"
+            "  — Уменьшите экспирацию — свечные паттерны лучше работают на коротких таймфреймах\\n"
+            "  — Ограничьте торговлю часами высокой волатильности (08:00–12:00, 14:00–18:00 МСК)"
+        )
+    elif "RUFUS" in s or "${cfg.strategy}" == "support_resistance":
+        return (
+            "💡 Рекомендации:\\n"
+            "  — Много пробоев уровней? Увеличьте RUFUS_PIPS ${cfg.rufusPips ?? 5} → ${(cfg.rufusPips ?? 5) + 2}\\n"
+            "  — Слишком редкие сигналы? Уменьшите RUFUS_PIPS → ${Math.max(2, (cfg.rufusPips ?? 5) - 1)}\\n"
+            "  — Увеличьте RUFUS_LOOKBACK ${cfg.rufusLookback ?? 10} → ${(cfg.rufusLookback ?? 10) + 5} для более надёжного определения тренда"
+        )
+    elif "комбо" in s.lower() or "${cfg.strategy}" == "combo":
+        return (
+            "💡 Рекомендации:\\n"
+            "  — Переключитесь с AND на OR логику для большего числа сигналов\\n"
+            "  — Уберите наименее эффективную стратегию из комбо\\n"
+            "  — Проверьте каждую стратегию отдельно чтобы найти слабое звено"
+        )
+    else:
+        return (
+            "💡 Рекомендации:\\n"
+            "  — Попробуйте другую стратегию или актив\\n"
+            "  — Проверьте настройки экспирации и размера ставки"
+        )
+
+def _build_strat_block_with_tips():
+    """Блок анализа по стратегиям с рекомендациями"""
+    strat_stats: dict = {}
+    for t in trade_log:
+        key = t.get("strategy", "—")
+        if key not in strat_stats:
+            strat_stats[key] = {"wins": 0, "losses": 0}
+        if t["won"]:
+            strat_stats[key]["wins"] += 1
+        else:
+            strat_stats[key]["losses"] += 1
+    lines = []
+    tips = []
+    for strat, st in strat_stats.items():
+        strat_label = strat.split("(")[0].strip() if strat else "—"
+        total = st["wins"] + st["losses"]
+        wr = round(st["wins"] / total * 100) if total > 0 else 0
+        if st["losses"] > st["wins"]:
+            verdict = "⚠️ корректировка"
+            tips.append(_get_strategy_recommendation(strat))
+        else:
+            verdict = "✅ ок"
+        lines.append(f"  • {strat_label}: {st['wins']}W/{st['losses']}L ({wr}%) — {verdict}")
+    block = "\\n".join(lines) if lines else "  нет данных"
+    tips_block = "\\n\\n" + "\\n\\n".join(tips) if tips else ""
+    return block + tips_block
+
 def _send_daily_report():
     if not TG_ENABLED or not TG_DAILY_REPORT:
         return
@@ -767,21 +839,7 @@ def _send_daily_report():
     winrate = round(s["wins"] / s["total"] * 100) if s["total"] > 0 else 0
     profit_sign = "+" if s["profit"] >= 0 else ""
     emoji = "🟢" if s["profit"] >= 0 else "🔴"
-    strat_stats: dict = {}
-    for t in trade_log:
-        key = t.get("strategy", "—")
-        if key not in strat_stats:
-            strat_stats[key] = {"wins": 0, "losses": 0}
-        if t["won"]:
-            strat_stats[key]["wins"] += 1
-        else:
-            strat_stats[key]["losses"] += 1
-    strat_lines = []
-    for strat, st in strat_stats.items():
-        strat_label = strat.split("(")[0].strip() if strat else "—"
-        verdict = "⚠️ корректировка" if st["losses"] > st["wins"] else "✅ ок"
-        strat_lines.append(f"  • {strat_label}: {st['wins']}W/{st['losses']}L — {verdict}")
-    strat_block = "\\n".join(strat_lines) if strat_lines else "  нет данных"
+    strat_block = _build_strat_block_with_tips()
     tg(
         f"📊 <b>Ежедневный отчёт — {BOT_NAME}</b>\\n\\n"
         f"📈 Сделок: {s['total']} | ✅ Побед: {s['wins']} | ❌ Потерь: {s['losses']}\\n"
@@ -847,21 +905,7 @@ def tg_poll_commands():
                 tg(f"▶️ <b>[{BOT_NAME}] возобновлён</b>")
             elif cmd == "/status" and for_me:
                 wins_s = sum(1 for t in trade_log if t["won"])
-                strat_stats: dict = {}
-                for t in trade_log:
-                    key = t.get("strategy", "—")
-                    if key not in strat_stats:
-                        strat_stats[key] = {"wins": 0, "losses": 0}
-                    if t["won"]:
-                        strat_stats[key]["wins"] += 1
-                    else:
-                        strat_stats[key]["losses"] += 1
-                strat_lines = []
-                for strat, st in strat_stats.items():
-                    strat_label = strat.split("(")[0].strip() if strat else "—"
-                    verdict = "⚠️ корректировка" if st["losses"] > st["wins"] else "✅ ок"
-                    strat_lines.append(f"  • {strat_label}: {st['wins']}W/{st['losses']}L — {verdict}")
-                strat_block = "\\n".join(strat_lines) if strat_lines else "  нет сделок"
+                strat_block = _build_strat_block_with_tips()
                 tg(f"📊 <b>Статус [{BOT_NAME}]</b>\\n💰 Профит: {total_profit:+.2f} {CURRENCY}\\n📈 Сделок: {trades_today} (✅{wins_s}/❌{trades_today-wins_s})\\n{'⏸ На паузе' if _tg_paused else '▶️ Работает'}\\n\\n<b>По стратегиям:</b>\\n{strat_block}")
             elif cmd == "/settp" and for_me:
                 try:
@@ -1917,6 +1961,78 @@ def _update_daily_stats(won, profit_val, loss_val):
         if s["_cur_loss"] > s["max_loss_streak"]:
             s["max_loss_streak"] = s["_cur_loss"]
 
+def _get_strategy_recommendation(strategy_key):
+    """Рекомендация по корректировке параметров стратегии"""
+    s = strategy_key or ""
+    if "RSI" in s or "${cfg.strategy}" == "rsi_reversal":
+        return (
+            "💡 Рекомендации:\\n"
+            "  — Если много ложных сигналов CALL: повысьте RSI oversold ${cfg.rsiOversold} → попробуйте ${cfg.rsiOversold - 5}\\n"
+            "  — Если много ложных сигналов PUT: понизьте RSI overbought ${cfg.rsiOverbought} → попробуйте ${cfg.rsiOverbought + 5}\\n"
+            "  — Или увеличьте период RSI ${cfg.rsiPeriod} → ${cfg.rsiPeriod + 2} для фильтрации шума"
+        )
+    elif "EMA" in s or "${cfg.strategy}" == "ema_cross":
+        return (
+            "💡 Рекомендации:\\n"
+            "  — Много ложных пересечений? Увеличьте разрыв: EMA быстрая ${cfg.emaFast}→${cfg.emaFast + 3}, медленная ${cfg.emaSlow}→${cfg.emaSlow + 5}\\n"
+            "  — Сигналы запаздывают? Уменьшите периоды: ${cfg.emaFast}→${cfg.emaFast - 2} / ${cfg.emaSlow}→${cfg.emaSlow - 3}\\n"
+            "  — Попробуйте добавить фильтр по RSI чтобы отсеять боковик"
+        )
+    elif "Паттерн" in s or "${cfg.strategy}" == "candle_pattern":
+        return (
+            "💡 Рекомендации:\\n"
+            "  — Паттерны дают ложные сигналы? Торгуйте только в направлении тренда EMA\\n"
+            "  — Уменьшите экспирацию — свечные паттерны лучше работают на коротких таймфреймах\\n"
+            "  — Ограничьте торговлю часами высокой волатильности (08:00–12:00, 14:00–18:00 МСК)"
+        )
+    elif "RUFUS" in s or "${cfg.strategy}" == "support_resistance":
+        return (
+            "💡 Рекомендации:\\n"
+            "  — Много пробоев уровней? Увеличьте RUFUS_PIPS ${cfg.rufusPips ?? 5} → ${(cfg.rufusPips ?? 5) + 2}\\n"
+            "  — Слишком редкие сигналы? Уменьшите RUFUS_PIPS → ${Math.max(2, (cfg.rufusPips ?? 5) - 1)}\\n"
+            "  — Увеличьте RUFUS_LOOKBACK ${cfg.rufusLookback ?? 10} → ${(cfg.rufusLookback ?? 10) + 5} для более надёжного определения тренда"
+        )
+    elif "комбо" in s.lower() or "${cfg.strategy}" == "combo":
+        return (
+            "💡 Рекомендации:\\n"
+            "  — Переключитесь с AND на OR логику для большего числа сигналов\\n"
+            "  — Уберите наименее эффективную стратегию из комбо\\n"
+            "  — Проверьте каждую стратегию отдельно чтобы найти слабое звено"
+        )
+    else:
+        return (
+            "💡 Рекомендации:\\n"
+            "  — Попробуйте другую стратегию или актив\\n"
+            "  — Проверьте настройки экспирации и размера ставки"
+        )
+
+def _build_strat_block_with_tips():
+    """Блок анализа по стратегиям с рекомендациями"""
+    strat_stats: dict = {}
+    for t in trade_log:
+        key = t.get("strategy", "—")
+        if key not in strat_stats:
+            strat_stats[key] = {"wins": 0, "losses": 0}
+        if t["won"]:
+            strat_stats[key]["wins"] += 1
+        else:
+            strat_stats[key]["losses"] += 1
+    lines = []
+    tips = []
+    for strat, st in strat_stats.items():
+        strat_label = strat.split("(")[0].strip() if strat else "—"
+        total = st["wins"] + st["losses"]
+        wr = round(st["wins"] / total * 100) if total > 0 else 0
+        if st["losses"] > st["wins"]:
+            verdict = "⚠️ корректировка"
+            tips.append(_get_strategy_recommendation(strat))
+        else:
+            verdict = "✅ ок"
+        lines.append(f"  • {strat_label}: {st['wins']}W/{st['losses']}L ({wr}%) — {verdict}")
+    block = "\\n".join(lines) if lines else "  нет данных"
+    tips_block = "\\n\\n" + "\\n\\n".join(tips) if tips else ""
+    return block + tips_block
+
 def _send_daily_report():
     if not TG_ENABLED or not TG_DAILY_REPORT:
         return
@@ -1927,21 +2043,7 @@ def _send_daily_report():
     winrate = round(s["wins"] / s["total"] * 100) if s["total"] > 0 else 0
     profit_sign = "+" if s["profit"] >= 0 else ""
     emoji = "🟢" if s["profit"] >= 0 else "🔴"
-    strat_stats: dict = {}
-    for t in trade_log:
-        key = t.get("strategy", "—")
-        if key not in strat_stats:
-            strat_stats[key] = {"wins": 0, "losses": 0}
-        if t["won"]:
-            strat_stats[key]["wins"] += 1
-        else:
-            strat_stats[key]["losses"] += 1
-    strat_lines = []
-    for strat, st in strat_stats.items():
-        strat_label = strat.split("(")[0].strip() if strat else "—"
-        verdict = "⚠️ корректировка" if st["losses"] > st["wins"] else "✅ ок"
-        strat_lines.append(f"  • {strat_label}: {st['wins']}W/{st['losses']}L — {verdict}")
-    strat_block = "\\n".join(strat_lines) if strat_lines else "  нет данных"
+    strat_block = _build_strat_block_with_tips()
     tg(
         f"📊 <b>Ежедневный отчёт — {BOT_NAME}</b>\\n\\n"
         f"📈 Сделок: {s['total']} | ✅ Побед: {s['wins']} | ❌ Потерь: {s['losses']}\\n"
@@ -2007,21 +2109,7 @@ def tg_poll_commands():
                 tg(f"▶️ <b>[{BOT_NAME}] возобновлён</b>")
             elif cmd == "/status" and for_me:
                 wins_s = sum(1 for t in trade_log if t["won"])
-                strat_stats: dict = {}
-                for t in trade_log:
-                    key = t.get("strategy", "—")
-                    if key not in strat_stats:
-                        strat_stats[key] = {"wins": 0, "losses": 0}
-                    if t["won"]:
-                        strat_stats[key]["wins"] += 1
-                    else:
-                        strat_stats[key]["losses"] += 1
-                strat_lines = []
-                for strat, st in strat_stats.items():
-                    strat_label = strat.split("(")[0].strip() if strat else "—"
-                    verdict = "⚠️ корректировка" if st["losses"] > st["wins"] else "✅ ок"
-                    strat_lines.append(f"  • {strat_label}: {st['wins']}W/{st['losses']}L — {verdict}")
-                strat_block = "\\n".join(strat_lines) if strat_lines else "  нет сделок"
+                strat_block = _build_strat_block_with_tips()
                 tg(f"📊 <b>Статус [{BOT_NAME}]</b>\\n💰 Профит: {total_profit:+.2f} {CURRENCY}\\n📈 Сделок: {trades_today} (✅{wins_s}/❌{trades_today-wins_s})\\n{'⏸ На паузе' if _tg_paused else '▶️ Работает'}\\n\\n<b>По стратегиям:</b>\\n{strat_block}")
             elif cmd == "/settp" and for_me:
                 try:

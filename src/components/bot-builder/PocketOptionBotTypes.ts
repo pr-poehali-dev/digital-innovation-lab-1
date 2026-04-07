@@ -767,12 +767,28 @@ def _send_daily_report():
     winrate = round(s["wins"] / s["total"] * 100) if s["total"] > 0 else 0
     profit_sign = "+" if s["profit"] >= 0 else ""
     emoji = "🟢" if s["profit"] >= 0 else "🔴"
+    strat_stats: dict = {}
+    for t in trade_log:
+        key = t.get("strategy", "—")
+        if key not in strat_stats:
+            strat_stats[key] = {"wins": 0, "losses": 0}
+        if t["won"]:
+            strat_stats[key]["wins"] += 1
+        else:
+            strat_stats[key]["losses"] += 1
+    strat_lines = []
+    for strat, st in strat_stats.items():
+        strat_label = strat.split("(")[0].strip() if strat else "—"
+        verdict = "⚠️ корректировка" if st["losses"] > st["wins"] else "✅ ок"
+        strat_lines.append(f"  • {strat_label}: {st['wins']}W/{st['losses']}L — {verdict}")
+    strat_block = "\\n".join(strat_lines) if strat_lines else "  нет данных"
     tg(
         f"📊 <b>Ежедневный отчёт — {BOT_NAME}</b>\\n\\n"
         f"📈 Сделок: {s['total']} | ✅ Побед: {s['wins']} | ❌ Потерь: {s['losses']}\\n"
         f"📊 Винрейт: {winrate}%\\n"
         f"{emoji} P&amp;L: {profit_sign}{round(s['profit'], 2)}\\n"
-        f"🔥 Макс. серия побед: {s['max_win_streak']} | 💀 Макс. серия потерь: {s['max_loss_streak']}"
+        f"🔥 Макс. серия побед: {s['max_win_streak']} | 💀 Макс. серия потерь: {s['max_loss_streak']}\\n\\n"
+        f"<b>По стратегиям:</b>\\n{strat_block}"
     )
 
 def _daily_report_scheduler():
@@ -1911,12 +1927,28 @@ def _send_daily_report():
     winrate = round(s["wins"] / s["total"] * 100) if s["total"] > 0 else 0
     profit_sign = "+" if s["profit"] >= 0 else ""
     emoji = "🟢" if s["profit"] >= 0 else "🔴"
+    strat_stats: dict = {}
+    for t in trade_log:
+        key = t.get("strategy", "—")
+        if key not in strat_stats:
+            strat_stats[key] = {"wins": 0, "losses": 0}
+        if t["won"]:
+            strat_stats[key]["wins"] += 1
+        else:
+            strat_stats[key]["losses"] += 1
+    strat_lines = []
+    for strat, st in strat_stats.items():
+        strat_label = strat.split("(")[0].strip() if strat else "—"
+        verdict = "⚠️ корректировка" if st["losses"] > st["wins"] else "✅ ок"
+        strat_lines.append(f"  • {strat_label}: {st['wins']}W/{st['losses']}L — {verdict}")
+    strat_block = "\\n".join(strat_lines) if strat_lines else "  нет данных"
     tg(
         f"📊 <b>Ежедневный отчёт — {BOT_NAME}</b>\\n\\n"
         f"📈 Сделок: {s['total']} | ✅ Побед: {s['wins']} | ❌ Потерь: {s['losses']}\\n"
         f"📊 Винрейт: {winrate}%\\n"
         f"{emoji} P&amp;L: {profit_sign}{round(s['profit'], 2)}\\n"
-        f"🔥 Макс. серия побед: {s['max_win_streak']} | 💀 Макс. серия потерь: {s['max_loss_streak']}"
+        f"🔥 Макс. серия побед: {s['max_win_streak']} | 💀 Макс. серия потерь: {s['max_loss_streak']}\\n\\n"
+        f"<b>По стратегиям:</b>\\n{strat_block}"
     )
 
 def _daily_report_scheduler():

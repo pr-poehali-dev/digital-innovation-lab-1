@@ -1356,6 +1356,11 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                   </div>
                 </div>
                 <AIComment {...rsiComment(config)} />
+                <div className="flex items-center justify-between bg-blue-950/30 border border-blue-500/20 rounded-lg px-3 py-1.5">
+                  <span className="text-blue-400 text-xs font-space-mono">🔄 Инверсия RSI</span>
+                  <Switch checked={config.invertSignalRsi ?? false} onCheckedChange={(v) => set({ invertSignalRsi: v })} className="scale-75" />
+                </div>
+                {config.invertSignalRsi && <p className="text-zinc-500 text-[10px] font-space-mono px-1">⚡ Перепроданность → PUT | Перекупленность → CALL</p>}
               </div>
             )}
             {config.comboStrategies.includes("ema_cross") && (
@@ -1390,6 +1395,11 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                   </div>
                 </div>
                 <AIComment {...emaComment(config)} />
+                <div className="flex items-center justify-between bg-green-950/30 border border-green-500/20 rounded-lg px-3 py-1.5">
+                  <span className="text-green-400 text-xs font-space-mono">🔄 Инверсия EMA</span>
+                  <Switch checked={config.invertSignalEma ?? false} onCheckedChange={(v) => set({ invertSignalEma: v })} className="scale-75" />
+                </div>
+                {config.invertSignalEma && <p className="text-zinc-500 text-[10px] font-space-mono px-1">⚡ Пересечение вверх → PUT | Вниз → CALL</p>}
               </div>
             )}
             {config.comboStrategies.includes("support_resistance") && (() => {
@@ -1454,6 +1464,11 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                       <Input type="number" min={3} max={50} value={config.rufusLookback ?? 10} onChange={(e) => set({ rufusLookback: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-purple-400 font-space-mono text-xs h-8" />
                     </div>
                   </div>
+                  <div className="flex items-center justify-between bg-purple-950/30 border border-purple-500/20 rounded-lg px-3 py-1.5">
+                    <span className="text-purple-300 text-xs font-space-mono">🔄 Инверсия Rufus</span>
+                    <Switch checked={config.invertSignalRufus ?? false} onCheckedChange={(v) => set({ invertSignalRufus: v })} className="scale-75" />
+                  </div>
+                  {config.invertSignalRufus && <p className="text-zinc-500 text-[10px] font-space-mono px-1">⚡ Подход сверху → PUT | Снизу → CALL</p>}
                 </div>
               )
             })()}
@@ -1461,7 +1476,32 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
         </Card>
       )}
 
-
+      {/* Комбо: инверсия для candle_pattern и martingale */}
+      {config.comboMode && (config.comboStrategies.includes("candle_pattern") || config.comboStrategies.includes("martingale")) && (
+        <Card className="bg-zinc-900 border-zinc-700">
+          <CardHeader className="pb-2 pt-4 px-4"><CardTitle className="text-sm font-space-mono text-zinc-200">🔄 Инверсия сигналов</CardTitle></CardHeader>
+          <CardContent className="px-4 pb-4 space-y-3">
+            {config.comboStrategies.includes("candle_pattern") && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between bg-yellow-950/30 border border-yellow-500/20 rounded-lg px-3 py-1.5">
+                  <span className="text-yellow-400 text-xs font-space-mono">🔄 Инверсия паттернов свечей</span>
+                  <Switch checked={config.invertSignalCandle ?? false} onCheckedChange={(v) => set({ invertSignalCandle: v })} className="scale-75" />
+                </div>
+                {config.invertSignalCandle && <p className="text-zinc-500 text-[10px] font-space-mono px-1">⚡ Бычий паттерн → PUT | Медвежий → CALL</p>}
+              </div>
+            )}
+            {config.comboStrategies.includes("martingale") && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between bg-red-950/30 border border-red-500/20 rounded-lg px-3 py-1.5">
+                  <span className="text-red-400 text-xs font-space-mono">🔄 Инверсия Мартингейл</span>
+                  <Switch checked={config.invertSignalMartingale ?? false} onCheckedChange={(v) => set({ invertSignalMartingale: v })} className="scale-75" />
+                </div>
+                {config.invertSignalMartingale && <p className="text-zinc-500 text-[10px] font-space-mono px-1">⚡ Большинство вверх → PUT | Вниз → CALL</p>}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Итоговая сводка — одиночный режим */}
       {!config.comboMode && (config.timeFilterEnabled || config.rsiThresholdEnabled || config.lossStreakPauseEnabled || (config.tradeDirection ?? "all") !== "all") && (

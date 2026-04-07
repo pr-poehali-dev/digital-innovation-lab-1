@@ -903,6 +903,41 @@ export default function BotBuilder() {
                           ))}
                         </div>
                       </div>
+                      {/* Авто-отчёт */}
+                      <div className="border border-zinc-700/50 rounded-lg p-3 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-zinc-300 font-space-mono text-xs font-semibold">📊 Ежедневный отчёт</p>
+                            <p className="text-zinc-600 font-space-mono text-[10px] mt-0.5">Итоги дня: сделки, винрейт, P&L</p>
+                          </div>
+                          <button
+                            onClick={() => setPoConfig(p => ({ ...p, tgDailyReport: !p.tgDailyReport }))}
+                            className={`relative w-10 h-5 rounded-full transition-colors ${poConfig.tgDailyReport ? "bg-green-500" : "bg-zinc-600"}`}
+                          >
+                            <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${poConfig.tgDailyReport ? "translate-x-5" : "translate-x-0.5"}`} />
+                          </button>
+                        </div>
+                        {poConfig.tgDailyReport && (
+                          <div>
+                            <label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Время отчёта</label>
+                            <input
+                              type="time"
+                              value={poConfig.tgDailyReportTime ?? "23:00"}
+                              onChange={(e) => setPoConfig(p => ({ ...p, tgDailyReportTime: e.target.value }))}
+                              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white font-space-mono text-sm outline-none focus:border-blue-500/60 transition-colors"
+                            />
+                            <div className="mt-2 bg-zinc-800/50 rounded-lg px-3 py-2 border border-zinc-700/40">
+                              <p className="text-zinc-500 font-space-mono text-[10px] leading-relaxed">
+                                В {poConfig.tgDailyReportTime ?? "23:00"} бот пришлёт:<br/>
+                                📈 Сделок: 12 | ✅ Выиграно: 8 | ❌ Проиграно: 4<br/>
+                                💰 Профит: +1 240 ₽ | 📊 Винрейт: 67%<br/>
+                                🔥 Серия побед: 3 | 💤 Серия потерь: 2
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
                       {/* Статус + тест */}
                       {poConfig.tgToken && poConfig.tgChatId ? (
                         <div className="space-y-2">

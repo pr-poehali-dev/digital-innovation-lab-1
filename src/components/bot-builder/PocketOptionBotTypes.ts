@@ -35,6 +35,8 @@ export interface POBotConfig {
   tgEnabled: boolean
   tgProxy: string
   tgNotifyMode: "all" | "bets_only"
+  tgDailyReport: boolean
+  tgDailyReportTime: string
   checkInterval: number
   payoutRate: number
   tradeDirection: "all" | "call_only" | "put_only"
@@ -293,6 +295,8 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   tgChatId: "",
   tgEnabled: true,
   tgNotifyMode: "all",
+  tgDailyReport: false,
+  tgDailyReportTime: "23:00",
   tgProxy: "",
   checkInterval: 10,
   payoutRate: 92,
@@ -638,6 +642,8 @@ TG_CHAT_ID = "${cfg.tgChatId}"
 TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
 TG_PROXY        = "${cfg.tgProxy}"
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
+TG_DAILY_REPORT = ${cfg.tgDailyReport ? "True" : "False"}
+TG_DAILY_REPORT_TIME = "${cfg.tgDailyReportTime ?? "23:00"}"
 
 # ===== ЖУРНАЛ СДЕЛОК =====
 JOURNAL_URL = "https://functions.poehali.dev/317c9913-52da-4683-920f-963c978a3202"
@@ -725,6 +731,59 @@ def tg_info(text):
     if _notify_mode == "bets_only":
         return
     tg(text)
+
+_daily_stats = {"total": 0, "wins": 0, "losses": 0, "profit": 0.0, "max_win_streak": 0, "max_loss_streak": 0, "_cur_win": 0, "_cur_loss": 0}
+
+def _update_daily_stats(won, profit_val, loss_val):
+    s = _daily_stats
+    s["total"] += 1
+    if won:
+        s["wins"] += 1
+        s["profit"] += profit_val
+        s["_cur_win"] += 1
+        s["_cur_loss"] = 0
+        if s["_cur_win"] > s["max_win_streak"]:
+            s["max_win_streak"] = s["_cur_win"]
+    else:
+        s["losses"] += 1
+        s["profit"] -= loss_val
+        s["_cur_win"] = 0
+        s["_cur_loss"] += 1
+        if s["_cur_loss"] > s["max_loss_streak"]:
+            s["max_loss_streak"] = s["_cur_loss"]
+
+def _send_daily_report():
+    if not TG_ENABLED or not TG_DAILY_REPORT:
+        return
+    s = _daily_stats
+    if s["total"] == 0:
+        tg("📊 <b>Ежедневный отчёт</b>\\n\\nСегодня сделок не было.")
+        return
+    winrate = round(s["wins"] / s["total"] * 100) if s["total"] > 0 else 0
+    profit_sign = "+" if s["profit"] >= 0 else ""
+    emoji = "🟢" if s["profit"] >= 0 else "🔴"
+    tg(
+        f"📊 <b>Ежедневный отчёт — {BOT_NAME}</b>\\n\\n"
+        f"📈 Сделок: {s['total']} | ✅ Побед: {s['wins']} | ❌ Потерь: {s['losses']}\\n"
+        f"📊 Винрейт: {winrate}%\\n"
+        f"{emoji} P&amp;L: {profit_sign}{round(s['profit'], 2)}\\n"
+        f"🔥 Макс. серия побед: {s['max_win_streak']} | 💀 Макс. серия потерь: {s['max_loss_streak']}"
+    )
+
+def _daily_report_scheduler():
+    import time, datetime, threading
+    if not TG_DAILY_REPORT:
+        return
+    def _loop():
+        last_sent_date = None
+        while True:
+            now = datetime.datetime.now()
+            target_h, target_m = map(int, TG_DAILY_REPORT_TIME.split(":"))
+            if now.hour == target_h and now.minute == target_m and now.date() != last_sent_date:
+                _send_daily_report()
+                last_sent_date = now.date()
+            time.sleep(30)
+    threading.Thread(target=_loop, daemon=True).start()
 
 # ===== УПРАВЛЕНИЕ ЧЕРЕЗ TELEGRAM =====
 _tg_paused   = False
@@ -1022,6 +1081,7 @@ def print_stats():
 async def main():
     global total_profit, trades_today, current_bet, rejected_signals, rejected_no_trend, rejected_conflict
     global _candle_cache, _candle_asset, _last_candle_time, _last_trend
+    _daily_report_scheduler()
     rejected_signals = 0
     rejected_no_trend = 0
     rejected_conflict = 0
@@ -1340,6 +1400,7 @@ async def main():
                 order_id = await place_trade(client, signal, bet)
                 if order_id:
                     won, profit, loss_amount = await check_result(client, order_id, balance_before, bet)
+                    _update_daily_stats(won, profit, loss_amount)
                     total_profit += profit - loss_amount
                     trades_today += 1
                     current_bet   = adjust_bet(won)
@@ -1700,6 +1761,8 @@ TG_CHAT_ID = "${cfg.tgChatId}"
 TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
 TG_PROXY        = "${cfg.tgProxy}"
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
+TG_DAILY_REPORT = ${cfg.tgDailyReport ? "True" : "False"}
+TG_DAILY_REPORT_TIME = "${cfg.tgDailyReportTime ?? "23:00"}"
 
 # ===== ЖУРНАЛ СДЕЛОК =====
 JOURNAL_URL = "https://functions.poehali.dev/317c9913-52da-4683-920f-963c978a3202"
@@ -1787,6 +1850,59 @@ def tg_info(text):
     if _notify_mode == "bets_only":
         return
     tg(text)
+
+_daily_stats = {"total": 0, "wins": 0, "losses": 0, "profit": 0.0, "max_win_streak": 0, "max_loss_streak": 0, "_cur_win": 0, "_cur_loss": 0}
+
+def _update_daily_stats(won, profit_val, loss_val):
+    s = _daily_stats
+    s["total"] += 1
+    if won:
+        s["wins"] += 1
+        s["profit"] += profit_val
+        s["_cur_win"] += 1
+        s["_cur_loss"] = 0
+        if s["_cur_win"] > s["max_win_streak"]:
+            s["max_win_streak"] = s["_cur_win"]
+    else:
+        s["losses"] += 1
+        s["profit"] -= loss_val
+        s["_cur_win"] = 0
+        s["_cur_loss"] += 1
+        if s["_cur_loss"] > s["max_loss_streak"]:
+            s["max_loss_streak"] = s["_cur_loss"]
+
+def _send_daily_report():
+    if not TG_ENABLED or not TG_DAILY_REPORT:
+        return
+    s = _daily_stats
+    if s["total"] == 0:
+        tg("📊 <b>Ежедневный отчёт</b>\\n\\nСегодня сделок не было.")
+        return
+    winrate = round(s["wins"] / s["total"] * 100) if s["total"] > 0 else 0
+    profit_sign = "+" if s["profit"] >= 0 else ""
+    emoji = "🟢" if s["profit"] >= 0 else "🔴"
+    tg(
+        f"📊 <b>Ежедневный отчёт — {BOT_NAME}</b>\\n\\n"
+        f"📈 Сделок: {s['total']} | ✅ Побед: {s['wins']} | ❌ Потерь: {s['losses']}\\n"
+        f"📊 Винрейт: {winrate}%\\n"
+        f"{emoji} P&amp;L: {profit_sign}{round(s['profit'], 2)}\\n"
+        f"🔥 Макс. серия побед: {s['max_win_streak']} | 💀 Макс. серия потерь: {s['max_loss_streak']}"
+    )
+
+def _daily_report_scheduler():
+    import time, datetime, threading
+    if not TG_DAILY_REPORT:
+        return
+    def _loop():
+        last_sent_date = None
+        while True:
+            now = datetime.datetime.now()
+            target_h, target_m = map(int, TG_DAILY_REPORT_TIME.split(":"))
+            if now.hour == target_h and now.minute == target_m and now.date() != last_sent_date:
+                _send_daily_report()
+                last_sent_date = now.date()
+            time.sleep(30)
+    threading.Thread(target=_loop, daemon=True).start()
 
 # ===== УПРАВЛЕНИЕ ЧЕРЕЗ TELEGRAM =====
 _tg_paused   = False
@@ -2012,6 +2128,7 @@ def print_stats():
 
 async def main():
     global total_profit, trades_today, current_bet
+    _daily_report_scheduler()
 
     client = AsyncPocketOptionClient(SESSION_ID, is_demo=IS_DEMO, enable_logging=False)
     await client.connect()
@@ -2266,6 +2383,8 @@ async def main():
             order_id = await place_trade(client, signal, bet)
             if order_id:
                 won, profit = await check_result(client, order_id, balance_before, bet)
+                loss_amount = round(bet, 2) if not won else 0.0
+                _update_daily_stats(won, profit if won else 0.0, loss_amount)
                 total_profit += profit
                 trades_today += 1
                 current_bet   = adjust_bet(won)

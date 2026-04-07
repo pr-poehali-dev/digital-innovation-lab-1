@@ -37,6 +37,7 @@ export interface POBotConfig {
   tgNotifyMode: "all" | "bets_only"
   tgDailyReport: boolean
   tgDailyReportTime: string
+  invertSignal: boolean
   checkInterval: number
   payoutRate: number
   tradeDirection: "all" | "call_only" | "put_only"
@@ -297,6 +298,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   tgNotifyMode: "all",
   tgDailyReport: false,
   tgDailyReportTime: "23:00",
+  invertSignal: false,
   tgProxy: "",
   checkInterval: 10,
   payoutRate: 92,
@@ -644,6 +646,7 @@ TG_PROXY        = "${cfg.tgProxy}"
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 TG_DAILY_REPORT = ${cfg.tgDailyReport ? "True" : "False"}
 TG_DAILY_REPORT_TIME = "${cfg.tgDailyReportTime ?? "23:00"}"
+INVERT_SIGNAL   = ${cfg.invertSignal ? "True" : "False"}
 
 # ===== ЖУРНАЛ СДЕЛОК =====
 JOURNAL_URL = "https://functions.poehali.dev/317c9913-52da-4683-920f-963c978a3202"
@@ -1392,6 +1395,8 @@ async def main():
                     CURRENCY = currency
                     bet = current_bet
 
+                if INVERT_SIGNAL:
+                    signal = "PUT" if signal == "CALL" else "CALL"
                 emoji = "📈" if signal == "CALL" else "📉"
                 if signal_info:
                     print(f"[SIGNAL] {signal_info}")
@@ -1768,6 +1773,7 @@ TG_PROXY        = "${cfg.tgProxy}"
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 TG_DAILY_REPORT = ${cfg.tgDailyReport ? "True" : "False"}
 TG_DAILY_REPORT_TIME = "${cfg.tgDailyReportTime ?? "23:00"}"
+INVERT_SIGNAL   = ${cfg.invertSignal ? "True" : "False"}
 
 # ===== ЖУРНАЛ СДЕЛОК =====
 JOURNAL_URL = "https://functions.poehali.dev/317c9913-52da-4683-920f-963c978a3202"
@@ -2383,6 +2389,8 @@ async def main():
             else:
                 balance, currency = await get_balance(client)
                 bet = current_bet
+            if INVERT_SIGNAL:
+                signal = "PUT" if signal == "CALL" else "CALL"
             emoji = "📈" if signal == "CALL" else "📉"
             tg_parts = [f"{emoji} <b>[{BOT_NAME}] Комбо-сделка</b>", f"{signal} | {bet} {currency} | {ASSET}"]
             if signal_info:

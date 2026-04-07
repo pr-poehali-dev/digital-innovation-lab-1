@@ -1484,6 +1484,24 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
         </CardContent>
       </Card>
 
+      {/* Инверсия сигналов */}
+      <Card className="bg-zinc-900 border-zinc-700">
+        <CardHeader className="pb-2 pt-4 px-4">
+          <CardTitle className="text-sm font-space-mono text-zinc-200 flex items-center gap-2">
+            <span>🔄</span> Инверсия сигналов
+            <Switch checked={config.invertSignal ?? false} onCheckedChange={(v) => set({ invertSignal: v })} className="ml-auto scale-90" />
+          </CardTitle>
+        </CardHeader>
+        {config.invertSignal && (
+          <CardContent className="px-4 pb-4 space-y-2">
+            <p className="text-zinc-500 text-xs font-space-mono">Бот будет открывать противоположную сделку от сигнала стратегии</p>
+            <div className="flex items-center gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-2.5 py-2">
+              <span className="text-orange-400 text-xs font-space-mono">⚡ CALL → PUT &nbsp;|&nbsp; PUT → CALL</span>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
       {/* Фильтр по времени */}
       <Card className="bg-zinc-900 border-zinc-700">
         <CardHeader className="pb-2 pt-4 px-4">

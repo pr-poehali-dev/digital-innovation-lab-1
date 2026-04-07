@@ -1637,6 +1637,7 @@ async def main():
                 print(f"[RECONNECT] Не удалось переподключиться: {re}")
                 await asyncio.sleep(10)
 
+    journal_end_session()
     await client.disconnect()
 
 if __name__ == "__main__":
@@ -2754,6 +2755,7 @@ async def main():
             print(f"[{ts}] Нет подтверждённого сигнала, ожидание {CHECK_INTERVAL} сек...")
             await asyncio.sleep(CHECK_INTERVAL)
 
+    journal_end_session()
     await client.disconnect()
 
 if __name__ == "__main__":

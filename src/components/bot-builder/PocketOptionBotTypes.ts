@@ -930,8 +930,68 @@ def tg_poll_commands():
             elif cmd == "/reset" and for_me:
                 _daily_stats.update({"total": 0, "wins": 0, "losses": 0, "profit": 0.0, "max_win_streak": 0, "max_loss_streak": 0, "_cur_win": 0, "_cur_loss": 0})
                 tg(f"🔄 <b>[{BOT_NAME}]</b> Дневная статистика сброшена")
+            elif cmd == "/tune" and for_me:
+                if not trade_log:
+                    tg(f"🔧 <b>[{BOT_NAME}] /tune</b>\\nНедостаточно данных — нужно хотя бы несколько сделок.")
+                else:
+                    total_t = len(trade_log)
+                    wins_t = sum(1 for t in trade_log if t["won"])
+                    wr_t = wins_t / total_t * 100 if total_t > 0 else 0
+                    lines = [f"🔧 <b>[{BOT_NAME}] Авто-тюнинг</b>\\nСделок: {total_t} | WR: {wr_t:.0f}%\\n"]
+                    strategy = "${cfg.strategy}"
+                    if strategy == "rsi_reversal":
+                        rsi_vals_call = [t.get("strategy","") for t in trade_log if not t["won"] and "CALL" in str(t.get("direction",""))]
+                        rsi_vals_put  = [t.get("strategy","") for t in trade_log if not t["won"] and "PUT"  in str(t.get("direction",""))]
+                        new_os = ${cfg.rsiOversold}
+                        new_ob = ${cfg.rsiOverbought}
+                        if len(rsi_vals_call) > len(rsi_vals_put):
+                            new_os = max(15, ${cfg.rsiOversold} - 5)
+                            lines.append(f"📉 Много ложных CALL-сигналов")
+                            lines.append(f"→ RSI Oversold: <b>${cfg.rsiOversold} → {new_os}</b> (жёстче фильтр)")
+                        elif len(rsi_vals_put) > len(rsi_vals_call):
+                            new_ob = min(85, ${cfg.rsiOverbought} + 5)
+                            lines.append(f"📈 Много ложных PUT-сигналов")
+                            lines.append(f"→ RSI Overbought: <b>${cfg.rsiOverbought} → {new_ob}</b> (жёстче фильтр)")
+                        if wr_t < 40:
+                            new_per = ${cfg.rsiPeriod} + 2
+                            lines.append(f"→ Период RSI: <b>${cfg.rsiPeriod} → {new_per}</b> (меньше шума)")
+                        lines.append(f"\\n<i>Примени: /setrsi {BOT_NAME} oversold {new_os} overbought {new_ob}</i>")
+                    elif strategy == "ema_cross":
+                        if wr_t < 45:
+                            new_fast = ${cfg.emaFast} + 2
+                            new_slow = ${cfg.emaSlow} + 4
+                            lines.append(f"📊 WR ниже 45% — много ложных пересечений")
+                            lines.append(f"→ EMA быстрая: <b>${cfg.emaFast} → {new_fast}</b>")
+                            lines.append(f"→ EMA медленная: <b>${cfg.emaSlow} → {new_slow}</b>")
+                        elif wr_t > 65:
+                            new_fast = max(3, ${cfg.emaFast} - 1)
+                            new_slow = max(${cfg.emaFast}+3, ${cfg.emaSlow} - 2)
+                            lines.append(f"✅ WR хороший, но можно ускорить сигналы")
+                            lines.append(f"→ EMA быстрая: <b>${cfg.emaFast} → {new_fast}</b>")
+                            lines.append(f"→ EMA медленная: <b>${cfg.emaSlow} → {new_slow}</b>")
+                        else:
+                            lines.append(f"✅ Параметры EMA оптимальны для текущего рынка")
+                    elif strategy == "candle_pattern":
+                        if wr_t < 45:
+                            lines.append(f"🕯 Паттерны дают много ложных сигналов")
+                            lines.append(f"→ Ограничь торговлю: /settp {BOT_NAME} {round(total_profit * 0.5, 1)}")
+                            lines.append(f"→ Торгуй только 08:00–12:00 и 15:00–18:00 МСК")
+                        else:
+                            lines.append(f"✅ Свечные паттерны работают хорошо")
+                    elif strategy == "support_resistance":
+                        if wr_t < 45:
+                            new_pips = ${cfg.rufusPips ?? 5} + 2
+                            new_lb   = ${cfg.rufusLookback ?? 10} + 5
+                            lines.append(f"🧱 Уровни часто пробиваются")
+                            lines.append(f"→ RUFUS_PIPS: <b>${cfg.rufusPips ?? 5} → {new_pips}</b> (шире зона)")
+                            lines.append(f"→ RUFUS_LOOKBACK: <b>${cfg.rufusLookback ?? 10} → {new_lb}</b> (надёжнее тренд)")
+                        else:
+                            lines.append(f"✅ Уровни Rufus работают хорошо")
+                    else:
+                        lines.append(_build_strat_block_with_tips())
+                    tg("\\n".join(lines))
             elif cmd == "/help":
-                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статистика\\n/report {BOT_NAME} — отчёт за день\\n/reset {BOT_NAME} — сбросить статистику\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
+                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статистика\\n/report {BOT_NAME} — отчёт за день\\n/reset {BOT_NAME} — сбросить статистику\\n/tune {BOT_NAME} — авто-тюнинг параметров\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
     except Exception:
         pass
 
@@ -2134,8 +2194,68 @@ def tg_poll_commands():
             elif cmd == "/reset" and for_me:
                 _daily_stats.update({"total": 0, "wins": 0, "losses": 0, "profit": 0.0, "max_win_streak": 0, "max_loss_streak": 0, "_cur_win": 0, "_cur_loss": 0})
                 tg(f"🔄 <b>[{BOT_NAME}]</b> Дневная статистика сброшена")
+            elif cmd == "/tune" and for_me:
+                if not trade_log:
+                    tg(f"🔧 <b>[{BOT_NAME}] /tune</b>\\nНедостаточно данных — нужно хотя бы несколько сделок.")
+                else:
+                    total_t = len(trade_log)
+                    wins_t = sum(1 for t in trade_log if t["won"])
+                    wr_t = wins_t / total_t * 100 if total_t > 0 else 0
+                    lines = [f"🔧 <b>[{BOT_NAME}] Авто-тюнинг</b>\\nСделок: {total_t} | WR: {wr_t:.0f}%\\n"]
+                    strategy = "${cfg.strategy}"
+                    if strategy == "rsi_reversal":
+                        rsi_vals_call = [t.get("strategy","") for t in trade_log if not t["won"] and "CALL" in str(t.get("direction",""))]
+                        rsi_vals_put  = [t.get("strategy","") for t in trade_log if not t["won"] and "PUT"  in str(t.get("direction",""))]
+                        new_os = ${cfg.rsiOversold}
+                        new_ob = ${cfg.rsiOverbought}
+                        if len(rsi_vals_call) > len(rsi_vals_put):
+                            new_os = max(15, ${cfg.rsiOversold} - 5)
+                            lines.append(f"📉 Много ложных CALL-сигналов")
+                            lines.append(f"→ RSI Oversold: <b>${cfg.rsiOversold} → {new_os}</b> (жёстче фильтр)")
+                        elif len(rsi_vals_put) > len(rsi_vals_call):
+                            new_ob = min(85, ${cfg.rsiOverbought} + 5)
+                            lines.append(f"📈 Много ложных PUT-сигналов")
+                            lines.append(f"→ RSI Overbought: <b>${cfg.rsiOverbought} → {new_ob}</b> (жёстче фильтр)")
+                        if wr_t < 40:
+                            new_per = ${cfg.rsiPeriod} + 2
+                            lines.append(f"→ Период RSI: <b>${cfg.rsiPeriod} → {new_per}</b> (меньше шума)")
+                        lines.append(f"\\n<i>Примени: /setrsi {BOT_NAME} oversold {new_os} overbought {new_ob}</i>")
+                    elif strategy == "ema_cross":
+                        if wr_t < 45:
+                            new_fast = ${cfg.emaFast} + 2
+                            new_slow = ${cfg.emaSlow} + 4
+                            lines.append(f"📊 WR ниже 45% — много ложных пересечений")
+                            lines.append(f"→ EMA быстрая: <b>${cfg.emaFast} → {new_fast}</b>")
+                            lines.append(f"→ EMA медленная: <b>${cfg.emaSlow} → {new_slow}</b>")
+                        elif wr_t > 65:
+                            new_fast = max(3, ${cfg.emaFast} - 1)
+                            new_slow = max(${cfg.emaFast}+3, ${cfg.emaSlow} - 2)
+                            lines.append(f"✅ WR хороший, но можно ускорить сигналы")
+                            lines.append(f"→ EMA быстрая: <b>${cfg.emaFast} → {new_fast}</b>")
+                            lines.append(f"→ EMA медленная: <b>${cfg.emaSlow} → {new_slow}</b>")
+                        else:
+                            lines.append(f"✅ Параметры EMA оптимальны для текущего рынка")
+                    elif strategy == "candle_pattern":
+                        if wr_t < 45:
+                            lines.append(f"🕯 Паттерны дают много ложных сигналов")
+                            lines.append(f"→ Ограничь торговлю: /settp {BOT_NAME} {round(total_profit * 0.5, 1)}")
+                            lines.append(f"→ Торгуй только 08:00–12:00 и 15:00–18:00 МСК")
+                        else:
+                            lines.append(f"✅ Свечные паттерны работают хорошо")
+                    elif strategy == "support_resistance":
+                        if wr_t < 45:
+                            new_pips = ${cfg.rufusPips ?? 5} + 2
+                            new_lb   = ${cfg.rufusLookback ?? 10} + 5
+                            lines.append(f"🧱 Уровни часто пробиваются")
+                            lines.append(f"→ RUFUS_PIPS: <b>${cfg.rufusPips ?? 5} → {new_pips}</b> (шире зона)")
+                            lines.append(f"→ RUFUS_LOOKBACK: <b>${cfg.rufusLookback ?? 10} → {new_lb}</b> (надёжнее тренд)")
+                        else:
+                            lines.append(f"✅ Уровни Rufus работают хорошо")
+                    else:
+                        lines.append(_build_strat_block_with_tips())
+                    tg("\\n".join(lines))
             elif cmd == "/help":
-                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статистика\\n/report {BOT_NAME} — отчёт за день\\n/reset {BOT_NAME} — сбросить статистику\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
+                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статистика\\n/report {BOT_NAME} — отчёт за день\\n/reset {BOT_NAME} — сбросить статистику\\n/tune {BOT_NAME} — авто-тюнинг параметров\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
     except Exception:
         pass
 

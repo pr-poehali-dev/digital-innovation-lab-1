@@ -31,6 +31,8 @@ interface Trade {
   payout_pct: number
   won: boolean
   profit: number
+  strategy_name?: string
+  indicator_value?: string
 }
 
 function fmt(iso: string) {
@@ -432,25 +434,26 @@ export default function TradeSessions() {
 
                           {/* Trades table */}
                           {trades.length > 0 ? (
-                            <div className="max-h-64 overflow-y-auto rounded-lg border border-zinc-800">
+                            <>
+                            <div className="max-h-72 overflow-y-auto rounded-lg border border-zinc-800">
                               <table className="w-full text-xs font-space-mono">
                                 <thead className="bg-zinc-900 sticky top-0">
                                   <tr className="text-zinc-500">
                                     <th className="text-left px-3 py-2">Время</th>
-                                    <th className="text-left px-3 py-2">Актив</th>
                                     <th className="text-left px-3 py-2">Напр.</th>
-                                    <th className="text-right px-3 py-2">Ставка</th>
+                                    <th className="text-left px-2 py-2">Стратегия</th>
+                                    <th className="text-left px-2 py-2">Значение</th>
                                     <th className="text-right px-3 py-2">Профит</th>
                                     <th className="text-center px-3 py-2">Рез.</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-800">
                                   {[...trades].reverse().map((t) => (
-                                    <tr key={t.id} className="hover:bg-zinc-800/50">
-                                      <td className="px-3 py-2 text-zinc-400">{fmtTime(t.traded_at)}</td>
-                                      <td className="px-3 py-2 text-zinc-300">{t.asset}</td>
+                                    <tr key={t.id} className={`hover:bg-zinc-800/50 ${t.won ? "" : "bg-red-950/10"}`}>
+                                      <td className="px-3 py-2 text-zinc-400 whitespace-nowrap">{fmtTime(t.traded_at)}</td>
                                       <td className={`px-3 py-2 font-bold ${t.direction === "CALL" ? "text-green-400" : "text-red-400"}`}>{t.direction}</td>
-                                      <td className="px-3 py-2 text-right text-zinc-300">{t.bet}</td>
+                                      <td className="px-2 py-2 text-zinc-400">{t.strategy_name ? (STRATEGY_LABELS[t.strategy_name] || t.strategy_name) : "—"}</td>
+                                      <td className="px-2 py-2 text-zinc-500 max-w-[160px] truncate" title={t.indicator_value}>{t.indicator_value || "—"}</td>
                                       <td className={`px-3 py-2 text-right font-bold ${t.profit >= 0 ? "text-green-400" : "text-red-400"}`}>
                                         {t.profit >= 0 ? "+" : ""}{t.profit.toFixed(2)}
                                       </td>
@@ -460,6 +463,41 @@ export default function TradeSessions() {
                                 </tbody>
                               </table>
                             </div>
+
+                            {/* Анализ стратегии */}
+                            {(() => {
+                              const byStrategy: Record<string, { wins: number; losses: number }> = {}
+                              trades.forEach(t => {
+                                const key = t.strategy_name || "unknown"
+                                if (!byStrategy[key]) byStrategy[key] = { wins: 0, losses: 0 }
+                                if (t.won) byStrategy[key].wins++
+                                else byStrategy[key].losses++
+                              })
+                              const entries = Object.entries(byStrategy)
+                              if (entries.length === 0) return null
+                              const sessionEnded = !!s.ended_at
+                              return (
+                                <div className="mt-2 space-y-1.5">
+                                  {entries.map(([strat, stat]) => {
+                                    const total = stat.wins + stat.losses
+                                    const needsCorrection = sessionEnded && stat.losses > stat.wins
+                                    const isOk = sessionEnded && stat.wins >= stat.losses
+                                    return (
+                                      <div key={strat} className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-space-mono ${needsCorrection ? "bg-orange-950/40 border-orange-500/30" : isOk ? "bg-green-950/30 border-green-500/20" : "bg-zinc-800/50 border-zinc-700"}`}>
+                                        <span className="text-zinc-400 flex-1">{STRATEGY_LABELS[strat] || strat}</span>
+                                        <span className="text-green-400">{stat.wins}W</span>
+                                        <span className="text-zinc-600">/</span>
+                                        <span className="text-red-400">{stat.losses}L</span>
+                                        <span className="text-zinc-500">из {total}</span>
+                                        {needsCorrection && <span className="text-orange-400 font-bold ml-1">⚠️ необходима корректировка стратегии</span>}
+                                        {isOk && <span className="text-green-400 ml-1">✓ всё ок</span>}
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              )
+                            })()}
+                            </>
                           ) : (
                             <p className="text-zinc-600 font-space-mono text-xs text-center py-4">Сделок пока нет</p>
                           )}

@@ -85,13 +85,15 @@ def handler(event: dict, context) -> dict:
         s_profit = esc(profit)
         s_wins = esc(1 if won else 0)
         s_losses = esc(0 if won else 1)
+        s_strategy_name = esc(body.get("strategy_name") or "")
+        s_indicator_value = esc(body.get("indicator_value") or "")
 
         conn = get_conn()
         cur = conn.cursor()
         cur.execute(f"SET search_path TO {schema}, public")
         cur.execute(
-            f"INSERT INTO bot_trades (session_id, asset, direction, bet, payout_pct, won, profit) "
-            f"VALUES ({s_id}, {s_asset}, {s_direction}, {s_bet}, {s_payout}, {s_won}, {s_profit})"
+            f"INSERT INTO bot_trades (session_id, asset, direction, bet, payout_pct, won, profit, strategy_name, indicator_value) "
+            f"VALUES ({s_id}, {s_asset}, {s_direction}, {s_bet}, {s_payout}, {s_won}, {s_profit}, {s_strategy_name}, {s_indicator_value})"
         )
         cur.execute(
             f"UPDATE bot_sessions SET "
@@ -163,8 +165,8 @@ def handler(event: dict, context) -> dict:
         cur = conn.cursor()
         cur.execute(f"SET search_path TO {schema}, public")
         cur.execute(
-            f"SELECT id, created_at, asset, direction, bet, payout_pct, won, profit "
-            f"FROM bot_trades WHERE session_id = {esc(session_id)} ORDER BY created_at ASC"
+            f"SELECT id, traded_at, asset, direction, bet, payout_pct, won, profit, strategy_name, indicator_value "
+            f"FROM bot_trades WHERE session_id = {esc(session_id)} ORDER BY traded_at ASC"
         )
         rows = cur.fetchall()
         cur.close()
@@ -179,6 +181,8 @@ def handler(event: dict, context) -> dict:
                 "payout_pct": float(r[5]) if r[5] is not None else 0,
                 "won": r[6],
                 "profit": float(r[7]) if r[7] is not None else 0,
+                "strategy_name": r[8] or "",
+                "indicator_value": r[9] or "",
             }
             for r in rows
         ]

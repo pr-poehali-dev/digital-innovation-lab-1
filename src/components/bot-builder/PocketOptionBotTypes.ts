@@ -678,7 +678,7 @@ def journal_start_session():
     if _session_id:
         print(f"[JOURNAL] Сессия создана: {_session_id}")
 
-def journal_log_trade(direction, bet, payout_pct, won):
+def journal_log_trade(direction, bet, payout_pct, won, strategy_name=None, indicator_value=None):
     if not _session_id:
         return
     import threading
@@ -692,6 +692,8 @@ def journal_log_trade(direction, bet, payout_pct, won):
             "bet": bet,
             "payout_pct": payout_pct,
             "won": won,
+            "strategy_name": strategy_name,
+            "indicator_value": indicator_value,
         }},
         daemon=True
     ).start()
@@ -1422,7 +1424,7 @@ async def main():
                         "profit": profit,
                         "strategy": signal_info or "${cfg.strategy}",
                     })
-                    journal_log_trade(signal, bet, PAYOUT_RATE, won)
+                    journal_log_trade(signal, bet, PAYOUT_RATE, won, strategy_name="${cfg.comboMode ? "combo" : cfg.strategy}", indicator_value=signal_info or "")
                     wins  = sum(1 for t in trade_log if t["won"])
                     wr    = wins / len(trade_log) * 100
                     res_emoji = "✅" if won else "❌"
@@ -1805,7 +1807,7 @@ def journal_start_session():
     if _session_id:
         print(f"[JOURNAL] Сессия создана: {_session_id}")
 
-def journal_log_trade(direction, bet, payout_pct, won):
+def journal_log_trade(direction, bet, payout_pct, won, strategy_name=None, indicator_value=None):
     if not _session_id:
         return
     import threading
@@ -1819,6 +1821,8 @@ def journal_log_trade(direction, bet, payout_pct, won):
             "bet": bet,
             "payout_pct": payout_pct,
             "won": won,
+            "strategy_name": strategy_name,
+            "indicator_value": indicator_value,
         }},
         daemon=True
     ).start()
@@ -2407,7 +2411,7 @@ async def main():
                 trades_today += 1
                 current_bet   = adjust_bet(won)
                 trade_log.append({"won": won, "profit": profit, "strategy": signal_info or "комбо"})
-                journal_log_trade(signal, bet, PAYOUT, won)
+                journal_log_trade(signal, bet, PAYOUT, won, strategy_name="combo", indicator_value=signal_info or "")
                 wins = sum(1 for t in trade_log if t["won"])
                 wr   = wins / len(trade_log) * 100
                 res_emoji = "✅" if won else "❌"

@@ -922,8 +922,16 @@ def tg_poll_commands():
             if not parts:
                 continue
             cmd = parts[0].lower()
-            target = parts[1].lower() if len(parts) > 1 else ""
-            val = parts[1] if len(parts) > 1 else ""
+            rest = parts[1:] if len(parts) > 1 else []
+            val = ""
+            target = ""
+            if rest:
+                try:
+                    float(rest[-1])
+                    val = rest[-1]
+                    target = " ".join(rest[:-1]).lower()
+                except ValueError:
+                    target = " ".join(rest).lower()
             for_me = (target == _bot_name_lower or target == "all" or target == "")
             if cmd == "/stop" and for_me:
                 _tg_stopped = True
@@ -2191,8 +2199,16 @@ def tg_poll_commands():
             if not parts:
                 continue
             cmd = parts[0].lower()
-            target = parts[1].lower() if len(parts) > 1 else ""
-            val = parts[1] if len(parts) > 1 else ""
+            rest = parts[1:] if len(parts) > 1 else []
+            val = ""
+            target = ""
+            if rest:
+                try:
+                    float(rest[-1])
+                    val = rest[-1]
+                    target = " ".join(rest[:-1]).lower()
+                except ValueError:
+                    target = " ".join(rest).lower()
             for_me = (target == _bot_name_lower or target == "all" or target == "")
             if cmd == "/stop" and for_me:
                 _tg_stopped = True

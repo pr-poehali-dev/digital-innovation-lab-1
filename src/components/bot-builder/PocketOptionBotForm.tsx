@@ -306,6 +306,7 @@ function StrategyCard({
   onClick,
   showDetail,
   onToggleDetail,
+  inverted,
 }: {
   stratKey: POStrategy
   active: boolean
@@ -313,6 +314,7 @@ function StrategyCard({
   onClick: () => void
   showDetail: boolean
   onToggleDetail: () => void
+  inverted?: boolean
 }) {
   const s = PO_STRATEGIES[stratKey]
   return (
@@ -336,6 +338,7 @@ function StrategyCard({
               {s.label}
             </span>
             <Badge className={`text-xs ${RISK_COLORS[s.risk]}`}>{s.risk} риск</Badge>
+            {inverted && <span className="text-[10px] font-space-mono font-semibold text-orange-400 bg-orange-500/10 border border-orange-500/30 rounded px-1.5 py-0.5">🔄 INV</span>}
           </div>
           <p className="text-zinc-500 text-xs mt-0.5 leading-snug">{s.description}</p>
           <div className="flex gap-3 mt-1.5 text-xs font-space-mono">
@@ -798,6 +801,12 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
             <div className="space-y-2">
               {strategies.filter((k) => k !== "martingale").map((key) => {
                 const isActive = config.comboStrategies.includes(key)
+                const isInverted =
+                  (key === "rsi_reversal" && (config.invertSignalRsi ?? false)) ||
+                  (key === "ema_cross" && (config.invertSignalEma ?? false)) ||
+                  (key === "candle_pattern" && (config.invertSignalCandle ?? false)) ||
+                  (key === "support_resistance" && (config.invertSignalRufus ?? false)) ||
+                  (key === "martingale" && (config.invertSignalMartingale ?? false))
                 return (
                   <StrategyCard
                     key={key}
@@ -807,6 +816,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                     onClick={() => toggleComboStrategy(key)}
                     showDetail={!!detailOpen["combo_" + key]}
                     onToggleDetail={() => toggleDetail("combo_" + key)}
+                    inverted={isActive && isInverted}
                   />
                 )
               })}

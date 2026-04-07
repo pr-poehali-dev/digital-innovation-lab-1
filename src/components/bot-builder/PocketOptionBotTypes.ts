@@ -38,6 +38,11 @@ export interface POBotConfig {
   tgDailyReport: boolean
   tgDailyReportTime: string
   invertSignal: boolean
+  invertSignalRsi: boolean
+  invertSignalEma: boolean
+  invertSignalCandle: boolean
+  invertSignalRufus: boolean
+  invertSignalMartingale: boolean
   checkInterval: number
   payoutRate: number
   tradeDirection: "all" | "call_only" | "put_only"
@@ -299,6 +304,11 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   tgDailyReport: false,
   tgDailyReportTime: "23:00",
   invertSignal: false,
+  invertSignalRsi: false,
+  invertSignalEma: false,
+  invertSignalCandle: false,
+  invertSignalRufus: false,
+  invertSignalMartingale: false,
   tgProxy: "",
   checkInterval: 10,
   payoutRate: 92,
@@ -345,11 +355,14 @@ def get_signal(prices, candles=None):
         return None, ""
     rsi = calculate_rsi(prices)
     info = f"RSI(${cfg.rsiPeriod}): {rsi:.1f}"
+    signal = None
     if rsi <= ${cfg.rsiOversold}:
-        return "CALL", f"{info} ≤ ${cfg.rsiOversold} (перепроданность)"
-    if rsi >= ${cfg.rsiOverbought}:
-        return "PUT", f"{info} ≥ ${cfg.rsiOverbought} (перекупленность)"
-    return None, info`,
+        signal = ("CALL", f"{info} ≤ ${cfg.rsiOversold} (перепроданность)")
+    elif rsi >= ${cfg.rsiOverbought}:
+        signal = ("PUT", f"{info} ≥ ${cfg.rsiOverbought} (перекупленность)")
+    if signal and INVERT_SIGNAL_RSI:
+        return ("PUT" if signal[0] == "CALL" else "CALL"), signal[1] + " [INV]"
+    return signal if signal else (None, info)`,
 
     ema_cross: `
 def calculate_ema(prices, period):
@@ -370,11 +383,14 @@ def get_signal(prices, candles=None):
     cross_up = ema_fast[-1] > ema_slow[-1] and ema_fast[-2] <= ema_slow[-2]
     cross_down = ema_fast[-1] < ema_slow[-1] and ema_fast[-2] >= ema_slow[-2]
     info = f"EMA${cfg.emaFast}={ema_fast[-1]:.5f} / EMA${cfg.emaSlow}={ema_slow[-1]:.5f}"
+    signal = None
     if cross_up:
-        return "CALL", f"{info} (пересечение вверх ↑)"
-    if cross_down:
-        return "PUT", f"{info} (пересечение вниз ↓)"
-    return None, info`,
+        signal = ("CALL", f"{info} (пересечение вверх ↑)")
+    elif cross_down:
+        signal = ("PUT", f"{info} (пересечение вниз ↓)")
+    if signal and INVERT_SIGNAL_EMA:
+        return ("PUT" if signal[0] == "CALL" else "CALL"), signal[1] + " [INV]"
+    return signal if signal else (None, info)`,
 
     martingale: `
 def get_signal(prices, candles=None):
@@ -391,11 +407,14 @@ def get_signal(prices, candles=None):
     calls = moves.count("CALL")
     puts  = moves.count("PUT")
     info  = f"Свечи: {calls} вверх / {puts} вниз из 3"
+    signal = None
     if calls >= 2:
-        return "CALL", f"{info} → большинство вверх"
-    if puts >= 2:
-        return "PUT", f"{info} → большинство вниз"
-    return None, info`,
+        signal = ("CALL", f"{info} → большинство вверх")
+    elif puts >= 2:
+        signal = ("PUT", f"{info} → большинство вниз")
+    if signal and INVERT_SIGNAL_MARTINGALE:
+        return ("PUT" if signal[0] == "CALL" else "CALL"), signal[1] + " [INV]"
+    return signal if signal else (None, info)`,
 
     candle_pattern: `
 def get_signal(prices, candles=None):
@@ -408,19 +427,22 @@ def get_signal(prices, candles=None):
     body2 = abs(c2 - o2)
     lower_shadow = min(o2, c2) - l2
     upper_shadow = h2 - max(o2, c2)
+    signal = None
     # Молот — разворот вверх
     if lower_shadow > body2 * 2 and upper_shadow < body2 * 0.5 and c1 < o1:
-        return "CALL", "Паттерн: 🔨 Молот (разворот вверх)"
+        signal = ("CALL", "Паттерн: 🔨 Молот (разворот вверх)")
     # Падающая звезда — разворот вниз
-    if upper_shadow > body2 * 2 and lower_shadow < body2 * 0.5 and c1 > o1:
-        return "PUT", "Паттерн: ⭐ Падающая звезда (разворот вниз)"
+    elif upper_shadow > body2 * 2 and lower_shadow < body2 * 0.5 and c1 > o1:
+        signal = ("PUT", "Паттерн: ⭐ Падающая звезда (разворот вниз)")
     # Бычье поглощение
-    if c1 < o1 and c2 > o2 and c2 > o1 and o2 < c1:
-        return "CALL", "Паттерн: 🟢 Бычье поглощение"
+    elif c1 < o1 and c2 > o2 and c2 > o1 and o2 < c1:
+        signal = ("CALL", "Паттерн: 🟢 Бычье поглощение")
     # Медвежье поглощение
-    if c1 > o1 and c2 < o2 and c2 < o1 and o2 > c1:
-        return "PUT", "Паттерн: 🔴 Медвежье поглощение"
-    return None, ""`,
+    elif c1 > o1 and c2 < o2 and c2 < o1 and o2 > c1:
+        signal = ("PUT", "Паттерн: 🔴 Медвежье поглощение")
+    if signal and INVERT_SIGNAL_CANDLE:
+        return ("PUT" if signal[0] == "CALL" else "CALL"), signal[1] + " [INV]"
+    return signal if signal else (None, "")`,
 
     support_resistance: `
 # ===== RUFUS — алгоритм уровней поддержки/сопротивления =====
@@ -444,14 +466,18 @@ def get_signal(prices, candles=None):
     pip = 0.0001
     threshold = RUFUS_PIPS * pip
     lower_level, upper_level = get_rufus_levels(current)
+    signal = None
     for level in [lower_level, upper_level]:
         if abs(current - level) <= threshold:
             past_avg = sum(prices[-RUFUS_LOOKBACK-1:-1]) / RUFUS_LOOKBACK
             if past_avg > level and current <= level + threshold:
-                return "CALL", f"[RUFUS] Цена {current:.5f} подходит к {level:.4f} СВЕРХУ → поддержка → CALL"
+                signal = ("CALL", f"[RUFUS] Цена {current:.5f} подходит к {level:.4f} СВЕРХУ → поддержка → CALL")
             elif past_avg < level and current >= level - threshold:
-                return "PUT", f"[RUFUS] Цена {current:.5f} подходит к {level:.4f} СНИЗУ → сопротивление → PUT"
-    return None, f"[RUFUS] Цена {current:.5f} | уровни: {lower_level:.4f} / {upper_level:.4f} | dist_low={abs(current-lower_level)/pip:.1f} pip"`,
+                signal = ("PUT", f"[RUFUS] Цена {current:.5f} подходит к {level:.4f} СНИЗУ → сопротивление → PUT")
+            break
+    if signal and INVERT_SIGNAL_RUFUS:
+        return ("PUT" if signal[0] == "CALL" else "CALL"), signal[1] + " [INV]"
+    return signal if signal else (None, f"[RUFUS] Цена {current:.5f} | уровни: {lower_level:.4f} / {upper_level:.4f} | dist_low={abs(current-lower_level)/pip:.1f} pip")`,
   }
 
   const martingaleBlock = cfg.martingaleEnabled
@@ -646,7 +672,12 @@ TG_PROXY        = "${cfg.tgProxy}"
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 TG_DAILY_REPORT = ${cfg.tgDailyReport ? "True" : "False"}
 TG_DAILY_REPORT_TIME = "${cfg.tgDailyReportTime ?? "23:00"}"
-INVERT_SIGNAL   = ${cfg.invertSignal ? "True" : "False"}
+INVERT_SIGNAL            = ${cfg.invertSignal ? "True" : "False"}
+INVERT_SIGNAL_RSI        = ${cfg.invertSignalRsi ? "True" : "False"}
+INVERT_SIGNAL_EMA        = ${cfg.invertSignalEma ? "True" : "False"}
+INVERT_SIGNAL_CANDLE     = ${cfg.invertSignalCandle ? "True" : "False"}
+INVERT_SIGNAL_RUFUS      = ${cfg.invertSignalRufus ? "True" : "False"}
+INVERT_SIGNAL_MARTINGALE = ${cfg.invertSignalMartingale ? "True" : "False"}
 
 # ===== ЖУРНАЛ СДЕЛОК =====
 JOURNAL_URL = "https://functions.poehali.dev/317c9913-52da-4683-920f-963c978a3202"
@@ -1910,7 +1941,12 @@ TG_PROXY        = "${cfg.tgProxy}"
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 TG_DAILY_REPORT = ${cfg.tgDailyReport ? "True" : "False"}
 TG_DAILY_REPORT_TIME = "${cfg.tgDailyReportTime ?? "23:00"}"
-INVERT_SIGNAL   = ${cfg.invertSignal ? "True" : "False"}
+INVERT_SIGNAL            = ${cfg.invertSignal ? "True" : "False"}
+INVERT_SIGNAL_RSI        = ${cfg.invertSignalRsi ? "True" : "False"}
+INVERT_SIGNAL_EMA        = ${cfg.invertSignalEma ? "True" : "False"}
+INVERT_SIGNAL_CANDLE     = ${cfg.invertSignalCandle ? "True" : "False"}
+INVERT_SIGNAL_RUFUS      = ${cfg.invertSignalRufus ? "True" : "False"}
+INVERT_SIGNAL_MARTINGALE = ${cfg.invertSignalMartingale ? "True" : "False"}
 
 # ===== ЖУРНАЛ СДЕЛОК =====
 JOURNAL_URL = "https://functions.poehali.dev/317c9913-52da-4683-920f-963c978a3202"

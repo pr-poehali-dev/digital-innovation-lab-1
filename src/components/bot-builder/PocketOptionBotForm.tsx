@@ -1089,6 +1089,13 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                 )
               })}
             </div>
+            <div className="flex items-center justify-between bg-red-950/30 border border-red-500/20 rounded-lg px-3 py-2">
+              <span className="text-red-400 text-xs font-space-mono">🔄 Инверсия сигналов Мартингейл</span>
+              <Switch checked={config.invertSignalMartingale ?? false} onCheckedChange={(v) => set({ invertSignalMartingale: v })} className="scale-75" />
+            </div>
+            {config.invertSignalMartingale && (
+              <p className="text-zinc-500 text-xs font-space-mono px-1">⚡ Большинство вверх → PUT &nbsp;|&nbsp; Большинство вниз → CALL</p>
+            )}
           </CardContent>
         )}
       </Card>
@@ -1113,6 +1120,13 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
               </div>
             </div>
             <AIComment {...rsiComment(config)} />
+            <div className="flex items-center justify-between bg-blue-950/30 border border-blue-500/20 rounded-lg px-3 py-2">
+              <span className="text-blue-400 text-xs font-space-mono">🔄 Инверсия сигналов RSI</span>
+              <Switch checked={config.invertSignalRsi ?? false} onCheckedChange={(v) => set({ invertSignalRsi: v })} className="scale-75" />
+            </div>
+            {config.invertSignalRsi && (
+              <p className="text-zinc-500 text-xs font-space-mono px-1">⚡ Перепроданность → PUT &nbsp;|&nbsp; Перекупленность → CALL</p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -1125,6 +1139,13 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
             <p className="text-zinc-500 text-xs font-space-mono leading-relaxed">
               Бот ищет разворотные паттерны (молот, поглощение, доджи). Сигнал формируется при закрытии свечи.
             </p>
+            <div className="flex items-center justify-between bg-yellow-950/30 border border-yellow-500/20 rounded-lg px-3 py-2">
+              <span className="text-yellow-400 text-xs font-space-mono">🔄 Инверсия сигналов паттернов</span>
+              <Switch checked={config.invertSignalCandle ?? false} onCheckedChange={(v) => set({ invertSignalCandle: v })} className="scale-75" />
+            </div>
+            {config.invertSignalCandle && (
+              <p className="text-zinc-500 text-xs font-space-mono px-1">⚡ Бычий паттерн → PUT &nbsp;|&nbsp; Медвежий паттерн → CALL</p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -1249,6 +1270,13 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                 Уровни: каждые {config.rufusStep ?? 0.01} ({(config.rufusStep ?? 0.01) === 0.01 ? "сотые" : "тысячные"})
               </p>
             </div>
+            <div className="flex items-center justify-between bg-purple-950/30 border border-purple-500/20 rounded-lg px-3 py-2">
+              <span className="text-purple-300 text-xs font-space-mono">🔄 Инверсия сигналов Rufus</span>
+              <Switch checked={config.invertSignalRufus ?? false} onCheckedChange={(v) => set({ invertSignalRufus: v })} className="scale-75" />
+            </div>
+            {config.invertSignalRufus && (
+              <p className="text-zinc-500 text-xs font-space-mono px-1">⚡ Подход сверху → PUT &nbsp;|&nbsp; Подход снизу → CALL</p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -1294,6 +1322,13 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
               </div>
             </div>
             <AIComment {...emaComment(config)} />
+            <div className="flex items-center justify-between bg-green-950/30 border border-green-500/20 rounded-lg px-3 py-2">
+              <span className="text-green-400 text-xs font-space-mono">🔄 Инверсия сигналов EMA</span>
+              <Switch checked={config.invertSignalEma ?? false} onCheckedChange={(v) => set({ invertSignalEma: v })} className="scale-75" />
+            </div>
+            {config.invertSignalEma && (
+              <p className="text-zinc-500 text-xs font-space-mono px-1">⚡ Пересечение вверх → PUT &nbsp;|&nbsp; Пересечение вниз → CALL</p>
+            )}
           </CardContent>
         </Card>
       )}

@@ -900,15 +900,17 @@ _tg_paused   = False
 _tg_stopped  = False
 _tg_offset   = 0
 
-def tg_poll_commands():
-    """Получить новые команды из Telegram и обработать их"""
+async def tg_poll_commands():
+    """Получить новые команды из Telegram (async — не блокирует event loop)"""
     global _tg_paused, _tg_stopped, _tg_offset, TAKE_PROFIT, STOP_LOSS, BASE_BET
     if not TG_ENABLED:
         return
     import urllib.request, json as _json
+    def _fetch():
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/getUpdates?offset={_tg_offset}&timeout=0&limit=10"
+        return urllib.request.urlopen(url, timeout=5).read()
     try:
-        url = f"https://api.telegram.org/bot{TG_TOKEN}/getUpdates?offset={_tg_offset}&timeout=1&limit=5"
-        resp = urllib.request.urlopen(url, timeout=5).read()
+        resp = await asyncio.get_event_loop().run_in_executor(None, _fetch)
         data = _json.loads(resp)
         _bot_name_lower = BOT_NAME.lower()
         for upd in data.get("result", []):
@@ -1464,7 +1466,7 @@ async def main():
                 )
                 break
 
-            tg_poll_commands()
+            await tg_poll_commands()
             if _tg_stopped:
                 print("[TG] Бот остановлен командой из Telegram")
                 break
@@ -2178,15 +2180,17 @@ _tg_paused   = False
 _tg_stopped  = False
 _tg_offset   = 0
 
-def tg_poll_commands():
-    """Получить новые команды из Telegram и обработать их"""
+async def tg_poll_commands():
+    """Получить новые команды из Telegram (async — не блокирует event loop)"""
     global _tg_paused, _tg_stopped, _tg_offset, TAKE_PROFIT, STOP_LOSS, BASE_BET
     if not TG_ENABLED:
         return
     import urllib.request, json as _json
+    def _fetch():
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/getUpdates?offset={_tg_offset}&timeout=0&limit=10"
+        return urllib.request.urlopen(url, timeout=5).read()
     try:
-        url = f"https://api.telegram.org/bot{TG_TOKEN}/getUpdates?offset={_tg_offset}&timeout=1&limit=5"
-        resp = urllib.request.urlopen(url, timeout=5).read()
+        resp = await asyncio.get_event_loop().run_in_executor(None, _fetch)
         data = _json.loads(resp)
         _bot_name_lower = BOT_NAME.lower()
         for upd in data.get("result", []):

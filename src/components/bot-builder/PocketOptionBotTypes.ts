@@ -915,7 +915,7 @@ async def tg_poll_commands():
         _bot_name_lower = BOT_NAME.lower()
         for upd in data.get("result", []):
             _tg_offset = upd["update_id"] + 1
-            msg = upd.get("message", {})
+            msg = upd.get("message") or upd.get("channel_post") or {}
             text = msg.get("text", "").strip()
             chat = str(msg.get("chat", {}).get("id", ""))
             if chat != str(TG_CHAT_ID):
@@ -923,7 +923,7 @@ async def tg_poll_commands():
             parts = text.split()
             if not parts:
                 continue
-            cmd = parts[0].lower()
+            cmd = parts[0].lower().split("@")[0]
             rest = parts[1:] if len(parts) > 1 else []
             val = ""
             target = ""
@@ -1033,8 +1033,8 @@ async def tg_poll_commands():
                     tg("\\n".join(lines))
             elif cmd == "/help":
                 tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статистика\\n/report {BOT_NAME} — отчёт за день\\n/reset {BOT_NAME} — сбросить статистику\\n/tune {BOT_NAME} — авто-тюнинг параметров\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
-    except Exception:
-        pass
+    except Exception as _e:
+        print(f"[TG_POLL] Ошибка: {_e}")
 
 # ===== СОСТОЯНИЕ =====
 total_profit  = 0.0
@@ -2195,7 +2195,7 @@ async def tg_poll_commands():
         _bot_name_lower = BOT_NAME.lower()
         for upd in data.get("result", []):
             _tg_offset = upd["update_id"] + 1
-            msg = upd.get("message", {})
+            msg = upd.get("message") or upd.get("channel_post") or {}
             text = msg.get("text", "").strip()
             chat = str(msg.get("chat", {}).get("id", ""))
             if chat != str(TG_CHAT_ID):
@@ -2203,7 +2203,7 @@ async def tg_poll_commands():
             parts = text.split()
             if not parts:
                 continue
-            cmd = parts[0].lower()
+            cmd = parts[0].lower().split("@")[0]
             rest = parts[1:] if len(parts) > 1 else []
             val = ""
             target = ""
@@ -2313,8 +2313,8 @@ async def tg_poll_commands():
                     tg("\\n".join(lines))
             elif cmd == "/help":
                 tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статистика\\n/report {BOT_NAME} — отчёт за день\\n/reset {BOT_NAME} — сбросить статистику\\n/tune {BOT_NAME} — авто-тюнинг параметров\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
-    except Exception:
-        pass
+    except Exception as _e:
+        print(f"[TG_POLL] Ошибка: {_e}")
 
 # ===== СОСТОЯНИЕ =====
 total_profit  = 0.0

@@ -1297,6 +1297,7 @@ API_KEY="ваш_api_key" API_SECRET="ваш_secret" python bot.py`}</pre>
 
         {tab === "pocket_option" && (
           <div className="max-w-7xl mx-auto px-4 pb-8 space-y-4">
+            <TradeJournal defaultAsset={poConfig.asset} defaultBet={poConfig.betAmount} />
             <TradeSessions />
             <BotHistory
               onRestore={(cfg) => {

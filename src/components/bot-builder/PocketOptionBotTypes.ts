@@ -1707,6 +1707,17 @@ def calculate_rsi(prices, period=${cfg.rsiPeriod}):
         return 100
     return 100 - (100 / (1 + avg_gain / avg_loss))
 
+def signal_trend(prices, candles):
+    if len(candles) < 4:
+        return None, ""
+    last4 = candles[-5:-1]
+    colors = ["UP" if c[3] >= c[0] else "DOWN" for c in last4]
+    if all(c == "UP" for c in colors):
+        return "CALL", f"ТРЕНД✅ 4🟢 подряд→CALL"
+    if all(c == "DOWN" for c in colors):
+        return "PUT", f"ТРЕНД✅ 4🔴 подряд→PUT"
+    return None, f"ТРЕНД: нет 4 подряд"
+
 def signal_rsi(prices, candles):
     rsi = calculate_rsi(prices)
     if rsi <= ${cfg.rsiOversold}: return "CALL", f"RSI={rsi:.1f}≤${cfg.rsiOversold}"
@@ -1805,7 +1816,7 @@ def get_combined_signal(prices, candles):
     : `
 def get_combined_signal(prices, candles):
     """Комбо OR — достаточно хотя бы одного сигнала"""
-    fns = [${callLines.map(l => l.replace(/\(.*\)/, '')).join(", ")}]
+    fns = [signal_trend, ${callLines.map(l => l.replace(/\(.*\)/, '')).join(", ")}]
     results = [f(prices, candles) for f in fns]
     signals = [(s, i) for s, i in results if s is not None]
     if not signals:

@@ -1708,15 +1708,15 @@ def calculate_rsi(prices, period=${cfg.rsiPeriod}):
     return 100 - (100 / (1 + avg_gain / avg_loss))
 
 def signal_trend(prices, candles):
-    if len(candles) < 4:
+    if len(candles) < 3:
         return None, ""
-    last4 = candles[-5:-1]
-    colors = ["UP" if c[3] >= c[0] else "DOWN" for c in last4]
+    last3 = candles[-4:-1]
+    colors = ["UP" if c[3] >= c[0] else "DOWN" for c in last3]
     if all(c == "UP" for c in colors):
-        return "CALL", f"ТРЕНД✅ 4🟢 подряд→CALL"
+        return "CALL", f"ТРЕНД✅ 3🟢 подряд→CALL"
     if all(c == "DOWN" for c in colors):
-        return "PUT", f"ТРЕНД✅ 4🔴 подряд→PUT"
-    return None, f"ТРЕНД: нет 4 подряд"
+        return "PUT", f"ТРЕНД✅ 3🔴 подряд→PUT"
+    return None, f"ТРЕНД: нет 3 подряд"
 
 def signal_rsi(prices, candles):
     rsi = calculate_rsi(prices)
@@ -2625,7 +2625,7 @@ async def main():
             )
             break
 
-        tg_poll_commands()
+        await tg_poll_commands()
         if _tg_stopped:
             print("[TG] Бот остановлен командой из Telegram")
             break

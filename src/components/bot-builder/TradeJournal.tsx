@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Icon from "@/components/ui/icon"
 import * as XLSX from "xlsx"
+
+const BOT_TRADES_URL = "https://functions.poehali.dev/317c9913-52da-4683-920f-963c978a3202"
 
 interface Trade {
   id: string
@@ -15,11 +17,39 @@ interface Trade {
   payout: number
   won: boolean
   profit: number
+  source?: "bot" | "manual"
+}
+
+interface BotSession {
+  id: string
+  bot_name: string
+  strategy: string
+  asset: string
+  bet_amount: number
+  currency: string
+  is_demo: boolean
+  started_at: string
+  ended_at: string | null
+  total_trades: number
+  wins: number
+  losses: number
+  total_profit: number
+}
+
+interface BotTrade {
+  id: string
+  traded_at: string
+  asset: string
+  direction: string
+  bet: number
+  payout_pct: number
+  won: boolean
+  profit: number
 }
 
 const STORAGE_KEY = "po_trade_journal"
 
-function loadTrades(): Trade[] {
+function loadLocalTrades(): Trade[] {
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]")
   } catch {
@@ -27,7 +57,7 @@ function loadTrades(): Trade[] {
   }
 }
 
-function saveTrades(trades: Trade[]) {
+function saveLocalTrades(trades: Trade[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(trades))
 }
 
@@ -39,13 +69,29 @@ function nowTime() {
   return new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })
 }
 
+function formatDate(iso: string) {
+  const d = new Date(iso)
+  return d.toISOString().slice(0, 10)
+}
+
+function formatTime(iso: string) {
+  const d = new Date(iso)
+  return d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })
+}
+
 interface Props {
   defaultAsset?: string
   defaultBet?: number
 }
 
 export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBet = 10 }: Props) {
-  const [trades, setTrades] = useState<Trade[]>(loadTrades)
+  const [localTrades, setLocalTrades] = useState<Trade[]>(loadLocalTrades)
+  const [botTrades, setBotTrades] = useState<Trade[]>([])
+  const [sessions, setSessions] = useState<BotSession[]>([])
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
+  const [loadingBot, setLoadingBot] = useState(false)
+  const [viewMode, setViewMode] = useState<"bot" | "manual">("bot")
+
   const [asset, setAsset] = useState(defaultAsset)
   const [bet, setBet] = useState(defaultBet)
   const [payout, setPayout] = useState(82)
@@ -64,9 +110,60 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
     setBet(defaultBet)
   }, [defaultAsset, defaultBet])
 
+  const loadSessions = useCallback(async () => {
+    try {
+      const res = await fetch(`${BOT_TRADES_URL}/sessions`)
+      const data = await res.json()
+      const list: BotSession[] = data.sessions || []
+      setSessions(list)
+      if (list.length > 0 && !selectedSessionId) {
+        setSelectedSessionId(list[0].id)
+      }
+    } catch (_e) {
+      // ignore
+    }
+  }, [selectedSessionId])
+
+  const loadBotTrades = useCallback(async (sessionId: string) => {
+    setLoadingBot(true)
+    try {
+      const res = await fetch(`${BOT_TRADES_URL}/trades?session_id=${sessionId}`)
+      const data = await res.json()
+      const raw: BotTrade[] = data.trades || []
+      const mapped: Trade[] = raw.map((t) => ({
+        id: t.id,
+        date: formatDate(t.traded_at),
+        time: formatTime(t.traded_at),
+        asset: t.asset,
+        direction: t.direction as "CALL" | "PUT",
+        bet: t.bet,
+        payout: t.payout_pct,
+        won: t.won,
+        profit: t.profit,
+        source: "bot",
+      })).reverse()
+      setBotTrades(mapped)
+    } catch {
+      setBotTrades([])
+    } finally {
+      setLoadingBot(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadSessions()
+  }, [])
+
+  useEffect(() => {
+    if (selectedSessionId) {
+      loadBotTrades(selectedSessionId)
+    }
+  }, [selectedSessionId])
+
+  const trades = viewMode === "bot" ? botTrades : localTrades
+
   const addTrade = (won: boolean) => {
     const profit = won ? parseFloat((bet * payout / 100).toFixed(2)) : -bet
-    const now = new Date()
     const trade: Trade = {
       id: Date.now().toString(),
       date: useManualTime ? tradeDate : todayDate(),
@@ -77,24 +174,25 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
       payout,
       won,
       profit,
+      source: "manual",
     }
-    const updated = [trade, ...trades]
-    setTrades(updated)
-    saveTrades(updated)
+    const updated = [trade, ...localTrades]
+    setLocalTrades(updated)
+    saveLocalTrades(updated)
     setJustAdded(won ? "win" : "loss")
     setTimeout(() => setJustAdded(null), 1000)
   }
 
   const removeTrade = (id: string) => {
-    const updated = trades.filter((t) => t.id !== id)
-    setTrades(updated)
-    saveTrades(updated)
+    const updated = localTrades.filter((t) => t.id !== id)
+    setLocalTrades(updated)
+    saveLocalTrades(updated)
   }
 
   const clearAll = () => {
-    if (confirm("Очистить весь журнал?")) {
-      setTrades([])
-      saveTrades([])
+    if (confirm("Очистить журнал?")) {
+      setLocalTrades([])
+      saveLocalTrades([])
     }
   }
 
@@ -163,7 +261,6 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
     XLSX.writeFile(wb, `trade_journal_${suffix}.xlsx`)
   }
 
-  // Stats
   const total = trades.length
   const wins = trades.filter((t) => t.won).length
   const losses = total - wins
@@ -185,7 +282,6 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
   const winrateColor = winrate >= 60 ? "text-green-400" : winrate >= 50 ? "text-yellow-400" : "text-red-400"
   const profitColor = totalProfit >= 0 ? "text-green-400" : "text-red-400"
 
-  // Mini chart: cumulative profit over last 20 trades (oldest → newest)
   const chartTrades = [...trades].reverse().slice(-20)
   const chartPoints = (() => {
     if (chartTrades.length < 2) return null
@@ -209,6 +305,8 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
 
   const payoutColor = payout >= 85 ? "text-green-400" : payout >= 75 ? "text-yellow-400" : "text-red-400"
 
+  const selectedSession = sessions.find((s) => s.id === selectedSessionId)
+
   return (
     <Card className="bg-zinc-900 border-zinc-700">
       <CardHeader className="pb-3">
@@ -216,8 +314,8 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
           <CardTitle className="font-orbitron text-white text-base flex items-center gap-2">
             <span>📋</span> Журнал сделок
           </CardTitle>
-          {total > 0 && (
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            {total > 0 && (
               <button
                 onClick={() => setShowExportPanel((v) => !v)}
                 className={`text-xs font-space-mono px-2 py-1 rounded-lg border transition-colors ${showExportPanel ? "bg-zinc-700 border-zinc-500 text-zinc-200" : "border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-500"}`}
@@ -225,18 +323,99 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
               >
                 <Icon name="Download" size={13} />
               </button>
-              <button onClick={clearAll} className="text-zinc-600 hover:text-red-400 transition-colors" title="Очистить журнал">
+            )}
+            {viewMode === "bot" && (
+              <button
+                onClick={() => selectedSessionId && loadBotTrades(selectedSessionId)}
+                className="text-zinc-500 hover:text-zinc-300 transition-colors"
+                title="Обновить"
+              >
+                <Icon name="RefreshCw" size={14} />
+              </button>
+            )}
+            {viewMode === "manual" && total > 0 && (
+              <button onClick={clearAll} className="text-zinc-600 hover:text-red-400 transition-colors" title="Очистить">
                 <Icon name="Trash2" size={14} />
               </button>
-            </div>
-          )}
+            )}
+          </div>
+        </div>
+
+        {/* Mode switcher */}
+        <div className="flex gap-1 mt-2 bg-zinc-800 rounded-lg p-0.5">
+          <button
+            onClick={() => setViewMode("bot")}
+            className={`flex-1 py-1.5 px-3 rounded-md font-space-mono text-xs transition-all ${viewMode === "bot" ? "bg-red-600 text-white" : "text-zinc-400 hover:text-zinc-200"}`}
+          >
+            🤖 Из бота
+          </button>
+          <button
+            onClick={() => setViewMode("manual")}
+            className={`flex-1 py-1.5 px-3 rounded-md font-space-mono text-xs transition-all ${viewMode === "manual" ? "bg-zinc-600 text-white" : "text-zinc-400 hover:text-zinc-200"}`}
+          >
+            ✍️ Вручную
+          </button>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-4">
 
+        {/* Bot mode */}
+        {viewMode === "bot" && (
+          <div className="space-y-3">
+            {sessions.length === 0 ? (
+              <div className="text-center py-6 space-y-2">
+                <p className="text-zinc-500 font-space-mono text-xs">Запусти бота — сделки появятся здесь автоматически</p>
+                <p className="text-zinc-700 font-space-mono text-xs">Бот сам записывает каждую сделку в журнал</p>
+              </div>
+            ) : (
+              <>
+                {/* Session selector */}
+                <div>
+                  <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Сессия бота</Label>
+                  <select
+                    value={selectedSessionId || ""}
+                    onChange={(e) => setSelectedSessionId(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 text-white font-space-mono text-xs rounded-lg px-2 py-1.5 outline-none focus:border-zinc-500"
+                  >
+                    {sessions.map((s) => {
+                      const d = new Date(s.started_at)
+                      const label = `${d.toLocaleDateString("ru-RU")} ${d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })} — ${s.bot_name} | ${s.asset} | ${s.is_demo ? "Демо" : "Реал"}`
+                      return <option key={s.id} value={s.id}>{label}</option>
+                    })}
+                  </select>
+                </div>
+
+                {/* Session summary */}
+                {selectedSession && (
+                  <div className="bg-zinc-800/60 border border-zinc-700 rounded-xl p-3 grid grid-cols-3 gap-3 text-center">
+                    <div>
+                      <p className="text-zinc-500 font-space-mono text-xs mb-0.5">Сделок</p>
+                      <p className="text-white font-orbitron font-bold">{selectedSession.total_trades}</p>
+                    </div>
+                    <div>
+                      <p className="text-zinc-500 font-space-mono text-xs mb-0.5">В / П</p>
+                      <p className="font-orbitron font-bold">
+                        <span className="text-green-400">{selectedSession.wins}</span>
+                        <span className="text-zinc-600">/</span>
+                        <span className="text-red-400">{selectedSession.losses}</span>
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-zinc-500 font-space-mono text-xs mb-0.5">Профит</p>
+                      <p className={`font-orbitron font-bold text-sm ${selectedSession.total_profit >= 0 ? "text-green-400" : "text-red-400"}`}>
+                        {selectedSession.total_profit >= 0 ? "+" : ""}{selectedSession.total_profit.toFixed(2)} {selectedSession.currency}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
         {/* Export panel */}
-        {showExportPanel && (
+        {showExportPanel && total > 0 && (
           <div className="bg-zinc-800/70 border border-zinc-700 rounded-xl p-3 space-y-3">
             <p className="text-zinc-400 font-space-mono text-xs font-bold">Выгрузка сделок</p>
             <div className="grid grid-cols-2 gap-2">
@@ -303,30 +482,32 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
         )}
 
         {/* Stats row */}
-        <div className="grid grid-cols-4 gap-2">
-          <div className="bg-zinc-800 rounded-xl p-3 text-center">
-            <p className="text-zinc-500 font-space-mono text-xs mb-1">Сделок</p>
-            <p className="text-white font-orbitron font-bold text-lg">{total}</p>
+        {total > 0 && (
+          <div className="grid grid-cols-4 gap-2">
+            <div className="bg-zinc-800 rounded-xl p-3 text-center">
+              <p className="text-zinc-500 font-space-mono text-xs mb-1">Сделок</p>
+              <p className="text-white font-orbitron font-bold text-lg">{total}</p>
+            </div>
+            <div className="bg-zinc-800 rounded-xl p-3 text-center">
+              <p className="text-zinc-500 font-space-mono text-xs mb-1">Winrate</p>
+              <p className={`font-orbitron font-bold text-lg ${winrateColor}`}>{winrate}%</p>
+            </div>
+            <div className="bg-zinc-800 rounded-xl p-3 text-center">
+              <p className="text-zinc-500 font-space-mono text-xs mb-1">В/П</p>
+              <p className="font-orbitron font-bold text-lg">
+                <span className="text-green-400">{wins}</span>
+                <span className="text-zinc-600">/</span>
+                <span className="text-red-400">{losses}</span>
+              </p>
+            </div>
+            <div className="bg-zinc-800 rounded-xl p-3 text-center">
+              <p className="text-zinc-500 font-space-mono text-xs mb-1">Профит</p>
+              <p className={`font-orbitron font-bold text-sm ${profitColor}`}>
+                {totalProfit >= 0 ? "+" : ""}{totalProfit.toFixed(2)}$
+              </p>
+            </div>
           </div>
-          <div className="bg-zinc-800 rounded-xl p-3 text-center">
-            <p className="text-zinc-500 font-space-mono text-xs mb-1">Winrate</p>
-            <p className={`font-orbitron font-bold text-lg ${winrateColor}`}>{winrate}%</p>
-          </div>
-          <div className="bg-zinc-800 rounded-xl p-3 text-center">
-            <p className="text-zinc-500 font-space-mono text-xs mb-1">В/П</p>
-            <p className="font-orbitron font-bold text-lg">
-              <span className="text-green-400">{wins}</span>
-              <span className="text-zinc-600">/</span>
-              <span className="text-red-400">{losses}</span>
-            </p>
-          </div>
-          <div className="bg-zinc-800 rounded-xl p-3 text-center">
-            <p className="text-zinc-500 font-space-mono text-xs mb-1">Профит</p>
-            <p className={`font-orbitron font-bold text-sm ${profitColor}`}>
-              {totalProfit >= 0 ? "+" : ""}{totalProfit.toFixed(2)}$
-            </p>
-          </div>
-        </div>
+        )}
 
         {/* Mini chart */}
         {chartPoints && (
@@ -363,113 +544,98 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
           </div>
         )}
 
-        {/* Input */}
-        <div className="space-y-3">
-
-          {/* Asset + bet */}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Актив</Label>
-              <Input value={asset} onChange={(e) => setAsset(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-xs h-8" />
-            </div>
-            <div>
-              <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Ставка ($)</Label>
-              <Input type="number" value={bet} onChange={(e) => setBet(Number(e.target.value))} className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-xs h-8" />
-            </div>
-          </div>
-
-          {/* Payout % */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <Label className="text-zinc-500 font-space-mono text-xs">Выплата при WIN (%)</Label>
-              <span className={`font-orbitron font-bold text-sm ${payoutColor}`}>{payout}%</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="range"
-                min={50} max={100} step={1}
-                value={payout}
-                onChange={(e) => setPayout(Number(e.target.value))}
-                className="flex-1 accent-red-500 h-1.5 rounded cursor-pointer"
-              />
-            </div>
-            <div className="flex justify-between text-zinc-600 font-space-mono text-xs mt-0.5">
-              <span>50% (мин)</span>
-              <span className="text-zinc-500">~{(bet * payout / 100).toFixed(2)}$ профит</span>
-              <span>100%</span>
-            </div>
-          </div>
-
-          {/* Date/time toggle */}
-          <div>
-            <button
-              onClick={() => setUseManualTime((v) => !v)}
-              className="flex items-center gap-2 text-zinc-500 hover:text-zinc-300 transition-colors font-space-mono text-xs"
-            >
-              <Icon name={useManualTime ? "ChevronUp" : "ChevronDown"} size={12} />
-              {useManualTime ? "Скрыть дату и время" : "Указать дату и время вручную"}
-            </button>
-
-            {useManualTime && (
-              <div className="grid grid-cols-2 gap-2 mt-2">
-                <div>
-                  <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Дата</Label>
-                  <Input
-                    type="date"
-                    value={tradeDate}
-                    onChange={(e) => setTradeDate(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-xs h-8"
-                  />
-                </div>
-                <div>
-                  <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Время</Label>
-                  <Input
-                    type="time"
-                    value={tradeTime}
-                    onChange={(e) => setTradeTime(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-xs h-8"
-                  />
-                </div>
+        {/* Manual input */}
+        {viewMode === "manual" && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Актив</Label>
+                <Input value={asset} onChange={(e) => setAsset(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-xs h-8" />
               </div>
-            )}
-          </div>
+              <div>
+                <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Ставка ($)</Label>
+                <Input type="number" value={bet} onChange={(e) => setBet(Number(e.target.value))} className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-xs h-8" />
+              </div>
+            </div>
 
-          {/* Direction */}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setDirection("CALL")}
-              className={`py-2 rounded-lg font-orbitron text-xs font-bold border transition-all
-                ${direction === "CALL" ? "bg-green-500/20 border-green-500/50 text-green-400" : "bg-zinc-800 border-zinc-700 text-zinc-500 hover:border-zinc-500"}`}
-            >
-              ▲ CALL
-            </button>
-            <button
-              onClick={() => setDirection("PUT")}
-              className={`py-2 rounded-lg font-orbitron text-xs font-bold border transition-all
-                ${direction === "PUT" ? "bg-red-500/20 border-red-500/50 text-red-400" : "bg-zinc-800 border-zinc-700 text-zinc-500 hover:border-zinc-500"}`}
-            >
-              ▼ PUT
-            </button>
-          </div>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <Label className="text-zinc-500 font-space-mono text-xs">Выплата при WIN (%)</Label>
+                <span className={`font-orbitron font-bold text-sm ${payoutColor}`}>{payout}%</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="range"
+                  min={50} max={100} step={1}
+                  value={payout}
+                  onChange={(e) => setPayout(Number(e.target.value))}
+                  className="flex-1 accent-red-500 h-1.5 rounded cursor-pointer"
+                />
+              </div>
+              <div className="flex justify-between text-zinc-600 font-space-mono text-xs mt-0.5">
+                <span>50%</span>
+                <span className="text-zinc-500">~{(bet * payout / 100).toFixed(2)}$ профит</span>
+                <span>100%</span>
+              </div>
+            </div>
 
-          {/* WIN / LOSS */}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => addTrade(true)}
-              className={`py-3 rounded-xl font-orbitron font-bold text-sm border transition-all duration-150
-                ${justAdded === "win" ? "bg-green-400 border-green-400 text-black scale-95" : "bg-green-500/20 border-green-500/40 text-green-400 hover:bg-green-500/30 active:scale-95"}`}
-            >
-              ✓ WIN
-            </button>
-            <button
-              onClick={() => addTrade(false)}
-              className={`py-3 rounded-xl font-orbitron font-bold text-sm border transition-all duration-150
-                ${justAdded === "loss" ? "bg-red-500 border-red-500 text-white scale-95" : "bg-red-500/20 border-red-500/40 text-red-400 hover:bg-red-500/30 active:scale-95"}`}
-            >
-              ✗ LOSS
-            </button>
+            <div>
+              <button
+                onClick={() => setUseManualTime((v) => !v)}
+                className="flex items-center gap-2 text-zinc-500 hover:text-zinc-300 transition-colors font-space-mono text-xs"
+              >
+                <Icon name={useManualTime ? "ChevronUp" : "ChevronDown"} size={12} />
+                {useManualTime ? "Скрыть дату и время" : "Указать дату и время вручную"}
+              </button>
+              {useManualTime && (
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <div>
+                    <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Дата</Label>
+                    <Input type="date" value={tradeDate} onChange={(e) => setTradeDate(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-xs h-8" />
+                  </div>
+                  <div>
+                    <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Время</Label>
+                    <Input type="time" value={tradeTime} onChange={(e) => setTradeTime(e.target.value)} className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-xs h-8" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setDirection("CALL")}
+                className={`py-2 rounded-lg font-orbitron text-xs font-bold border transition-all
+                  ${direction === "CALL" ? "bg-green-500/20 border-green-500/50 text-green-400" : "bg-zinc-800 border-zinc-700 text-zinc-500 hover:border-zinc-500"}`}
+              >
+                ▲ CALL
+              </button>
+              <button
+                onClick={() => setDirection("PUT")}
+                className={`py-2 rounded-lg font-orbitron text-xs font-bold border transition-all
+                  ${direction === "PUT" ? "bg-red-500/20 border-red-500/50 text-red-400" : "bg-zinc-800 border-zinc-700 text-zinc-500 hover:border-zinc-500"}`}
+              >
+                ▼ PUT
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => addTrade(true)}
+                className={`py-3 rounded-xl font-orbitron font-bold text-sm border transition-all duration-150
+                  ${justAdded === "win" ? "bg-green-400 border-green-400 text-black scale-95" : "bg-green-500/20 border-green-500/40 text-green-400 hover:bg-green-500/30 active:scale-95"}`}
+              >
+                ✓ WIN
+              </button>
+              <button
+                onClick={() => addTrade(false)}
+                className={`py-3 rounded-xl font-orbitron font-bold text-sm border transition-all duration-150
+                  ${justAdded === "loss" ? "bg-red-500 border-red-500 text-white scale-95" : "bg-red-500/20 border-red-500/40 text-red-400 hover:bg-red-500/30 active:scale-95"}`}
+              >
+                ✗ LOSS
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* History */}
         {total > 0 && (
@@ -478,13 +644,15 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
               onClick={() => setShowHistory((v) => !v)}
               className="w-full flex items-center justify-between text-zinc-500 hover:text-zinc-300 transition-colors py-1"
             >
-              <span className="font-space-mono text-xs">История ({total} сделок) · ср. выплата {avgPayout}%</span>
+              <span className="font-space-mono text-xs">История ({total} сделок){viewMode === "manual" ? ` · ср. выплата ${avgPayout}%` : ""}</span>
               <Icon name={showHistory ? "ChevronUp" : "ChevronDown"} size={14} />
             </button>
 
             {showHistory && (
               <div className="mt-2 space-y-1.5 max-h-56 overflow-y-auto pr-1">
-                {trades.map((t) => (
+                {loadingBot && viewMode === "bot" ? (
+                  <p className="text-zinc-600 font-space-mono text-xs text-center py-3">Загрузка...</p>
+                ) : trades.map((t) => (
                   <div
                     key={t.id}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-space-mono group
@@ -499,9 +667,11 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
                     <span className={t.profit >= 0 ? "text-green-400" : "text-red-400"}>
                       {t.profit >= 0 ? "+" : ""}{t.profit.toFixed(2)}$
                     </span>
-                    <button onClick={() => removeTrade(t.id)} className="text-zinc-700 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">
-                      <Icon name="X" size={11} />
-                    </button>
+                    {viewMode === "manual" && (
+                      <button onClick={() => removeTrade(t.id)} className="text-zinc-700 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">
+                        <Icon name="X" size={11} />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -509,10 +679,14 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
           </div>
         )}
 
-        {total === 0 && (
+        {total === 0 && !loadingBot && (
           <p className="text-zinc-600 font-space-mono text-xs text-center py-2">
-            Нажмите WIN или LOSS после каждой сделки
+            {viewMode === "bot" ? "Запусти бота — сделки появятся здесь" : "Нажмите WIN или LOSS после каждой сделки"}
           </p>
+        )}
+
+        {loadingBot && total === 0 && (
+          <p className="text-zinc-600 font-space-mono text-xs text-center py-2">Загрузка сделок...</p>
         )}
 
       </CardContent>

@@ -22,6 +22,30 @@ export default function BotBuilder() {
   const [strategyGuideOpen, setStrategyGuideOpen] = useState(false)
   const [tgGuideOpen, setTgGuideOpen] = useState(false)
   const [tgTestStatus, setTgTestStatus] = useState<"idle" | "sending" | "ok" | "error">("idle")
+  const [proxyList, setProxyList] = useState<string[]>([
+    "socks5://67.201.59.70:4145",
+    "socks5://98.162.25.29:31679",
+    "socks5://72.221.164.34:60671",
+    "socks5://192.111.130.5:17002",
+    "socks5://98.175.31.195:4145",
+  ])
+  const [proxyLoading, setProxyLoading] = useState(false)
+
+  const refreshProxyList = async () => {
+    setProxyLoading(true)
+    try {
+      const res = await fetch("https://functions.poehali.dev/9b5c80f1-f821-43a8-a80b-776572aa2ea0")
+      const data = await res.json()
+      const parsed = typeof data === 'string' ? JSON.parse(data) : data
+      if (parsed.proxies?.length) {
+        setProxyList(parsed.proxies.slice(0, 5))
+      }
+    } catch (_e) {
+      setProxyLoading(false)
+      return
+    }
+    setProxyLoading(false)
+  }
   const [restoreToast, setRestoreToast] = useState(false)
   const [savedToast, setSavedToast] = useState(false)
 
@@ -882,15 +906,20 @@ export default function BotBuilder() {
                           className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white font-space-mono text-sm outline-none focus:border-blue-500/60 transition-colors"
                         />
                         <div className="mt-2 space-y-1.5">
-                          <p className="text-zinc-600 font-space-mono text-xs">Нажми чтобы вставить — если не работает, попробуй следующий:</p>
+                          <div className="flex items-center justify-between">
+                            <p className="text-zinc-600 font-space-mono text-xs">Нажми чтобы вставить — если не работает, попробуй следующий:</p>
+                            <button
+                              type="button"
+                              onClick={refreshProxyList}
+                              disabled={proxyLoading}
+                              className="flex items-center gap-1 font-space-mono text-xs px-2 py-0.5 rounded border border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-50"
+                            >
+                              <Icon name={proxyLoading ? "Loader2" : "RefreshCw"} size={11} className={proxyLoading ? "animate-spin" : ""} />
+                              {proxyLoading ? "Загрузка..." : "Обновить"}
+                            </button>
+                          </div>
                           <div className="flex flex-wrap gap-1.5">
-                            {[
-                              "socks5://67.201.59.70:4145",
-                              "socks5://98.162.25.29:31679",
-                              "socks5://72.221.164.34:60671",
-                              "socks5://192.111.130.5:17002",
-                              "socks5://98.175.31.195:4145",
-                            ].map((proxy) => (
+                            {proxyList.map((proxy) => (
                               <button
                                 key={proxy}
                                 type="button"

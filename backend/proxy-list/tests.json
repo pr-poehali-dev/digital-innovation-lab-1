@@ -1,0 +1,12 @@
+{
+  "tests": [
+    {
+      "name": "Get proxy list",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {"proxies": "array"},
+      "bodyMatcher": "keys_exist"
+    }
+  ]
+}

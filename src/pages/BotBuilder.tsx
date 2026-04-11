@@ -908,15 +908,25 @@ export default function BotBuilder() {
                         <div className="mt-2 space-y-1.5">
                           <div className="flex items-center justify-between">
                             <p className="text-zinc-600 font-space-mono text-xs">Кликни чтобы добавить — бот перебирает по порядку если один не работает:</p>
-                            <button
-                              type="button"
-                              onClick={refreshProxyList}
-                              disabled={proxyLoading}
-                              className="flex items-center gap-1 font-space-mono text-xs px-2 py-0.5 rounded border border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-50"
-                            >
-                              <Icon name={proxyLoading ? "Loader2" : "RefreshCw"} size={11} className={proxyLoading ? "animate-spin" : ""} />
-                              {proxyLoading ? "Загрузка..." : "Обновить"}
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setPoConfig(p => ({ ...p, tgProxy: proxyList.join(", ") }))}
+                                className="flex items-center gap-1 font-space-mono text-xs px-2 py-0.5 rounded border border-zinc-700 text-zinc-400 hover:border-blue-500/60 hover:text-blue-300 transition-colors"
+                              >
+                                <Icon name="CheckCheck" size={11} />
+                                Все
+                              </button>
+                              <button
+                                type="button"
+                                onClick={refreshProxyList}
+                                disabled={proxyLoading}
+                                className="flex items-center gap-1 font-space-mono text-xs px-2 py-0.5 rounded border border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-50"
+                              >
+                                <Icon name={proxyLoading ? "Loader2" : "RefreshCw"} size={11} className={proxyLoading ? "animate-spin" : ""} />
+                                {proxyLoading ? "Загрузка..." : "Обновить"}
+                              </button>
+                            </div>
                           </div>
                           <div className="flex flex-wrap gap-1.5">
                             {proxyList.map((proxy) => (

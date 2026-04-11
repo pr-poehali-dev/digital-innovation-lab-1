@@ -734,25 +734,36 @@ def journal_end_session():
         return
     _journal_request("/session/end", method="PUT", data={"session_id": _session_id})
 
+def _apply_proxy(proxy_url):
+    import socks, socket
+    from urllib.parse import urlparse as _up
+    p = _up(proxy_url)
+    socks.set_default_proxy(socks.SOCKS5, p.hostname, p.port, username=p.username, password=p.password)
+    socket.socket = socks.socksocket
+
 def _tg_send(text, retries=3, delay=5):
     import urllib.request, urllib.parse, time
     url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
     data = urllib.parse.urlencode({"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
-    if TG_PROXY:
-        import socks, socket
-        from urllib.parse import urlparse
-        p = urlparse(TG_PROXY)
-        socks.set_default_proxy(socks.SOCKS5, p.hostname, p.port, username=p.username, password=p.password)
-        socket.socket = socks.socksocket
-    for attempt in range(1, retries + 1):
-        try:
-            urllib.request.urlopen(url, data, timeout=8)
-            return
-        except Exception as e:
-            if attempt < retries:
-                time.sleep(delay)
-            else:
-                print(f"[TG] Ошибка: {e}")
+    _proxies = [p.strip() for p in TG_PROXY.split(",") if p.strip()] if TG_PROXY else [None]
+    _last_err = None
+    for proxy in _proxies:
+        if proxy:
+            try:
+                _apply_proxy(proxy)
+            except Exception:
+                continue
+        for attempt in range(1, retries + 1):
+            try:
+                urllib.request.urlopen(url, data, timeout=8)
+                return
+            except Exception as e:
+                _last_err = e
+                if attempt < retries:
+                    time.sleep(delay)
+        break
+    if _last_err:
+        print(f"[TG] Ошибка: {_last_err}")
 
 def tg(text):
     """Отправка уведомления о ставке (всегда, если TG включён)"""
@@ -906,15 +917,20 @@ async def tg_poll_commands():
     if not TG_ENABLED:
         return
     import urllib.request, json as _json
+    _poll_proxies = [p.strip() for p in TG_PROXY.split(",") if p.strip()] if TG_PROXY else [None]
     def _fetch():
         url = f"https://api.telegram.org/bot{TG_TOKEN}/getUpdates?offset={_tg_offset}&timeout=0&limit=10"
-        if TG_PROXY:
-            import socks, socket
-            from urllib.parse import urlparse as _urlparse
-            _p = _urlparse(TG_PROXY)
-            socks.set_default_proxy(socks.SOCKS5, _p.hostname, _p.port, username=_p.username, password=_p.password)
-            socket.socket = socks.socksocket
-        return urllib.request.urlopen(url, timeout=5).read()
+        for _proxy in _poll_proxies:
+            if _proxy:
+                try:
+                    _apply_proxy(_proxy)
+                except Exception:
+                    continue
+            try:
+                return urllib.request.urlopen(url, timeout=5).read()
+            except Exception as _fe:
+                _last = _fe
+        raise _last
     try:
         resp = await asyncio.get_event_loop().run_in_executor(None, _fetch)
         data = _json.loads(resp)
@@ -2031,25 +2047,36 @@ def journal_end_session():
         return
     _journal_request("/session/end", method="PUT", data={"session_id": _session_id})
 
+def _apply_proxy(proxy_url):
+    import socks, socket
+    from urllib.parse import urlparse as _up
+    p = _up(proxy_url)
+    socks.set_default_proxy(socks.SOCKS5, p.hostname, p.port, username=p.username, password=p.password)
+    socket.socket = socks.socksocket
+
 def _tg_send(text, retries=3, delay=5):
     import urllib.request, urllib.parse, time
     url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
     data = urllib.parse.urlencode({"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
-    if TG_PROXY:
-        import socks, socket
-        from urllib.parse import urlparse
-        p = urlparse(TG_PROXY)
-        socks.set_default_proxy(socks.SOCKS5, p.hostname, p.port, username=p.username, password=p.password)
-        socket.socket = socks.socksocket
-    for attempt in range(1, retries + 1):
-        try:
-            urllib.request.urlopen(url, data, timeout=8)
-            return
-        except Exception as e:
-            if attempt < retries:
-                time.sleep(delay)
-            else:
-                print(f"[TG] Ошибка: {e}")
+    _proxies = [p.strip() for p in TG_PROXY.split(",") if p.strip()] if TG_PROXY else [None]
+    _last_err = None
+    for proxy in _proxies:
+        if proxy:
+            try:
+                _apply_proxy(proxy)
+            except Exception:
+                continue
+        for attempt in range(1, retries + 1):
+            try:
+                urllib.request.urlopen(url, data, timeout=8)
+                return
+            except Exception as e:
+                _last_err = e
+                if attempt < retries:
+                    time.sleep(delay)
+        break
+    if _last_err:
+        print(f"[TG] Ошибка: {_last_err}")
 
 def tg(text):
     """Отправка уведомления о ставке (всегда, если TG включён)"""
@@ -2203,15 +2230,20 @@ async def tg_poll_commands():
     if not TG_ENABLED:
         return
     import urllib.request, json as _json
+    _poll_proxies = [p.strip() for p in TG_PROXY.split(",") if p.strip()] if TG_PROXY else [None]
     def _fetch():
         url = f"https://api.telegram.org/bot{TG_TOKEN}/getUpdates?offset={_tg_offset}&timeout=0&limit=10"
-        if TG_PROXY:
-            import socks, socket
-            from urllib.parse import urlparse as _urlparse
-            _p = _urlparse(TG_PROXY)
-            socks.set_default_proxy(socks.SOCKS5, _p.hostname, _p.port, username=_p.username, password=_p.password)
-            socket.socket = socks.socksocket
-        return urllib.request.urlopen(url, timeout=5).read()
+        for _proxy in _poll_proxies:
+            if _proxy:
+                try:
+                    _apply_proxy(_proxy)
+                except Exception:
+                    continue
+            try:
+                return urllib.request.urlopen(url, timeout=5).read()
+            except Exception as _fe:
+                _last = _fe
+        raise _last
     try:
         resp = await asyncio.get_event_loop().run_in_executor(None, _fetch)
         data = _json.loads(resp)

@@ -897,17 +897,17 @@ export default function BotBuilder() {
                       </div>
                       {/* Прокси */}
                       <div>
-                        <label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">SOCKS5 прокси (если Telegram заблокирован)</label>
+                        <label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">SOCKS5 прокси (если Telegram заблокирован) — можно несколько через запятую</label>
                         <input
                           type="text"
                           value={poConfig.tgProxy}
                           onChange={(e) => setPoConfig(p => ({ ...p, tgProxy: e.target.value }))}
-                          placeholder="socks5://host:1080"
+                          placeholder="socks5://host:1080, socks5://host2:1080"
                           className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white font-space-mono text-sm outline-none focus:border-blue-500/60 transition-colors"
                         />
                         <div className="mt-2 space-y-1.5">
                           <div className="flex items-center justify-between">
-                            <p className="text-zinc-600 font-space-mono text-xs">Нажми чтобы вставить — если не работает, попробуй следующий:</p>
+                            <p className="text-zinc-600 font-space-mono text-xs">Кликни чтобы добавить — бот перебирает по порядку если один не работает:</p>
                             <button
                               type="button"
                               onClick={refreshProxyList}
@@ -923,9 +923,14 @@ export default function BotBuilder() {
                               <button
                                 key={proxy}
                                 type="button"
-                                onClick={() => setPoConfig(p => ({ ...p, tgProxy: proxy }))}
+                                onClick={() => setPoConfig(p => {
+                                  const existing = p.tgProxy.split(",").map(s => s.trim()).filter(Boolean)
+                                  const isActive = existing.includes(proxy)
+                                  const updated = isActive ? existing.filter(s => s !== proxy) : [...existing, proxy]
+                                  return { ...p, tgProxy: updated.join(", ") }
+                                })}
                                 className={`font-space-mono text-xs px-2 py-1 rounded border transition-colors ${
-                                  poConfig.tgProxy === proxy
+                                  poConfig.tgProxy.split(",").map(s => s.trim()).includes(proxy)
                                     ? "bg-blue-500/20 border-blue-500/60 text-blue-300"
                                     : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-300"
                                 }`}

@@ -878,13 +878,34 @@ export default function BotBuilder() {
                           type="text"
                           value={poConfig.tgProxy}
                           onChange={(e) => setPoConfig(p => ({ ...p, tgProxy: e.target.value }))}
-                          placeholder="socks5://user:pass@host:1080"
+                          placeholder="socks5://host:1080"
                           className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white font-space-mono text-sm outline-none focus:border-blue-500/60 transition-colors"
                         />
-                        <div className="mt-1.5 space-y-1">
-                          <p className="text-zinc-600 font-space-mono text-xs">Если Telegram не работает — укажи SOCKS5 прокси. Сначала: <span className="text-zinc-400">pip install PySocks</span></p>
-                          <p className="text-zinc-600 font-space-mono text-xs">Бесплатные прокси: <a href="https://t.me/s/socks5_proxy_list" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">Telegram-канал</a> · <a href="https://spys.one/socks/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">spys.one</a> · <a href="https://www.proxy-list.download/SOCKS5" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">proxy-list.download</a></p>
-                          <p className="text-zinc-600 font-space-mono text-xs">Формат без пароля: <span className="text-zinc-400">socks5://host:1080</span></p>
+                        <div className="mt-2 space-y-1.5">
+                          <p className="text-zinc-600 font-space-mono text-xs">Нажми чтобы вставить — если не работает, попробуй следующий:</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {[
+                              "socks5://67.201.59.70:4145",
+                              "socks5://98.162.25.29:31679",
+                              "socks5://72.221.164.34:60671",
+                              "socks5://192.111.130.5:17002",
+                              "socks5://98.175.31.195:4145",
+                            ].map((proxy) => (
+                              <button
+                                key={proxy}
+                                type="button"
+                                onClick={() => setPoConfig(p => ({ ...p, tgProxy: proxy }))}
+                                className={`font-space-mono text-xs px-2 py-1 rounded border transition-colors ${
+                                  poConfig.tgProxy === proxy
+                                    ? "bg-blue-500/20 border-blue-500/60 text-blue-300"
+                                    : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-300"
+                                }`}
+                              >
+                                {proxy.replace("socks5://", "")}
+                              </button>
+                            ))}
+                          </div>
+                          <p className="text-zinc-600 font-space-mono text-xs">Требуется: <span className="text-zinc-400">pip install PySocks</span></p>
                         </div>
                       </div>
                       {/* Режим уведомлений */}

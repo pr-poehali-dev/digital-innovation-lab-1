@@ -881,7 +881,7 @@ export default function BotBuilder() {
                           placeholder="socks5://user:pass@host:1080"
                           className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white font-space-mono text-sm outline-none focus:border-blue-500/60 transition-colors"
                         />
-                        <p className="text-zinc-600 font-space-mono text-xs mt-1">Оставь пустым если Telegram работает</p>
+                        <p className="text-zinc-600 font-space-mono text-xs mt-1">Если Telegram не работает — укажи SOCKS5 прокси. Нужно установить: <span className="text-zinc-400">pip install PySocks</span></p>
                       </div>
                       {/* Режим уведомлений */}
                       <div>

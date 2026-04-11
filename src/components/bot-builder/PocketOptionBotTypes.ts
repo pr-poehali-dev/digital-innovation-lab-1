@@ -588,7 +588,7 @@ Pocket Option Bot — ${strategyLabel}
 ════════════════════════════════════════
 
 Установка зависимостей:
-    pip install pocketoptionapi-async
+    pip install pocketoptionapi-async PySocks
 """
 
 import asyncio
@@ -1880,7 +1880,7 @@ Pocket Option КОМБО-Бот
 ════════════════════════════════════════
 
 Установка зависимостей:
-    pip install pocketoptionapi-async
+    pip install pocketoptionapi-async PySocks
 """
 
 import asyncio

@@ -881,7 +881,11 @@ export default function BotBuilder() {
                           placeholder="socks5://user:pass@host:1080"
                           className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white font-space-mono text-sm outline-none focus:border-blue-500/60 transition-colors"
                         />
-                        <p className="text-zinc-600 font-space-mono text-xs mt-1">Если Telegram не работает — укажи SOCKS5 прокси. Нужно установить: <span className="text-zinc-400">pip install PySocks</span></p>
+                        <div className="mt-1.5 space-y-1">
+                          <p className="text-zinc-600 font-space-mono text-xs">Если Telegram не работает — укажи SOCKS5 прокси. Сначала: <span className="text-zinc-400">pip install PySocks</span></p>
+                          <p className="text-zinc-600 font-space-mono text-xs">Бесплатные прокси: <a href="https://t.me/s/socks5_proxy_list" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">Telegram-канал</a> · <a href="https://spys.one/socks/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">spys.one</a> · <a href="https://www.proxy-list.download/SOCKS5" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">proxy-list.download</a></p>
+                          <p className="text-zinc-600 font-space-mono text-xs">Формат без пароля: <span className="text-zinc-400">socks5://host:1080</span></p>
+                        </div>
                       </div>
                       {/* Режим уведомлений */}
                       <div>

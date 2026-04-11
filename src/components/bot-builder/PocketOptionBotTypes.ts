@@ -908,6 +908,12 @@ async def tg_poll_commands():
     import urllib.request, json as _json
     def _fetch():
         url = f"https://api.telegram.org/bot{TG_TOKEN}/getUpdates?offset={_tg_offset}&timeout=0&limit=10"
+        if TG_PROXY:
+            import socks, socket
+            from urllib.parse import urlparse as _urlparse
+            _p = _urlparse(TG_PROXY)
+            socks.set_default_proxy(socks.SOCKS5, _p.hostname, _p.port, username=_p.username, password=_p.password)
+            socket.socket = socks.socksocket
         return urllib.request.urlopen(url, timeout=5).read()
     try:
         resp = await asyncio.get_event_loop().run_in_executor(None, _fetch)
@@ -2199,6 +2205,12 @@ async def tg_poll_commands():
     import urllib.request, json as _json
     def _fetch():
         url = f"https://api.telegram.org/bot{TG_TOKEN}/getUpdates?offset={_tg_offset}&timeout=0&limit=10"
+        if TG_PROXY:
+            import socks, socket
+            from urllib.parse import urlparse as _urlparse
+            _p = _urlparse(TG_PROXY)
+            socks.set_default_proxy(socks.SOCKS5, _p.hostname, _p.port, username=_p.username, password=_p.password)
+            socket.socket = socks.socksocket
         return urllib.request.urlopen(url, timeout=5).read()
     try:
         resp = await asyncio.get_event_loop().run_in_executor(None, _fetch)

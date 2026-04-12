@@ -911,6 +911,14 @@ export default function BotBuilder() {
                             <div className="flex items-center gap-1.5">
                               <button
                                 type="button"
+                                onClick={() => setPoConfig(p => ({ ...p, tgProxy: "" }))}
+                                className="flex items-center gap-1 font-space-mono text-xs px-2 py-0.5 rounded border border-zinc-700 text-zinc-400 hover:border-red-500/60 hover:text-red-300 transition-colors"
+                              >
+                                <Icon name="X" size={11} />
+                                Очистить
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => setPoConfig(p => ({ ...p, tgProxy: proxyList.join(", ") }))}
                                 className="flex items-center gap-1 font-space-mono text-xs px-2 py-0.5 rounded border border-zinc-700 text-zinc-400 hover:border-blue-500/60 hover:text-blue-300 transition-colors"
                               >

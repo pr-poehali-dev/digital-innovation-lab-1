@@ -57,11 +57,24 @@ export default function BotBuilder() {
   const sendTgTest = async () => {
     if (!poConfig.tgToken || !poConfig.tgChatId) return
     setTgTestStatus("sending")
+    const testText = "🤖 Тест TradeBase Bot\n\nПодключение работает! Уведомления о торгах будут приходить сюда.\n\n✅ ВЫИГРЫШ +2.5 USD\n❌ ПРОИГРЫШ -1.0 USD\n🛑 Stop Loss достигнут\n✅ Take Profit достигнут"
     try {
-      const text = encodeURIComponent("🤖 Тест TradeBase Bot\n\nПодключение работает! Уведомления о торгах будут приходить сюда.\n\n✅ ВЫИГРЫШ +2.5 USD\n❌ ПРОИГРЫШ -1.0 USD\n🛑 Stop Loss достигнут\n✅ Take Profit достигнут")
-      const res = await fetch(`https://api.telegram.org/bot${poConfig.tgToken}/sendMessage?chat_id=${poConfig.tgChatId}&text=${text}&parse_mode=HTML`)
-      const data = await res.json()
-      setTgTestStatus(data.ok ? "ok" : "error")
+      let ok = false
+      if ((poConfig.tgSendMode ?? "server") === "server") {
+        const res = await fetch("https://functions.poehali.dev/fb70e0a6-b6c1-49e2-b148-c37dab50f024", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: poConfig.tgToken, chat_id: poConfig.tgChatId, text: testText }),
+        })
+        const data = await res.json()
+        ok = data.ok
+      } else {
+        const text = encodeURIComponent(testText)
+        const res = await fetch(`https://api.telegram.org/bot${poConfig.tgToken}/sendMessage?chat_id=${poConfig.tgChatId}&text=${text}&parse_mode=HTML`)
+        const data = await res.json()
+        ok = data.ok
+      }
+      setTgTestStatus(ok ? "ok" : "error")
     } catch {
       setTgTestStatus("error")
     }
@@ -895,8 +908,28 @@ export default function BotBuilder() {
                         />
                         <p className="text-zinc-600 font-space-mono text-xs mt-1">Узнай у @userinfobot</p>
                       </div>
-                      {/* Прокси */}
+                      {/* Режим отправки */}
                       <div>
+                        <label className="text-zinc-400 font-space-mono text-xs mb-2 block">Способ отправки уведомлений</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {([
+                            { value: "server", icon: "🌐", title: "Через сервер", desc: "100% работает, Telegram не заблокирован" },
+                            { value: "proxy", icon: "🔌", title: "Напрямую / прокси", desc: "Бот сам шлёт, нужен VPN или прокси" },
+                          ] as const).map((opt) => (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => setPoConfig(p => ({ ...p, tgSendMode: opt.value }))}
+                              className={`rounded-lg px-3 py-2 text-xs font-space-mono border transition-all text-left ${(poConfig.tgSendMode ?? "server") === opt.value ? "bg-blue-600/20 border-blue-500/50 text-blue-300" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}
+                            >
+                              <div className="font-bold mb-0.5">{opt.icon} {opt.title}</div>
+                              <div className="text-zinc-500 text-[10px] leading-tight">{opt.desc}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Прокси */}
+                      {(poConfig.tgSendMode ?? "server") === "proxy" && <div>
                         <label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">SOCKS5 прокси (если Telegram заблокирован) — можно несколько через запятую</label>
                         <input
                           type="text"
@@ -959,8 +992,7 @@ export default function BotBuilder() {
                           </div>
                           <p className="text-zinc-600 font-space-mono text-xs">Требуется: <span className="text-zinc-400">pip install PySocks</span></p>
                         </div>
-                      </div>
-                      {/* Режим уведомлений */}
+                      </div>}
                       <div>
                         <label className="text-zinc-400 font-space-mono text-xs mb-2 block">Какие уведомления получать</label>
                         <div className="grid grid-cols-2 gap-2">

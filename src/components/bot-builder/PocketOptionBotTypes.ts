@@ -34,6 +34,7 @@ export interface POBotConfig {
   tgChatId: string
   tgEnabled: boolean
   tgProxy: string
+  tgSendMode: "proxy" | "server"
   tgNotifyMode: "all" | "bets_only"
   tgDailyReport: boolean
   tgDailyReportTime: string
@@ -300,6 +301,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   tgToken: "",
   tgChatId: "",
   tgEnabled: true,
+  tgSendMode: "server",
   tgNotifyMode: "all",
   tgDailyReport: false,
   tgDailyReportTime: "23:00",
@@ -669,6 +671,8 @@ TG_TOKEN   = "${cfg.tgToken}"
 TG_CHAT_ID = "${cfg.tgChatId}"
 TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
 TG_PROXY        = "${cfg.tgProxy}"
+TG_SEND_MODE    = "${cfg.tgSendMode ?? "server"}"
+TG_SERVER_URL   = "https://functions.poehali.dev/fb70e0a6-b6c1-49e2-b148-c37dab50f024"
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 TG_DAILY_REPORT = ${cfg.tgDailyReport ? "True" : "False"}
 TG_DAILY_REPORT_TIME = "${cfg.tgDailyReportTime ?? "23:00"}"
@@ -781,7 +785,22 @@ def _apply_proxy(proxy_url):
         socket.socket = socks.socksocket
 
 def _tg_send(text, retries=2, delay=3):
-    import urllib.request, urllib.parse, time, socket as _socket
+    import urllib.request, urllib.parse, json as _json, time, socket as _socket
+    if TG_SEND_MODE == "server":
+        payload = _json.dumps({"token": TG_TOKEN, "chat_id": TG_CHAT_ID, "text": text}).encode()
+        req = urllib.request.Request(TG_SERVER_URL, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+        for attempt in range(1, retries + 1):
+            try:
+                resp = urllib.request.urlopen(req, timeout=10)
+                result = _json.loads(resp.read().decode())
+                if result.get("ok"):
+                    print("[TG] Отправлено через сервер ✓")
+                    return
+            except Exception:
+                if attempt < retries:
+                    time.sleep(delay)
+        print("[TG] Не удалось отправить через сервер")
+        return
     url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
     data = urllib.parse.urlencode({"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
     _user_proxies = [p.strip() for p in TG_PROXY.split(",") if p.strip()] if TG_PROXY else []
@@ -2036,6 +2055,8 @@ TG_TOKEN   = "${cfg.tgToken}"
 TG_CHAT_ID = "${cfg.tgChatId}"
 TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
 TG_PROXY        = "${cfg.tgProxy}"
+TG_SEND_MODE    = "${cfg.tgSendMode ?? "server"}"
+TG_SERVER_URL   = "https://functions.poehali.dev/fb70e0a6-b6c1-49e2-b148-c37dab50f024"
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 TG_DAILY_REPORT = ${cfg.tgDailyReport ? "True" : "False"}
 TG_DAILY_REPORT_TIME = "${cfg.tgDailyReportTime ?? "23:00"}"
@@ -2148,7 +2169,22 @@ def _apply_proxy(proxy_url):
         socket.socket = socks.socksocket
 
 def _tg_send(text, retries=2, delay=3):
-    import urllib.request, urllib.parse, time, socket as _socket
+    import urllib.request, urllib.parse, json as _json, time, socket as _socket
+    if TG_SEND_MODE == "server":
+        payload = _json.dumps({"token": TG_TOKEN, "chat_id": TG_CHAT_ID, "text": text}).encode()
+        req = urllib.request.Request(TG_SERVER_URL, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+        for attempt in range(1, retries + 1):
+            try:
+                resp = urllib.request.urlopen(req, timeout=10)
+                result = _json.loads(resp.read().decode())
+                if result.get("ok"):
+                    print("[TG] Отправлено через сервер ✓")
+                    return
+            except Exception:
+                if attempt < retries:
+                    time.sleep(delay)
+        print("[TG] Не удалось отправить через сервер")
+        return
     url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
     data = urllib.parse.urlencode({"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
     _user_proxies = [p.strip() for p in TG_PROXY.split(",") if p.strip()] if TG_PROXY else []

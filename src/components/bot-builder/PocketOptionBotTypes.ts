@@ -734,35 +734,90 @@ def journal_end_session():
         return
     _journal_request("/session/end", method="PUT", data={"session_id": _session_id})
 
+_tg_auto_proxies = []
+_tg_auto_proxies_ts = 0
+
+def _fetch_auto_proxies():
+    import urllib.request, json, time
+    global _tg_auto_proxies, _tg_auto_proxies_ts
+    if time.time() - _tg_auto_proxies_ts < 600 and _tg_auto_proxies:
+        return _tg_auto_proxies
+    result = []
+    try:
+        r = urllib.request.urlopen("https://api.proxyscrape.com/v2/?request=displayproxies&protocol=socks5&timeout=3000&country=all&ssl=all&anonymity=all&limit=30", timeout=8)
+        for line in r.read().decode().splitlines():
+            line = line.strip()
+            if line and ":" in line:
+                result.append(f"socks5://{line}")
+    except Exception:
+        pass
+    try:
+        r2 = urllib.request.urlopen("https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=3000&country=all&ssl=all&anonymity=all&limit=20", timeout=8)
+        for line in r2.read().decode().splitlines():
+            line = line.strip()
+            if line and ":" in line:
+                result.append(f"http://{line}")
+    except Exception:
+        pass
+    if result:
+        _tg_auto_proxies = result
+        _tg_auto_proxies_ts = time.time()
+        print(f"[TG] Загружено {len(result)} авто-прокси")
+    return result
+
 def _apply_proxy(proxy_url):
-    import socks, socket
+    import socket
     from urllib.parse import urlparse as _up
     p = _up(proxy_url)
-    socks.set_default_proxy(socks.SOCKS5, p.hostname, p.port, username=p.username, password=p.password)
-    socket.socket = socks.socksocket
+    scheme = p.scheme.lower()
+    if scheme in ("socks5", "socks4"):
+        import socks
+        _type = socks.SOCKS5 if scheme == "socks5" else socks.SOCKS4
+        socks.set_default_proxy(_type, p.hostname, p.port, username=p.username, password=p.password)
+        socket.socket = socks.socksocket
+    elif scheme in ("http", "https"):
+        import socks
+        socks.set_default_proxy(socks.HTTP, p.hostname, p.port, username=p.username, password=p.password)
+        socket.socket = socks.socksocket
 
-def _tg_send(text, retries=3, delay=5):
-    import urllib.request, urllib.parse, time
+def _tg_send(text, retries=2, delay=3):
+    import urllib.request, urllib.parse, time, socket as _socket
     url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
     data = urllib.parse.urlencode({"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
-    _proxies = [p.strip() for p in TG_PROXY.split(",") if p.strip()] if TG_PROXY else [None]
-    for proxy in _proxies:
+    _user_proxies = [p.strip() for p in TG_PROXY.split(",") if p.strip()] if TG_PROXY else []
+    _auto = _fetch_auto_proxies()
+    _all_proxies = _user_proxies + [p for p in _auto if p not in _user_proxies]
+    _orig_socket = _socket.socket
+    def _reset_socket():
+        try:
+            _socket.socket = _orig_socket
+        except Exception:
+            pass
+    for proxy in (_all_proxies + [None]):
         if proxy:
             try:
                 _apply_proxy(proxy)
             except Exception:
+                _reset_socket()
                 continue
-        _ok = False
+        else:
+            _reset_socket()
         for attempt in range(1, retries + 1):
             try:
                 urllib.request.urlopen(url, data, timeout=6)
-                _ok = True
+                if proxy is None and _all_proxies:
+                    print("[TG] Все прокси недоступны, отправлено напрямую ✓")
+                else:
+                    print(f"[TG] Отправлено через {proxy.split('@')[-1]} ✓")
+                _reset_socket()
                 return
             except Exception:
                 if attempt < retries:
                     time.sleep(delay)
-        if not _ok and proxy:
+        if proxy:
             print(f"[TG] Прокси не работает, пробую следующий: {proxy.split('@')[-1]}")
+            _reset_socket()
+    print("[TG] Не удалось отправить уведомление ни через один прокси и напрямую")
 
 def tg(text):
     """Отправка уведомления о ставке (всегда, если TG включён)"""
@@ -2046,35 +2101,90 @@ def journal_end_session():
         return
     _journal_request("/session/end", method="PUT", data={"session_id": _session_id})
 
+_tg_auto_proxies = []
+_tg_auto_proxies_ts = 0
+
+def _fetch_auto_proxies():
+    import urllib.request, json, time
+    global _tg_auto_proxies, _tg_auto_proxies_ts
+    if time.time() - _tg_auto_proxies_ts < 600 and _tg_auto_proxies:
+        return _tg_auto_proxies
+    result = []
+    try:
+        r = urllib.request.urlopen("https://api.proxyscrape.com/v2/?request=displayproxies&protocol=socks5&timeout=3000&country=all&ssl=all&anonymity=all&limit=30", timeout=8)
+        for line in r.read().decode().splitlines():
+            line = line.strip()
+            if line and ":" in line:
+                result.append(f"socks5://{line}")
+    except Exception:
+        pass
+    try:
+        r2 = urllib.request.urlopen("https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=3000&country=all&ssl=all&anonymity=all&limit=20", timeout=8)
+        for line in r2.read().decode().splitlines():
+            line = line.strip()
+            if line and ":" in line:
+                result.append(f"http://{line}")
+    except Exception:
+        pass
+    if result:
+        _tg_auto_proxies = result
+        _tg_auto_proxies_ts = time.time()
+        print(f"[TG] Загружено {len(result)} авто-прокси")
+    return result
+
 def _apply_proxy(proxy_url):
-    import socks, socket
+    import socket
     from urllib.parse import urlparse as _up
     p = _up(proxy_url)
-    socks.set_default_proxy(socks.SOCKS5, p.hostname, p.port, username=p.username, password=p.password)
-    socket.socket = socks.socksocket
+    scheme = p.scheme.lower()
+    if scheme in ("socks5", "socks4"):
+        import socks
+        _type = socks.SOCKS5 if scheme == "socks5" else socks.SOCKS4
+        socks.set_default_proxy(_type, p.hostname, p.port, username=p.username, password=p.password)
+        socket.socket = socks.socksocket
+    elif scheme in ("http", "https"):
+        import socks
+        socks.set_default_proxy(socks.HTTP, p.hostname, p.port, username=p.username, password=p.password)
+        socket.socket = socks.socksocket
 
-def _tg_send(text, retries=3, delay=5):
-    import urllib.request, urllib.parse, time
+def _tg_send(text, retries=2, delay=3):
+    import urllib.request, urllib.parse, time, socket as _socket
     url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
     data = urllib.parse.urlencode({"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
-    _proxies = [p.strip() for p in TG_PROXY.split(",") if p.strip()] if TG_PROXY else [None]
-    for proxy in _proxies:
+    _user_proxies = [p.strip() for p in TG_PROXY.split(",") if p.strip()] if TG_PROXY else []
+    _auto = _fetch_auto_proxies()
+    _all_proxies = _user_proxies + [p for p in _auto if p not in _user_proxies]
+    _orig_socket = _socket.socket
+    def _reset_socket():
+        try:
+            _socket.socket = _orig_socket
+        except Exception:
+            pass
+    for proxy in (_all_proxies + [None]):
         if proxy:
             try:
                 _apply_proxy(proxy)
             except Exception:
+                _reset_socket()
                 continue
-        _ok = False
+        else:
+            _reset_socket()
         for attempt in range(1, retries + 1):
             try:
                 urllib.request.urlopen(url, data, timeout=6)
-                _ok = True
+                if proxy is None and _all_proxies:
+                    print("[TG] Все прокси недоступны, отправлено напрямую ✓")
+                else:
+                    print(f"[TG] Отправлено через {proxy.split('@')[-1]} ✓")
+                _reset_socket()
                 return
             except Exception:
                 if attempt < retries:
                     time.sleep(delay)
-        if not _ok and proxy:
+        if proxy:
             print(f"[TG] Прокси не работает, пробую следующий: {proxy.split('@')[-1]}")
+            _reset_socket()
+    print("[TG] Не удалось отправить уведомление ни через один прокси и напрямую")
 
 def tg(text):
     """Отправка уведомления о ставке (всегда, если TG включён)"""

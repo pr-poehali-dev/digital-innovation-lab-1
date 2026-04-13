@@ -752,15 +752,17 @@ def _tg_send(text, retries=3, delay=5):
                 _apply_proxy(proxy)
             except Exception:
                 continue
+        _ok = False
         for attempt in range(1, retries + 1):
             try:
                 urllib.request.urlopen(url, data, timeout=6)
+                _ok = True
                 return
-            except Exception as e:
+            except Exception:
                 if attempt < retries:
                     time.sleep(delay)
-                elif proxy:
-                    print(f"[TG] Прокси не работает, пробую следующий: {proxy.split('@')[-1]}")
+        if not _ok and proxy:
+            print(f"[TG] Прокси не работает, пробую следующий: {proxy.split('@')[-1]}")
 
 def tg(text):
     """Отправка уведомления о ставке (всегда, если TG включён)"""
@@ -1052,8 +1054,8 @@ async def tg_poll_commands():
                     tg("\\n".join(lines))
             elif cmd == "/help":
                 tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статистика\\n/report {BOT_NAME} — отчёт за день\\n/reset {BOT_NAME} — сбросить статистику\\n/tune {BOT_NAME} — авто-тюнинг параметров\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
-    except Exception as _e:
-        print(f"[TG_POLL] Ошибка: {_e}")
+    except Exception:
+        pass
 
 # ===== СОСТОЯНИЕ =====
 total_profit  = 0.0
@@ -2062,15 +2064,17 @@ def _tg_send(text, retries=3, delay=5):
                 _apply_proxy(proxy)
             except Exception:
                 continue
+        _ok = False
         for attempt in range(1, retries + 1):
             try:
                 urllib.request.urlopen(url, data, timeout=6)
+                _ok = True
                 return
-            except Exception as e:
+            except Exception:
                 if attempt < retries:
                     time.sleep(delay)
-                elif proxy:
-                    print(f"[TG] Прокси не работает, пробую следующий: {proxy.split('@')[-1]}")
+        if not _ok and proxy:
+            print(f"[TG] Прокси не работает, пробую следующий: {proxy.split('@')[-1]}")
 
 def tg(text):
     """Отправка уведомления о ставке (всегда, если TG включён)"""
@@ -2362,8 +2366,8 @@ async def tg_poll_commands():
                     tg("\\n".join(lines))
             elif cmd == "/help":
                 tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статистика\\n/report {BOT_NAME} — отчёт за день\\n/reset {BOT_NAME} — сбросить статистику\\n/tune {BOT_NAME} — авто-тюнинг параметров\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
-    except Exception as _e:
-        print(f"[TG_POLL] Ошибка: {_e}")
+    except Exception:
+        pass
 
 # ===== СОСТОЯНИЕ =====
 total_profit  = 0.0

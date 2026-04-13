@@ -746,7 +746,6 @@ def _tg_send(text, retries=3, delay=5):
     url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
     data = urllib.parse.urlencode({"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
     _proxies = [p.strip() for p in TG_PROXY.split(",") if p.strip()] if TG_PROXY else [None]
-    _last_err = None
     for proxy in _proxies:
         if proxy:
             try:
@@ -755,15 +754,13 @@ def _tg_send(text, retries=3, delay=5):
                 continue
         for attempt in range(1, retries + 1):
             try:
-                urllib.request.urlopen(url, data, timeout=8)
+                urllib.request.urlopen(url, data, timeout=6)
                 return
             except Exception as e:
-                _last_err = e
                 if attempt < retries:
                     time.sleep(delay)
-        break
-    if _last_err:
-        print(f"[TG] Ошибка: {_last_err}")
+                elif proxy:
+                    print(f"[TG] Прокси не работает, пробую следующий: {proxy.split('@')[-1]}")
 
 def tg(text):
     """Отправка уведомления о ставке (всегда, если TG включён)"""
@@ -2059,7 +2056,6 @@ def _tg_send(text, retries=3, delay=5):
     url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
     data = urllib.parse.urlencode({"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
     _proxies = [p.strip() for p in TG_PROXY.split(",") if p.strip()] if TG_PROXY else [None]
-    _last_err = None
     for proxy in _proxies:
         if proxy:
             try:
@@ -2068,15 +2064,13 @@ def _tg_send(text, retries=3, delay=5):
                 continue
         for attempt in range(1, retries + 1):
             try:
-                urllib.request.urlopen(url, data, timeout=8)
+                urllib.request.urlopen(url, data, timeout=6)
                 return
             except Exception as e:
-                _last_err = e
                 if attempt < retries:
                     time.sleep(delay)
-        break
-    if _last_err:
-        print(f"[TG] Ошибка: {_last_err}")
+                elif proxy:
+                    print(f"[TG] Прокси не работает, пробую следующий: {proxy.split('@')[-1]}")
 
 def tg(text):
     """Отправка уведомления о ставке (всегда, если TG включён)"""

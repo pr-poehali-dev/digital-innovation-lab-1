@@ -1687,7 +1687,12 @@ async def main():
                 if signal_info:
                     print(f"[SIGNAL] {signal_info}")
                 sig_line = f"📊 Сигнал: {signal_info}" if signal_info else ""
+                _candle_line = ""
+                if len(candles) >= 6:
+                    _candle_line = f"🕯 {_emojis}{_cur_e} (▲{_ups}/▼{_dns})"
                 tg_parts = [f"{emoji} <b>[{BOT_NAME}] Сделка открыта</b>", f"{signal} | {bet} {currency} | {ASSET} | {EXPIRY_SEC//60} мин"]
+                if _candle_line:
+                    tg_parts.append(_candle_line)
                 if sig_line:
                     tg_parts.append(sig_line)
                 tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")

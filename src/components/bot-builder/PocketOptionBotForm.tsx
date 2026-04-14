@@ -740,6 +740,48 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
               </div>
             )}
 
+            {/* Подтверждение трендом по свечам */}
+            <div className="bg-zinc-800 border border-zinc-700 rounded-xl p-3 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white font-space-mono text-xs font-semibold">🕯️ Подтверждение трендом</p>
+                  <p className="text-zinc-500 font-space-mono text-[10px] mt-0.5">Сделка только если N свечей одного цвета</p>
+                </div>
+                <Switch
+                  checked={config.trendCandlesEnabled}
+                  onCheckedChange={(v) => set({ trendCandlesEnabled: v })}
+                />
+              </div>
+              {config.trendCandlesEnabled && (
+                <div>
+                  <p className="text-zinc-400 font-space-mono text-xs mb-2">Сколько свечей подряд нужно:</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([2, 3, 4] as const).map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => set({ trendCandlesCount: n })}
+                        className={`py-2 rounded-lg border font-orbitron text-sm font-bold transition-all
+                          ${config.trendCandlesCount === n
+                            ? "bg-red-500/20 border-red-500/50 text-red-400"
+                            : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500"
+                          }`}
+                      >
+                        {n === 2 ? "🟢🟢" : n === 3 ? "🟢🟢🟢" : "🟢🟢🟢🟢"}
+                        <div className="text-[10px] font-space-mono font-normal mt-0.5 text-zinc-500">
+                          {n} свечи
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-2 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2 text-xs font-space-mono text-green-400">
+                    {config.trendCandlesCount === 2 && "⚡ 2 свечи — больше сигналов, но чуть ниже точность"}
+                    {config.trendCandlesCount === 3 && "✅ 3 свечи — оптимальный баланс сигналов и точности"}
+                    {config.trendCandlesCount === 4 && "🔒 4 свечи — очень редкие, но очень надёжные сигналы"}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Presets */}
             <div>
               <p className="text-zinc-500 font-space-mono text-xs mb-2">⚡ Быстрые пресеты</p>

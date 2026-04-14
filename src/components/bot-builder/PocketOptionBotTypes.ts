@@ -65,6 +65,9 @@ export interface POBotConfig {
   rufusPips: number
   rufusLookback: number
   rufusStep: 0.01 | 0.001
+  // Тренд по свечам (комбо-режим)
+  trendCandlesEnabled: boolean
+  trendCandlesCount: 2 | 3 | 4
 }
 
 export interface StrategyMeta {
@@ -328,6 +331,8 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   rufusPips: 5,
   rufusLookback: 10,
   rufusStep: 0.01,
+  trendCandlesEnabled: false,
+  trendCandlesCount: 3,
 }
 
 // Helper to avoid TS template literal conflicts with Python f-strings
@@ -1891,40 +1896,50 @@ def signal_support_resistance(prices, candles):
     callLines.push("signal_support_resistance(prices, candles)")
   }
 
+  const trendN = cfg.trendCandlesEnabled ? (cfg.trendCandlesCount ?? 3) : 3
+  const trendEmoji = "🟢".repeat(trendN)
+  const trendEmojiRed = "🔴".repeat(trendN)
+  const trendEnabled = cfg.trendCandlesEnabled
+
   const combineLogic = cfg.comboLogic === "AND"
     ? `
-def get_trend_3candles(candles):
-    """3 свечи одного цвета подряд"""
-    if len(candles) < 4:
+TREND_CANDLES_ENABLED = ${trendEnabled ? "True" : "False"}
+TREND_CANDLES_COUNT = ${trendN}
+
+def get_trend_Ncandles(candles):
+    """${trendN} свечи одного цвета подряд"""
+    if not TREND_CANDLES_ENABLED:
+        return "ANY", "ТРЕНД: отключён"
+    if len(candles) < TREND_CANDLES_COUNT + 1:
         return None, "ТРЕНД: мало свечей"
-    last3 = candles[-4:-1]
-    colors = ["UP" if c[3] >= c[0] else "DOWN" for c in last3]
+    lastN = candles[-(TREND_CANDLES_COUNT + 1):-1]
+    colors = ["UP" if c[3] >= c[0] else "DOWN" for c in lastN]
     if all(c == "UP" for c in colors):
-        return "CALL", "ТРЕНД🟢🟢🟢→CALL"
+        return "CALL", f"ТРЕНД${trendEmoji}→CALL"
     if all(c == "DOWN" for c in colors):
-        return "PUT", "ТРЕНД🔴🔴🔴→PUT"
-    return None, "ТРЕНД: нет 3 подряд"
+        return "PUT", f"ТРЕНД${trendEmojiRed}→PUT"
+    return None, f"ТРЕНД: нет {TREND_CANDLES_COUNT} подряд"
 
 def get_combined_signal(prices, candles):
-    """Комбо AND + тренд — стратегия должна совпасть с трендом (3 свечи)"""
+    """Комбо AND + тренд — стратегия должна совпасть с трендом (${trendN} свечи)"""
     fns = [${callLines.map(l => l.replace(/\(.*\)/, '')).join(", ")}]
     results = [f(prices, candles) for f in fns]
-    trend_sig, trend_info = get_trend_3candles(candles)
+    trend_sig, trend_info = get_trend_Ncandles(candles)
     signals = [(s, i) for s, i in results if s is not None]
     majority = (${selected.length} // 2) + 1
     calls = [(s, i) for s, i in signals if s == "CALL"]
     puts  = [(s, i) for s, i in signals if s == "PUT"]
     print(f"[СТРАТЕГИИ] CALL={len(calls)}/${selected.length} PUT={len(puts)}/${selected.length} | нужно {majority} | ТРЕНД={trend_sig} | " + " | ".join(i for _, i in results if i))
     if len(calls) >= majority:
-        if trend_sig == "CALL":
-            info = "AND✅ " + " | ".join(i for _, i in calls if i) + " | " + trend_info
+        if trend_sig in ("CALL", "ANY"):
+            info = "AND✅ " + " | ".join(i for _, i in calls if i) + (" | " + trend_info if trend_sig != "ANY" else "")
             return "CALL", info
         else:
             print(f"[ТРЕНД] Сигнал CALL заблокирован — тренд {trend_sig} ({trend_info})")
             return None, " | ".join(i for _, i in calls if i) + " | " + trend_info
     if len(puts) >= majority:
-        if trend_sig == "PUT":
-            info = "AND✅ " + " | ".join(i for _, i in puts if i) + " | " + trend_info
+        if trend_sig in ("PUT", "ANY"):
+            info = "AND✅ " + " | ".join(i for _, i in puts if i) + (" | " + trend_info if trend_sig != "ANY" else "")
             return "PUT", info
         else:
             print(f"[ТРЕНД] Сигнал PUT заблокирован — тренд {trend_sig} ({trend_info})")
@@ -1932,23 +1947,28 @@ def get_combined_signal(prices, candles):
     all_info = " | ".join(i for _, i in results if i) + " | " + trend_info
     return None, all_info  # Нет большинства`
     : `
-def get_trend_3candles(candles):
-    """3 свечи одного цвета подряд"""
-    if len(candles) < 4:
+TREND_CANDLES_ENABLED = ${trendEnabled ? "True" : "False"}
+TREND_CANDLES_COUNT = ${trendN}
+
+def get_trend_Ncandles(candles):
+    """${trendN} свечи одного цвета подряд"""
+    if not TREND_CANDLES_ENABLED:
+        return "ANY", "ТРЕНД: отключён"
+    if len(candles) < TREND_CANDLES_COUNT + 1:
         return None, "ТРЕНД: мало свечей"
-    last3 = candles[-4:-1]
-    colors = ["UP" if c[3] >= c[0] else "DOWN" for c in last3]
+    lastN = candles[-(TREND_CANDLES_COUNT + 1):-1]
+    colors = ["UP" if c[3] >= c[0] else "DOWN" for c in lastN]
     if all(c == "UP" for c in colors):
-        return "CALL", "ТРЕНД🟢🟢🟢→CALL"
+        return "CALL", f"ТРЕНД${trendEmoji}→CALL"
     if all(c == "DOWN" for c in colors):
-        return "PUT", "ТРЕНД🔴🔴🔴→PUT"
-    return None, "ТРЕНД: нет 3 подряд"
+        return "PUT", f"ТРЕНД${trendEmojiRed}→PUT"
+    return None, f"ТРЕНД: нет {TREND_CANDLES_COUNT} подряд"
 
 def get_combined_signal(prices, candles):
-    """Комбо OR + тренд — достаточно одной стратегии + совпадение тренда"""
+    """Комбо OR + тренд — достаточно одной стратегии + совпадение тренда (${trendN} свечи)"""
     fns = [${callLines.map(l => l.replace(/\(.*\)/, '')).join(", ")}]
     results = [f(prices, candles) for f in fns]
-    trend_sig, trend_info = get_trend_3candles(candles)
+    trend_sig, trend_info = get_trend_Ncandles(candles)
     signals = [(s, i) for s, i in results if s is not None]
     calls = [(s, i) for s, i in signals if s == "CALL"]
     puts  = [(s, i) for s, i in signals if s == "PUT"]
@@ -1957,15 +1977,15 @@ def get_combined_signal(prices, candles):
         all_info = " | ".join(i for _, i in results if i) + " | " + trend_info
         return None, all_info
     if len(calls) > len(puts):
-        if trend_sig == "CALL":
-            info = "OR✅ " + " | ".join(i for _, i in calls if i) + " | " + trend_info
+        if trend_sig in ("CALL", "ANY"):
+            info = "OR✅ " + " | ".join(i for _, i in calls if i) + (" | " + trend_info if trend_sig != "ANY" else "")
             return "CALL", info
         else:
             print(f"[ТРЕНД] Сигнал CALL заблокирован — тренд {trend_sig} ({trend_info})")
             return None, " | ".join(i for _, i in calls if i) + " | " + trend_info
     if len(puts) > len(calls):
-        if trend_sig == "PUT":
-            info = "OR✅ " + " | ".join(i for _, i in puts if i) + " | " + trend_info
+        if trend_sig in ("PUT", "ANY"):
+            info = "OR✅ " + " | ".join(i for _, i in puts if i) + (" | " + trend_info if trend_sig != "ANY" else "")
             return "PUT", info
         else:
             print(f"[ТРЕНД] Сигнал PUT заблокирован — тренд {trend_sig} ({trend_info})")

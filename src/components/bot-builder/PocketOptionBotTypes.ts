@@ -1893,43 +1893,84 @@ def signal_support_resistance(prices, candles):
 
   const combineLogic = cfg.comboLogic === "AND"
     ? `
+def get_trend_3candles(candles):
+    """3 свечи одного цвета подряд"""
+    if len(candles) < 4:
+        return None, "ТРЕНД: мало свечей"
+    last3 = candles[-4:-1]
+    colors = ["UP" if c[3] >= c[0] else "DOWN" for c in last3]
+    if all(c == "UP" for c in colors):
+        return "CALL", "ТРЕНД🟢🟢🟢→CALL"
+    if all(c == "DOWN" for c in colors):
+        return "PUT", "ТРЕНД🔴🔴🔴→PUT"
+    return None, "ТРЕНД: нет 3 подряд"
+
 def get_combined_signal(prices, candles):
-    """Комбо AND — большинство стратегий должны совпасть"""
+    """Комбо AND + тренд — стратегия должна совпасть с трендом (3 свечи)"""
     fns = [${callLines.map(l => l.replace(/\(.*\)/, '')).join(", ")}]
     results = [f(prices, candles) for f in fns]
+    trend_sig, trend_info = get_trend_3candles(candles)
     signals = [(s, i) for s, i in results if s is not None]
     majority = (${selected.length} // 2) + 1
     calls = [(s, i) for s, i in signals if s == "CALL"]
     puts  = [(s, i) for s, i in signals if s == "PUT"]
-    print(f"[СТРАТЕГИИ] CALL={len(calls)}/${selected.length} PUT={len(puts)}/${selected.length} | нужно {majority} | " + " | ".join(i for _, i in results if i))
+    print(f"[СТРАТЕГИИ] CALL={len(calls)}/${selected.length} PUT={len(puts)}/${selected.length} | нужно {majority} | ТРЕНД={trend_sig} | " + " | ".join(i for _, i in results if i))
     if len(calls) >= majority:
-        info = "AND✅ " + " | ".join(i for _, i in calls if i)
-        return "CALL", info
+        if trend_sig == "CALL":
+            info = "AND✅ " + " | ".join(i for _, i in calls if i) + " | " + trend_info
+            return "CALL", info
+        else:
+            print(f"[ТРЕНД] Сигнал CALL заблокирован — тренд {trend_sig} ({trend_info})")
+            return None, " | ".join(i for _, i in calls if i) + " | " + trend_info
     if len(puts) >= majority:
-        info = "AND✅ " + " | ".join(i for _, i in puts if i)
-        return "PUT", info
-    all_info = " | ".join(i for _, i in results if i)
+        if trend_sig == "PUT":
+            info = "AND✅ " + " | ".join(i for _, i in puts if i) + " | " + trend_info
+            return "PUT", info
+        else:
+            print(f"[ТРЕНД] Сигнал PUT заблокирован — тренд {trend_sig} ({trend_info})")
+            return None, " | ".join(i for _, i in puts if i) + " | " + trend_info
+    all_info = " | ".join(i for _, i in results if i) + " | " + trend_info
     return None, all_info  # Нет большинства`
     : `
+def get_trend_3candles(candles):
+    """3 свечи одного цвета подряд"""
+    if len(candles) < 4:
+        return None, "ТРЕНД: мало свечей"
+    last3 = candles[-4:-1]
+    colors = ["UP" if c[3] >= c[0] else "DOWN" for c in last3]
+    if all(c == "UP" for c in colors):
+        return "CALL", "ТРЕНД🟢🟢🟢→CALL"
+    if all(c == "DOWN" for c in colors):
+        return "PUT", "ТРЕНД🔴🔴🔴→PUT"
+    return None, "ТРЕНД: нет 3 подряд"
+
 def get_combined_signal(prices, candles):
-    """Комбо OR — достаточно хотя бы одного сигнала"""
-    fns = [signal_trend, ${callLines.map(l => l.replace(/\(.*\)/, '')).join(", ")}]
+    """Комбо OR + тренд — достаточно одной стратегии + совпадение тренда"""
+    fns = [${callLines.map(l => l.replace(/\(.*\)/, '')).join(", ")}]
     results = [f(prices, candles) for f in fns]
+    trend_sig, trend_info = get_trend_3candles(candles)
     signals = [(s, i) for s, i in results if s is not None]
     calls = [(s, i) for s, i in signals if s == "CALL"]
     puts  = [(s, i) for s, i in signals if s == "PUT"]
-    total = ${selected.length} + 1
-    print(f"[СТРАТЕГИИ] CALL={len(calls)}/{total} PUT={len(puts)}/{total} | " + " | ".join(i for _, i in results if i))
+    print(f"[СТРАТЕГИИ] CALL={len(calls)}/${selected.length} PUT={len(puts)}/${selected.length} | ТРЕНД={trend_sig} | " + " | ".join(i for _, i in results if i))
     if not signals:
-        all_info = " | ".join(i for _, i in results if i)
+        all_info = " | ".join(i for _, i in results if i) + " | " + trend_info
         return None, all_info
     if len(calls) > len(puts):
-        info = "OR✅ " + " | ".join(i for _, i in calls if i)
-        return "CALL", info
+        if trend_sig == "CALL":
+            info = "OR✅ " + " | ".join(i for _, i in calls if i) + " | " + trend_info
+            return "CALL", info
+        else:
+            print(f"[ТРЕНД] Сигнал CALL заблокирован — тренд {trend_sig} ({trend_info})")
+            return None, " | ".join(i for _, i in calls if i) + " | " + trend_info
     if len(puts) > len(calls):
-        info = "OR✅ " + " | ".join(i for _, i in puts if i)
-        return "PUT", info
-    all_info = " | ".join(i for _, i in results if i)
+        if trend_sig == "PUT":
+            info = "OR✅ " + " | ".join(i for _, i in puts if i) + " | " + trend_info
+            return "PUT", info
+        else:
+            print(f"[ТРЕНД] Сигнал PUT заблокирован — тренд {trend_sig} ({trend_info})")
+            return None, " | ".join(i for _, i in puts if i) + " | " + trend_info
+    all_info = " | ".join(i for _, i in results if i) + " | " + trend_info
     return None, all_info  # Равенство голосов — пропускаем`
 
   const comboAssetMap: Record<string, string> = {

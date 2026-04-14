@@ -1901,6 +1901,7 @@ def get_combined_signal(prices, candles):
     majority = (${selected.length} // 2) + 1
     calls = [(s, i) for s, i in signals if s == "CALL"]
     puts  = [(s, i) for s, i in signals if s == "PUT"]
+    print(f"[СТРАТЕГИИ] CALL={len(calls)}/${selected.length} PUT={len(puts)}/${selected.length} | нужно {majority} | " + " | ".join(i for _, i in results if i))
     if len(calls) >= majority:
         info = "AND✅ " + " | ".join(i for _, i in calls if i)
         return "CALL", info
@@ -1915,11 +1916,13 @@ def get_combined_signal(prices, candles):
     fns = [signal_trend, ${callLines.map(l => l.replace(/\(.*\)/, '')).join(", ")}]
     results = [f(prices, candles) for f in fns]
     signals = [(s, i) for s, i in results if s is not None]
+    calls = [(s, i) for s, i in signals if s == "CALL"]
+    puts  = [(s, i) for s, i in signals if s == "PUT"]
+    total = ${selected.length} + 1
+    print(f"[СТРАТЕГИИ] CALL={len(calls)}/{total} PUT={len(puts)}/{total} | " + " | ".join(i for _, i in results if i))
     if not signals:
         all_info = " | ".join(i for _, i in results if i)
         return None, all_info
-    calls = [(s, i) for s, i in signals if s == "CALL"]
-    puts  = [(s, i) for s, i in signals if s == "PUT"]
     if len(calls) > len(puts):
         info = "OR✅ " + " | ".join(i for _, i in calls if i)
         return "CALL", info

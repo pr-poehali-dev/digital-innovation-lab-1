@@ -1907,7 +1907,7 @@ def get_combined_signal(prices, candles):
     if len(puts) >= majority:
         info = "AND✅ " + " | ".join(i for _, i in puts if i)
         return "PUT", info
-    all_info = " | ".join(i for _, i in signals if i)
+    all_info = " | ".join(i for _, i in results if i)
     return None, all_info  # Нет большинства`
     : `
 def get_combined_signal(prices, candles):
@@ -1926,7 +1926,7 @@ def get_combined_signal(prices, candles):
     if len(puts) > len(calls):
         info = "OR✅ " + " | ".join(i for _, i in puts if i)
         return "PUT", info
-    all_info = " | ".join(i for _, i in signals if i)
+    all_info = " | ".join(i for _, i in results if i)
     return None, all_info  # Равенство голосов — пропускаем`
 
   const comboAssetMap: Record<string, string> = {

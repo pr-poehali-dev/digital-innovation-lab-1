@@ -1713,7 +1713,8 @@ async def main():
                                 print(f"[PAUSE] {LOSS_STREAK_COUNT} проигрышей подряд — пауза {LOSS_STREAK_PAUSE_MIN} мин")
             else:
                 ts = datetime.now().strftime("%H:%M:%S")
-                print(f"[{ts}] Нет сигнала, ожидание {CHECK_INTERVAL} сек...")
+                reason = f" ({signal_info})" if signal_info else ""
+                print(f"[{ts}] Нет сигнала{reason} | ожидание {CHECK_INTERVAL} сек...")
                 await asyncio.sleep(CHECK_INTERVAL)
 
         except Exception as e:
@@ -2955,7 +2956,8 @@ async def main():
                             print(f"[PAUSE] {LOSS_STREAK_COUNT} проигрышей подряд — пауза {LOSS_STREAK_PAUSE_MIN} мин")
         else:
             ts = datetime.now().strftime("%H:%M:%S")
-            print(f"[{ts}] Нет подтверждённого сигнала, ожидание {CHECK_INTERVAL} сек...")
+            reason = f" ({signal_info})" if signal_info else ""
+            print(f"[{ts}] Нет сигнала{reason} | ожидание {CHECK_INTERVAL} сек...")
             await asyncio.sleep(CHECK_INTERVAL)
 
     journal_end_session()

@@ -696,7 +696,7 @@ def _journal_request(path, method="POST", data=None):
         resp = urllib.request.urlopen(req, timeout=5).read()
         return _json.loads(resp)
     except Exception as e:
-
+        print(f"[JOURNAL] Ошибка: {e}")
         return {}
 
 def journal_start_session():
@@ -2080,7 +2080,7 @@ def _journal_request(path, method="POST", data=None):
         resp = urllib.request.urlopen(req, timeout=5).read()
         return _json.loads(resp)
     except Exception as e:
-
+        print(f"[JOURNAL] Ошибка: {e}")
         return {}
 
 def journal_start_session():

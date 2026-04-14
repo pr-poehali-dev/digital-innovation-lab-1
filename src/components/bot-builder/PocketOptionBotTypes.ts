@@ -1676,6 +1676,14 @@ async def main():
                 if INVERT_SIGNAL:
                     signal = "PUT" if signal == "CALL" else "CALL"
                 emoji = "📈" if signal == "CALL" else "📉"
+                if len(candles) >= 6:
+                    _last5 = candles[-6:-1]
+                    _cur   = candles[-1]
+                    _emojis = "".join("🟢" if c[3] >= c[0] else "🔴" for c in _last5)
+                    _cur_e  = "🟢" if _cur[3] >= _cur[0] else "🔴"
+                    _ups = sum(1 for c in _last5 if c[3] >= c[0])
+                    _dns = 5 - _ups
+                    print(f"[СВЕЧИ] последние 5: {_emojis} (▲{_ups}/▼{_dns}) | текущая: {_cur_e} | → {signal}")
                 if signal_info:
                     print(f"[SIGNAL] {signal_info}")
                 sig_line = f"📊 Сигнал: {signal_info}" if signal_info else ""

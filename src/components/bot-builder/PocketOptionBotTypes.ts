@@ -68,6 +68,9 @@ export interface POBotConfig {
   // Тренд по свечам (комбо-режим)
   trendCandlesEnabled: boolean
   trendCandlesCount: 2 | 3 | 4
+  // Подтверждение сигнала свечами (одиночный режим)
+  candleConfirmEnabled: boolean
+  candleConfirmCount: 2 | 3 | 4
 }
 
 export interface StrategyMeta {
@@ -333,6 +336,8 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   rufusStep: 0.01,
   trendCandlesEnabled: false,
   trendCandlesCount: 3,
+  candleConfirmEnabled: false,
+  candleConfirmCount: 3,
 }
 
 // Helper to avoid TS template literal conflicts with Python f-strings
@@ -636,6 +641,9 @@ LOSS_STREAK_COUNT         = ${cfg.lossStreakCount ?? 3}
 LOSS_STREAK_PAUSE_MIN     = ${cfg.lossStreakPauseMin ?? 30}
 
 EMA_TREND_FILTER = ${cfg.emaTrendFilterEnabled ? "True" : "False"}
+
+CANDLE_CONFIRM_ENABLED = ${cfg.candleConfirmEnabled ? "True" : "False"}
+CANDLE_CONFIRM_COUNT   = ${cfg.candleConfirmCount ?? 3}
 
 try:
     from dotenv import load_dotenv; load_dotenv()
@@ -1662,6 +1670,17 @@ async def main():
                         rejected_signals += 1
                         await asyncio.sleep(CHECK_INTERVAL)
                         continue
+                if CANDLE_CONFIRM_ENABLED and len(candles) >= CANDLE_CONFIRM_COUNT + 1:
+                    _conf_candles = candles[-(CANDLE_CONFIRM_COUNT + 1):-1]
+                    _conf_colors = ["UP" if c[3] >= c[0] else "DOWN" for c in _conf_candles]
+                    _conf_emojis = "".join("🟢" if col == "UP" else "🔴" for col in _conf_colors)
+                    _expected = "UP" if signal == "CALL" else "DOWN"
+                    if not all(c == _expected for c in _conf_colors):
+                        print(f"[CANDLE-CONFIRM] Нет {CANDLE_CONFIRM_COUNT} свечей подряд для {signal} | свечи: {_conf_emojis} | сигнал отклонён")
+                        rejected_signals += 1
+                        await asyncio.sleep(CHECK_INTERVAL)
+                        continue
+                    print(f"[CANDLE-CONFIRM] ✅ {CANDLE_CONFIRM_COUNT} свечей подтверждают {signal} | {_conf_emojis}")
 
             if signal:
                 if BET_PERCENT:
@@ -2071,6 +2090,8 @@ CURRENCY     = "${cfg.currency}"
 TAKE_PROFIT  = ${cfg.takeProfitRub}
 STOP_LOSS    = ${cfg.stopLossRub}
 DAILY_LIMIT  = ${cfg.dailyLimit}
+CANDLE_CONFIRM_ENABLED = ${cfg.candleConfirmEnabled ? "True" : "False"}
+CANDLE_CONFIRM_COUNT   = ${cfg.candleConfirmCount ?? 3}
 AUTO_RESTART     = ${cfg.autoRestart ? "True" : "False"}
 MARTINGALE       = ${cfg.martingaleEnabled ? "True" : "False"}
 MARTINGALE_MULT  = ${cfg.martingaleMultiplier}
@@ -2989,6 +3010,16 @@ async def main():
                     print(f"[EMA200] Цена {_price_now:.5f} > EMA200 {_ema200:.5f}, PUT отвергнут")
                     await asyncio.sleep(CHECK_INTERVAL)
                     continue
+            if CANDLE_CONFIRM_ENABLED and len(candles) >= CANDLE_CONFIRM_COUNT + 1:
+                _conf_candles = candles[-(CANDLE_CONFIRM_COUNT + 1):-1]
+                _conf_colors = ["UP" if c[3] >= c[0] else "DOWN" for c in _conf_candles]
+                _conf_emojis = "".join("🟢" if col == "UP" else "🔴" for col in _conf_colors)
+                _expected = "UP" if signal == "CALL" else "DOWN"
+                if not all(c == _expected for c in _conf_colors):
+                    print(f"[CANDLE-CONFIRM] Нет {CANDLE_CONFIRM_COUNT} свечей подряд для {signal} | свечи: {_conf_emojis} | сигнал отклонён")
+                    await asyncio.sleep(CHECK_INTERVAL)
+                    continue
+                print(f"[CANDLE-CONFIRM] ✅ {CANDLE_CONFIRM_COUNT} свечей подтверждают {signal} | {_conf_emojis}")
 
         if signal:
             if BET_PERCENT:

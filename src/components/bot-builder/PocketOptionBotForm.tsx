@@ -1738,6 +1738,47 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
         )}
       </Card>
 
+      {/* Подтверждение свечами перед сделкой */}
+      <Card className="bg-zinc-900 border-zinc-700">
+        <CardHeader className="pb-2 pt-4 px-4">
+          <CardTitle className="text-sm font-space-mono text-zinc-200 flex items-center gap-2">
+            <span>🕯️</span> Подтверждение свечами
+            <Switch checked={config.candleConfirmEnabled ?? false} onCheckedChange={(v) => set({ candleConfirmEnabled: v })} className="ml-auto scale-90" />
+          </CardTitle>
+        </CardHeader>
+        {config.candleConfirmEnabled && (
+          <CardContent className="px-4 pb-4 space-y-3">
+            <p className="text-zinc-500 text-xs font-space-mono">Сделка открывается только если сигнал стратегии совпадает с N свечами одного цвета подряд прямо сейчас</p>
+            <div>
+              <p className="text-zinc-400 font-space-mono text-xs mb-2">Сколько свечей подряд нужно:</p>
+              <div className="grid grid-cols-3 gap-2">
+                {([2, 3, 4] as const).map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => set({ candleConfirmCount: n })}
+                    className={`py-2 rounded-lg border font-orbitron text-sm font-bold transition-all
+                      ${config.candleConfirmCount === n
+                        ? "bg-orange-500/20 border-orange-500/50 text-orange-400"
+                        : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500"
+                      }`}
+                  >
+                    {"🕯️".repeat(n)}
+                    <div className="text-[10px] font-space-mono font-normal mt-0.5 text-zinc-500">
+                      {n} свечи
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2 text-xs font-space-mono text-orange-400">
+                {config.candleConfirmCount === 2 && "⚡ 2 свечи — больше сигналов, чуть ниже точность"}
+                {config.candleConfirmCount === 3 && "✅ 3 свечи — оптимальный баланс сигналов и точности"}
+                {config.candleConfirmCount === 4 && "🔒 4 свечи — редкие, но очень надёжные входы"}
+              </div>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
       {/* Итоговая сводка перед генерацией */}
       {config.comboMode && (
         <div className="rounded-xl border border-zinc-600 bg-zinc-900 px-4 py-3 space-y-2 font-space-mono text-xs">

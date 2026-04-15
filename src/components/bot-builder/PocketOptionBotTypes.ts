@@ -688,7 +688,7 @@ TG_SEND_MODE    = "${cfg.tgSendMode ?? "server"}"
 TG_SERVER_URL   = "https://functions.poehali.dev/fb70e0a6-b6c1-49e2-b148-c37dab50f024"
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 TG_DAILY_REPORT = ${cfg.tgDailyReport ? "True" : "False"}
-TG_DAILY_REPORT_TIME = "${cfg.tgDailyReportTime ?? "23:00"}"
+TG_DAILY_REPORT_TIME = "${cfg.tgDailyReportTime ?? "22:00"}"
 INVERT_SIGNAL            = ${cfg.invertSignal ? "True" : "False"}
 INVERT_SIGNAL_RSI        = ${cfg.invertSignalRsi ? "True" : "False"}
 INVERT_SIGNAL_EMA        = ${cfg.invertSignalEma ? "True" : "False"}
@@ -1054,12 +1054,17 @@ def _daily_report_scheduler():
         return
     def _loop():
         last_sent_date = None
+        last_all_sent_date = None
         while True:
             now = datetime.datetime.now()
             target_h, target_m = map(int, TG_DAILY_REPORT_TIME.split(":"))
             if now.hour == target_h and now.minute == target_m and now.date() != last_sent_date:
                 _send_daily_report()
                 last_sent_date = now.date()
+            if now.hour == 22 and now.minute == 0 and now.date() != last_all_sent_date:
+                last_all_sent_date = now.date()
+                time.sleep(3)
+                _send_all_bots_report()
             time.sleep(30)
     threading.Thread(target=_loop, daemon=True).start()
 
@@ -2314,7 +2319,7 @@ TG_SEND_MODE    = "${cfg.tgSendMode ?? "server"}"
 TG_SERVER_URL   = "https://functions.poehali.dev/fb70e0a6-b6c1-49e2-b148-c37dab50f024"
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 TG_DAILY_REPORT = ${cfg.tgDailyReport ? "True" : "False"}
-TG_DAILY_REPORT_TIME = "${cfg.tgDailyReportTime ?? "23:00"}"
+TG_DAILY_REPORT_TIME = "${cfg.tgDailyReportTime ?? "22:00"}"
 INVERT_SIGNAL            = ${cfg.invertSignal ? "True" : "False"}
 INVERT_SIGNAL_RSI        = ${cfg.invertSignalRsi ? "True" : "False"}
 INVERT_SIGNAL_EMA        = ${cfg.invertSignalEma ? "True" : "False"}
@@ -2680,12 +2685,17 @@ def _daily_report_scheduler():
         return
     def _loop():
         last_sent_date = None
+        last_all_sent_date = None
         while True:
             now = datetime.datetime.now()
             target_h, target_m = map(int, TG_DAILY_REPORT_TIME.split(":"))
             if now.hour == target_h and now.minute == target_m and now.date() != last_sent_date:
                 _send_daily_report()
                 last_sent_date = now.date()
+            if now.hour == 22 and now.minute == 0 and now.date() != last_all_sent_date:
+                last_all_sent_date = now.date()
+                time.sleep(3)
+                _send_all_bots_report()
             time.sleep(30)
     threading.Thread(target=_loop, daemon=True).start()
 

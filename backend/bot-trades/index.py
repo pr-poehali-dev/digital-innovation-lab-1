@@ -41,7 +41,7 @@ def handler(event: dict, context) -> dict:
         except Exception:
             pass
 
-    schema = os.environ.get("MAIN_DB_SCHEMA", "public")
+    s = os.environ.get("MAIN_DB_SCHEMA", "public")
 
     # POST /bot-trades/session — создать новую сессию, вернуть session_id
     if method == "POST" and path.endswith("/session"):
@@ -54,9 +54,8 @@ def handler(event: dict, context) -> dict:
 
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute(f"SET search_path TO {schema}, public")
         cur.execute(
-            f"INSERT INTO bot_sessions (bot_name, strategy, asset, bet_amount, currency, is_demo) "
+            f"INSERT INTO {s}.bot_sessions (bot_name, strategy, asset, bet_amount, currency, is_demo) "
             f"VALUES ({bot_name}, {strategy}, {asset}, {bet_amount}, {currency}, {is_demo}) RETURNING id"
         )
         session_id = str(cur.fetchone()[0])
@@ -90,13 +89,12 @@ def handler(event: dict, context) -> dict:
 
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute(f"SET search_path TO {schema}, public")
         cur.execute(
-            f"INSERT INTO bot_trades (session_id, asset, direction, bet, payout_pct, won, profit, strategy_name, indicator_value) "
+            f"INSERT INTO {s}.bot_trades (session_id, asset, direction, bet, payout_pct, won, profit, strategy_name, indicator_value) "
             f"VALUES ({s_id}, {s_asset}, {s_direction}, {s_bet}, {s_payout}, {s_won}, {s_profit}, {s_strategy_name}, {s_indicator_value})"
         )
         cur.execute(
-            f"UPDATE bot_sessions SET "
+            f"UPDATE {s}.bot_sessions SET "
             f"total_trades = total_trades + 1, "
             f"wins = wins + {s_wins}, "
             f"losses = losses + {s_losses}, "
@@ -115,8 +113,7 @@ def handler(event: dict, context) -> dict:
             return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "session_id required"})}
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute(f"SET search_path TO {schema}, public")
-        cur.execute(f"UPDATE bot_sessions SET ended_at = NOW() WHERE id = {esc(session_id)}")
+        cur.execute(f"UPDATE {s}.bot_sessions SET ended_at = NOW() WHERE id = {esc(session_id)}")
         conn.commit()
         cur.close()
         conn.close()
@@ -126,11 +123,10 @@ def handler(event: dict, context) -> dict:
     if method == "GET" and path.endswith("/sessions"):
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute(f"SET search_path TO {schema}, public")
         cur.execute(
-            "SELECT id, bot_name, strategy, asset, bet_amount, currency, is_demo, "
-            "started_at, ended_at, total_trades, wins, losses, total_profit "
-            "FROM bot_sessions ORDER BY started_at DESC LIMIT 100"
+            f"SELECT id, bot_name, strategy, asset, bet_amount, currency, is_demo, "
+            f"started_at, ended_at, total_trades, wins, losses, total_profit "
+            f"FROM {s}.bot_sessions ORDER BY started_at DESC LIMIT 100"
         )
         rows = cur.fetchall()
         cur.close()
@@ -163,10 +159,9 @@ def handler(event: dict, context) -> dict:
             return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "session_id required"})}
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute(f"SET search_path TO {schema}, public")
         cur.execute(
             f"SELECT id, traded_at, asset, direction, bet, payout_pct, won, profit, strategy_name, indicator_value "
-            f"FROM bot_trades WHERE session_id = {esc(session_id)} ORDER BY traded_at ASC"
+            f"FROM {s}.bot_trades WHERE session_id = {esc(session_id)} ORDER BY traded_at ASC"
         )
         rows = cur.fetchall()
         cur.close()
@@ -192,13 +187,12 @@ def handler(event: dict, context) -> dict:
     if method == "GET" and "report/today" in path:
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute(f"SET search_path TO {schema}, public")
         cur.execute(
-            "SELECT bot_name, SUM(total_trades), SUM(wins), SUM(losses), SUM(total_profit), currency "
-            "FROM bot_sessions "
-            "WHERE started_at >= CURRENT_DATE "
-            "GROUP BY bot_name, currency "
-            "ORDER BY SUM(total_profit) DESC"
+            f"SELECT bot_name, SUM(total_trades), SUM(wins), SUM(losses), SUM(total_profit), currency "
+            f"FROM {s}.bot_sessions "
+            f"WHERE started_at >= CURRENT_DATE "
+            f"GROUP BY bot_name, currency "
+            f"ORDER BY SUM(total_profit) DESC"
         )
         rows = cur.fetchall()
         cur.close()

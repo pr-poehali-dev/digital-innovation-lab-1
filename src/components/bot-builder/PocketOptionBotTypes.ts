@@ -698,6 +698,7 @@ INVERT_SIGNAL_MARTINGALE = ${cfg.invertSignalMartingale ? "True" : "False"}
 
 # ===== ЖУРНАЛ СДЕЛОК =====
 JOURNAL_URL = "https://functions.poehali.dev/317c9913-52da-4683-920f-963c978a3202"
+REPORT_SCHEDULER_URL = "https://functions.poehali.dev/26bda9fa-84ca-4013-9943-a0e23f0cebc2"
 _session_id = None
 
 def _journal_request(path, method="POST", data=None):
@@ -990,6 +991,27 @@ def _build_strat_block_with_tips():
     tips_block = "\\n\\n" + "\\n\\n".join(tips) if tips else ""
     return block + tips_block
 
+def _register_in_scheduler(report_time=None):
+    """Регистрирует бота в серверном планировщике для авто-отчётов"""
+    if not TG_ENABLED:
+        return
+    try:
+        import urllib.request as _ur, json as _jj
+        payload = _jj.dumps({
+            "tg_token": TG_TOKEN,
+            "tg_chat_id": str(TG_CHAT_ID),
+            "journal_url": JOURNAL_URL,
+            "report_time": report_time or TG_DAILY_REPORT_TIME,
+        }).encode()
+        req = _ur.Request(
+            REPORT_SCHEDULER_URL + "/register",
+            data=payload, headers={"Content-Type": "application/json"}
+        )
+        _ur.urlopen(req, timeout=6)
+        print(f"[SCHEDULER] Зарегистрирован, отчёт в {report_time or TG_DAILY_REPORT_TIME}")
+    except Exception as e:
+        print(f"[SCHEDULER] Ошибка регистрации: {e}")
+
 def _send_all_bots_report():
     """Сводный отчёт по всем ботам за сегодня — запрашивает данные с сервера"""
     try:
@@ -1171,6 +1193,14 @@ async def tg_poll_commands():
                     tg(f"✅ <b>[{BOT_NAME}]</b> Ставка: <b>{BASE_BET} {CURRENCY}</b>")
                 except:
                     tg(f"❌ Формат: /setbet {BOT_NAME} 10")
+            elif cmd == "/setreport" and for_me:
+                new_time = val.strip() if val else ""
+                import re as _re
+                if _re.match(r"^\\d{1,2}:\\d{2}$", new_time):
+                    _register_in_scheduler(report_time=new_time)
+                    _tg_inline(f"✅ <b>[{BOT_NAME}]</b> Авто-отчёт теперь в <b>{new_time}</b>", _main_buttons())
+                else:
+                    tg(f"❌ Формат: /setreport {BOT_NAME} 21:00")
             elif cmd == "/report":
                 raw_tgt = " ".join(parts[1:]).lower() if len(parts) > 1 else ""
                 if raw_tgt == "all":
@@ -1252,6 +1282,7 @@ async def tg_poll_commands():
                     f"/reset {BOT_NAME} — сбросить статистику\\n"
                     f"/tune {BOT_NAME} — авто-тюнинг\\n"
                     f"/settp {BOT_NAME} 50 | /setsl {BOT_NAME} 20\\n"
+                    f"/setreport {BOT_NAME} 21:00 — время авто-отчёта\\n"
                     f"<i>all вместо имени — все боты</i>",
                     _main_buttons()
                 )
@@ -1605,6 +1636,7 @@ async def main():
         _main_buttons()
     )
     journal_start_session()
+    _register_in_scheduler()
 
     _reconnect_attempts = 0
     _loss_streak = 0
@@ -2329,6 +2361,7 @@ INVERT_SIGNAL_MARTINGALE = ${cfg.invertSignalMartingale ? "True" : "False"}
 
 # ===== ЖУРНАЛ СДЕЛОК =====
 JOURNAL_URL = "https://functions.poehali.dev/317c9913-52da-4683-920f-963c978a3202"
+REPORT_SCHEDULER_URL = "https://functions.poehali.dev/26bda9fa-84ca-4013-9943-a0e23f0cebc2"
 _session_id = None
 
 def _journal_request(path, method="POST", data=None):
@@ -2621,6 +2654,27 @@ def _build_strat_block_with_tips():
     tips_block = "\\n\\n" + "\\n\\n".join(tips) if tips else ""
     return block + tips_block
 
+def _register_in_scheduler(report_time=None):
+    """Регистрирует бота в серверном планировщике для авто-отчётов"""
+    if not TG_ENABLED:
+        return
+    try:
+        import urllib.request as _ur, json as _jj
+        payload = _jj.dumps({
+            "tg_token": TG_TOKEN,
+            "tg_chat_id": str(TG_CHAT_ID),
+            "journal_url": JOURNAL_URL,
+            "report_time": report_time or TG_DAILY_REPORT_TIME,
+        }).encode()
+        req = _ur.Request(
+            REPORT_SCHEDULER_URL + "/register",
+            data=payload, headers={"Content-Type": "application/json"}
+        )
+        _ur.urlopen(req, timeout=6)
+        print(f"[SCHEDULER] Зарегистрирован, отчёт в {report_time or TG_DAILY_REPORT_TIME}")
+    except Exception as e:
+        print(f"[SCHEDULER] Ошибка регистрации: {e}")
+
 def _send_all_bots_report():
     """Сводный отчёт по всем ботам за сегодня — запрашивает данные с сервера"""
     try:
@@ -2802,6 +2856,14 @@ async def tg_poll_commands():
                     tg(f"✅ <b>[{BOT_NAME}]</b> Ставка: <b>{BASE_BET} {CURRENCY}</b>")
                 except:
                     tg(f"❌ Формат: /setbet {BOT_NAME} 10")
+            elif cmd == "/setreport" and for_me:
+                new_time = val.strip() if val else ""
+                import re as _re
+                if _re.match(r"^\\d{1,2}:\\d{2}$", new_time):
+                    _register_in_scheduler(report_time=new_time)
+                    _tg_inline(f"✅ <b>[{BOT_NAME}]</b> Авто-отчёт теперь в <b>{new_time}</b>", _main_buttons())
+                else:
+                    tg(f"❌ Формат: /setreport {BOT_NAME} 21:00")
             elif cmd == "/report":
                 raw_tgt = " ".join(parts[1:]).lower() if len(parts) > 1 else ""
                 if raw_tgt == "all":
@@ -2883,6 +2945,7 @@ async def tg_poll_commands():
                     f"/reset {BOT_NAME} — сбросить статистику\\n"
                     f"/tune {BOT_NAME} — авто-тюнинг\\n"
                     f"/settp {BOT_NAME} 50 | /setsl {BOT_NAME} 20\\n"
+                    f"/setreport {BOT_NAME} 21:00 — время авто-отчёта\\n"
                     f"<i>all вместо имени — все боты</i>",
                     _main_buttons()
                 )
@@ -3133,6 +3196,7 @@ async def main():
         _main_buttons()
     )
     journal_start_session()
+    _register_in_scheduler()
 
     last_lost_signal = None
     _loss_streak = 0

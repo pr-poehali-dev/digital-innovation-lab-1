@@ -995,7 +995,27 @@ def _daily_report_scheduler():
 # ===== УПРАВЛЕНИЕ ЧЕРЕЗ TELEGRAM =====
 _tg_paused   = False
 _tg_stopped  = False
-_tg_offset   = 0
+_tg_offset   = -1
+
+def _tg_flush_old_updates():
+    """Сброс накопившихся старых команд при старте — чтобы /stop из прошлого сеанса не остановил бот"""
+    global _tg_offset
+    if not TG_ENABLED:
+        return
+    import urllib.request, json as _json
+    try:
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/getUpdates?offset=-1&timeout=0&limit=1"
+        resp = urllib.request.urlopen(url, timeout=5).read()
+        data = _json.loads(resp)
+        results = data.get("result", [])
+        if results:
+            _tg_offset = results[-1]["update_id"] + 1
+        else:
+            _tg_offset = 0
+    except Exception:
+        _tg_offset = 0
+
+_tg_flush_old_updates()
 
 async def tg_poll_commands():
     """Получить новые команды из Telegram (async — не блокирует event loop)"""
@@ -2465,7 +2485,27 @@ def _daily_report_scheduler():
 # ===== УПРАВЛЕНИЕ ЧЕРЕЗ TELEGRAM =====
 _tg_paused   = False
 _tg_stopped  = False
-_tg_offset   = 0
+_tg_offset   = -1
+
+def _tg_flush_old_updates():
+    """Сброс накопившихся старых команд при старте — чтобы /stop из прошлого сеанса не остановил бот"""
+    global _tg_offset
+    if not TG_ENABLED:
+        return
+    import urllib.request, json as _json
+    try:
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/getUpdates?offset=-1&timeout=0&limit=1"
+        resp = urllib.request.urlopen(url, timeout=5).read()
+        data = _json.loads(resp)
+        results = data.get("result", [])
+        if results:
+            _tg_offset = results[-1]["update_id"] + 1
+        else:
+            _tg_offset = 0
+    except Exception:
+        _tg_offset = 0
+
+_tg_flush_old_updates()
 
 async def tg_poll_commands():
     """Получить новые команды из Telegram (async — не блокирует event loop)"""

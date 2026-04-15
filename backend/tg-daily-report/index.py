@@ -15,8 +15,9 @@ CORS = {
     "Access-Control-Allow-Headers": "Content-Type",
 }
 
-SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "public")
-TBL = f"{SCHEMA}.tg_schedules"
+def get_tbl():
+    schema = os.environ.get("MAIN_DB_SCHEMA", "public")
+    return f"{schema}.tg_schedules"
 
 
 def get_conn():
@@ -101,6 +102,7 @@ def handler(event: dict, context) -> dict:
         report_time = body.get("report_time", "22:00")
         if not tg_token or not tg_chat_id or not journal_url:
             return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "tg_token, tg_chat_id, journal_url required"})}
+        TBL = get_tbl()
         conn = get_conn()
         cur = conn.cursor()
         cur.execute(
@@ -123,6 +125,7 @@ def handler(event: dict, context) -> dict:
         report_time = body.get("report_time", "22:00")
         if not tg_chat_id:
             return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "tg_chat_id required"})}
+        TBL = get_tbl()
         conn = get_conn()
         cur = conn.cursor()
         cur.execute(
@@ -139,6 +142,7 @@ def handler(event: dict, context) -> dict:
     if method == "GET" and (path.endswith("/send") or path.endswith("/")):
         now = datetime.datetime.now()
         current_time = now.strftime("%H:%M")
+        TBL = get_tbl()
         conn = get_conn()
         cur = conn.cursor()
         cur.execute(
@@ -168,6 +172,7 @@ def handler(event: dict, context) -> dict:
 
     # GET /tg-daily-report/send-all — принудительно всем (для теста)
     if method == "GET" and path.endswith("/send-all"):
+        TBL = get_tbl()
         conn = get_conn()
         cur = conn.cursor()
         cur.execute(f"SELECT tg_token, tg_chat_id, journal_url FROM {TBL}")

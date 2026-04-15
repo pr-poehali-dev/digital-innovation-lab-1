@@ -94,6 +94,8 @@ def handler(event: dict, context) -> dict:
         except Exception:
             pass
 
+    print(f"[DEBUG] method={method} path={path} body={body}")
+
     # POST /tg-daily-report/register — бот регистрирует свои данные
     if method == "POST" and path.endswith("/register"):
         tg_token = body.get("tg_token", "")

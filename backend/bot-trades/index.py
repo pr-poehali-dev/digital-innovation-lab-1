@@ -42,6 +42,7 @@ def handler(event: dict, context) -> dict:
             pass
 
     s = os.environ.get("MAIN_DB_SCHEMA", "public")
+    print(f"[DEBUG] method={method} path={path} body={body}")
 
     # POST /bot-trades/session — создать новую сессию, вернуть session_id
     if method == "POST" and path.endswith("/session"):

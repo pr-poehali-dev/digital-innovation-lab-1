@@ -188,4 +188,44 @@ def handler(event: dict, context) -> dict:
         ]
         return {"statusCode": 200, "headers": CORS, "body": json.dumps({"trades": trades})}
 
+    # GET /bot-trades/report/today — сводка по всем ботам за сегодня
+    if method == "GET" and "report/today" in path:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute(f"SET search_path TO {schema}, public")
+        cur.execute(
+            "SELECT bot_name, SUM(total_trades), SUM(wins), SUM(losses), SUM(total_profit), currency "
+            "FROM bot_sessions "
+            "WHERE started_at >= CURRENT_DATE "
+            "GROUP BY bot_name, currency "
+            "ORDER BY SUM(total_profit) DESC"
+        )
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        bots = [
+            {
+                "bot_name": r[0],
+                "total": int(r[1] or 0),
+                "wins": int(r[2] or 0),
+                "losses": int(r[3] or 0),
+                "profit": round(float(r[4] or 0), 2),
+                "currency": r[5] or "",
+            }
+            for r in rows
+        ]
+        total_profit = round(sum(b["profit"] for b in bots), 2)
+        total_trades = sum(b["total"] for b in bots)
+        total_wins = sum(b["wins"] for b in bots)
+        return {"statusCode": 200, "headers": CORS, "body": json.dumps({
+            "bots": bots,
+            "summary": {
+                "total_trades": total_trades,
+                "total_wins": total_wins,
+                "total_losses": total_trades - total_wins,
+                "total_profit": total_profit,
+                "winrate": round(total_wins / total_trades * 100) if total_trades > 0 else 0,
+            }
+        })}
+
     return {"statusCode": 404, "headers": CORS, "body": json.dumps({"error": "not found"})}

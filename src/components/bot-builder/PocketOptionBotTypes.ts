@@ -990,6 +990,40 @@ def _build_strat_block_with_tips():
     tips_block = "\\n\\n" + "\\n\\n".join(tips) if tips else ""
     return block + tips_block
 
+def _send_all_bots_report():
+    """Сводный отчёт по всем ботам за сегодня — запрашивает данные с сервера"""
+    try:
+        import urllib.request as _ur, json as _jj
+        url = JOURNAL_URL + "/report/today"
+        req = _ur.Request(url, headers={"Content-Type": "application/json"})
+        resp = _ur.urlopen(req, timeout=8)
+        data = _jj.loads(resp.read().decode())
+        bots = data.get("bots", [])
+        sm = data.get("summary", {})
+        if not bots:
+            _tg_inline("📊 <b>Сводка по всем ботам</b>\\n\\nСегодня сделок не было.", _main_buttons())
+            return
+        lines = ["📊 <b>Сводка за сегодня — все боты</b>", "━━━━━━━━━━━━━━━━━━"]
+        for b in bots:
+            wr = round(b["wins"] / b["total"] * 100) if b["total"] > 0 else 0
+            pnl_e = "🟢" if b["profit"] >= 0 else "🔴"
+            sign = "+" if b["profit"] >= 0 else ""
+            lines.append(
+                f"🤖 <b>{b['bot_name']}</b>\\n"
+                f"  📈 Сделок: {b['total']} | ✅ {b['wins']} / ❌ {b['losses']} | WR: {wr}%\\n"
+                f"  {pnl_e} P&amp;L: {sign}{b['profit']} {b['currency']}"
+            )
+        lines.append("━━━━━━━━━━━━━━━━━━")
+        tot_e = "🟢" if sm.get("total_profit", 0) >= 0 else "🔴"
+        tot_sign = "+" if sm.get("total_profit", 0) >= 0 else ""
+        lines.append(
+            f"<b>ИТОГО:</b> {sm.get('total_trades',0)} сделок | WR: {sm.get('winrate',0)}%\\n"
+            f"{tot_e} Общий P&amp;L: {tot_sign}{sm.get('total_profit',0)}"
+        )
+        _tg_inline("\\n".join(lines), _main_buttons())
+    except Exception as e:
+        tg(f"⚠️ Не удалось получить сводку: {e}")
+
 def _send_daily_report():
     s = _daily_stats
     if s["total"] == 0:
@@ -1132,8 +1166,12 @@ async def tg_poll_commands():
                     tg(f"✅ <b>[{BOT_NAME}]</b> Ставка: <b>{BASE_BET} {CURRENCY}</b>")
                 except:
                     tg(f"❌ Формат: /setbet {BOT_NAME} 10")
-            elif cmd == "/report" and for_me:
-                _send_daily_report()
+            elif cmd == "/report":
+                raw_tgt = " ".join(parts[1:]).lower() if len(parts) > 1 else ""
+                if raw_tgt == "all":
+                    _send_all_bots_report()
+                elif for_me:
+                    _send_daily_report()
             elif cmd == "/reset" and for_me:
                 _daily_stats.update({"total": 0, "wins": 0, "losses": 0, "profit": 0.0, "max_win_streak": 0, "max_loss_streak": 0, "_cur_win": 0, "_cur_loss": 0})
                 tg(f"🔄 <b>[{BOT_NAME}]</b> Дневная статистика сброшена")
@@ -2578,6 +2616,40 @@ def _build_strat_block_with_tips():
     tips_block = "\\n\\n" + "\\n\\n".join(tips) if tips else ""
     return block + tips_block
 
+def _send_all_bots_report():
+    """Сводный отчёт по всем ботам за сегодня — запрашивает данные с сервера"""
+    try:
+        import urllib.request as _ur, json as _jj
+        url = JOURNAL_URL + "/report/today"
+        req = _ur.Request(url, headers={"Content-Type": "application/json"})
+        resp = _ur.urlopen(req, timeout=8)
+        data = _jj.loads(resp.read().decode())
+        bots = data.get("bots", [])
+        sm = data.get("summary", {})
+        if not bots:
+            _tg_inline("📊 <b>Сводка по всем ботам</b>\\n\\nСегодня сделок не было.", _main_buttons())
+            return
+        lines = ["📊 <b>Сводка за сегодня — все боты</b>", "━━━━━━━━━━━━━━━━━━"]
+        for b in bots:
+            wr = round(b["wins"] / b["total"] * 100) if b["total"] > 0 else 0
+            pnl_e = "🟢" if b["profit"] >= 0 else "🔴"
+            sign = "+" if b["profit"] >= 0 else ""
+            lines.append(
+                f"🤖 <b>{b['bot_name']}</b>\\n"
+                f"  📈 Сделок: {b['total']} | ✅ {b['wins']} / ❌ {b['losses']} | WR: {wr}%\\n"
+                f"  {pnl_e} P&amp;L: {sign}{b['profit']} {b['currency']}"
+            )
+        lines.append("━━━━━━━━━━━━━━━━━━")
+        tot_e = "🟢" if sm.get("total_profit", 0) >= 0 else "🔴"
+        tot_sign = "+" if sm.get("total_profit", 0) >= 0 else ""
+        lines.append(
+            f"<b>ИТОГО:</b> {sm.get('total_trades',0)} сделок | WR: {sm.get('winrate',0)}%\\n"
+            f"{tot_e} Общий P&amp;L: {tot_sign}{sm.get('total_profit',0)}"
+        )
+        _tg_inline("\\n".join(lines), _main_buttons())
+    except Exception as e:
+        tg(f"⚠️ Не удалось получить сводку: {e}")
+
 def _send_daily_report():
     s = _daily_stats
     if s["total"] == 0:
@@ -2720,8 +2792,12 @@ async def tg_poll_commands():
                     tg(f"✅ <b>[{BOT_NAME}]</b> Ставка: <b>{BASE_BET} {CURRENCY}</b>")
                 except:
                     tg(f"❌ Формат: /setbet {BOT_NAME} 10")
-            elif cmd == "/report" and for_me:
-                _send_daily_report()
+            elif cmd == "/report":
+                raw_tgt = " ".join(parts[1:]).lower() if len(parts) > 1 else ""
+                if raw_tgt == "all":
+                    _send_all_bots_report()
+                elif for_me:
+                    _send_daily_report()
             elif cmd == "/reset" and for_me:
                 _daily_stats.update({"total": 0, "wins": 0, "losses": 0, "profit": 0.0, "max_win_streak": 0, "max_loss_streak": 0, "_cur_win": 0, "_cur_loss": 0})
                 tg(f"🔄 <b>[{BOT_NAME}]</b> Дневная статистика сброшена")

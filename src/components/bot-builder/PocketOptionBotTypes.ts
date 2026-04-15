@@ -866,6 +866,39 @@ def tg_info(text):
     tg(text)
 
 _daily_stats = {"total": 0, "wins": 0, "losses": 0, "profit": 0.0, "max_win_streak": 0, "max_loss_streak": 0, "_cur_win": 0, "_cur_loss": 0}
+_last_signal_time = __import__("time").time()
+_no_signal_alert_sent = False
+
+def _tg_inline(text, buttons):
+    """Отправить сообщение с inline-кнопками"""
+    if not TG_ENABLED:
+        return
+    import urllib.request, json as _json
+    payload = _json.dumps({
+        "chat_id": TG_CHAT_ID,
+        "text": text,
+        "parse_mode": "HTML",
+        "reply_markup": {"inline_keyboard": buttons}
+    }).encode()
+    try:
+        req = urllib.request.Request(
+            f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
+            data=payload, headers={"Content-Type": "application/json"}
+        )
+        urllib.request.urlopen(req, timeout=5)
+    except Exception:
+        tg(text)
+
+def _main_buttons():
+    return [[
+        {"text": "▶️ Старт",  "callback_data": f"/start {BOT_NAME}"},
+        {"text": "⏸ Пауза",  "callback_data": f"/pause {BOT_NAME}"},
+        {"text": "🛑 Стоп",   "callback_data": f"/stop {BOT_NAME}"}
+    ],[
+        {"text": "📊 Статус", "callback_data": f"/status {BOT_NAME}"},
+        {"text": "📋 Отчёт", "callback_data": f"/report {BOT_NAME}"},
+        {"text": "🔧 Тюнинг","callback_data": f"/tune {BOT_NAME}"}
+    ]]
 
 def _update_daily_stats(won, profit_val, loss_val):
     s = _daily_stats
@@ -958,23 +991,27 @@ def _build_strat_block_with_tips():
     return block + tips_block
 
 def _send_daily_report():
-    if not TG_ENABLED or not TG_DAILY_REPORT:
-        return
     s = _daily_stats
     if s["total"] == 0:
-        tg("📊 <b>Ежедневный отчёт</b>\\n\\nСегодня сделок не было.")
+        _tg_inline("📊 <b>Ежедневный отчёт</b>\\n\\nСегодня сделок не было.", _main_buttons())
         return
     winrate = round(s["wins"] / s["total"] * 100) if s["total"] > 0 else 0
     profit_sign = "+" if s["profit"] >= 0 else ""
-    emoji = "🟢" if s["profit"] >= 0 else "🔴"
+    emoji_pnl = "🟢" if s["profit"] >= 0 else "🔴"
+    bar_w = min(10, round(winrate / 10))
+    bar = "█" * bar_w + "░" * (10 - bar_w)
     strat_block = _build_strat_block_with_tips()
-    tg(
-        f"📊 <b>Ежедневный отчёт — {BOT_NAME}</b>\\n\\n"
-        f"📈 Сделок: {s['total']} | ✅ Побед: {s['wins']} | ❌ Потерь: {s['losses']}\\n"
-        f"📊 Винрейт: {winrate}%\\n"
-        f"{emoji} P&amp;L: {profit_sign}{round(s['profit'], 2)}\\n"
-        f"🔥 Макс. серия побед: {s['max_win_streak']} | 💀 Макс. серия потерь: {s['max_loss_streak']}\\n\\n"
-        f"<b>По стратегиям:</b>\\n{strat_block}"
+    _tg_inline(
+        f"📊 <b>Отчёт — {BOT_NAME}</b>\\n"
+        f"━━━━━━━━━━━━━━━━━━\\n"
+        f"📅 Сделок сегодня: <b>{s['total']}</b>\\n"
+        f"✅ Побед: <b>{s['wins']}</b>  ❌ Потерь: <b>{s['losses']}</b>\\n"
+        f"📈 Винрейт: <b>{winrate}%</b>  [{bar}]\\n"
+        f"{emoji_pnl} P&amp;L: <b>{profit_sign}{round(s['profit'], 2)} {CURRENCY}</b>\\n"
+        f"🔥 Лучшая серия: <b>{s['max_win_streak']}</b>  💀 Худшая: <b>{s['max_loss_streak']}</b>\\n"
+        f"━━━━━━━━━━━━━━━━━━\\n"
+        f"<b>По стратегиям:</b>\\n{strat_block}",
+        _main_buttons()
     )
 
 def _daily_report_scheduler():
@@ -1069,9 +1106,10 @@ async def tg_poll_commands():
             elif cmd == "/pause" and for_me:
                 _tg_paused = True
                 tg(f"⏸ <b>[{BOT_NAME}] на паузе.</b> /resume {BOT_NAME} для продолжения")
-            elif cmd == "/resume" and for_me:
+            elif cmd in ("/resume", "/start") and for_me:
                 _tg_paused = False
-                tg(f"▶️ <b>[{BOT_NAME}] возобновлён</b>")
+                _tg_stopped = False
+                _tg_inline(f"▶️ <b>[{BOT_NAME}] возобновлён и торгует</b>", _main_buttons())
             elif cmd == "/status" and for_me:
                 wins_s = sum(1 for t in trade_log if t["won"])
                 strat_block = _build_strat_block_with_tips()
@@ -1160,7 +1198,58 @@ async def tg_poll_commands():
                         lines.append(_build_strat_block_with_tips())
                     tg("\\n".join(lines))
             elif cmd == "/help":
-                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статистика\\n/report {BOT_NAME} — отчёт за день\\n/reset {BOT_NAME} — сбросить статистику\\n/tune {BOT_NAME} — авто-тюнинг параметров\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
+                _tg_inline(
+                    f"📋 <b>Команды [{BOT_NAME}]:</b>\\n"
+                    f"/start {BOT_NAME} — запустить / возобновить\\n"
+                    f"/stop {BOT_NAME} — остановить\\n"
+                    f"/pause {BOT_NAME} — пауза\\n"
+                    f"/resume {BOT_NAME} — продолжить\\n"
+                    f"/status {BOT_NAME} — статистика\\n"
+                    f"/report {BOT_NAME} — отчёт за день\\n"
+                    f"/reset {BOT_NAME} — сбросить статистику\\n"
+                    f"/tune {BOT_NAME} — авто-тюнинг\\n"
+                    f"/settp {BOT_NAME} 50 | /setsl {BOT_NAME} 20\\n"
+                    f"<i>all вместо имени — все боты</i>",
+                    _main_buttons()
+                )
+        for upd in data.get("result", []):
+            cb = upd.get("callback_query")
+            if cb:
+                cb_data = cb.get("data", "").strip()
+                cb_chat = str(cb.get("message", {}).get("chat", {}).get("id", ""))
+                if cb_chat == str(TG_CHAT_ID) and cb_data:
+                    import urllib.request as _ur2, json as _j2
+                    parts2 = cb_data.split()
+                    cmd2 = parts2[0].lower() if parts2 else ""
+                    tgt2 = " ".join(parts2[1:]).lower() if len(parts2) > 1 else ""
+                    for_me2 = (tgt2 == BOT_NAME.lower() or tgt2 == "all" or tgt2 == "")
+                    if for_me2:
+                        if cmd2 in ("/start", "/resume"):
+                            _tg_paused = False; _tg_stopped = False
+                            _tg_inline(f"▶️ <b>[{BOT_NAME}] возобновлён</b>", _main_buttons())
+                        elif cmd2 == "/pause":
+                            _tg_paused = True
+                            _tg_inline(f"⏸ <b>[{BOT_NAME}] на паузе</b>", _main_buttons())
+                        elif cmd2 == "/stop":
+                            _tg_stopped = True
+                            tg(f"🛑 <b>[{BOT_NAME}] остановлен</b>")
+                        elif cmd2 == "/status":
+                            wins_cb = sum(1 for t in trade_log if t["won"])
+                            _tg_inline(
+                                f"📊 <b>Статус [{BOT_NAME}]</b>\\n💰 Профит: {total_profit:+.2f} {CURRENCY}\\n"
+                                f"📈 Сделок: {trades_today} (✅{wins_cb}/❌{trades_today-wins_cb})\\n"
+                                f"{'⏸ На паузе' if _tg_paused else '▶️ Работает'}",
+                                _main_buttons()
+                            )
+                        elif cmd2 == "/report":
+                            _send_daily_report()
+                    try:
+                        ack_url = f"https://api.telegram.org/bot{TG_TOKEN}/answerCallbackQuery"
+                        ack_payload = _j2.dumps({"callback_query_id": cb["id"]}).encode()
+                        ack_req = _ur2.Request(ack_url, data=ack_payload, headers={"Content-Type": "application/json"})
+                        _ur2.urlopen(ack_req, timeout=3)
+                    except Exception:
+                        pass
     except Exception:
         pass
 
@@ -1454,7 +1543,7 @@ async def main():
     print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин")
     print(f"  Баланс: {round(balance, 2)} {CURRENCY} | TP: {TAKE_PROFIT} {CURRENCY} | SL: {STOP_LOSS} {CURRENCY}")
     print("=" * 50 + "\\n")
-    tg(
+    _tg_inline(
         f"🤖 <b>{BOT_NAME} запущен</b>\\n"
         f"━━━━━━━━━━━━━━━━━━━━\\n"
         f"📋 <b>Параметры сессии</b>\\n"
@@ -1469,15 +1558,8 @@ async def main():
         f"  Экспирация: <b>{EXPIRY_SEC//60} мин</b>\\n"
         f"  Начальная ставка: <b>{BASE_BET} {CURRENCY}</b>\\n"
         f"━━━━━━━━━━━━━━━━━━━━\\n"
-        f"🎮 <b>Команды управления:</b>\\n"
-        f"  /stop {BOT_NAME}\\n"
-        f"  /pause {BOT_NAME}\\n"
-        f"  /resume {BOT_NAME}\\n"
-        f"  /status {BOT_NAME}\\n"
-        f"  /settp {BOT_NAME} 50 | /setsl {BOT_NAME} 20\\n"
-        f"  <i>all вместо имени — управлять всеми</i>\\n"
-        f"━━━━━━━━━━━━━━━━━━━━\\n"
-        f"⏳ Ожидаю сигналы..."
+        f"⏳ Ожидаю сигналы...",
+        _main_buttons()
     )
     journal_start_session()
 
@@ -1735,6 +1817,7 @@ async def main():
                 if sig_line:
                     tg_parts.append(sig_line)
                 tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")
+                import time as _ts_t; _last_signal_time = _ts_t.time(); _no_signal_alert_sent = False
                 tg("\\n".join(tg_parts))
                 balance_before, _ = await get_balance(client)
                 order_id = await place_trade(client, signal, bet)
@@ -1756,7 +1839,13 @@ async def main():
                     wins  = sum(1 for t in trade_log if t["won"])
                     wr    = wins / len(trade_log) * 100
                     res_emoji = "✅" if won else "❌"
-                    tg(f"{res_emoji} <b>[{BOT_NAME}] {'Выигрыш' if won else 'Проигрыш'}</b>\\n{signal} | {bet} {currency} | {ASSET}\\nПрофит: {profit:+.2f} {currency}\\nСессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
+                    _tg_inline(
+                        f"{res_emoji} <b>[{BOT_NAME}] {'Выигрыш' if won else 'Проигрыш'}</b>\\n"
+                        f"{signal} | {bet} {currency} | {ASSET}\\n"
+                        f"Профит: {profit:+.2f} {currency}\\n"
+                        f"Сессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)})",
+                        _main_buttons()
+                    )
                     print_stats()
                     if LOSS_STREAK_PAUSE_ENABLED:
                         if won:
@@ -1772,6 +1861,15 @@ async def main():
                 ts = datetime.now().strftime("%H:%M:%S")
                 reason = f" ({signal_info})" if signal_info else ""
                 print(f"[{ts}] Нет сигнала{reason} | ожидание {CHECK_INTERVAL} сек...")
+                import time as _ta
+                if _ta.time() - _last_signal_time > 1800 and not _no_signal_alert_sent:
+                    _no_signal_alert_sent = True
+                    _tg_inline(
+                        f"⚠️ <b>[{BOT_NAME}] Нет сигналов 30 минут</b>\\n"
+                        f"Бот работает, но сигналы отсутствуют.\\n"
+                        f"Проверь актив или условия рынка.",
+                        _main_buttons()
+                    )
                 await asyncio.sleep(CHECK_INTERVAL)
 
         except Exception as e:
@@ -2356,6 +2454,39 @@ def tg_info(text):
     tg(text)
 
 _daily_stats = {"total": 0, "wins": 0, "losses": 0, "profit": 0.0, "max_win_streak": 0, "max_loss_streak": 0, "_cur_win": 0, "_cur_loss": 0}
+_last_signal_time = __import__("time").time()
+_no_signal_alert_sent = False
+
+def _tg_inline(text, buttons):
+    """Отправить сообщение с inline-кнопками"""
+    if not TG_ENABLED:
+        return
+    import urllib.request, json as _json
+    payload = _json.dumps({
+        "chat_id": TG_CHAT_ID,
+        "text": text,
+        "parse_mode": "HTML",
+        "reply_markup": {"inline_keyboard": buttons}
+    }).encode()
+    try:
+        req = urllib.request.Request(
+            f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
+            data=payload, headers={"Content-Type": "application/json"}
+        )
+        urllib.request.urlopen(req, timeout=5)
+    except Exception:
+        tg(text)
+
+def _main_buttons():
+    return [[
+        {"text": "▶️ Старт",  "callback_data": f"/start {BOT_NAME}"},
+        {"text": "⏸ Пауза",  "callback_data": f"/pause {BOT_NAME}"},
+        {"text": "🛑 Стоп",   "callback_data": f"/stop {BOT_NAME}"}
+    ],[
+        {"text": "📊 Статус", "callback_data": f"/status {BOT_NAME}"},
+        {"text": "📋 Отчёт", "callback_data": f"/report {BOT_NAME}"},
+        {"text": "🔧 Тюнинг","callback_data": f"/tune {BOT_NAME}"}
+    ]]
 
 def _update_daily_stats(won, profit_val, loss_val):
     s = _daily_stats
@@ -2448,23 +2579,27 @@ def _build_strat_block_with_tips():
     return block + tips_block
 
 def _send_daily_report():
-    if not TG_ENABLED or not TG_DAILY_REPORT:
-        return
     s = _daily_stats
     if s["total"] == 0:
-        tg("📊 <b>Ежедневный отчёт</b>\\n\\nСегодня сделок не было.")
+        _tg_inline("📊 <b>Ежедневный отчёт</b>\\n\\nСегодня сделок не было.", _main_buttons())
         return
     winrate = round(s["wins"] / s["total"] * 100) if s["total"] > 0 else 0
     profit_sign = "+" if s["profit"] >= 0 else ""
-    emoji = "🟢" if s["profit"] >= 0 else "🔴"
+    emoji_pnl = "🟢" if s["profit"] >= 0 else "🔴"
+    bar_w = min(10, round(winrate / 10))
+    bar = "█" * bar_w + "░" * (10 - bar_w)
     strat_block = _build_strat_block_with_tips()
-    tg(
-        f"📊 <b>Ежедневный отчёт — {BOT_NAME}</b>\\n\\n"
-        f"📈 Сделок: {s['total']} | ✅ Побед: {s['wins']} | ❌ Потерь: {s['losses']}\\n"
-        f"📊 Винрейт: {winrate}%\\n"
-        f"{emoji} P&amp;L: {profit_sign}{round(s['profit'], 2)}\\n"
-        f"🔥 Макс. серия побед: {s['max_win_streak']} | 💀 Макс. серия потерь: {s['max_loss_streak']}\\n\\n"
-        f"<b>По стратегиям:</b>\\n{strat_block}"
+    _tg_inline(
+        f"📊 <b>Отчёт — {BOT_NAME}</b>\\n"
+        f"━━━━━━━━━━━━━━━━━━\\n"
+        f"📅 Сделок сегодня: <b>{s['total']}</b>\\n"
+        f"✅ Побед: <b>{s['wins']}</b>  ❌ Потерь: <b>{s['losses']}</b>\\n"
+        f"📈 Винрейт: <b>{winrate}%</b>  [{bar}]\\n"
+        f"{emoji_pnl} P&amp;L: <b>{profit_sign}{round(s['profit'], 2)} {CURRENCY}</b>\\n"
+        f"🔥 Лучшая серия: <b>{s['max_win_streak']}</b>  💀 Худшая: <b>{s['max_loss_streak']}</b>\\n"
+        f"━━━━━━━━━━━━━━━━━━\\n"
+        f"<b>По стратегиям:</b>\\n{strat_block}",
+        _main_buttons()
     )
 
 def _daily_report_scheduler():
@@ -2559,9 +2694,10 @@ async def tg_poll_commands():
             elif cmd == "/pause" and for_me:
                 _tg_paused = True
                 tg(f"⏸ <b>[{BOT_NAME}] на паузе.</b> /resume {BOT_NAME} для продолжения")
-            elif cmd == "/resume" and for_me:
+            elif cmd in ("/resume", "/start") and for_me:
                 _tg_paused = False
-                tg(f"▶️ <b>[{BOT_NAME}] возобновлён</b>")
+                _tg_stopped = False
+                _tg_inline(f"▶️ <b>[{BOT_NAME}] возобновлён и торгует</b>", _main_buttons())
             elif cmd == "/status" and for_me:
                 wins_s = sum(1 for t in trade_log if t["won"])
                 strat_block = _build_strat_block_with_tips()
@@ -2650,7 +2786,58 @@ async def tg_poll_commands():
                         lines.append(_build_strat_block_with_tips())
                     tg("\\n".join(lines))
             elif cmd == "/help":
-                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статистика\\n/report {BOT_NAME} — отчёт за день\\n/reset {BOT_NAME} — сбросить статистику\\n/tune {BOT_NAME} — авто-тюнинг параметров\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
+                _tg_inline(
+                    f"📋 <b>Команды [{BOT_NAME}]:</b>\\n"
+                    f"/start {BOT_NAME} — запустить / возобновить\\n"
+                    f"/stop {BOT_NAME} — остановить\\n"
+                    f"/pause {BOT_NAME} — пауза\\n"
+                    f"/resume {BOT_NAME} — продолжить\\n"
+                    f"/status {BOT_NAME} — статистика\\n"
+                    f"/report {BOT_NAME} — отчёт за день\\n"
+                    f"/reset {BOT_NAME} — сбросить статистику\\n"
+                    f"/tune {BOT_NAME} — авто-тюнинг\\n"
+                    f"/settp {BOT_NAME} 50 | /setsl {BOT_NAME} 20\\n"
+                    f"<i>all вместо имени — все боты</i>",
+                    _main_buttons()
+                )
+        for upd in data.get("result", []):
+            cb = upd.get("callback_query")
+            if cb:
+                cb_data = cb.get("data", "").strip()
+                cb_chat = str(cb.get("message", {}).get("chat", {}).get("id", ""))
+                if cb_chat == str(TG_CHAT_ID) and cb_data:
+                    import urllib.request as _ur2, json as _j2
+                    parts2 = cb_data.split()
+                    cmd2 = parts2[0].lower() if parts2 else ""
+                    tgt2 = " ".join(parts2[1:]).lower() if len(parts2) > 1 else ""
+                    for_me2 = (tgt2 == BOT_NAME.lower() or tgt2 == "all" or tgt2 == "")
+                    if for_me2:
+                        if cmd2 in ("/start", "/resume"):
+                            _tg_paused = False; _tg_stopped = False
+                            _tg_inline(f"▶️ <b>[{BOT_NAME}] возобновлён</b>", _main_buttons())
+                        elif cmd2 == "/pause":
+                            _tg_paused = True
+                            _tg_inline(f"⏸ <b>[{BOT_NAME}] на паузе</b>", _main_buttons())
+                        elif cmd2 == "/stop":
+                            _tg_stopped = True
+                            tg(f"🛑 <b>[{BOT_NAME}] остановлен</b>")
+                        elif cmd2 == "/status":
+                            wins_cb = sum(1 for t in trade_log if t["won"])
+                            _tg_inline(
+                                f"📊 <b>Статус [{BOT_NAME}]</b>\\n💰 Профит: {total_profit:+.2f} {CURRENCY}\\n"
+                                f"📈 Сделок: {trades_today} (✅{wins_cb}/❌{trades_today-wins_cb})\\n"
+                                f"{'⏸ На паузе' if _tg_paused else '▶️ Работает'}",
+                                _main_buttons()
+                            )
+                        elif cmd2 == "/report":
+                            _send_daily_report()
+                    try:
+                        ack_url = f"https://api.telegram.org/bot{TG_TOKEN}/answerCallbackQuery"
+                        ack_payload = _j2.dumps({"callback_query_id": cb["id"]}).encode()
+                        ack_req = _ur2.Request(ack_url, data=ack_payload, headers={"Content-Type": "application/json"})
+                        _ur2.urlopen(ack_req, timeout=3)
+                    except Exception:
+                        pass
     except Exception:
         pass
 
@@ -2840,7 +3027,7 @@ async def main():
     print(f"  TP: {TAKE_PROFIT} {CURRENCY} | SL: {STOP_LOSS} {CURRENCY} | Лимит: {DAILY_LIMIT}")
     print(f"  Пейаут: {int(PAYOUT * 100)}%")
     print("=" * 55 + "\\n")
-    tg(
+    _tg_inline(
         f"🤖 <b>{BOT_NAME} запущен</b>\\n"
         f"━━━━━━━━━━━━━━━━━━━━\\n"
         f"📋 <b>Параметры сессии</b>\\n"
@@ -2856,15 +3043,8 @@ async def main():
         f"  Экспирация: <b>{EXPIRY_SEC//60} мин</b>\\n"
         f"  Начальная ставка: <b>{BASE_BET} {CURRENCY}</b>\\n"
         f"━━━━━━━━━━━━━━━━━━━━\\n"
-        f"🎮 <b>Команды управления:</b>\\n"
-        f"  /stop {BOT_NAME}\\n"
-        f"  /pause {BOT_NAME}\\n"
-        f"  /resume {BOT_NAME}\\n"
-        f"  /status {BOT_NAME}\\n"
-        f"  /settp {BOT_NAME} 50 | /setsl {BOT_NAME} 20\\n"
-        f"  <i>all вместо имени — управлять всеми</i>\\n"
-        f"━━━━━━━━━━━━━━━━━━━━\\n"
-        f"⏳ Ожидаю сигналы..."
+        f"⏳ Ожидаю сигналы...",
+        _main_buttons()
     )
     journal_start_session()
 
@@ -3075,6 +3255,7 @@ async def main():
             if signal_info:
                 tg_parts.append(f"📊 Сигнал: {signal_info}")
             tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")
+            import time as _ts_t2; _last_signal_time = _ts_t2.time(); _no_signal_alert_sent = False
             tg("\\n".join(tg_parts))
             balance_before, _ = await get_balance(client)
             order_id = await place_trade(client, signal, bet)

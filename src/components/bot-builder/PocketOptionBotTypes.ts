@@ -486,11 +486,10 @@ def get_signal(prices, candles=None):
     signal = None
     for level in [lower_level, upper_level]:
         if abs(current - level) <= threshold:
-            past_avg = sum(prices[-RUFUS_LOOKBACK-1:-1]) / RUFUS_LOOKBACK
-            if past_avg > level and current <= level + threshold:
-                signal = ("CALL", f"[RUFUS] Цена {current:.5f} подходит к {level:.4f} СВЕРХУ → поддержка → CALL")
-            elif past_avg < level and current >= level - threshold:
-                signal = ("PUT", f"[RUFUS] Цена {current:.5f} подходит к {level:.4f} СНИЗУ → сопротивление → PUT")
+            if current >= level:
+                signal = ("PUT", f"[RUFUS] {current:.5f}→{level:.4f} сверху→PUT")
+            else:
+                signal = ("CALL", f"[RUFUS] {current:.5f}→{level:.4f} снизу→CALL")
             break
     if signal and INVERT_SIGNAL_RUFUS:
         return ("PUT" if signal[0] == "CALL" else "CALL"), signal[1] + " [INV]"

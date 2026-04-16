@@ -148,13 +148,15 @@ def handler(event: dict, context) -> dict:
 
     params = event.get("queryStringParameters") or {}
 
-    # --- ТЕСТ: GET /?test=candles ---
+    # --- ТЕСТ: GET /?test=candles&symbol=EUR/USD&interval=15min ---
     if params.get("test") == "candles":
-        candles = fetch_candles_twelvedata("AUD/USD", "1h", 5, td_key)
+        symbol = params.get("symbol", "AUD/USD")
+        interval = params.get("interval", "1h")
+        candles = fetch_candles_twelvedata(symbol, interval, 5, td_key)
         return {
             "statusCode": 200,
             "headers": {"Access-Control-Allow-Origin": "*", "Content-Type": "application/json"},
-            "body": {"symbol": "AUD/USD", "interval": "1h", "candles": candles},
+            "body": {"symbol": symbol, "interval": interval, "candles": candles},
         }
 
     results = []

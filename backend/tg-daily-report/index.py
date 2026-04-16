@@ -94,10 +94,18 @@ def handler(event: dict, context) -> dict:
         except Exception:
             pass
 
-    print(f"[DEBUG] method={method} path={path} body={body}")
+    params = event.get("queryStringParameters") or {}
+    action = body.get("action") or params.get("action") or ""
+    if not action:
+        if path.endswith("/register"): action = "register"
+        elif path.endswith("/settime"): action = "settime"
+        elif path.endswith("/send-all"): action = "send_all"
+        elif path.endswith("/send") or path.endswith("/"): action = "send"
 
-    # POST /tg-daily-report/register — бот регистрирует свои данные
-    if method == "POST" and path.endswith("/register"):
+    print(f"[DEBUG] method={method} path={path} action={action} body={body}")
+
+    # register — бот регистрирует свои данные
+    if method == "POST" and action == "register":
         tg_token = body.get("tg_token", "")
         tg_chat_id = str(body.get("tg_chat_id", ""))
         journal_url = body.get("journal_url", "")
@@ -121,8 +129,8 @@ def handler(event: dict, context) -> dict:
         conn.close()
         return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True})}
 
-    # POST /tg-daily-report/settime — обновить время отчёта
-    if method == "POST" and path.endswith("/settime"):
+    # settime — обновить время отчёта
+    if method == "POST" and action == "settime":
         tg_chat_id = str(body.get("tg_chat_id", ""))
         report_time = body.get("report_time", "22:00")
         if not tg_chat_id:
@@ -139,9 +147,8 @@ def handler(event: dict, context) -> dict:
         conn.close()
         return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True})}
 
-    # GET /tg-daily-report/send — cron-триггер или ручной вызов
-    # Отправляет отчёт всем у кого сейчас совпадает report_time
-    if method == "GET" and (path.endswith("/send") or path.endswith("/")):
+    # send — cron-триггер или ручной вызов
+    if action in ("send", "") or (method == "GET" and (path.endswith("/send") or path.endswith("/"))):
         now = datetime.datetime.now()
         current_time = now.strftime("%H:%M")
         TBL = get_tbl()

@@ -42,10 +42,22 @@ def handler(event: dict, context) -> dict:
             pass
 
     s = os.environ.get("MAIN_DB_SCHEMA", "public")
-    print(f"[DEBUG] method={method} path={path} body={body}")
+    params = event.get("queryStringParameters") or {}
 
-    # POST /bot-trades/session — создать новую сессию, вернуть session_id
-    if method == "POST" and path.endswith("/session"):
+    # Определяем action: из body, из пути или из query
+    action = body.get("action") or params.get("action") or ""
+    if not action:
+        if path.endswith("/session") and method == "POST": action = "session"
+        elif path.endswith("/trade") and method == "POST": action = "trade"
+        elif "/session/end" in path and method in ("PUT", "POST"): action = "end"
+        elif path.endswith("/sessions") and method == "GET": action = "sessions"
+        elif path.endswith("/trades") and method == "GET": action = "trades"
+        elif "report/today" in path and method == "GET": action = "report"
+
+    print(f"[DEBUG] method={method} path={path} action={action} body={body}")
+
+    # POST session — создать новую сессию, вернуть session_id
+    if method == "POST" and action == "session":
         bot_name = esc(body.get("bot_name", "Бот"))
         strategy = esc(body.get("strategy", "unknown"))
         asset = esc(body.get("asset", "EUR/USD"))
@@ -65,8 +77,8 @@ def handler(event: dict, context) -> dict:
         conn.close()
         return {"statusCode": 200, "headers": CORS, "body": json.dumps({"session_id": session_id})}
 
-    # POST /bot-trades/trade — записать сделку
-    if method == "POST" and path.endswith("/trade"):
+    # POST trade — записать сделку
+    if method == "POST" and action == "trade":
         session_id = body.get("session_id")
         if not session_id:
             return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "session_id required"})}
@@ -107,8 +119,8 @@ def handler(event: dict, context) -> dict:
         conn.close()
         return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True, "profit": profit})}
 
-    # PUT /bot-trades/session/end — завершить сессию
-    if method == "PUT" and "/session/end" in path:
+    # end — завершить сессию
+    if action == "end":
         session_id = body.get("session_id")
         if not session_id:
             return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "session_id required"})}
@@ -120,8 +132,8 @@ def handler(event: dict, context) -> dict:
         conn.close()
         return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True})}
 
-    # GET /bot-trades/sessions — список всех сессий
-    if method == "GET" and path.endswith("/sessions"):
+    # sessions — список всех сессий
+    if action == "sessions" or (method == "GET" and path.endswith("/sessions")):
         conn = get_conn()
         cur = conn.cursor()
         cur.execute(
@@ -152,10 +164,9 @@ def handler(event: dict, context) -> dict:
         ]
         return {"statusCode": 200, "headers": CORS, "body": json.dumps({"sessions": sessions})}
 
-    # GET /bot-trades/trades?session_id=... — сделки сессии
-    if method == "GET" and path.endswith("/trades"):
-        params = event.get("queryStringParameters") or {}
-        session_id = params.get("session_id")
+    # trades — сделки сессии
+    if action == "trades" or (method == "GET" and path.endswith("/trades")):
+        session_id = params.get("session_id") or body.get("session_id")
         if not session_id:
             return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "session_id required"})}
         conn = get_conn()
@@ -184,8 +195,8 @@ def handler(event: dict, context) -> dict:
         ]
         return {"statusCode": 200, "headers": CORS, "body": json.dumps({"trades": trades})}
 
-    # GET /bot-trades/report/today — сводка по всем ботам за сегодня
-    if method == "GET" and "report/today" in path:
+    # report — сводка по всем ботам за сегодня
+    if action == "report" or (method == "GET" and "report/today" in path):
         conn = get_conn()
         cur = conn.cursor()
         cur.execute(

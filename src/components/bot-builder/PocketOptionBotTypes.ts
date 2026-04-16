@@ -715,7 +715,8 @@ def _journal_request(path, method="POST", data=None):
 
 def journal_start_session():
     global _session_id
-    result = _journal_request("/session", data={
+    result = _journal_request("", data={
+        "action": "session",
         "bot_name": BOT_NAME,
         "strategy": "${cfg.comboMode ? "combo" : cfg.strategy}",
         "asset": ASSET,
@@ -733,8 +734,9 @@ def journal_log_trade(direction, bet, payout_pct, won, strategy_name=None, indic
     import threading
     threading.Thread(
         target=_journal_request,
-        args=("/trade",),
+        args=("",),
         kwargs={"data": {
+            "action": "trade",
             "session_id": _session_id,
             "asset": ASSET,
             "direction": direction,
@@ -750,7 +752,7 @@ def journal_log_trade(direction, bet, payout_pct, won, strategy_name=None, indic
 def journal_end_session():
     if not _session_id:
         return
-    _journal_request("/session/end", method="PUT", data={"session_id": _session_id})
+    _journal_request("", method="POST", data={"action": "end", "session_id": _session_id})
 
 _tg_auto_proxies = []
 _tg_auto_proxies_ts = 0
@@ -998,13 +1000,14 @@ def _register_in_scheduler(report_time=None):
     try:
         import urllib.request as _ur, json as _jj
         payload = _jj.dumps({
+            "action": "register",
             "tg_token": TG_TOKEN,
             "tg_chat_id": str(TG_CHAT_ID),
             "journal_url": JOURNAL_URL,
             "report_time": report_time or TG_DAILY_REPORT_TIME,
         }).encode()
         req = _ur.Request(
-            REPORT_SCHEDULER_URL + "/register",
+            REPORT_SCHEDULER_URL,
             data=payload, headers={"Content-Type": "application/json"}
         )
         _ur.urlopen(req, timeout=6)
@@ -2396,8 +2399,9 @@ def journal_log_trade(direction, bet, payout_pct, won, strategy_name=None, indic
     import threading
     threading.Thread(
         target=_journal_request,
-        args=("/trade",),
+        args=("",),
         kwargs={"data": {
+            "action": "trade",
             "session_id": _session_id,
             "asset": ASSET,
             "direction": direction,
@@ -2413,7 +2417,7 @@ def journal_log_trade(direction, bet, payout_pct, won, strategy_name=None, indic
 def journal_end_session():
     if not _session_id:
         return
-    _journal_request("/session/end", method="PUT", data={"session_id": _session_id})
+    _journal_request("", method="POST", data={"action": "end", "session_id": _session_id})
 
 _tg_auto_proxies = []
 _tg_auto_proxies_ts = 0
@@ -2661,13 +2665,14 @@ def _register_in_scheduler(report_time=None):
     try:
         import urllib.request as _ur, json as _jj
         payload = _jj.dumps({
+            "action": "register",
             "tg_token": TG_TOKEN,
             "tg_chat_id": str(TG_CHAT_ID),
             "journal_url": JOURNAL_URL,
             "report_time": report_time or TG_DAILY_REPORT_TIME,
         }).encode()
         req = _ur.Request(
-            REPORT_SCHEDULER_URL + "/register",
+            REPORT_SCHEDULER_URL,
             data=payload, headers={"Content-Type": "application/json"}
         )
         _ur.urlopen(req, timeout=6)

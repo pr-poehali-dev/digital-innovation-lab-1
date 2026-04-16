@@ -349,12 +349,17 @@ export function generatePOCode(cfg: POBotConfig): string {
   const strategyFunctions: Record<POStrategy, string> = {
     rsi_reversal: `
 def calculate_rsi(prices, period=${cfg.rsiPeriod}):
-    """RSI индикатор"""
+    """RSI индикатор по методу Уайлдера (EMA-сглаживание) — совпадает с TradingView"""
+    if len(prices) < period + 1:
+        return 50
     deltas = [prices[i] - prices[i-1] for i in range(1, len(prices))]
-    gains = [d if d > 0 else 0 for d in deltas]
-    losses = [-d if d < 0 else 0 for d in deltas]
-    avg_gain = sum(gains[-period:]) / period
-    avg_loss = sum(losses[-period:]) / period
+    gains  = [d if d > 0 else 0.0 for d in deltas]
+    losses = [-d if d < 0 else 0.0 for d in deltas]
+    avg_gain = sum(gains[:period]) / period
+    avg_loss = sum(losses[:period]) / period
+    for i in range(period, len(deltas)):
+        avg_gain = (avg_gain * (period - 1) + gains[i]) / period
+        avg_loss = (avg_loss * (period - 1) + losses[i]) / period
     if avg_loss == 0:
         return 100
     rs = avg_gain / avg_loss

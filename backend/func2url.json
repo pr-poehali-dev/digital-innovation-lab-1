@@ -1,7 +1,6 @@
 {
   "tg-daily-report": "https://functions.poehali.dev/26bda9fa-84ca-4013-9943-a0e23f0cebc2",
   "tg-send": "https://functions.poehali.dev/fb70e0a6-b6c1-49e2-b148-c37dab50f024",
-  "proxy-list": "https://functions.poehali.dev/9b5c80f1-f821-43a8-a80b-776572aa2ea0",
   "bot-trades": "https://functions.poehali.dev/317c9913-52da-4683-920f-963c978a3202",
   "trend-scanner": "https://functions.poehali.dev/d55c380e-7fd5-4871-aca7-c8670be08cde",
   "send-order": "https://functions.poehali.dev/8142e649-2318-4b2a-a321-d35ac72b9882",

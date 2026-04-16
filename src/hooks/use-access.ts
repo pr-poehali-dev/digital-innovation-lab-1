@@ -2,6 +2,22 @@ import { useState, useEffect } from 'react';
 
 const ACCESS_KEY_STORAGE = 'synapse_access_key';
 const VALIDATE_URL = 'https://functions.poehali.dev/cc94a441-3b9a-471c-94ce-7ac22db0a8f9';
+const CACHE_KEY = 'synapse_access_cache';
+const CACHE_TTL = 2 * 60 * 60 * 1000;
+
+function getCached(key: string): boolean | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const { k, valid, ts } = JSON.parse(raw);
+    if (k !== key || Date.now() - ts > CACHE_TTL) return null;
+    return valid;
+  } catch { return null; }
+}
+
+function setCache(key: string, valid: boolean) {
+  localStorage.setItem(CACHE_KEY, JSON.stringify({ k: key, valid, ts: Date.now() }));
+}
 
 export function useAccess() {
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
@@ -14,9 +30,16 @@ export function useAccess() {
       setIsLoading(false);
       return;
     }
+    const cached = getCached(stored);
+    if (cached !== null) {
+      setHasAccess(cached);
+      setIsLoading(false);
+      return;
+    }
     validateKey(stored).then((valid) => {
       setHasAccess(valid);
       if (!valid) localStorage.removeItem(ACCESS_KEY_STORAGE);
+      else setCache(stored, true);
       setIsLoading(false);
     });
   }, []);
@@ -36,9 +59,11 @@ export function useAccess() {
   }
 
   async function activate(key: string): Promise<{ success: boolean; error?: string }> {
-    const valid = await validateKey(key.trim().toUpperCase());
+    const k = key.trim().toUpperCase();
+    const valid = await validateKey(k);
     if (valid) {
-      localStorage.setItem(ACCESS_KEY_STORAGE, key.trim().toUpperCase());
+      localStorage.setItem(ACCESS_KEY_STORAGE, k);
+      setCache(k, true);
       setHasAccess(true);
       return { success: true };
     }

@@ -22,30 +22,6 @@ export default function BotBuilder() {
   const [strategyGuideOpen, setStrategyGuideOpen] = useState(false)
   const [tgGuideOpen, setTgGuideOpen] = useState(false)
   const [tgTestStatus, setTgTestStatus] = useState<"idle" | "sending" | "ok" | "error">("idle")
-  const [proxyList, setProxyList] = useState<string[]>([
-    "socks5://67.201.59.70:4145",
-    "socks5://98.162.25.29:31679",
-    "socks5://72.221.164.34:60671",
-    "socks5://192.111.130.5:17002",
-    "socks5://98.175.31.195:4145",
-  ])
-  const [proxyLoading, setProxyLoading] = useState(false)
-
-  const refreshProxyList = async () => {
-    setProxyLoading(true)
-    try {
-      const res = await fetch("https://functions.poehali.dev/9b5c80f1-f821-43a8-a80b-776572aa2ea0")
-      const data = await res.json()
-      const parsed = typeof data === 'string' ? JSON.parse(data) : data
-      if (parsed.proxies?.length) {
-        setProxyList(parsed.proxies.slice(0, 5))
-      }
-    } catch (_e) {
-      setProxyLoading(false)
-      return
-    }
-    setProxyLoading(false)
-  }
   const [restoreToast, setRestoreToast] = useState(false)
   const [savedToast, setSavedToast] = useState(false)
 
@@ -123,8 +99,8 @@ export default function BotBuilder() {
   // Автосохранение TG настроек при изменении + синхронизация валюты и TG с Bot2
   useEffect(() => {
     saveTgSettings(poConfig.tgToken, poConfig.tgChatId)
-    setPoConfig2(p => ({ ...p, tgToken: poConfig.tgToken, tgChatId: poConfig.tgChatId, tgEnabled: poConfig.tgEnabled, tgProxy: poConfig.tgProxy, tgNotifyMode: poConfig.tgNotifyMode }))
-  }, [poConfig.tgToken, poConfig.tgChatId, poConfig.tgEnabled, poConfig.tgProxy, poConfig.tgNotifyMode])
+    setPoConfig2(p => ({ ...p, tgToken: poConfig.tgToken, tgChatId: poConfig.tgChatId, tgEnabled: poConfig.tgEnabled, tgNotifyMode: poConfig.tgNotifyMode }))
+  }, [poConfig.tgToken, poConfig.tgChatId, poConfig.tgEnabled, poConfig.tgNotifyMode])
 
   useEffect(() => {
     setPoConfig2(p => ({ ...p, currency: poConfig.currency, isDemo: poConfig.isDemo }))

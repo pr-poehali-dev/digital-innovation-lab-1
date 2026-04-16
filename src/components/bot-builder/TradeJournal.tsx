@@ -110,26 +110,19 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
     setBet(defaultBet)
   }, [defaultAsset, defaultBet])
 
-  const loadSessions = useCallback(async () => {
+  const loadSessionsAndTrades = useCallback(async (sessionId?: string | null) => {
     try {
       const res = await fetch(`${BOT_TRADES_URL}/sessions`)
       const data = await res.json()
       const list: BotSession[] = data.sessions || []
       setSessions(list)
-      if (list.length > 0 && !selectedSessionId) {
-        setSelectedSessionId(list[0].id)
-      }
-    } catch (_e) {
-      // ignore
-    }
-  }, [selectedSessionId])
-
-  const loadBotTrades = useCallback(async (sessionId: string) => {
-    setLoadingBot(true)
-    try {
-      const res = await fetch(`${BOT_TRADES_URL}/trades?session_id=${sessionId}`)
-      const data = await res.json()
-      const raw: BotTrade[] = data.trades || []
+      const targetId = sessionId ?? (list.length > 0 ? list[0].id : null)
+      if (!targetId) return
+      if (!sessionId) setSelectedSessionId(targetId)
+      setLoadingBot(true)
+      const res2 = await fetch(`${BOT_TRADES_URL}/trades?session_id=${targetId}`)
+      const data2 = await res2.json()
+      const raw: BotTrade[] = data2.trades || []
       const mapped: Trade[] = raw.map((t) => ({
         id: t.id,
         date: formatDate(t.traded_at),
@@ -151,12 +144,12 @@ export default function TradeJournal({ defaultAsset = "EUR/USD (OTC)", defaultBe
   }, [])
 
   useEffect(() => {
-    loadSessions()
+    loadSessionsAndTrades()
   }, [])
 
   useEffect(() => {
     if (selectedSessionId) {
-      loadBotTrades(selectedSessionId)
+      loadSessionsAndTrades(selectedSessionId)
     }
   }, [selectedSessionId])
 

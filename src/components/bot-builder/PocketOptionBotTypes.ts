@@ -612,6 +612,9 @@ from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
 ASSET        = os.environ.get("PO_ASSET", "${assetSymbol}")
 EXPIRY_SEC   = ${String(parseInt(cfg.expiry) * 60)}             # Экспирация в секундах
 CANDLE_TF    = 60                                               # Таймфрейм свечей для индикаторов (1 мин)
+TWELVE_DATA_KEY = os.environ.get("TWELVE_DATA_KEY", "c7268bb91057482d9e78c17a85ea45fb")
+TWELVE_DATA_SYMBOL = "${(() => { const s = assetSymbol.replace(/_otc$/,'').replace(/^#/,'').toUpperCase(); if (s.endsWith('USDT')) return s.replace('USDT','/USD'); const m = s.match(/^([A-Z]{3})([A-Z]{3})$/); return m ? m[1]+'/'+m[2] : s; })()}"
+
 BASE_BET     = ${cfg.betAmount}          # Базовая ставка ₽
 BET_PERCENT  = ${cfg.betPercent ? "True" : "False"}        # True = % от баланса
 IS_DEMO      = ${cfg.isDemo ? "True" : "False"}                   # True = демо, False = реальный счёт
@@ -1399,6 +1402,31 @@ def check_trend_change(candles):
 
 ${strategyFunctions[cfg.strategy]}
 
+_td_cache = {"candles": [], "prices": [], "ts": 0}
+
+def fetch_candles_twelvedata():
+    """Получение свежих свечей M1 с Twelve Data (кэш 60 сек)"""
+    import urllib.request as _ur, json as _jj, time as _ti
+    global _td_cache
+    now = _ti.time()
+    if now - _td_cache["ts"] < 60 and _td_cache["candles"]:
+        return _td_cache["candles"], _td_cache["prices"]
+    try:
+        url = f"https://api.twelvedata.com/time_series?symbol={TWELVE_DATA_SYMBOL}&interval=1min&outputsize=50&apikey={TWELVE_DATA_KEY}"
+        req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        data = _jj.loads(_ur.urlopen(req, timeout=10).read())
+        if data.get("status") == "error":
+            raise Exception(data.get("message", "TD error"))
+        values = list(reversed(data.get("values", [])))
+        candles = [(float(c["open"]), float(c["high"]), float(c["low"]), float(c["close"])) for c in values]
+        prices  = [float(c["close"]) for c in values]
+        _td_cache = {"candles": candles, "prices": prices, "ts": now}
+        print(f"[CANDLES] Twelve Data: {len(prices)} свечей M1 | последняя цена: {prices[-1]:.5f}")
+        return candles, prices
+    except Exception as e:
+        print(f"[CANDLES] Twelve Data ошибка: {e} — используем кэш")
+        return _td_cache["candles"], _td_cache["prices"]
+
 async def try_get_candles(client, asset_name):
     """Попытка получить свечи, с авто-переподключением при обрыве"""
     for attempt in range(3):
@@ -1422,7 +1450,11 @@ async def try_get_candles(client, asset_name):
     return None
 
 async def get_candles_data(client):
-    """Получение свечей с кэшем — обновляет только когда закрывается новая свеча"""
+    """Получение свечей — сначала Twelve Data, fallback на PO API"""
+    if TWELVE_DATA_KEY and TWELVE_DATA_SYMBOL:
+        candles, prices = fetch_candles_twelvedata()
+        if candles and prices:
+            return candles, prices
     global _candle_cache, _candle_asset, _last_candle_time, _resolved_asset
     base = ASSET.replace("_otc", "").replace("#", "")
     candidates = [ASSET, f"#{ASSET}", f"{base}_otc", f"#{base}_otc", base]
@@ -2285,6 +2317,8 @@ from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
 ASSET        = "${comboAssetSymbol}"
 EXPIRY_SEC   = ${String(parseInt(cfg.expiry) * 60)}
 CANDLE_TF    = 60
+TWELVE_DATA_KEY = os.environ.get("TWELVE_DATA_KEY", "c7268bb91057482d9e78c17a85ea45fb")
+TWELVE_DATA_SYMBOL = "${(() => { const s = comboAssetSymbol.replace(/_otc$/,'').replace(/^#/,'').toUpperCase(); if (s.endsWith('USDT')) return s.replace('USDT','/USD'); const m = s.match(/^([A-Z]{3})([A-Z]{3})$/); return m ? m[1]+'/'+m[2] : s; })()}"
 BASE_BET     = ${cfg.betAmount}
 BET_PERCENT  = ${cfg.betPercent ? "True" : "False"}
 IS_DEMO      = ${cfg.isDemo ? "True" : "False"}
@@ -3076,12 +3110,40 @@ ${fnBlocks.join("\n")}
 # ===== КОМБО-ЛОГИКА (${cfg.comboLogic}) =====
 ${combineLogic}
 
+_td_cache = {"candles": [], "prices": [], "ts": 0}
+
+def fetch_candles_twelvedata():
+    import urllib.request as _ur, json as _jj, time as _ti
+    global _td_cache
+    now = _ti.time()
+    if now - _td_cache["ts"] < 60 and _td_cache["candles"]:
+        return _td_cache["candles"], _td_cache["prices"]
+    try:
+        url = f"https://api.twelvedata.com/time_series?symbol={TWELVE_DATA_SYMBOL}&interval=1min&outputsize=50&apikey={TWELVE_DATA_KEY}"
+        req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        data = _jj.loads(_ur.urlopen(req, timeout=10).read())
+        if data.get("status") == "error":
+            raise Exception(data.get("message", "TD error"))
+        values = list(reversed(data.get("values", [])))
+        candles = [(float(c["open"]), float(c["high"]), float(c["low"]), float(c["close"])) for c in values]
+        prices  = [float(c["close"]) for c in values]
+        _td_cache = {"candles": candles, "prices": prices, "ts": now}
+        print(f"[CANDLES] Twelve Data: {len(prices)} свечей M1 | последняя цена: {prices[-1]:.5f}")
+        return candles, prices
+    except Exception as e:
+        print(f"[CANDLES] Twelve Data ошибка: {e} — используем кэш")
+        return _td_cache["candles"], _td_cache["prices"]
+
 async def get_candles_data(client):
+    if TWELVE_DATA_KEY and TWELVE_DATA_SYMBOL:
+        candles, prices = fetch_candles_twelvedata()
+        if candles and prices:
+            return candles, prices
     try:
         raw = await client.get_candles(asset=ASSET, timeframe=CANDLE_TF, count=100)
         candles = [(c.open, c.high, c.low, c.close) for c in raw]
         prices  = [c.close for c in raw]
-        print(f"[CANDLES] Получено свечей: {len(prices)} | таймфрейм: {CANDLE_TF}с ({CANDLE_TF//60}мин)")
+        print(f"[CANDLES] PO API: {len(prices)} свечей | таймфрейм: {CANDLE_TF}с")
         return candles, prices
     except Exception as e:
         print(f"[ERROR] get_candles: {e}")

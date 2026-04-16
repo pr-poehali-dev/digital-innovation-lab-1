@@ -1508,18 +1508,54 @@ async def get_candles_data(client):
         pass
     import sys; sys.exit(1)
 
-async def place_trade(client, direction, amount):
-    """Открытие опциона"""
-    try:
-        dir_val = OrderDirection.CALL if direction == "CALL" else OrderDirection.PUT
-        trade_asset = _resolved_asset or ASSET
-        order = await client.place_order(asset=trade_asset, amount=amount, direction=dir_val, duration=EXPIRY_SEC)
-        print(f"[TRADE] {direction} | {amount} | {EXPIRY_SEC//60} мин | ID: {order.order_id}")
-        return order.order_id
-    except Exception as e:
-        print(f"[ERROR] Сделка: {e}")
-        return None
+async def _resolve_trade_asset(client):
+    """Ищет рабочий формат актива для сделки"""
+    global _resolved_asset
+    if _resolved_asset:
+        return _resolved_asset
+    base = ASSET.replace("_otc", "").replace("#", "")
+    candidates = [f"#{base}_otc", f"#{base}", f"{base}_otc", base, ASSET]
+    for name in candidates:
+        try:
+            dir_val = OrderDirection.CALL
+            order = await client.place_order(asset=name, amount=0.01, direction=dir_val, duration=60)
+            _resolved_asset = name
+            print(f"[ASSET] Рабочий формат: {name}")
+            return name
+        except Exception as e:
+            if "Invalid asset" in str(e):
+                continue
+            _resolved_asset = name
+            return name
+    return ASSET
 
+async def place_trade(client, direction, amount):
+    """Открытие опциона с авто-поиском формата актива"""
+    global _resolved_asset
+    dir_val = OrderDirection.CALL if direction == "CALL" else OrderDirection.PUT
+    base = ASSET.replace("_otc", "").replace("#", "")
+    candidates_try = []
+    if _resolved_asset:
+        candidates_try = [_resolved_asset]
+    candidates_try += [f"#{base}_otc", f"#{base}", f"{base}_otc", base, ASSET]
+    seen = []
+    for trade_asset in candidates_try:
+        if trade_asset in seen:
+            continue
+        seen.append(trade_asset)
+        try:
+            order = await client.place_order(asset=trade_asset, amount=amount, direction=dir_val, duration=EXPIRY_SEC)
+            _resolved_asset = trade_asset
+            print(f"[TRADE] {direction} | {amount} | {EXPIRY_SEC//60} мин | актив: {trade_asset} | ID: {order.order_id}")
+            return order.order_id
+        except Exception as e:
+            if "Invalid asset" in str(e):
+                print(f"[ASSET] {trade_asset} не подходит, пробуем следующий...")
+                continue
+            print(f"[ERROR] place_trade: {e}")
+            return None
+    print(f"[ERROR] place_trade: актив {ASSET} не найден ни в одном формате")
+    return None
 async def check_result(client, order_id, balance_before, bet):
     """Ожидание результата по конкретной сделке через get_deal (точно, не зависит от других ботов)."""
     PAYOUT = ${cfg.payoutRate} / 100
@@ -3149,15 +3185,35 @@ async def get_candles_data(client):
         print(f"[ERROR] get_candles: {e}")
         return [], []
 
+_combo_resolved_asset = None
+
 async def place_trade(client, direction, amount):
-    try:
-        dir_val = OrderDirection.CALL if direction == "CALL" else OrderDirection.PUT
-        order = await client.place_order(asset=ASSET, amount=amount, direction=dir_val, duration=EXPIRY_SEC)
-        print(f"[TRADE] {direction} | {amount} | {EXPIRY_SEC//60} мин | ID: {order.order_id}")
-        return order.order_id
-    except Exception as e:
-        print(f"[ERROR] place_trade: {e}")
-        return None
+    """Открытие опциона с авто-поиском формата актива"""
+    global _combo_resolved_asset
+    dir_val = OrderDirection.CALL if direction == "CALL" else OrderDirection.PUT
+    base = ASSET.replace("_otc", "").replace("#", "")
+    candidates_try = []
+    if _combo_resolved_asset:
+        candidates_try = [_combo_resolved_asset]
+    candidates_try += [f"#{base}_otc", f"#{base}", f"{base}_otc", base, ASSET]
+    seen = []
+    for trade_asset in candidates_try:
+        if trade_asset in seen:
+            continue
+        seen.append(trade_asset)
+        try:
+            order = await client.place_order(asset=trade_asset, amount=amount, direction=dir_val, duration=EXPIRY_SEC)
+            _combo_resolved_asset = trade_asset
+            print(f"[TRADE] {direction} | {amount} | {EXPIRY_SEC//60} мин | актив: {trade_asset} | ID: {order.order_id}")
+            return order.order_id
+        except Exception as e:
+            if "Invalid asset" in str(e):
+                print(f"[ASSET] {trade_asset} не подходит, пробуем следующий...")
+                continue
+            print(f"[ERROR] place_trade: {e}")
+            return None
+    print(f"[ERROR] place_trade: актив {ASSET} не найден ни в одном формате")
+    return None
 
 async def check_result(client, order_id, balance_before, bet):
     print(f"[WAIT] Ожидаем результат {EXPIRY_SEC//60} мин...")

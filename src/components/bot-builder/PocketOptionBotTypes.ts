@@ -2284,6 +2284,7 @@ from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
 # ===== НАСТРОЙКИ =====
 ASSET        = "${comboAssetSymbol}"
 EXPIRY_SEC   = ${String(parseInt(cfg.expiry) * 60)}
+CANDLE_TF    = 60
 BASE_BET     = ${cfg.betAmount}
 BET_PERCENT  = ${cfg.betPercent ? "True" : "False"}
 IS_DEMO      = ${cfg.isDemo ? "True" : "False"}

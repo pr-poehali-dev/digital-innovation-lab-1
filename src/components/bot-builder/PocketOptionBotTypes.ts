@@ -611,6 +611,7 @@ from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
 # ===== НАСТРОЙКИ =====
 ASSET        = os.environ.get("PO_ASSET", "${assetSymbol}")
 EXPIRY_SEC   = ${String(parseInt(cfg.expiry) * 60)}             # Экспирация в секундах
+CANDLE_TF    = 60                                               # Таймфрейм свечей для индикаторов (1 мин)
 BASE_BET     = ${cfg.betAmount}          # Базовая ставка ₽
 BET_PERCENT  = ${cfg.betPercent ? "True" : "False"}        # True = % от баланса
 IS_DEMO      = ${cfg.isDemo ? "True" : "False"}                   # True = демо, False = реальный счёт
@@ -1402,7 +1403,7 @@ async def try_get_candles(client, asset_name):
     """Попытка получить свечи, с авто-переподключением при обрыве"""
     for attempt in range(3):
         try:
-            raw = await client.get_candles(asset=asset_name, timeframe=EXPIRY_SEC, count=100)
+            raw = await client.get_candles(asset=asset_name, timeframe=CANDLE_TF, count=100)
             if raw:
                 return raw
             return None  # пустой ответ — актив не найден, не повторяем
@@ -1442,12 +1443,12 @@ async def get_candles_data(client):
                 now_ts = datetime.now().timestamp()
                 sample_time = sorted_raw[-1].time
                 if sample_time > 1e10:
-                    closed_raw = [c for c in sorted_raw if c.time / 1000 + EXPIRY_SEC <= now_ts]
+                    closed_raw = [c for c in sorted_raw if c.time / 1000 + CANDLE_TF <= now_ts]
                 else:
-                    closed_raw = [c for c in sorted_raw if c.time + EXPIRY_SEC <= now_ts]
+                    closed_raw = [c for c in sorted_raw if c.time + CANDLE_TF <= now_ts]
                 if not closed_raw:
                     closed_raw = sorted_raw[:-1]
-                print(f"[TIME_DEBUG] now={now_ts:.0f} last_candle_time={sorted_raw[-1].time} ms={sample_time > 1e10} expiry={EXPIRY_SEC} closed={len(closed_raw)}/{len(sorted_raw)}")
+                print(f"[TIME_DEBUG] now={now_ts:.0f} last_candle_time={sorted_raw[-1].time} ms={sample_time > 1e10} candle_tf={CANDLE_TF} closed={len(closed_raw)}/{len(sorted_raw)}")
             else:
                 sorted_raw = list(raw)
                 closed_raw = sorted_raw[:-1]

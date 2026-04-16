@@ -1871,6 +1871,14 @@ async def main():
                 await asyncio.sleep(CHECK_INTERVAL)
                 continue
 
+            try:
+                _tick = await client.get_price(_resolved_asset or ASSET)
+                if _tick and float(_tick) > 0:
+                    prices = prices[:-1] + [float(_tick)]
+                    print(f"[PRICE] Текущая цена с PO: {float(_tick):.5f}")
+            except Exception:
+                pass
+
             _reconnect_attempts = 0
 
             new_trend, old_trend = check_trend_change(candles)
@@ -3463,6 +3471,14 @@ async def main():
         if not prices:
             await asyncio.sleep(CHECK_INTERVAL)
             continue
+
+        try:
+            _tick = await client.get_price(_combo_resolved_asset or ASSET)
+            if _tick and float(_tick) > 0:
+                prices = prices[:-1] + [float(_tick)]
+                print(f"[PRICE] Текущая цена с PO: {float(_tick):.5f}")
+        except Exception:
+            pass
 
         new_trend, old_trend = check_trend_change(candles)
         if new_trend:

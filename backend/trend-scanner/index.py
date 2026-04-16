@@ -2,7 +2,13 @@ import json
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
-# Крипто-пары Pocket Option (Binance)
+try:
+    from tradingview_ta import TA_Handler, Interval
+    TV_AVAILABLE = True
+except Exception:
+    TV_AVAILABLE = False
+
+# Крипто-пары Pocket Option
 CRYPTO_PAIRS = [
     "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "DOGEUSDT",
 ]
@@ -15,14 +21,49 @@ CRYPTO_MAP = {
     "DOGEUSDT": "DOGE/USD",
 }
 
-# Forex пары Pocket Option (через open.er-api.com)
-FOREX_PAIRS = [
+# Forex пары TradingView symbol → display name
+FOREX_TV = [
+    ("EURUSD", "EUR/USD"),
+    ("GBPUSD", "GBP/USD"),
+    ("USDJPY", "USD/JPY"),
+    ("AUDUSD", "AUD/USD"),
+    ("USDCAD", "USD/CAD"),
+    ("USDCHF", "USD/CHF"),
+    ("NZDUSD", "NZD/USD"),
+    ("EURGBP", "EUR/GBP"),
+    ("EURJPY", "EUR/JPY"),
+    ("GBPJPY", "GBP/JPY"),
+]
+
+FOREX_PAIRS_FALLBACK = [
     ("EUR", "USD"), ("GBP", "USD"), ("USD", "JPY"), ("AUD", "USD"),
     ("USD", "CAD"), ("USD", "CHF"), ("NZD", "USD"),
-    ("EUR", "GBP"), ("EUR", "JPY"), ("EUR", "CHF"), ("EUR", "AUD"), ("EUR", "CAD"),
-    ("GBP", "JPY"), ("GBP", "CHF"), ("GBP", "AUD"), ("GBP", "CAD"),
-    ("AUD", "JPY"), ("AUD", "CAD"), ("CAD", "JPY"),
+    ("EUR", "GBP"), ("EUR", "JPY"), ("GBP", "JPY"),
 ]
+
+SUMMARY_MAP = {
+    "STRONG_BUY": "STRONG_BUY",
+    "BUY": "BUY",
+    "NEUTRAL": "NEUTRAL",
+    "SELL": "SELL",
+    "STRONG_SELL": "STRONG_SELL",
+}
+
+DIRECTION_MAP = {
+    "STRONG_BUY": "UP",
+    "BUY": "UP",
+    "NEUTRAL": "NEUTRAL",
+    "SELL": "DOWN",
+    "STRONG_SELL": "DOWN",
+}
+
+STRENGTH_MAP = {
+    "STRONG_BUY": 5,
+    "BUY": 3,
+    "NEUTRAL": 1,
+    "SELL": 3,
+    "STRONG_SELL": 5,
+}
 
 
 def fetch_url(url):
@@ -31,8 +72,31 @@ def fetch_url(url):
         return json.loads(resp.read())
 
 
+def get_tv_analysis(symbol, exchange, screener, interval):
+    handler = TA_Handler(
+        symbol=symbol,
+        exchange=exchange,
+        screener=screener,
+        interval=interval,
+    )
+    analysis = handler.get_analysis()
+    summary = analysis.summary["RECOMMENDATION"]
+    indicators = analysis.indicators
+    return {
+        "summary": SUMMARY_MAP.get(summary, summary),
+        "direction": DIRECTION_MAP.get(summary, "NEUTRAL"),
+        "trend_strength": STRENGTH_MAP.get(summary, 1),
+        "rsi": round(indicators.get("RSI", 50), 1),
+        "macd": round(indicators.get("MACD.macd", 0), 4),
+        "ema20": round(indicators.get("EMA20", 0), 4),
+        "buy_signals": analysis.summary.get("BUY", 0),
+        "sell_signals": analysis.summary.get("SELL", 0),
+        "neutral_signals": analysis.summary.get("NEUTRAL", 0),
+    }
+
+
 def handler(event: dict, context) -> dict:
-    """Сканирует все активы Pocket Option (крипта + Forex) и возвращает топ по силе тренда."""
+    """Сканирует активы Pocket Option через TradingView TA и возвращает топ по силе тренда."""
 
     if event.get("httpMethod") == "OPTIONS":
         return {
@@ -48,70 +112,119 @@ def handler(event: dict, context) -> dict:
 
     results = []
 
-    # --- КРИПТА (Binance 24h ticker) ---
-    symbols = ",".join([f'"{s}"' for s in CRYPTO_PAIRS])
-    crypto_data = fetch_url(f"https://api.binance.com/api/v3/ticker/24hr?symbols=[{symbols}]")
-
-    for ticker in crypto_data:
-        symbol = ticker["symbol"]
-        if symbol not in CRYPTO_MAP:
-            continue
-        change_pct = float(ticker["priceChangePercent"])
-        high = float(ticker["highPrice"])
-        low = float(ticker["lowPrice"])
-        last = float(ticker["lastPrice"])
-        price_range = high - low
-        results.append({
-            "asset": CRYPTO_MAP[symbol],
-            "asset_otc": CRYPTO_MAP[symbol] + " (OTC)",
-            "category": "crypto",
-            "change_pct": round(change_pct, 2),
-            "trend_strength": round(abs(change_pct), 2),
-            "direction": "UP" if change_pct > 0 else "DOWN",
-            "position_in_range": round(((last - low) / price_range * 100) if price_range > 0 else 50, 1),
-        })
-
-    # --- FOREX (open.er-api.com — текущий и вчерашний курс) ---
-    today = datetime.now(timezone.utc)
-    yesterday = today - timedelta(days=1)
-
-    try:
-        today_str = today.strftime("%Y-%m-%d")
-        yesterday_str = yesterday.strftime("%Y-%m-%d")
-        current_data = fetch_url(f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{today_str}/v1/currencies/usd.min.json")
-        prev_data = fetch_url(f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{yesterday_str}/v1/currencies/usd.min.json")
-        current_rates = current_data["usd"]
-        prev_rates = prev_data["usd"]
-
-        for base, quote in FOREX_PAIRS:
+    if TV_AVAILABLE:
+        # --- КРИПТА через TradingView ---
+        for symbol, display in CRYPTO_MAP.items():
             try:
-                b = base.lower()
-                q = quote.lower()
-                if base == "USD":
-                    rate_now = current_rates[q]
-                    rate_prev = prev_rates[q]
-                elif quote == "USD":
-                    rate_now = 1 / current_rates[b]
-                    rate_prev = 1 / prev_rates[b]
-                else:
-                    rate_now = current_rates[q] / current_rates[b]
-                    rate_prev = prev_rates[q] / prev_rates[b]
-
-                change_pct = ((rate_now - rate_prev) / rate_prev) * 100
-                asset_name = f"{base}/{quote}"
+                ta = get_tv_analysis(symbol, "BINANCE", "crypto", Interval.INTERVAL_15_MINUTES)
                 results.append({
-                    "asset": asset_name,
-                    "asset_otc": asset_name + " (OTC)",
-                    "category": "forex",
-                    "change_pct": round(change_pct, 3),
-                    "trend_strength": round(abs(change_pct), 3),
-                    "direction": "UP" if change_pct > 0 else "DOWN",
+                    "asset": display,
+                    "asset_otc": display + " (OTC)",
+                    "category": "crypto",
+                    "summary": ta["summary"],
+                    "direction": ta["direction"],
+                    "trend_strength": ta["trend_strength"],
+                    "change_pct": None,
+                    "rsi": ta["rsi"],
+                    "buy_signals": ta["buy_signals"],
+                    "sell_signals": ta["sell_signals"],
+                    "neutral_signals": ta["neutral_signals"],
                     "position_in_range": None,
                 })
             except Exception:
                 continue
-    except Exception:
-        pass
+
+        # --- FOREX через TradingView ---
+        for symbol, display in FOREX_TV:
+            try:
+                ta = get_tv_analysis(symbol, "FX_IDC", "forex", Interval.INTERVAL_15_MINUTES)
+                results.append({
+                    "asset": display,
+                    "asset_otc": display + " (OTC)",
+                    "category": "forex",
+                    "summary": ta["summary"],
+                    "direction": ta["direction"],
+                    "trend_strength": ta["trend_strength"],
+                    "change_pct": None,
+                    "rsi": ta["rsi"],
+                    "buy_signals": ta["buy_signals"],
+                    "sell_signals": ta["sell_signals"],
+                    "neutral_signals": ta["neutral_signals"],
+                    "position_in_range": None,
+                })
+            except Exception:
+                continue
+
+    else:
+        # --- FALLBACK: Binance 24h ticker для крипты ---
+        symbols = ",".join([f'"{s}"' for s in CRYPTO_PAIRS])
+        try:
+            crypto_data = fetch_url(f"https://api.binance.com/api/v3/ticker/24hr?symbols=[{symbols}]")
+            for ticker in crypto_data:
+                symbol = ticker["symbol"]
+                if symbol not in CRYPTO_MAP:
+                    continue
+                change_pct = float(ticker["priceChangePercent"])
+                high = float(ticker["highPrice"])
+                low = float(ticker["lowPrice"])
+                last = float(ticker["lastPrice"])
+                price_range = high - low
+                results.append({
+                    "asset": CRYPTO_MAP[symbol],
+                    "asset_otc": CRYPTO_MAP[symbol] + " (OTC)",
+                    "category": "crypto",
+                    "summary": "BUY" if change_pct > 0 else "SELL",
+                    "direction": "UP" if change_pct > 0 else "DOWN",
+                    "trend_strength": round(abs(change_pct), 2),
+                    "change_pct": round(change_pct, 2),
+                    "rsi": None,
+                    "buy_signals": None,
+                    "sell_signals": None,
+                    "neutral_signals": None,
+                    "position_in_range": round(((last - low) / price_range * 100) if price_range > 0 else 50, 1),
+                })
+        except Exception:
+            pass
+
+        # --- FALLBACK: Forex через currency-api ---
+        today = datetime.now(timezone.utc)
+        yesterday = today - timedelta(days=1)
+        try:
+            today_str = today.strftime("%Y-%m-%d")
+            yesterday_str = yesterday.strftime("%Y-%m-%d")
+            current_data = fetch_url(f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{today_str}/v1/currencies/usd.min.json")
+            prev_data = fetch_url(f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{yesterday_str}/v1/currencies/usd.min.json")
+            current_rates = current_data["usd"]
+            prev_rates = prev_data["usd"]
+            for base, quote in FOREX_PAIRS_FALLBACK:
+                try:
+                    b, q = base.lower(), quote.lower()
+                    if base == "USD":
+                        rate_now, rate_prev = current_rates[q], prev_rates[q]
+                    elif quote == "USD":
+                        rate_now, rate_prev = 1 / current_rates[b], 1 / prev_rates[b]
+                    else:
+                        rate_now = current_rates[q] / current_rates[b]
+                        rate_prev = prev_rates[q] / prev_rates[b]
+                    change_pct = ((rate_now - rate_prev) / rate_prev) * 100
+                    results.append({
+                        "asset": f"{base}/{quote}",
+                        "asset_otc": f"{base}/{quote} (OTC)",
+                        "category": "forex",
+                        "summary": "BUY" if change_pct > 0 else "SELL",
+                        "direction": "UP" if change_pct > 0 else "DOWN",
+                        "trend_strength": round(abs(change_pct), 3),
+                        "change_pct": round(change_pct, 3),
+                        "rsi": None,
+                        "buy_signals": None,
+                        "sell_signals": None,
+                        "neutral_signals": None,
+                        "position_in_range": None,
+                    })
+                except Exception:
+                    continue
+        except Exception:
+            pass
 
     results.sort(key=lambda x: x["trend_strength"], reverse=True)
 
@@ -122,5 +235,6 @@ def handler(event: dict, context) -> dict:
             "top": results,
             "best": results[0] if results else None,
             "scanned": len(results),
+            "source": "tradingview" if TV_AVAILABLE else "fallback",
         },
     }

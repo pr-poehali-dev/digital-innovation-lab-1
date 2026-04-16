@@ -5,7 +5,7 @@
       "method": "GET",
       "path": "/",
       "expectedStatus": 200,
-      "expectedBody": { "scanned": 0 },
+      "expectedBody": { "source": "tradingview" },
       "bodyMatcher": "partial"
     }
   ]

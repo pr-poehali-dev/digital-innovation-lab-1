@@ -26,10 +26,14 @@ interface TrendResult {
   asset: string
   asset_otc: string
   category: "crypto" | "forex"
-  change_pct: number
+  change_pct: number | null
   trend_strength: number
-  direction: "UP" | "DOWN"
-  volume_usd?: number
+  direction: "UP" | "DOWN" | "NEUTRAL"
+  summary?: "STRONG_BUY" | "BUY" | "NEUTRAL" | "SELL" | "STRONG_SELL"
+  rsi?: number | null
+  buy_signals?: number | null
+  sell_signals?: number | null
+  neutral_signals?: number | null
   position_in_range: number | null
 }
 
@@ -92,7 +96,7 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
         >
           {loading
             ? <><Icon name="Loader2" size={13} className="mr-1.5 animate-spin" />Сканирую рынок...</>
-            : <><Icon name="Zap" size={13} className="mr-1.5" />Найти сильный тренд (Binance)</>
+            : <><Icon name="Zap" size={13} className="mr-1.5" />Найти сильный тренд (TradingView)</>  
           }
         </Button>
         {results && (
@@ -149,29 +153,55 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
             {visible && visible.length === 0 && (
               <p className="text-zinc-500 font-space-mono text-xs text-center py-2">Все активы скрыты фильтром — снизь минимум</p>
             )}
-            {visible && visible.map((r, i) => {
+            {visible && visible.map((r) => {
               const barPct = (r.trend_strength / maxStrength) * 100
               const isUp = r.direction === "UP"
+              const isDown = r.direction === "DOWN"
               const topForexAsset = visible.find(x => x.category === "forex")?.asset
               const isTop = r.asset === topForexAsset
               const payoutVal = payouts[r.asset] ?? ""
               const payoutNum = Number(payoutVal)
               const payoutColor = payoutNum >= 85 ? "text-green-400" : payoutNum >= 75 ? "text-yellow-400" : payoutNum > 0 ? "text-red-400" : "text-zinc-500"
 
+              const summaryLabel: Record<string, string> = {
+                STRONG_BUY: "STRONG BUY",
+                BUY: "BUY",
+                NEUTRAL: "NEUTRAL",
+                SELL: "SELL",
+                STRONG_SELL: "STRONG SELL",
+              }
+              const summaryColor: Record<string, string> = {
+                STRONG_BUY: "text-green-400 bg-green-500/10 border-green-500/30",
+                BUY: "text-green-300 bg-green-500/5 border-green-500/20",
+                NEUTRAL: "text-zinc-400 bg-zinc-700/50 border-zinc-600",
+                SELL: "text-red-300 bg-red-500/5 border-red-500/20",
+                STRONG_SELL: "text-red-400 bg-red-500/10 border-red-500/30",
+              }
+              const total = (r.buy_signals ?? 0) + (r.sell_signals ?? 0) + (r.neutral_signals ?? 0)
+              const buyPct = total > 0 ? Math.round(((r.buy_signals ?? 0) / total) * 100) : 0
+              const sellPct = total > 0 ? Math.round(((r.sell_signals ?? 0) / total) * 100) : 0
+
               return (
                 <div
                   key={r.asset}
                   className={`rounded border ${isTop ? "bg-yellow-500/5 border-yellow-500/30" : "bg-zinc-800 border-zinc-700"}`}
                 >
-                  {/* Верхняя строка: актив + выплата + кнопка выбрать */}
+                  {/* Верхняя строка: актив + summary + выплата + кнопка */}
                   <div className="flex items-center gap-2 px-2.5 pt-1.5 pb-1">
-                    <span className={`text-xs font-bold shrink-0 ${isUp ? "text-green-400" : "text-red-400"}`}>
-                      {isUp ? "▲" : "▼"}
+                    <span className={`text-xs font-bold shrink-0 ${isUp ? "text-green-400" : isDown ? "text-red-400" : "text-zinc-400"}`}>
+                      {isUp ? "▲" : isDown ? "▼" : "—"}
                     </span>
                     <span className="text-xs shrink-0">{r.category === "crypto" ? "₿" : "💱"}</span>
                     <span className={`font-space-mono text-xs flex-1 ${isTop ? "text-yellow-300 font-bold" : "text-white"}`}>
                       {r.asset}{isTop && " 🔥"}
                     </span>
+
+                    {/* TradingView summary badge */}
+                    {r.summary && (
+                      <span className={`font-space-mono text-[10px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${summaryColor[r.summary] ?? "text-zinc-400"}`}>
+                        {summaryLabel[r.summary] ?? r.summary}
+                      </span>
+                    )}
 
                     {/* Поле ввода выплаты */}
                     <div className="flex items-center gap-1 shrink-0">
@@ -188,10 +218,6 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
                       <span className="text-zinc-500 font-space-mono text-xs">%</span>
                     </div>
 
-                    <span className={`font-space-mono text-xs font-bold shrink-0 ${isUp ? "text-green-400" : "text-red-400"}`}>
-                      {r.change_pct > 0 ? "+" : ""}{r.change_pct}%
-                    </span>
-
                     <button
                       type="button"
                       onClick={() => onSelect(r.asset_otc)}
@@ -201,10 +227,31 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
                     </button>
                   </div>
 
+                  {/* RSI + сигналы buy/sell */}
+                  {(r.rsi != null || r.buy_signals != null) && (
+                    <div className="flex items-center gap-3 px-2.5 pb-1.5">
+                      {r.rsi != null && (
+                        <span className={`font-space-mono text-[10px] shrink-0 ${r.rsi > 70 ? "text-red-400" : r.rsi < 30 ? "text-green-400" : "text-zinc-400"}`}>
+                          RSI {r.rsi}
+                        </span>
+                      )}
+                      {r.buy_signals != null && total > 0 && (
+                        <div className="flex items-center gap-1 flex-1">
+                          <div className="flex-1 h-1 rounded bg-zinc-700 overflow-hidden flex">
+                            <div className="h-full bg-green-500 transition-all" style={{ width: `${buyPct}%` }} />
+                            <div className="h-full bg-red-500 transition-all" style={{ width: `${sellPct}%` }} />
+                          </div>
+                          <span className="text-[10px] font-space-mono text-green-400 shrink-0">{r.buy_signals}↑</span>
+                          <span className="text-[10px] font-space-mono text-red-400 shrink-0">{r.sell_signals}↓</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Полоска силы тренда */}
                   <div className="w-full bg-zinc-700 rounded-b h-1">
                     <div
-                      className={`h-1 rounded-b transition-all ${isUp ? "bg-green-500" : "bg-red-500"}`}
+                      className={`h-1 rounded-b transition-all ${isUp ? "bg-green-500" : isDown ? "bg-red-500" : "bg-zinc-500"}`}
                       style={{ width: `${barPct}%` }}
                     />
                   </div>

@@ -1534,10 +1534,14 @@ async def place_trade(client, direction, amount):
     global _resolved_asset
     dir_val = OrderDirection.CALL if direction == "CALL" else OrderDirection.PUT
     base = ASSET.replace("_otc", "").replace("#", "")
+    is_otc = "otc" in ASSET.lower()
     candidates_try = []
     if _resolved_asset:
         candidates_try = [_resolved_asset]
-    candidates_try += [f"#{base}_otc", f"#{base}", f"{base}_otc", base, ASSET]
+    if is_otc:
+        candidates_try += [f"#{base}_otc", f"{base}_otc"]
+    else:
+        candidates_try += [f"#{base}", base]
     seen = []
     for trade_asset in candidates_try:
         if trade_asset in seen:
@@ -3193,10 +3197,14 @@ async def place_trade(client, direction, amount):
     global _combo_resolved_asset
     dir_val = OrderDirection.CALL if direction == "CALL" else OrderDirection.PUT
     base = ASSET.replace("_otc", "").replace("#", "")
+    is_otc = "otc" in ASSET.lower()
     candidates_try = []
     if _combo_resolved_asset:
         candidates_try = [_combo_resolved_asset]
-    candidates_try += [f"#{base}_otc", f"#{base}", f"{base}_otc", base, ASSET]
+    if is_otc:
+        candidates_try += [f"#{base}_otc", f"{base}_otc"]
+    else:
+        candidates_try += [f"#{base}", base]
     seen = []
     for trade_asset in candidates_try:
         if trade_asset in seen:

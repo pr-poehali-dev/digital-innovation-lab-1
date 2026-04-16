@@ -1369,7 +1369,7 @@ def get_trend(candles):
     cur   = candles[-1]
     bar   = "".join("🟢" if col == "UP" else "🔴" for col in colors)
     cur_emoji = "🟢" if cur[3] >= cur[0] else "🔴"
-    print(f"[СВЕЧИ] таймфрейм={EXPIRY_SEC}с ({EXPIRY_SEC//60}мин) | последние {len(window)} свечей: {bar} (▲{ups}/▼{downs}) | текущая: {cur_emoji}")
+    print(f"[СВЕЧИ] таймфрейм={CANDLE_TF}с ({CANDLE_TF//60}мин) | последние {len(window)} свечей: {bar} (▲{ups}/▼{downs}) | текущая: {cur_emoji}")
     if ups >= 3:
         return "UP_UP" if last == "UP" else "DOWN_UP"
     if downs >= 3:
@@ -3038,7 +3038,7 @@ def get_trend(candles):
     cur   = candles[-1]
     bar   = "".join("🟢" if col == "UP" else "🔴" for col in colors)
     cur_emoji = "🟢" if cur[3] >= cur[0] else "🔴"
-    print(f"[СВЕЧИ] таймфрейм={EXPIRY_SEC}с ({EXPIRY_SEC//60}мин) | последние {len(window)} свечей: {bar} (▲{ups}/▼{downs}) | текущая: {cur_emoji}")
+    print(f"[СВЕЧИ] таймфрейм={CANDLE_TF}с ({CANDLE_TF//60}мин) | последние {len(window)} свечей: {bar} (▲{ups}/▼{downs}) | текущая: {cur_emoji}")
     if ups >= 3:
         return "UP_UP" if last == "UP" else "DOWN_UP"
     if downs >= 3:

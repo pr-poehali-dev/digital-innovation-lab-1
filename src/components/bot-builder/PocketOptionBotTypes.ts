@@ -701,17 +701,21 @@ JOURNAL_URL = "https://functions.poehali.dev/317c9913-52da-4683-920f-963c978a320
 REPORT_SCHEDULER_URL = "https://functions.poehali.dev/26bda9fa-84ca-4013-9943-a0e23f0cebc2"
 _session_id = None
 
-def _journal_request(path, method="POST", data=None):
-    import urllib.request, json as _json
-    try:
-        url = JOURNAL_URL + path
-        body = _json.dumps(data or {}).encode()
-        req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method=method)
-        resp = urllib.request.urlopen(req, timeout=5).read()
-        return _json.loads(resp)
-    except Exception as e:
-        print(f"[JOURNAL] Ошибка: {e}")
-        return {}
+def _journal_request(path, method="POST", data=None, _retry=2):
+    import urllib.request, json as _json, time as _time
+    url = JOURNAL_URL + path
+    body = _json.dumps(data or {}).encode()
+    for attempt in range(_retry):
+        try:
+            req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method=method)
+            resp = urllib.request.urlopen(req, timeout=15).read()
+            return _json.loads(resp)
+        except Exception as e:
+            if attempt < _retry - 1:
+                _time.sleep(2)
+            else:
+                print(f"[JOURNAL] Ошибка: {e}")
+    return {}
 
 def journal_start_session():
     global _session_id
@@ -2367,17 +2371,21 @@ JOURNAL_URL = "https://functions.poehali.dev/317c9913-52da-4683-920f-963c978a320
 REPORT_SCHEDULER_URL = "https://functions.poehali.dev/26bda9fa-84ca-4013-9943-a0e23f0cebc2"
 _session_id = None
 
-def _journal_request(path, method="POST", data=None):
-    import urllib.request, json as _json
-    try:
-        url = JOURNAL_URL + path
-        body = _json.dumps(data or {}).encode()
-        req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method=method)
-        resp = urllib.request.urlopen(req, timeout=5).read()
-        return _json.loads(resp)
-    except Exception as e:
-        print(f"[JOURNAL] Ошибка: {e}")
-        return {}
+def _journal_request(path, method="POST", data=None, _retry=2):
+    import urllib.request, json as _json, time as _time
+    url = JOURNAL_URL + path
+    body = _json.dumps(data or {}).encode()
+    for attempt in range(_retry):
+        try:
+            req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method=method)
+            resp = urllib.request.urlopen(req, timeout=15).read()
+            return _json.loads(resp)
+        except Exception as e:
+            if attempt < _retry - 1:
+                _time.sleep(2)
+            else:
+                print(f"[JOURNAL] Ошибка: {e}")
+    return {}
 
 def journal_start_session():
     global _session_id

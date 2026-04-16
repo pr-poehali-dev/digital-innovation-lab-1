@@ -1410,11 +1410,18 @@ ${strategyFunctions[cfg.strategy]}
 _td_cache = {"candles": [], "prices": [], "ts": 0}
 
 def fetch_candles_twelvedata():
-    """Получение свежих свечей M1 с Twelve Data (кэш 60 сек)"""
-    import urllib.request as _ur, json as _jj, time as _ti
+    """Получение свежих свечей M1 с Twelve Data — обновляет сразу после закрытия новой свечи"""
+    import urllib.request as _ur, json as _jj, time as _ti, math as _math
     global _td_cache
     now = _ti.time()
-    if now - _td_cache["ts"] < 60 and _td_cache["candles"]:
+    # Вычисляем сколько секунд прошло с начала текущей минуты
+    secs_in_minute = now % 60
+    # Свеча закрывается в начале каждой минуты — обновляем в первые 5 сек новой минуты
+    # или если прошло больше 60 сек с последнего обновления
+    minute_now = int(now // 60)
+    minute_cached = int(_td_cache["ts"] // 60) if _td_cache["ts"] else 0
+    fresh = (minute_now == minute_cached) and _td_cache["candles"]
+    if fresh:
         return _td_cache["candles"], _td_cache["prices"]
     try:
         url = f"https://api.twelvedata.com/time_series?symbol={TWELVE_DATA_SYMBOL}&interval=1min&outputsize=50&apikey={TWELVE_DATA_KEY}"
@@ -3167,10 +3174,13 @@ ${combineLogic}
 _td_cache = {"candles": [], "prices": [], "ts": 0}
 
 def fetch_candles_twelvedata():
+    """Получение свежих свечей M1 — обновляет сразу после закрытия новой свечи"""
     import urllib.request as _ur, json as _jj, time as _ti
     global _td_cache
     now = _ti.time()
-    if now - _td_cache["ts"] < 60 and _td_cache["candles"]:
+    minute_now = int(now // 60)
+    minute_cached = int(_td_cache["ts"] // 60) if _td_cache["ts"] else 0
+    if (minute_now == minute_cached) and _td_cache["candles"]:
         return _td_cache["candles"], _td_cache["prices"]
     try:
         url = f"https://api.twelvedata.com/time_series?symbol={TWELVE_DATA_SYMBOL}&interval=1min&outputsize=50&apikey={TWELVE_DATA_KEY}"

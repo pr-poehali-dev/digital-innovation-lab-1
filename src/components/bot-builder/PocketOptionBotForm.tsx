@@ -35,17 +35,21 @@ interface TrendResult {
   asset: string
   asset_otc: string
   category: "crypto" | "forex"
-  change_pct: number | null
   trend_strength: number
   direction: "UP" | "DOWN" | "NEUTRAL"
-  summary?: "STRONG_BUY" | "BUY" | "NEUTRAL" | "SELL" | "STRONG_SELL"
-  rsi?: number | null
-  buy_signals?: number | null
-  sell_signals?: number | null
-  neutral_signals?: number | null
-  position_in_range: number | null
+  summary: "STRONG_BUY" | "BUY" | "NEUTRAL" | "SELL" | "STRONG_SELL"
+  greens?: number
+  reds?: number
   candles?: Candle[]
 }
+
+const TIMEFRAMES = [
+  { label: "M5",  value: "5min" },
+  { label: "M15", value: "15min" },
+  { label: "M30", value: "30min" },
+  { label: "H1",  value: "1h" },
+  { label: "H4",  value: "4h" },
+]
 
 function MiniChart({ candles }: { candles: Candle[] }) {
   if (!candles || candles.length === 0) return null
@@ -87,9 +91,8 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
   const [results, setResults] = useState<TrendResult[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [collapsed, setCollapsed] = useState(false)
-  // payouts[asset] — выплата введённая вручную для каждого актива
+  const [interval, setInterval] = useState("1h")
   const [payouts, setPayouts] = useState<Record<string, string>>({})
-  // минимальная выплата для фильтра
   const [minPayout, setMinPayout] = useState<string>("80")
 
   function setPayout(asset: string, val: string) {
@@ -113,7 +116,7 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
     setError(null)
     setResults(null)
     try {
-      const resp = await fetch(TREND_SCANNER_URL)
+      const resp = await fetch(`${TREND_SCANNER_URL}?interval=${interval}`)
       const raw = await resp.json()
       const data = typeof raw === "string" ? JSON.parse(raw) : raw
       setResults(data.top)
@@ -130,6 +133,24 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
 
   return (
     <div className="space-y-2">
+      {/* Выбор таймфрейма */}
+      <div className="flex gap-1">
+        {TIMEFRAMES.map(tf => (
+          <button
+            key={tf.value}
+            type="button"
+            onClick={() => setInterval(tf.value)}
+            className={`flex-1 h-7 rounded font-space-mono text-xs border transition-colors ${
+              interval === tf.value
+                ? "bg-yellow-500/20 border-yellow-500/50 text-yellow-400"
+                : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white"
+            }`}
+          >
+            {tf.label}
+          </button>
+        ))}
+      </div>
+
       {/* Кнопка сканирования + закрытие */}
       <div className="flex gap-2">
         <Button
@@ -141,7 +162,7 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
         >
           {loading
             ? <><Icon name="Loader2" size={13} className="mr-1.5 animate-spin" />Сканирую рынок...</>
-            : <><Icon name="Zap" size={13} className="mr-1.5" />Найти сильный тренд (TradingView)</>  
+            : <><Icon name="Zap" size={13} className="mr-1.5" />Найти сильный тренд</>
           }
         </Button>
         {results && (
@@ -222,9 +243,7 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
                 SELL: "text-red-300 bg-red-500/5 border-red-500/20",
                 STRONG_SELL: "text-red-400 bg-red-500/10 border-red-500/30",
               }
-              const total = (r.buy_signals ?? 0) + (r.sell_signals ?? 0) + (r.neutral_signals ?? 0)
-              const buyPct = total > 0 ? Math.round(((r.buy_signals ?? 0) / total) * 100) : 0
-              const sellPct = total > 0 ? Math.round(((r.sell_signals ?? 0) / total) * 100) : 0
+              const total = (r.greens ?? 0) + (r.reds ?? 0)
 
               return (
                 <div
@@ -272,30 +291,23 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
                     </button>
                   </div>
 
-                  {/* Мини-график свечей H1 + RSI + сигналы */}
+                  {/* Мини-график свечей + счётчик зелёных/красных */}
                   <div className="flex items-center gap-3 px-2.5 pb-1.5">
                     {r.candles && r.candles.length > 0 && (
                       <div className="shrink-0">
                         <MiniChart candles={r.candles} />
                       </div>
                     )}
-                    <div className="flex flex-col gap-1 flex-1 min-w-0">
-                      {r.rsi != null && (
-                        <span className={`font-space-mono text-[10px] shrink-0 ${r.rsi > 70 ? "text-red-400" : r.rsi < 30 ? "text-green-400" : "text-zinc-400"}`}>
-                          RSI {r.rsi}
-                        </span>
-                      )}
-                      {r.buy_signals != null && total > 0 && (
-                        <div className="flex items-center gap-1">
-                          <div className="flex-1 h-1 rounded bg-zinc-700 overflow-hidden flex">
-                            <div className="h-full bg-green-500 transition-all" style={{ width: `${buyPct}%` }} />
-                            <div className="h-full bg-red-500 transition-all" style={{ width: `${sellPct}%` }} />
-                          </div>
-                          <span className="text-[10px] font-space-mono text-green-400 shrink-0">{r.buy_signals}↑</span>
-                          <span className="text-[10px] font-space-mono text-red-400 shrink-0">{r.sell_signals}↓</span>
+                    {total > 0 && (
+                      <div className="flex items-center gap-1 flex-1">
+                        <div className="flex-1 h-1 rounded bg-zinc-700 overflow-hidden flex">
+                          <div className="h-full bg-green-500 transition-all" style={{ width: `${Math.round(((r.greens ?? 0) / total) * 100)}%` }} />
+                          <div className="h-full bg-red-500 transition-all" style={{ width: `${Math.round(((r.reds ?? 0) / total) * 100)}%` }} />
                         </div>
-                      )}
-                    </div>
+                        <span className="text-[10px] font-space-mono text-green-400 shrink-0">{r.greens}🟢</span>
+                        <span className="text-[10px] font-space-mono text-red-400 shrink-0">{r.reds}🔴</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Полоска силы тренда */}

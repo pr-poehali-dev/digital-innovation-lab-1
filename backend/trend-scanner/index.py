@@ -113,8 +113,23 @@ def get_tv_analysis(symbol, exchange, screener, interval):
     }
 
 
+# Twelve Data symbol map для форекса
+FOREX_TD_SYMBOL = {
+    "EUR/USD": "EUR/USD", "GBP/USD": "GBP/USD", "USD/JPY": "USD/JPY",
+    "AUD/USD": "AUD/USD", "USD/CAD": "USD/CAD", "USD/CHF": "USD/CHF",
+    "NZD/USD": "NZD/USD", "EUR/GBP": "EUR/GBP", "EUR/JPY": "EUR/JPY",
+    "GBP/JPY": "GBP/JPY",
+}
+
+# Twelve Data symbol map для крипты
+CRYPTO_TD_SYMBOL = {
+    "BTC/USD": "BTC/USD", "ETH/USD": "ETH/USD", "SOL/USD": "SOL/USD",
+    "BNB/USD": "BNB/USD", "DOGE/USD": "DOGE/USD",
+}
+
+
 def handler(event: dict, context) -> dict:
-    """Сканирует активы Pocket Option через TradingView TA и возвращает топ по силе тренда."""
+    """Сканирует активы Pocket Option через TradingView TA + свечи Twelve Data."""
 
     if event.get("httpMethod") == "OPTIONS":
         return {
@@ -128,13 +143,14 @@ def handler(event: dict, context) -> dict:
             "body": "",
         }
 
+    import os
+    td_key = os.environ.get("TWELVE_DATA_API_KEY", "")
+
     params = event.get("queryStringParameters") or {}
 
-    # --- ТЕСТ: GET /?test=candles — проверка свечей AUD/USD H1 ---
+    # --- ТЕСТ: GET /?test=candles ---
     if params.get("test") == "candles":
-        import os
-        api_key = os.environ.get("TWELVE_DATA_API_KEY", "")
-        candles = fetch_candles_twelvedata("AUD/USD", "1h", 5, api_key)
+        candles = fetch_candles_twelvedata("AUD/USD", "1h", 5, td_key)
         return {
             "statusCode": 200,
             "headers": {"Access-Control-Allow-Origin": "*", "Content-Type": "application/json"},
@@ -144,10 +160,16 @@ def handler(event: dict, context) -> dict:
     results = []
 
     if TV_AVAILABLE:
-        # --- КРИПТА через TradingView ---
+        # --- КРИПТА через TradingView + свечи Twelve Data ---
         for symbol, display in CRYPTO_MAP.items():
             try:
                 ta = get_tv_analysis(symbol, "BINANCE", "crypto", Interval.INTERVAL_15_MINUTES)
+                candles = []
+                if td_key and display in CRYPTO_TD_SYMBOL:
+                    try:
+                        candles = fetch_candles_twelvedata(CRYPTO_TD_SYMBOL[display], "1h", 6, td_key)
+                    except Exception:
+                        pass
                 results.append({
                     "asset": display,
                     "asset_otc": display + " (OTC)",
@@ -161,14 +183,21 @@ def handler(event: dict, context) -> dict:
                     "sell_signals": ta["sell_signals"],
                     "neutral_signals": ta["neutral_signals"],
                     "position_in_range": None,
+                    "candles": candles,
                 })
             except Exception:
                 continue
 
-        # --- FOREX через TradingView ---
+        # --- FOREX через TradingView + свечи Twelve Data ---
         for symbol, display in FOREX_TV:
             try:
                 ta = get_tv_analysis(symbol, "FX_IDC", "forex", Interval.INTERVAL_15_MINUTES)
+                candles = []
+                if td_key and display in FOREX_TD_SYMBOL:
+                    try:
+                        candles = fetch_candles_twelvedata(FOREX_TD_SYMBOL[display], "1h", 6, td_key)
+                    except Exception:
+                        pass
                 results.append({
                     "asset": display,
                     "asset_otc": display + " (OTC)",
@@ -182,6 +211,7 @@ def handler(event: dict, context) -> dict:
                     "sell_signals": ta["sell_signals"],
                     "neutral_signals": ta["neutral_signals"],
                     "position_in_range": None,
+                    "candles": candles,
                 })
             except Exception:
                 continue

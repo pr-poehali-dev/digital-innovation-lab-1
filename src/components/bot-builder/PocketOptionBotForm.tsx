@@ -22,6 +22,15 @@ import {
 
 const TREND_SCANNER_URL = "https://functions.poehali.dev/d55c380e-7fd5-4871-aca7-c8670be08cde"
 
+interface Candle {
+  t: string
+  o: number
+  h: number
+  l: number
+  c: number
+  green: boolean
+}
+
 interface TrendResult {
   asset: string
   asset_otc: string
@@ -35,6 +44,42 @@ interface TrendResult {
   sell_signals?: number | null
   neutral_signals?: number | null
   position_in_range: number | null
+  candles?: Candle[]
+}
+
+function MiniChart({ candles }: { candles: Candle[] }) {
+  if (!candles || candles.length === 0) return null
+  const ordered = [...candles].reverse()
+  const allPrices = ordered.flatMap(c => [c.h, c.l])
+  const minP = Math.min(...allPrices)
+  const maxP = Math.max(...allPrices)
+  const range = maxP - minP || 0.0001
+  const W = 60
+  const H = 28
+  const candleW = 6
+  const gap = 3
+  const totalW = ordered.length * (candleW + gap) - gap
+
+  const toY = (p: number) => H - ((p - minP) / range) * H
+
+  return (
+    <svg width={totalW} height={H} className="shrink-0">
+      {ordered.map((c, i) => {
+        const x = i * (candleW + gap)
+        const bodyTop = toY(Math.max(c.o, c.c))
+        const bodyBot = toY(Math.min(c.o, c.c))
+        const bodyH = Math.max(bodyBot - bodyTop, 1)
+        const color = c.green ? "#22c55e" : "#ef4444"
+        const wickX = x + candleW / 2
+        return (
+          <g key={i}>
+            <line x1={wickX} y1={toY(c.h)} x2={wickX} y2={toY(c.l)} stroke={color} strokeWidth={1} />
+            <rect x={x} y={bodyTop} width={candleW} height={bodyH} fill={color} rx={1} />
+          </g>
+        )
+      })}
+    </svg>
+  )
 }
 
 function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
@@ -227,16 +272,21 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
                     </button>
                   </div>
 
-                  {/* RSI + сигналы buy/sell */}
-                  {(r.rsi != null || r.buy_signals != null) && (
-                    <div className="flex items-center gap-3 px-2.5 pb-1.5">
+                  {/* Мини-график свечей H1 + RSI + сигналы */}
+                  <div className="flex items-center gap-3 px-2.5 pb-1.5">
+                    {r.candles && r.candles.length > 0 && (
+                      <div className="shrink-0">
+                        <MiniChart candles={r.candles} />
+                      </div>
+                    )}
+                    <div className="flex flex-col gap-1 flex-1 min-w-0">
                       {r.rsi != null && (
                         <span className={`font-space-mono text-[10px] shrink-0 ${r.rsi > 70 ? "text-red-400" : r.rsi < 30 ? "text-green-400" : "text-zinc-400"}`}>
                           RSI {r.rsi}
                         </span>
                       )}
                       {r.buy_signals != null && total > 0 && (
-                        <div className="flex items-center gap-1 flex-1">
+                        <div className="flex items-center gap-1">
                           <div className="flex-1 h-1 rounded bg-zinc-700 overflow-hidden flex">
                             <div className="h-full bg-green-500 transition-all" style={{ width: `${buyPct}%` }} />
                             <div className="h-full bg-red-500 transition-all" style={{ width: `${sellPct}%` }} />
@@ -246,7 +296,7 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
                         </div>
                       )}
                     </div>
-                  )}
+                  </div>
 
                   {/* Полоска силы тренда */}
                   <div className="w-full bg-zinc-700 rounded-b h-1">

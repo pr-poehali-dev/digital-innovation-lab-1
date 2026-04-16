@@ -72,6 +72,24 @@ def fetch_url(url):
         return json.loads(resp.read())
 
 
+def fetch_candles_twelvedata(symbol, interval, limit, api_key):
+    url = f"https://api.twelvedata.com/time_series?symbol={symbol}&interval={interval}&outputsize={limit}&apikey={api_key}"
+    data = fetch_url(url)
+    if data.get("status") == "error":
+        raise Exception(data.get("message", "Twelve Data error"))
+    candles = []
+    for c in data.get("values", []):
+        candles.append({
+            "t": c["datetime"],
+            "o": float(c["open"]),
+            "h": float(c["high"]),
+            "l": float(c["low"]),
+            "c": float(c["close"]),
+            "green": float(c["close"]) >= float(c["open"]),
+        })
+    return candles
+
+
 def get_tv_analysis(symbol, exchange, screener, interval):
     handler = TA_Handler(
         symbol=symbol,
@@ -108,6 +126,19 @@ def handler(event: dict, context) -> dict:
                 "Access-Control-Max-Age": "86400",
             },
             "body": "",
+        }
+
+    params = event.get("queryStringParameters") or {}
+
+    # --- ТЕСТ: GET /?test=candles — проверка свечей AUD/USD H1 ---
+    if params.get("test") == "candles":
+        import os
+        api_key = os.environ.get("TWELVE_DATA_API_KEY", "")
+        candles = fetch_candles_twelvedata("AUD/USD", "1h", 5, api_key)
+        return {
+            "statusCode": 200,
+            "headers": {"Access-Control-Allow-Origin": "*", "Content-Type": "application/json"},
+            "body": {"symbol": "AUD/USD", "interval": "1h", "candles": candles},
         }
 
     results = []

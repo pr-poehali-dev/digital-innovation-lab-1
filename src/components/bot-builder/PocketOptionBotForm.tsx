@@ -1505,6 +1505,92 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
             <p className="text-zinc-500 text-xs font-space-mono leading-relaxed">
               Алгоритм <b className="text-purple-400">Rufus</b> торгует от круглых уровней. Подход сверху → поддержка → <span className="text-green-400">CALL</span>. Подход снизу → сопротивление → <span className="text-red-400">PUT</span>.
             </p>
+
+            {/* Пресеты для быстрой настройки */}
+            {(() => {
+              const RUFUS_PRESETS = [
+                {
+                  label: "EUR/USD",
+                  icon: "💱",
+                  desc: "Стандартный форекс",
+                  patch: { rufusStep: 0.001 as const, rufusPips: 3, rufusPipSize: 0.0001 },
+                  color: "border-blue-500/40 text-blue-300 bg-blue-500/10 hover:bg-blue-500/20",
+                  active: "border-blue-500 bg-blue-500/20 text-blue-200",
+                  match: (a: string) => ["EUR","GBP","AUD","NZD","CAD","CHF"].some(c => a.includes(c)) && !a.includes("JPY"),
+                },
+                {
+                  label: "USD/JPY",
+                  icon: "🇯🇵",
+                  desc: "Иена — шаг 0.05",
+                  patch: { rufusStep: 0.01 as const, rufusPips: 3, rufusPipSize: 0.01 },
+                  color: "border-red-500/40 text-red-300 bg-red-500/10 hover:bg-red-500/20",
+                  active: "border-red-500 bg-red-500/20 text-red-200",
+                  match: (a: string) => a.includes("JPY"),
+                },
+                {
+                  label: "BTC/ETH",
+                  icon: "₿",
+                  desc: "Крипта — крупный пип",
+                  patch: { rufusStep: 0.01 as const, rufusPips: 3, rufusPipSize: 10.0 },
+                  color: "border-yellow-500/40 text-yellow-300 bg-yellow-500/10 hover:bg-yellow-500/20",
+                  active: "border-yellow-500 bg-yellow-500/20 text-yellow-200",
+                  match: (a: string) => ["BTC","ETH","SOL","BNB","DOGE"].some(c => a.includes(c)),
+                },
+                {
+                  label: "Gold",
+                  icon: "🥇",
+                  desc: "Золото / нефть",
+                  patch: { rufusStep: 0.01 as const, rufusPips: 3, rufusPipSize: 0.1 },
+                  color: "border-amber-500/40 text-amber-300 bg-amber-500/10 hover:bg-amber-500/20",
+                  active: "border-amber-500 bg-amber-500/20 text-amber-200",
+                  match: (a: string) => ["Gold","Silver","Oil","Brent","WTI"].some(c => a.includes(c)),
+                },
+              ]
+              const asset = config.asset ?? ""
+              const autoPreset = RUFUS_PRESETS.find(p => p.match(asset))
+              const isApplied = (p: typeof RUFUS_PRESETS[0]) =>
+                config.rufusPipSize === p.patch.rufusPipSize &&
+                config.rufusPips === p.patch.rufusPips &&
+                config.rufusStep === p.patch.rufusStep
+
+              return (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-zinc-400 font-space-mono text-xs">⚡ Быстрые пресеты</Label>
+                    {autoPreset && !isApplied(autoPreset) && (
+                      <span className="text-[10px] font-space-mono text-purple-400 animate-pulse">
+                        ← рекомендован для {asset}
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {RUFUS_PRESETS.map((p) => {
+                      const applied = isApplied(p)
+                      const recommended = autoPreset?.label === p.label
+                      return (
+                        <button
+                          key={p.label}
+                          type="button"
+                          onClick={() => set(p.patch)}
+                          className={`rounded-lg px-3 py-2 text-xs font-space-mono border transition-all text-left relative
+                            ${applied ? p.active : p.color}`}
+                        >
+                          {recommended && !applied && (
+                            <span className="absolute top-1 right-1 text-[8px] bg-purple-500/40 text-purple-300 rounded px-1">авто</span>
+                          )}
+                          <div className="font-bold">{p.icon} {p.label}</div>
+                          <div className="text-[10px] opacity-70 mt-0.5">{p.desc}</div>
+                          <div className="text-[9px] opacity-50 mt-0.5">
+                            пип {p.patch.rufusPipSize} · радиус {p.patch.rufusPips} · шаг {p.patch.rufusStep}
+                          </div>
+                          {applied && <div className="text-[9px] mt-0.5 font-bold">✓ применён</div>}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })()}
             {(() => {
               const asset = config.asset ?? ""
               const isJpy = asset.includes("JPY")

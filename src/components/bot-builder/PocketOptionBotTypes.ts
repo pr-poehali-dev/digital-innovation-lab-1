@@ -1271,12 +1271,16 @@ async def tg_poll_commands():
             val = ""
             target = ""
             if rest:
-                try:
-                    float(rest[-1])
-                    val = rest[-1]
-                    target = " ".join(rest[:-1]).lower()
-                except ValueError:
-                    target = " ".join(rest).lower()
+                full_rest = " ".join(rest).lower()
+                if full_rest == _bot_name_lower or full_rest == "all":
+                    target = full_rest
+                else:
+                    try:
+                        float(rest[-1])
+                        val = rest[-1]
+                        target = " ".join(rest[:-1]).lower()
+                    except ValueError:
+                        target = full_rest
             for_me = (target == _bot_name_lower or target == "all" or target == "")
             if cmd == "/stop" and for_me:
                 _tg_stopped = True
@@ -3028,12 +3032,16 @@ async def tg_poll_commands():
             val = ""
             target = ""
             if rest:
-                try:
-                    float(rest[-1])
-                    val = rest[-1]
-                    target = " ".join(rest[:-1]).lower()
-                except ValueError:
-                    target = " ".join(rest).lower()
+                full_rest = " ".join(rest).lower()
+                if full_rest == _bot_name_lower or full_rest == "all":
+                    target = full_rest
+                else:
+                    try:
+                        float(rest[-1])
+                        val = rest[-1]
+                        target = " ".join(rest[:-1]).lower()
+                    except ValueError:
+                        target = full_rest
             for_me = (target == _bot_name_lower or target == "all" or target == "")
             if cmd == "/stop" and for_me:
                 _tg_stopped = True

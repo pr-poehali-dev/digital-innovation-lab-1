@@ -65,6 +65,7 @@ export interface POBotConfig {
   rufusPips: number
   rufusLookback: number
   rufusStep: 0.01 | 0.001
+  rufusPipSize: number | null
   // Тренд по свечам (комбо-режим)
   trendCandlesEnabled: boolean
   trendCandlesCount: 2 | 3 | 4
@@ -334,10 +335,110 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   rufusPips: 5,
   rufusLookback: 10,
   rufusStep: 0.01,
+  rufusPipSize: null,
   trendCandlesEnabled: false,
   trendCandlesCount: 3,
   candleConfirmEnabled: false,
   candleConfirmCount: 3,
+}
+
+// Таблица размеров пипса по активу (Вариант А — автоматически)
+// Используется в generatePOCode если rufusPipSize не задан вручную
+export const PO_PIP_SIZE: Record<string, { pip: number; comment: string }> = {
+  // === ФОРЕКС — основные пары (котировка 5 знаков после запятой) ===
+  // 1 пип = 0.0001 (4-й знак) — стандарт для USD-котируемых пар
+  "EUR/USD":        { pip: 0.0001, comment: "Стандартный форекс, 4-й знак после запятой" },
+  "GBP/USD":        { pip: 0.0001, comment: "Стандартный форекс, 4-й знак после запятой" },
+  "AUD/USD":        { pip: 0.0001, comment: "Стандартный форекс, 4-й знак после запятой" },
+  "NZD/USD":        { pip: 0.0001, comment: "Стандартный форекс, 4-й знак после запятой" },
+  "USD/CAD":        { pip: 0.0001, comment: "Стандартный форекс, 4-й знак после запятой" },
+  "USD/CHF":        { pip: 0.0001, comment: "Стандартный форекс, 4-й знак после запятой" },
+  // JPY-пары: котировка 3 знака после запятой, 1 пип = 0.01
+  "USD/JPY":        { pip: 0.01, comment: "JPY-пара: цена ~150.xx, пип = 0.01 (2-й знак)" },
+  "EUR/JPY":        { pip: 0.01, comment: "JPY-пара: цена ~160.xx, пип = 0.01" },
+  "GBP/JPY":        { pip: 0.01, comment: "JPY-пара: цена ~190.xx, пип = 0.01" },
+  "AUD/JPY":        { pip: 0.01, comment: "JPY-пара: цена ~95.xx, пип = 0.01" },
+  "CAD/JPY":        { pip: 0.01, comment: "JPY-пара: цена ~110.xx, пип = 0.01" },
+  // Кросс-пары без JPY — стандарт 0.0001
+  "EUR/GBP":        { pip: 0.0001, comment: "Кросс-пара, 4-й знак после запятой" },
+  "EUR/CHF":        { pip: 0.0001, comment: "Кросс-пара, 4-й знак после запятой" },
+  "EUR/AUD":        { pip: 0.0001, comment: "Кросс-пара, 4-й знак после запятой" },
+  "EUR/CAD":        { pip: 0.0001, comment: "Кросс-пара, 4-й знак после запятой" },
+  "GBP/CHF":        { pip: 0.0001, comment: "Кросс-пара, 4-й знак после запятой" },
+  "GBP/AUD":        { pip: 0.0001, comment: "Кросс-пара, 4-й знак после запятой" },
+  "GBP/CAD":        { pip: 0.0001, comment: "Кросс-пара, 4-й знак после запятой" },
+  "AUD/CAD":        { pip: 0.0001, comment: "Кросс-пара, 4-й знак после запятой" },
+  // === ФОРЕКС OTC — те же значения, OTC = синтетика на основе реального актива ===
+  "EUR/USD (OTC)":  { pip: 0.0001, comment: "OTC-версия EUR/USD, пип тот же 0.0001" },
+  "GBP/USD (OTC)":  { pip: 0.0001, comment: "OTC-версия GBP/USD" },
+  "AUD/USD (OTC)":  { pip: 0.0001, comment: "OTC-версия AUD/USD" },
+  "NZD/USD (OTC)":  { pip: 0.0001, comment: "OTC-версия NZD/USD" },
+  "USD/CAD (OTC)":  { pip: 0.0001, comment: "OTC-версия USD/CAD" },
+  "USD/CHF (OTC)":  { pip: 0.0001, comment: "OTC-версия USD/CHF" },
+  "USD/JPY (OTC)":  { pip: 0.01,   comment: "OTC JPY-пара, пип = 0.01" },
+  "EUR/JPY (OTC)":  { pip: 0.01,   comment: "OTC JPY-пара, пип = 0.01" },
+  "GBP/JPY (OTC)":  { pip: 0.01,   comment: "OTC JPY-пара, пип = 0.01" },
+  "AUD/JPY (OTC)":  { pip: 0.01,   comment: "OTC JPY-пара, пип = 0.01" },
+  "CAD/JPY (OTC)":  { pip: 0.01,   comment: "OTC JPY-пара, пип = 0.01" },
+  "EUR/GBP (OTC)":  { pip: 0.0001, comment: "OTC кросс-пара" },
+  "EUR/CHF (OTC)":  { pip: 0.0001, comment: "OTC кросс-пара" },
+  "EUR/AUD (OTC)":  { pip: 0.0001, comment: "OTC кросс-пара" },
+  "EUR/CAD (OTC)":  { pip: 0.0001, comment: "OTC кросс-пара" },
+  "GBP/CHF (OTC)":  { pip: 0.0001, comment: "OTC кросс-пара" },
+  "GBP/AUD (OTC)":  { pip: 0.0001, comment: "OTC кросс-пара" },
+  "GBP/CAD (OTC)":  { pip: 0.0001, comment: "OTC кросс-пара" },
+  "AUD/CAD (OTC)":  { pip: 0.0001, comment: "OTC кросс-пара" },
+  // === КРИПТО — цена BTC/USD ~60000$, 1 пип = 1.0 (минимальный шаг = $1) ===
+  "BTC/USD":        { pip: 1.0,    comment: "Биткоин: цена ~60000$, пип = $1 (целый доллар)" },
+  "BTC/USD (OTC)":  { pip: 1.0,    comment: "OTC биткоин, пип = $1" },
+  // ETH/USD ~3000$, пип = 0.1 ($0.10 = минимальный значимый шаг)
+  "ETH/USD":        { pip: 0.1,    comment: "Эфир: цена ~3000$, пип = $0.10" },
+  "ETH/USD (OTC)":  { pip: 0.1,    comment: "OTC эфир, пип = $0.10" },
+  // SOL/USD ~150$, пип = 0.01
+  "SOL/USD":        { pip: 0.01,   comment: "Солана: цена ~150$, пип = $0.01" },
+  "SOL/USD (OTC)":  { pip: 0.01,   comment: "OTC солана, пип = $0.01" },
+  // BNB/USD ~500$, пип = 0.1
+  "BNB/USD":        { pip: 0.1,    comment: "BNB: цена ~500$, пип = $0.10" },
+  "BNB/USD (OTC)":  { pip: 0.1,    comment: "OTC BNB, пип = $0.10" },
+  // DOGE/USD ~0.15$, пип = 0.0001 (как форекс — мелкая цена)
+  "DOGE/USD":       { pip: 0.0001, comment: "Додж: цена ~0.15$, пип = 0.0001 (4-й знак)" },
+  "DOGE/USD (OTC)": { pip: 0.0001, comment: "OTC додж, пип = 0.0001" },
+  // === АКЦИИ OTC — цена в долларах, пип = 0.01 ($0.01 = 1 цент = минимальный шаг акций) ===
+  "Nvidia (OTC)":      { pip: 0.01, comment: "Акция: минимальный шаг = $0.01 (1 цент)" },
+  "Apple (OTC)":       { pip: 0.01, comment: "Акция: минимальный шаг = $0.01" },
+  "Tesla (OTC)":       { pip: 0.01, comment: "Акция: минимальный шаг = $0.01" },
+  "VISA (OTC)":        { pip: 0.01, comment: "Акция: минимальный шаг = $0.01" },
+  "Palantir (OTC)":    { pip: 0.01, comment: "Акция: минимальный шаг = $0.01" },
+  "GameStop (OTC)":    { pip: 0.01, comment: "Акция: минимальный шаг = $0.01" },
+  "ExxonMobil (OTC)":  { pip: 0.01, comment: "Акция: минимальный шаг = $0.01" },
+  "Netflix (OTC)":     { pip: 0.01, comment: "Акция: минимальный шаг = $0.01" },
+  "McDonald's (OTC)":  { pip: 0.01, comment: "Акция: минимальный шаг = $0.01" },
+  "Intel (OTC)":       { pip: 0.01, comment: "Акция: минимальный шаг = $0.01" },
+  "Boeing (OTC)":      { pip: 0.01, comment: "Акция: минимальный шаг = $0.01" },
+  "Alibaba (OTC)":     { pip: 0.01, comment: "Акция: минимальный шаг = $0.01" },
+  // === ТОВАРЫ OTC — цена в долларах ===
+  // Gold/Silver: цена ~2000$/oz, пип = 0.1 ($0.10 минимальный шаг на Pocket Option)
+  "Gold (OTC)":        { pip: 0.1,  comment: "Золото: цена ~2000$/oz, пип = $0.10" },
+  "Silver (OTC)":      { pip: 0.01, comment: "Серебро: цена ~25$/oz, пип = $0.01" },
+  "Platinum (OTC)":    { pip: 0.1,  comment: "Платина: цена ~1000$/oz, пип = $0.10" },
+  "Palladium (OTC)":   { pip: 0.1,  comment: "Палладий: цена ~1000$/oz, пип = $0.10" },
+  // Нефть: цена ~80$, пип = 0.01
+  "Brent Oil (OTC)":   { pip: 0.01, comment: "Нефть Brent: цена ~80$, пип = $0.01" },
+  "WTI Oil (OTC)":     { pip: 0.01, comment: "Нефть WTI: цена ~75$, пип = $0.01" },
+  // Газ: цена ~2.5$, пип = 0.001
+  "Natural Gas (OTC)": { pip: 0.001, comment: "Природный газ: цена ~2.5$, пип = $0.001 (мелкая цена)" },
+  // === ИНДЕКСЫ OTC — цена тысячи пунктов, пип = 1.0 (1 пункт индекса) ===
+  "S&P 500 (OTC)":     { pip: 1.0, comment: "Индекс: цена ~5000 пунктов, пип = 1 пункт" },
+  "Dow Jones (OTC)":   { pip: 1.0, comment: "Индекс: цена ~38000 пунктов, пип = 1 пункт" },
+  "NASDAQ (OTC)":      { pip: 1.0, comment: "Индекс: цена ~18000 пунктов, пип = 1 пункт" },
+  "AUS 200 (OTC)":     { pip: 1.0, comment: "Австралийский индекс: цена ~7500 пунктов, пип = 1 пункт" },
+  "VIX (OTC)":         { pip: 0.01, comment: "Индекс волатильности: цена ~15-20, пип = 0.01" },
+}
+
+// Получить размер пипса для актива (с fallback = 0.0001)
+export function getPipSize(asset: string, override: number | null): number {
+  if (override !== null && override > 0) return override
+  return PO_PIP_SIZE[asset]?.pip ?? 0.0001
 }
 
 // Helper to avoid TS template literal conflicts with Python f-strings
@@ -466,6 +567,7 @@ def get_signal(prices, candles=None):
 RUFUS_PIPS     = ${cfg.rufusPips ?? 5}       # Радиус приближения к уровню (в пипсах)
 RUFUS_LOOKBACK = ${cfg.rufusLookback ?? 10}  # Свечей назад для определения направления
 RUFUS_STEP     = ${cfg.rufusStep ?? 0.01}    # Шаг уровней: 0.01 (сотые) или 0.001 (тысячные)
+RUFUS_PIP_SIZE = ${getPipSize(cfg.asset, cfg.rufusPipSize ?? null)}  # Размер 1 пипса для ${cfg.asset}
 
 def get_rufus_levels(price):
     """Ближайшие круглые уровни (каждые RUFUS_STEP)"""
@@ -480,7 +582,7 @@ def get_signal(prices, candles=None):
     if len(prices) < RUFUS_LOOKBACK + 2:
         return None, ""
     current = prices[-1]
-    pip = 0.0001
+    pip = RUFUS_PIP_SIZE
     threshold = RUFUS_PIPS * pip
     lower_level, upper_level = get_rufus_levels(current)
     signal = None

@@ -18,6 +18,8 @@ import {
   PO_ASSETS,
   PO_ASSETS_GROUPS,
   PO_EXPIRY_LABELS,
+  PO_PIP_SIZE,
+  getPipSize,
 } from "./PocketOptionBotTypes"
 
 const TREND_SCANNER_URL = "https://functions.poehali.dev/d55c380e-7fd5-4871-aca7-c8670be08cde"
@@ -1422,10 +1424,52 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                 <p className="text-zinc-600 font-space-mono text-[10px] mt-1">За сколько свечей смотреть направление</p>
               </div>
             </div>
+            {/* Размер пипса */}
+            <div className="bg-zinc-800 border border-zinc-700 rounded-xl p-3 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white font-space-mono text-xs font-semibold">📏 Размер пипса</p>
+                  <p className="text-zinc-500 font-space-mono text-[10px] mt-0.5">
+                    Авто: {PO_PIP_SIZE[config.asset]?.pip ?? 0.0001} ({PO_PIP_SIZE[config.asset]?.comment ?? "форекс стандарт"})
+                  </p>
+                </div>
+                <button
+                  onClick={() => set({ rufusPipSize: config.rufusPipSize !== null ? null : (PO_PIP_SIZE[config.asset]?.pip ?? 0.0001) })}
+                  className={`text-[10px] font-space-mono px-2 py-1 rounded-lg border transition-all ${
+                    config.rufusPipSize !== null
+                      ? "bg-purple-500/20 border-purple-500/40 text-purple-400"
+                      : "bg-zinc-900 border-zinc-600 text-zinc-400"
+                  }`}
+                >
+                  {config.rufusPipSize !== null ? "✏️ Ручной" : "🤖 Авто"}
+                </button>
+              </div>
+              {config.rufusPipSize !== null && (
+                <div>
+                  <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Свой размер пипса</Label>
+                  <Input
+                    type="number"
+                    min={0.000001}
+                    step={0.0001}
+                    value={config.rufusPipSize}
+                    onChange={(e) => set({ rufusPipSize: Number(e.target.value) })}
+                    className="bg-zinc-900 border-zinc-600 text-purple-400 font-space-mono text-sm"
+                  />
+                  <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
+                    Форекс: 0.0001 &nbsp;|&nbsp; JPY/индексы: 0.01 &nbsp;|&nbsp; BTC: 1.0 &nbsp;|&nbsp; Газ: 0.001
+                  </p>
+                </div>
+              )}
+              <div className="text-purple-400 font-space-mono text-xs bg-purple-950/30 border border-purple-500/20 rounded-lg px-3 py-1.5">
+                Активный пип: <span className="font-bold">{getPipSize(config.asset, config.rufusPipSize ?? null)}</span>
+                &nbsp;→ порог входа: <span className="font-bold">{((config.rufusPips ?? 5) * getPipSize(config.asset, config.rufusPipSize ?? null)).toFixed(6)}</span>
+              </div>
+            </div>
+
             <div className="bg-purple-950/30 border border-purple-500/20 rounded-lg px-3 py-2 space-y-1">
               <p className="text-purple-300 text-xs font-space-mono font-semibold">Пример при {config.rufusPips ?? 5} пипс:</p>
               <p className="text-zinc-400 text-xs font-space-mono">
-                Уровень {(config.rufusStep ?? 0.01) === 0.01 ? "1.1300" : "1.1300"} → вход в диапазоне {(1.1300 - (config.rufusPips ?? 5) * 0.0001).toFixed(5)}–{(1.1300 + (config.rufusPips ?? 5) * 0.0001).toFixed(5)}
+                Уровень {(config.rufusStep ?? 0.01) === 0.01 ? "1.1300" : "1.1300"} → вход в диапазоне {(1.1300 - (config.rufusPips ?? 5) * getPipSize(config.asset, config.rufusPipSize ?? null)).toFixed(5)}–{(1.1300 + (config.rufusPips ?? 5) * getPipSize(config.asset, config.rufusPipSize ?? null)).toFixed(5)}
               </p>
               <p className="text-zinc-500 text-[10px] font-space-mono">
                 Уровни: каждые {config.rufusStep ?? 0.01} ({(config.rufusStep ?? 0.01) === 0.01 ? "сотые" : "тысячные"})

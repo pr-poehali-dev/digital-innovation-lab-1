@@ -1545,6 +1545,15 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                   active: "border-amber-500 bg-amber-500/20 text-amber-200",
                   match: (a: string) => ["Gold","Silver","Oil","Brent","WTI"].some(c => a.includes(c)),
                 },
+                {
+                  label: "RUB",
+                  icon: "₽",
+                  desc: "EUR/RUB, USD/RUB",
+                  patch: { rufusStep: 0.01 as const, rufusPips: 3, rufusPipSize: 0.001 },
+                  color: "border-green-500/40 text-green-300 bg-green-500/10 hover:bg-green-500/20",
+                  active: "border-green-500 bg-green-500/20 text-green-200",
+                  match: (a: string) => a.includes("RUB"),
+                },
               ]
               const asset = config.asset ?? ""
               const autoPreset = RUFUS_PRESETS.find(p => p.match(asset))
@@ -1888,10 +1897,11 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
               const example001 = isJpy ? "109.00 / 109.10 / 109.20" : "1.1290 / 1.1300 / 1.1310"
               const warning001 = isCrypto ? "Для крипты 0.001 не имеет смысла" : isStock ? "Для акций 0.001 не имеет смысла" : "Больше шума. Для опытных трейдеров."
               const RUFUS_PRESETS_COMBO = [
-                { label: "EUR/USD", icon: "💱", patch: { rufusStep: 0.001 as const, rufusPips: 3, rufusPipSize: 0.0001 }, match: (a: string) => ["EUR","GBP","AUD","NZD","CAD","CHF"].some(c => a.includes(c)) && !a.includes("JPY"), color: "border-blue-500/40 text-blue-300 bg-blue-500/10 hover:bg-blue-500/20", active: "border-blue-500 bg-blue-500/20 text-blue-200" },
+                { label: "EUR/USD", icon: "💱", patch: { rufusStep: 0.001 as const, rufusPips: 3, rufusPipSize: 0.0001 }, match: (a: string) => ["EUR","GBP","AUD","NZD","CAD","CHF"].some(c => a.includes(c)) && !a.includes("JPY") && !a.includes("RUB"), color: "border-blue-500/40 text-blue-300 bg-blue-500/10 hover:bg-blue-500/20", active: "border-blue-500 bg-blue-500/20 text-blue-200" },
                 { label: "USD/JPY", icon: "🇯🇵", patch: { rufusStep: 0.01 as const, rufusPips: 3, rufusPipSize: 0.01 }, match: (a: string) => a.includes("JPY"), color: "border-red-500/40 text-red-300 bg-red-500/10 hover:bg-red-500/20", active: "border-red-500 bg-red-500/20 text-red-200" },
                 { label: "BTC/ETH", icon: "₿", patch: { rufusStep: 0.01 as const, rufusPips: 3, rufusPipSize: 10.0 }, match: (a: string) => ["BTC","ETH","SOL","BNB","DOGE"].some(c => a.includes(c)), color: "border-yellow-500/40 text-yellow-300 bg-yellow-500/10 hover:bg-yellow-500/20", active: "border-yellow-500 bg-yellow-500/20 text-yellow-200" },
                 { label: "Gold", icon: "🥇", patch: { rufusStep: 0.01 as const, rufusPips: 3, rufusPipSize: 0.1 }, match: (a: string) => ["Gold","Silver","Oil","Brent","WTI"].some(c => a.includes(c)), color: "border-amber-500/40 text-amber-300 bg-amber-500/10 hover:bg-amber-500/20", active: "border-amber-500 bg-amber-500/20 text-amber-200" },
+                { label: "RUB", icon: "₽", patch: { rufusStep: 0.01 as const, rufusPips: 3, rufusPipSize: 0.001 }, match: (a: string) => a.includes("RUB"), color: "border-green-500/40 text-green-300 bg-green-500/10 hover:bg-green-500/20", active: "border-green-500 bg-green-500/20 text-green-200" },
               ]
               const autoPresetCombo = RUFUS_PRESETS_COMBO.find(p => p.match(asset))
               const isAppliedCombo = (p: typeof RUFUS_PRESETS_COMBO[0]) =>

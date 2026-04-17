@@ -334,7 +334,17 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
 
 
 
-function AssetSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function AssetSelector({
+  value,
+  onChange,
+  rufusPips = 5,
+  rufusPipSize = null,
+}: {
+  value: string
+  onChange: (v: string) => void
+  rufusPips?: number
+  rufusPipSize?: number | null
+}) {
   const [search, setSearch] = useState("")
   const [open, setOpen] = useState(false)
 
@@ -346,8 +356,36 @@ function AssetSelector({ value, onChange }: { value: string; onChange: (v: strin
       .filter((g) => g.assets.length > 0)
   }, [search])
 
+  const selectedPip = getPipSize(value, rufusPipSize ?? null)
+  const selectedThreshold = rufusPips * selectedPip
+  const selectedComment = PO_PIP_SIZE[value]?.comment ?? "форекс стандарт"
+
+  // Пример цены для разных типов активов
+  const examplePrice = useMemo(() => {
+    if (value.includes("BTC")) return 65000
+    if (value.includes("ETH") || value.includes("BNB")) return 3200
+    if (value.includes("SOL")) return 150
+    if (value.includes("DOGE")) return 0.15
+    if (value.includes("Gold")) return 2350
+    if (value.includes("Silver")) return 28
+    if (value.includes("Platinum") || value.includes("Palladium")) return 980
+    if (value.includes("Oil") || value.includes("Brent") || value.includes("WTI")) return 80
+    if (value.includes("Gas")) return 2.5
+    if (value.includes("S&P") || value.includes("NASDAQ") || value.includes("Dow") || value.includes("AUS") || value.includes("VIX")) return 5200
+    if (value.includes("JPY")) return 155.00
+    if (value.includes("Apple") || value.includes("Intel")) return 195
+    if (value.includes("Tesla")) return 175
+    if (value.includes("Nvidia")) return 870
+    if (value.includes("Netflix")) return 630
+    if (value.includes("McDonald") || value.includes("VISA") || value.includes("ExxonMobil") || value.includes("Boeing") || value.includes("Palantir") || value.includes("Alibaba") || value.includes("GameStop")) return 180
+    return 1.1300
+  }, [value])
+
+  const exampleLevel = Math.round(examplePrice / (rufusPipSize ?? selectedPip) / 100) * (rufusPipSize ?? selectedPip) * 100
+  const decimals = selectedPip < 0.001 ? 5 : selectedPip < 0.01 ? 4 : selectedPip < 0.1 ? 3 : selectedPip < 1 ? 2 : 0
+
   return (
-    <div>
+    <div className="space-y-2">
       <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Торговый актив</Label>
       <Select
         value={value}
@@ -375,17 +413,54 @@ function AssetSelector({ value, onChange }: { value: string; onChange: (v: strin
               filtered.map((group) => (
                 <SelectGroup key={group.label}>
                   <SelectLabel className="text-zinc-500 font-space-mono text-xs px-2 py-1">{group.label}</SelectLabel>
-                  {group.assets.map((a) => (
-                    <SelectItem key={a} value={a} className="text-white font-space-mono text-xs hover:bg-zinc-700">
-                      {a}
-                    </SelectItem>
-                  ))}
+                  {group.assets.map((a) => {
+                    const pip = getPipSize(a, rufusPipSize ?? null)
+                    const thr = (rufusPips * pip).toFixed(pip < 0.001 ? 6 : pip < 0.1 ? 4 : 2)
+                    const comment = PO_PIP_SIZE[a]?.comment ?? ""
+                    return (
+                      <SelectItem key={a} value={a} className="text-white font-space-mono text-xs hover:bg-zinc-700 pr-2">
+                        <div className="flex flex-col gap-0.5 py-0.5">
+                          <span>{a}</span>
+                          <span className="text-purple-400/70 text-[10px]">
+                            пип {pip} · порог {thr} · {comment.split(",")[0]}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    )
+                  })}
                 </SelectGroup>
               ))
             )}
           </div>
         </SelectContent>
       </Select>
+
+      {/* Карточка-подсказка под дропдауном */}
+      <div className="bg-purple-950/20 border border-purple-500/20 rounded-lg px-3 py-2.5 space-y-1.5 font-space-mono">
+        <div className="flex items-center justify-between">
+          <span className="text-purple-300 text-xs font-semibold">📏 Rufus — параметры для {value}</span>
+        </div>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
+          <span className="text-zinc-500">Размер пипса: <span className="text-purple-400 font-bold">{selectedPip}</span></span>
+          <span className="text-zinc-500">Радиус ({rufusPips} пип): <span className="text-purple-400 font-bold">±{selectedThreshold.toFixed(selectedPip < 0.001 ? 6 : selectedPip < 0.1 ? 4 : 2)}</span></span>
+          <span className="text-zinc-500 col-span-2 truncate">Почему: {selectedComment}</span>
+        </div>
+        <div className="border-t border-purple-500/10 pt-1.5 text-[11px] space-y-0.5">
+          <p className="text-zinc-400 font-semibold">Пример входа (цена ~{examplePrice.toLocaleString()}):</p>
+          <p className="text-zinc-500">
+            Уровень <span className="text-white">{exampleLevel.toFixed(decimals)}</span>
+            {" "}→ вход в диапазоне{" "}
+            <span className="text-green-400">{(exampleLevel - selectedThreshold).toFixed(decimals)}</span>
+            {" "}–{" "}
+            <span className="text-green-400">{(exampleLevel + selectedThreshold).toFixed(decimals)}</span>
+          </p>
+          <p className="text-zinc-600">
+            Подход сверху ({(exampleLevel + selectedThreshold * 0.5).toFixed(decimals)}) → <span className="text-green-400">CALL</span>
+            &nbsp;|&nbsp;
+            снизу ({(exampleLevel - selectedThreshold * 0.5).toFixed(decimals)}) → <span className="text-red-400">PUT</span>
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
@@ -1058,12 +1133,17 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
             const isCrypto = ["BTC","ETH","SOL","BNB","DOGE"].some(c => v.includes(c))
             set({ asset: v, rufusStep: isCrypto ? 0.01 : 0.01 })
           }} />
-          <AssetSelector value={config.asset} onChange={(v) => {
-            const isCrypto = ["BTC","ETH","SOL","BNB","DOGE"].some(c => v.includes(c))
-            const isJpy = v.includes("JPY")
-            const rufusStep: 0.01 | 0.001 = isJpy ? 0.01 : isCrypto ? 0.01 : 0.01
-            set({ asset: v, rufusStep })
-          }} />
+          <AssetSelector
+            value={config.asset}
+            rufusPips={config.rufusPips ?? 5}
+            rufusPipSize={config.rufusPipSize ?? null}
+            onChange={(v) => {
+              const isCrypto = ["BTC","ETH","SOL","BNB","DOGE"].some(c => v.includes(c))
+              const isJpy = v.includes("JPY")
+              const rufusStep: 0.01 | 0.001 = isJpy ? 0.01 : isCrypto ? 0.01 : 0.01
+              set({ asset: v, rufusStep })
+            }}
+          />
 
           <div>
             <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Экспирация опциона</Label>

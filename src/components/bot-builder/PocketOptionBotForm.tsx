@@ -2162,11 +2162,11 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
         )}
       </Card>
 
-      {/* Подтверждение свечами перед сделкой */}
+      {/* Подтверждение сигнала свечами */}
       <Card className="bg-zinc-900 border-zinc-700">
         <CardHeader className="pb-2 pt-4 px-4">
           <CardTitle className="text-sm font-space-mono text-zinc-200 flex items-center gap-2">
-            <span>🕯️</span> Подтверждение свечами
+            <span>🕯️</span> Подтверждение сигнала свечами
             <Switch checked={config.candleConfirmEnabled ?? false} onCheckedChange={(v) => set({ candleConfirmEnabled: v })} className="ml-auto scale-90" />
           </CardTitle>
         </CardHeader>

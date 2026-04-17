@@ -369,6 +369,9 @@ export const PO_PIP_SIZE: Record<string, { pip: number; comment: string }> = {
   "GBP/AUD":        { pip: 0.0001, comment: "Кросс-пара, 4-й знак после запятой" },
   "GBP/CAD":        { pip: 0.0001, comment: "Кросс-пара, 4-й знак после запятой" },
   "AUD/CAD":        { pip: 0.0001, comment: "Кросс-пара, 4-й знак после запятой" },
+  // RUB-пары: цена ~90.xxx, пип = 0.001 (3-й знак после запятой)
+  "EUR/RUB (OTC)":  { pip: 0.001, comment: "Евро/рубль OTC: цена ~90.xxx, пип = 0.001" },
+  "USD/RUB (OTC)":  { pip: 0.001, comment: "Доллар/рубль OTC: цена ~90.xxx, пип = 0.001" },
   // === ФОРЕКС OTC — те же значения, OTC = синтетика на основе реального актива ===
   "EUR/USD (OTC)":  { pip: 0.0001, comment: "OTC-версия EUR/USD, пип тот же 0.0001" },
   "GBP/USD (OTC)":  { pip: 0.0001, comment: "OTC-версия GBP/USD" },

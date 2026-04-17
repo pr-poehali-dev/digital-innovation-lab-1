@@ -1334,11 +1334,20 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                 : "💤 Медленно — ~10 кредитов/час, бесплатный лимит не исчерпается за день"}
             </p>
             {config.checkInterval <= 15 && (
-              <div className="mt-1.5 bg-yellow-950/30 border border-yellow-500/20 rounded-lg px-3 py-2 flex items-start gap-2">
-                <span className="text-yellow-400 text-xs shrink-0">⚠️</span>
-                <p className="text-yellow-400/80 font-space-mono text-xs leading-relaxed">
-                  При интервале {config.checkInterval} сек бесплатный лимит TwelveData (800 кредитов) закончится примерно через <b>{Math.round(800 / (3600 / config.checkInterval))} ч</b>. Поставь 30–60 сек чтобы бот работал весь день.
-                </p>
+              <div className="mt-1.5 bg-yellow-950/30 border border-yellow-500/20 rounded-lg px-3 py-2 flex items-start justify-between gap-2">
+                <div className="flex items-start gap-2">
+                  <span className="text-yellow-400 text-xs shrink-0">⚠️</span>
+                  <p className="text-yellow-400/80 font-space-mono text-xs leading-relaxed">
+                    Лимит TwelveData (800 кредитов) закончится через <b>~{Math.round(800 / (3600 / config.checkInterval))} ч</b>. Бот остановится до следующего дня.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => set({ checkInterval: 60 })}
+                  className="shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-orbitron font-bold border bg-yellow-500/20 border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/30 transition-all"
+                >
+                  → 60 сек
+                </button>
               </div>
             )}
           </div>

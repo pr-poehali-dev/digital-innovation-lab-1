@@ -339,11 +339,13 @@ function AssetSelector({
   onChange,
   rufusPips = 5,
   rufusPipSize = null,
+  onFix,
 }: {
   value: string
   onChange: (v: string) => void
   rufusPips?: number
   rufusPipSize?: number | null
+  onFix?: (patch: { rufusPipSize?: number; rufusStep?: 0.01 | 0.001; rufusPips?: number }) => void
 }) {
   const [search, setSearch] = useState("")
   const [open, setOpen] = useState(false)
@@ -390,28 +392,29 @@ function AssetSelector({
   const stepWarn = useMemo(() => {
     const pip = selectedPip
     const radius = rufusPips * pip
-    // Для форекс (pip <= 0.001): рекомендуем step = 0.001, иначе уровни через 100+ пипсов
     if (pip <= 0.0001 && !stepNum) {
       return {
         type: "too_rare" as const,
         msg: `Для ${value} пип = ${pip}. Шаг уровней 0.01 = 100 пипсов — уровни очень редкие, бот будет ждать часами.`,
         rec: "Рекомендуем rufusStep = 0.001 (10 пипсов между уровнями)",
+        fix: { rufusStep: 0.001 as const },
       }
     }
-    // Для BTC/индексов (pip >= 1): step 0.001 — уровни каждые 0.001 при цене 65000, слишком часто
     if (pip >= 1 && !stepNum) {
       return {
         type: "too_frequent" as const,
-        msg: `Для ${value} пип = ${pip}. Шаг уровней 0.001 — слишком мелкий для этого актива.`,
-        rec: "Рекомендуем задать rufusPipSize вручную под актив",
+        msg: `Для ${value} пип = ${pip}. Шаг уровней мелкий — бот будет входить слишком часто.`,
+        rec: "Рекомендуем задать пипс вручную (например 1.0 для индексов, 10 для BTC)",
+        fix: { rufusPipSize: pip },
       }
     }
-    // Зоны перекрываются: radius > step/2
     if (stepNum && radius > stepNum / 2) {
+      const fixedStep = parseFloat((radius * 3).toFixed(6))
       return {
         type: "overlap" as const,
         msg: `Радиус входа (${radius.toFixed(6)}) > половины шага (${(stepNum/2).toFixed(6)}) — зоны перекрываются, бот входит почти на каждой свече.`,
-        rec: `Увеличь шаг уровней минимум до ${(radius * 3).toFixed(6)} или уменьши rufusPips`,
+        rec: `Увеличь шаг уровней минимум до ${fixedStep} или уменьши rufusPips`,
+        fix: { rufusPipSize: fixedStep },
       }
     }
     return null
@@ -510,9 +513,26 @@ function AssetSelector({
               {stepWarn.type === "overlap" ? "⚠️ Зоны перекрываются" : stepWarn.type === "too_rare" ? "⚠️ Уровни слишком редкие" : "⚠️ Шаг не подходит"}
             </p>
             <p className="text-zinc-400">{stepWarn.msg}</p>
-            <p className={`${stepWarn.type === "overlap" ? "text-red-300" : stepWarn.type === "too_rare" ? "text-yellow-300" : "text-orange-300"}`}>
-              💡 {stepWarn.rec}
-            </p>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <p className={`${stepWarn.type === "overlap" ? "text-red-300" : stepWarn.type === "too_rare" ? "text-yellow-300" : "text-orange-300"}`}>
+                💡 {stepWarn.rec}
+              </p>
+              {onFix && stepWarn.fix && (
+                <button
+                  type="button"
+                  onClick={() => onFix(stepWarn.fix!)}
+                  className={`shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-orbitron font-bold border transition-all
+                    ${stepWarn.type === "overlap"
+                      ? "bg-red-500/20 border-red-500/40 text-red-300 hover:bg-red-500/30"
+                      : stepWarn.type === "too_rare"
+                      ? "bg-yellow-500/20 border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/30"
+                      : "bg-orange-500/20 border-orange-500/40 text-orange-300 hover:bg-orange-500/30"
+                    }`}
+                >
+                  ✓ Исправить
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -1192,6 +1212,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
             value={config.asset}
             rufusPips={config.rufusPips ?? 5}
             rufusPipSize={config.rufusPipSize ?? null}
+            onFix={(patch) => set(patch)}
             onChange={(v) => {
               const isCrypto = ["BTC","ETH","SOL","BNB","DOGE"].some(c => v.includes(c))
               const isJpy = v.includes("JPY")
@@ -1302,10 +1323,24 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
 
           <div>
             <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Интервал проверки: {config.checkInterval} сек</Label>
-            <Slider min={10} max={120} step={5} value={[config.checkInterval]} onValueChange={([v]) => set({ checkInterval: v })} />
+            <Slider min={10} max={300} step={5} value={[config.checkInterval]} onValueChange={([v]) => set({ checkInterval: v })} />
             <p className="text-zinc-600 font-space-mono text-xs mt-1.5">
-              {config.checkInterval <= 15 ? "⚡ Быстро — больше сигналов, больше шума" : config.checkInterval >= 60 ? "🐢 Медленно — меньше шума, реже проверка" : "⚖️ Баланс — оптимально для большинства стратегий"}
+              {config.checkInterval <= 15
+                ? "⚡ Быстро — больше сигналов, тратит ~120 кредитов TwelveData/час"
+                : config.checkInterval <= 30
+                ? "⚖️ Баланс — ~60 кредитов/час, оптимально"
+                : config.checkInterval <= 60
+                ? "🐢 Экономно — ~30 кредитов/час, 800 кредитов хватит на 26 часов"
+                : "💤 Медленно — ~10 кредитов/час, бесплатный лимит не исчерпается за день"}
             </p>
+            {config.checkInterval <= 15 && (
+              <div className="mt-1.5 bg-yellow-950/30 border border-yellow-500/20 rounded-lg px-3 py-2 flex items-start gap-2">
+                <span className="text-yellow-400 text-xs shrink-0">⚠️</span>
+                <p className="text-yellow-400/80 font-space-mono text-xs leading-relaxed">
+                  При интервале {config.checkInterval} сек бесплатный лимит TwelveData (800 кредитов) закончится примерно через <b>{Math.round(800 / (3600 / config.checkInterval))} ч</b>. Поставь 30–60 сек чтобы бот работал весь день.
+                </p>
+              </div>
+            )}
           </div>
 
           <div>

@@ -384,6 +384,39 @@ function AssetSelector({
   const exampleLevel = Math.round(examplePrice / (rufusPipSize ?? selectedPip) / 100) * (rufusPipSize ?? selectedPip) * 100
   const decimals = selectedPip < 0.001 ? 5 : selectedPip < 0.01 ? 4 : selectedPip < 0.1 ? 3 : selectedPip < 1 ? 2 : 0
 
+  // Проверка конфликта шага уровней и пипса
+  const stepNum = typeof rufusPipSize === "number" && rufusPipSize > 0 ? rufusPipSize : null
+  // rufusStep передаётся снаружи — берём из props
+  const stepWarn = useMemo(() => {
+    const pip = selectedPip
+    const radius = rufusPips * pip
+    // Для форекс (pip <= 0.001): рекомендуем step = 0.001, иначе уровни через 100+ пипсов
+    if (pip <= 0.0001 && !stepNum) {
+      return {
+        type: "too_rare" as const,
+        msg: `Для ${value} пип = ${pip}. Шаг уровней 0.01 = 100 пипсов — уровни очень редкие, бот будет ждать часами.`,
+        rec: "Рекомендуем rufusStep = 0.001 (10 пипсов между уровнями)",
+      }
+    }
+    // Для BTC/индексов (pip >= 1): step 0.001 — уровни каждые 0.001 при цене 65000, слишком часто
+    if (pip >= 1 && !stepNum) {
+      return {
+        type: "too_frequent" as const,
+        msg: `Для ${value} пип = ${pip}. Шаг уровней 0.001 — слишком мелкий для этого актива.`,
+        rec: "Рекомендуем задать rufusPipSize вручную под актив",
+      }
+    }
+    // Зоны перекрываются: radius > step/2
+    if (stepNum && radius > stepNum / 2) {
+      return {
+        type: "overlap" as const,
+        msg: `Радиус входа (${radius.toFixed(6)}) > половины шага (${(stepNum/2).toFixed(6)}) — зоны перекрываются, бот входит почти на каждой свече.`,
+        rec: `Увеличь шаг уровней минимум до ${(radius * 3).toFixed(6)} или уменьши rufusPips`,
+      }
+    }
+    return null
+  }, [value, selectedPip, rufusPips, stepNum])
+
   return (
     <div className="space-y-2">
       <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Торговый актив</Label>
@@ -460,6 +493,28 @@ function AssetSelector({
             снизу ({(exampleLevel - selectedThreshold * 0.5).toFixed(decimals)}) → <span className="text-red-400">PUT</span>
           </p>
         </div>
+
+        {/* Предупреждение о конфликте */}
+        {stepWarn && (
+          <div className={`border rounded-lg px-3 py-2 text-[11px] space-y-1 font-space-mono
+            ${stepWarn.type === "overlap"
+              ? "bg-red-950/30 border-red-500/30"
+              : stepWarn.type === "too_rare"
+              ? "bg-yellow-950/30 border-yellow-500/30"
+              : "bg-orange-950/30 border-orange-500/30"
+            }`}
+          >
+            <p className={`font-semibold flex items-center gap-1
+              ${stepWarn.type === "overlap" ? "text-red-400" : stepWarn.type === "too_rare" ? "text-yellow-400" : "text-orange-400"}`}
+            >
+              {stepWarn.type === "overlap" ? "⚠️ Зоны перекрываются" : stepWarn.type === "too_rare" ? "⚠️ Уровни слишком редкие" : "⚠️ Шаг не подходит"}
+            </p>
+            <p className="text-zinc-400">{stepWarn.msg}</p>
+            <p className={`${stepWarn.type === "overlap" ? "text-red-300" : stepWarn.type === "too_rare" ? "text-yellow-300" : "text-orange-300"}`}>
+              💡 {stepWarn.rec}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )

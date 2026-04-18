@@ -1986,20 +1986,13 @@ async def main():
                 await asyncio.sleep(CHECK_INTERVAL)
                 continue
 
-            try:
-                _live = await client.get_candles(asset=_resolved_asset or ASSET, timeframe=5, count=3)
-                if _live:
-                    _ts_attr = 'time' if hasattr(_live[0], 'time') else ('timestamp' if hasattr(_live[0], 'timestamp') else None)
-                    _sorted_live = sorted(_live, key=lambda c: getattr(c, _ts_attr)) if _ts_attr else list(_live)
-                    _cur = _sorted_live[-1]
-                    _tick_val = float(_cur.close) if hasattr(_cur, 'close') else float(_cur[3])
-                    if _tick_val > 0:
-                        prices = prices[:-1] + [_tick_val]
-                        import datetime as _dt
-                        _tick_ts = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        print(f"[PRICE] Текущая цена с PO: {_tick_val:.5f} (ts={_tick_ts})")
-            except Exception as _e:
-                print(f"[PRICE_ERR] Не удалось получить цену с PO: {_e}")
+            if candles:
+                import datetime as _dt
+                _tick_val = float(candles[-1][3])
+                if _tick_val > 0:
+                    prices = prices[:-1] + [_tick_val]
+                    _tick_ts = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    print(f"[PRICE] Текущая цена с PO: {_tick_val:.5f} (ts={_tick_ts})")
 
             _reconnect_attempts = 0
 

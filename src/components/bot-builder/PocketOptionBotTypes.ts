@@ -1991,8 +1991,10 @@ async def main():
                 if _tick and float(_tick) > 0:
                     prices = prices[:-1] + [float(_tick)]
                     print(f"[PRICE] Текущая цена с PO: {float(_tick):.5f}")
-            except Exception:
-                pass
+                else:
+                    print(f"[PRICE] get_price вернул пустой результат: {_tick!r}")
+            except Exception as _e:
+                print(f"[PRICE_ERR] Не удалось получить цену с PO: {_e}")
 
             _reconnect_attempts = 0
 
@@ -3593,8 +3595,10 @@ async def main():
             if _tick and float(_tick) > 0:
                 prices = prices[:-1] + [float(_tick)]
                 print(f"[PRICE] Текущая цена с PO: {float(_tick):.5f}")
-        except Exception:
-            pass
+            else:
+                print(f"[PRICE] get_price вернул пустой результат: {_tick!r}")
+        except Exception as _e:
+            print(f"[PRICE_ERR] Не удалось получить цену с PO: {_e}")
 
         new_trend, old_trend = check_trend_change(candles)
         if new_trend:

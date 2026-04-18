@@ -2307,6 +2307,7 @@ def signal_candle_pattern(prices, candles):
 _RUFUS_PIPS     = ${cfg.rufusPips ?? 5}
 _RUFUS_LOOKBACK = ${cfg.rufusLookback ?? 10}
 _RUFUS_STEP     = ${cfg.rufusStep ?? 0.01}
+_RUFUS_PIP_SIZE = ${getPipSize(cfg.asset, cfg.rufusPipSize ?? null)}
 
 def _rufus_levels(price):
     step = _RUFUS_STEP
@@ -2317,7 +2318,7 @@ def signal_support_resistance(prices, candles):
     if len(prices) < _RUFUS_LOOKBACK + 2:
         return None, ""
     cur = prices[-1]
-    pip = 0.0001
+    pip = _RUFUS_PIP_SIZE
     thr = _RUFUS_PIPS * pip
     lower, upper = _rufus_levels(cur)
     for level in [lower, upper]:

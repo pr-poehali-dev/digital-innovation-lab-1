@@ -1987,12 +1987,14 @@ async def main():
                 continue
 
             try:
-                _tick = await client.get_price(_resolved_asset or ASSET)
-                if _tick and float(_tick) > 0:
-                    prices = prices[:-1] + [float(_tick)]
-                    print(f"[PRICE] Текущая цена с PO: {float(_tick):.5f}")
-                else:
-                    print(f"[PRICE] get_price вернул пустой результат: {_tick!r}")
+                _live = await client.get_candles(asset=_resolved_asset or ASSET, timeframe=CANDLE_TF, count=2)
+                if _live:
+                    _sorted_live = sorted(_live, key=lambda c: c.time) if hasattr(_live[0], 'time') else list(_live)
+                    _cur = _sorted_live[-1]
+                    _tick_val = float(_cur.close) if hasattr(_cur, 'close') else float(_cur[3])
+                    if _tick_val > 0:
+                        prices = prices[:-1] + [_tick_val]
+                        print(f"[PRICE] Текущая цена с PO: {_tick_val:.5f}")
             except Exception as _e:
                 print(f"[PRICE_ERR] Не удалось получить цену с PO: {_e}")
 
@@ -3591,12 +3593,14 @@ async def main():
             continue
 
         try:
-            _tick = await client.get_price(_combo_resolved_asset or ASSET)
-            if _tick and float(_tick) > 0:
-                prices = prices[:-1] + [float(_tick)]
-                print(f"[PRICE] Текущая цена с PO: {float(_tick):.5f}")
-            else:
-                print(f"[PRICE] get_price вернул пустой результат: {_tick!r}")
+            _live2 = await client.get_candles(asset=_combo_resolved_asset or ASSET, timeframe=CANDLE_TF, count=2)
+            if _live2:
+                _sorted_live2 = sorted(_live2, key=lambda c: c.time) if hasattr(_live2[0], 'time') else list(_live2)
+                _cur2 = _sorted_live2[-1]
+                _tick_val2 = float(_cur2.close) if hasattr(_cur2, 'close') else float(_cur2[3])
+                if _tick_val2 > 0:
+                    prices = prices[:-1] + [_tick_val2]
+                    print(f"[PRICE] Текущая цена с PO: {_tick_val2:.5f}")
         except Exception as _e:
             print(f"[PRICE_ERR] Не удалось получить цену с PO: {_e}")
 

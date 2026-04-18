@@ -1993,9 +1993,10 @@ async def main():
                     _sorted_live = sorted(_live, key=lambda c: getattr(c, _ts_attr)) if _ts_attr else list(_live)
                     _cur = _sorted_live[-1]
                     _tick_val = float(_cur.close) if hasattr(_cur, 'close') else float(_cur[3])
-                    _tick_ts = getattr(_cur, _ts_attr, 0) if _ts_attr else 0
                     if _tick_val > 0:
                         prices = prices[:-1] + [_tick_val]
+                        import datetime as _dt
+                        _tick_ts = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         print(f"[PRICE] Текущая цена с PO: {_tick_val:.5f} (ts={_tick_ts})")
             except Exception as _e:
                 print(f"[PRICE_ERR] Не удалось получить цену с PO: {_e}")
@@ -2089,13 +2090,16 @@ async def main():
                     _cur_e  = "🟢" if _cur[3] >= _cur[0] else "🔴"
                     _ups = sum(1 for c in _last5 if c[3] >= c[0])
                     _dns = 5 - _ups
+                    _cur_up = 1 if _cur[3] >= _cur[0] else 0
+                    _ups6 = _ups + _cur_up
+                    _dns6 = 6 - _ups6
                     print(f"[СВЕЧИ] последние 5: {_emojis} (▲{_ups}/▼{_dns}) | текущая: {_cur_e} | → {signal}")
                 if signal_info:
                     print(f"[SIGNAL] {signal_info}")
                 sig_line = f"📊 Сигнал: {signal_info}" if signal_info else ""
                 _candle_line = ""
                 if len(candles) >= 6:
-                    _candle_line = f"🕯 {_emojis}{_cur_e} (▲{_ups}/▼{_dns})"
+                    _candle_line = f"🕯 {_emojis}{_cur_e} (▲{_ups6}/▼{_dns6})"
                 tg_parts = [f"{emoji} <b>[{BOT_NAME}] Сделка открыта</b>", f"{signal} | {bet} {currency} | {ASSET} | {EXPIRY_SEC//60} мин"]
                 if _candle_line:
                     tg_parts.append(_candle_line)

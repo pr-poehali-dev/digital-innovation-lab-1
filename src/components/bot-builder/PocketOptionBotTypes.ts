@@ -1550,7 +1550,11 @@ def fetch_candles_twelvedata():
 # ===== PO WEBSOCKET CLIENT =====
 class POClient:
     """Чистый WebSocket клиент для Pocket Option — без сторонних зависимостей"""
-    WS_URL = "wss://api-l.po.market/socket.io/?EIO=4&transport=websocket"
+    WS_URLS = [
+        "wss://api-spb.po.market/socket.io/?EIO=4&transport=websocket",
+        "wss://api-l.po.market/socket.io/?EIO=4&transport=websocket",
+        "wss://pocketoption.com/socket.io/?EIO=4&transport=websocket",
+    ]
 
     def __init__(self, session_id, is_demo=True):
         self.session_id = session_id
@@ -1561,7 +1565,6 @@ class POClient:
         self._candles_cache = {}
         self._orders = {}
         self._connected = False
-        self._lock = asyncio.Lock()
 
     async def connect(self):
         try:
@@ -1569,31 +1572,39 @@ class POClient:
         except ImportError:
             print("[ERROR] Установи: pip install websockets")
             return False
-        for attempt in range(3):
+        _headers = {
+            "Origin": "https://pocketoption.com",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+        }
+        for attempt in range(6):
+            url = self.WS_URLS[attempt % len(self.WS_URLS)]
             try:
+                # websockets 14+ использует additional_headers, 10-13 — extra_headers
+                _ws_ver = tuple(int(x) for x in websockets.__version__.split(".")[:2])
+                _kw = {"additional_headers": _headers} if _ws_ver >= (14, 0) else {"extra_headers": _headers}
                 self._ws = await websockets.connect(
-                    self.WS_URL,
-                    additional_headers={"Origin": "https://po.market"},
-                    ping_interval=20, ping_timeout=20
+                    url, ping_interval=20, ping_timeout=20, open_timeout=10, **_kw
                 )
-                # Handshake
-                await self._ws.recv()  # "0{...}"
-                await self._ws.send("40")
-                await asyncio.sleep(1)
-                # Auth
+                # Socket.IO handshake
+                msg = await asyncio.wait_for(self._ws.recv(), timeout=10)
+                if msg.startswith("0"):
+                    await self._ws.send("40")
+                    await asyncio.sleep(0.5)
+                # Авторизация
                 await self._ws.send(self.session_id)
                 asyncio.ensure_future(self._recv_loop())
-                # Ждём баланс
-                for _ in range(20):
+                # Ждём баланс до 25 сек
+                for _ in range(25):
                     await asyncio.sleep(1)
                     if self._balance > 0:
                         self._connected = True
+                        print(f"[WS] Подключено: {url}")
                         return True
                 self._connected = True
                 return True
             except Exception as e:
-                print(f"[WS] Попытка {attempt+1}/3: {e}")
-                await asyncio.sleep(3)
+                print(f"[WS] Попытка {attempt+1}/6 ({url}): {e}")
+                await asyncio.sleep(2)
         return False
 
     async def _recv_loop(self):
@@ -3449,7 +3460,11 @@ async def get_candles_data(client):
 # ===== PO WEBSOCKET CLIENT =====
 class POClient:
     """Чистый WebSocket клиент для Pocket Option — без сторонних зависимостей"""
-    WS_URL = "wss://api-l.po.market/socket.io/?EIO=4&transport=websocket"
+    WS_URLS = [
+        "wss://api-spb.po.market/socket.io/?EIO=4&transport=websocket",
+        "wss://api-l.po.market/socket.io/?EIO=4&transport=websocket",
+        "wss://pocketoption.com/socket.io/?EIO=4&transport=websocket",
+    ]
 
     def __init__(self, session_id, is_demo=True):
         self.session_id = session_id
@@ -3467,28 +3482,35 @@ class POClient:
         except ImportError:
             print("[ERROR] Установи: pip install websockets")
             return False
-        for attempt in range(3):
+        _headers = {
+            "Origin": "https://pocketoption.com",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+        }
+        for attempt in range(6):
+            url = self.WS_URLS[attempt % len(self.WS_URLS)]
             try:
+                _ws_ver = tuple(int(x) for x in _ws_lib.__version__.split(".")[:2])
+                _kw = {"additional_headers": _headers} if _ws_ver >= (14, 0) else {"extra_headers": _headers}
                 self._ws = await _ws_lib.connect(
-                    self.WS_URL,
-                    additional_headers={"Origin": "https://po.market"},
-                    ping_interval=20, ping_timeout=20
+                    url, ping_interval=20, ping_timeout=20, open_timeout=10, **_kw
                 )
-                await self._ws.recv()
-                await self._ws.send("40")
-                await asyncio.sleep(1)
+                msg = await asyncio.wait_for(self._ws.recv(), timeout=10)
+                if msg.startswith("0"):
+                    await self._ws.send("40")
+                    await asyncio.sleep(0.5)
                 await self._ws.send(self.session_id)
                 asyncio.ensure_future(self._recv_loop())
-                for _ in range(20):
+                for _ in range(25):
                     await asyncio.sleep(1)
                     if self._balance > 0:
                         self._connected = True
+                        print(f"[WS] Подключено: {url}")
                         return True
                 self._connected = True
                 return True
             except Exception as e:
-                print(f"[WS] Попытка {attempt+1}/3: {e}")
-                await asyncio.sleep(3)
+                print(f"[WS] Попытка {attempt+1}/6 ({url}): {e}")
+                await asyncio.sleep(2)
         return False
 
     async def _recv_loop(self):

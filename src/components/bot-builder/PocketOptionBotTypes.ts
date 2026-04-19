@@ -593,9 +593,9 @@ def get_signal(prices, candles=None):
     for level in [lower_level, upper_level]:
         if abs(current - level) <= threshold:
             if current >= level:
-                signal = ("CALL", f"[RUFUS] {current:.5f}→{level:.4f} сверху→CALL")
+                signal = ("PUT", f"[RUFUS] {current:.5f}→{level:.4f} сверху→PUT")
             else:
-                signal = ("PUT", f"[RUFUS] {current:.5f}→{level:.4f} снизу→PUT")
+                signal = ("CALL", f"[RUFUS] {current:.5f}→{level:.4f} снизу→CALL")
             break
     if signal and INVERT_SIGNAL_RUFUS:
         return ("PUT" if signal[0] == "CALL" else "CALL"), signal[1] + " [INV]"

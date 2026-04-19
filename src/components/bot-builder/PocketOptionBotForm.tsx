@@ -1613,7 +1613,8 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                     : "Очень высокий шум. Только для быстрого скальпинга 1–2 мин."
                 },
               }
-              const info = stepInfo[String(currentStep)]
+              const stepKey = (s: number) => s === 0.0001 ? "0.0001" : s === 0.001 ? "0.001" : "0.01"
+              const info = stepInfo[stepKey(currentStep)]
 
               return (
                 <div>
@@ -1629,9 +1630,9 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                             : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"
                         }`}
                       >
-                        <div>{stepInfo[String(step)]?.label ?? String(step)}</div>
+                        <div>{stepInfo[stepKey(step)]?.label ?? String(step)}</div>
                         <div className={`text-[9px] mt-0.5 font-normal ${currentStep === step ? "text-purple-400" : "text-zinc-600"}`}>
-                          {stepInfo[String(step)]?.badge}
+                          {stepInfo[stepKey(step)]?.badge}
                         </div>
                       </button>
                     ))}

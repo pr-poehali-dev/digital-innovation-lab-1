@@ -64,7 +64,7 @@ export interface POBotConfig {
   // Rufus — алгоритм уровней
   rufusPips: number
   rufusLookback: number
-  rufusStep: 0.01 | 0.001
+  rufusStep: 0.01 | 0.001 | 0.0001
   rufusPipSize: number | null
   // Тренд по свечам (комбо-режим)
   trendCandlesEnabled: boolean

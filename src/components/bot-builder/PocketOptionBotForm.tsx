@@ -1594,14 +1594,23 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                     ? "Для акций 0.001 не имеет смысла — цены в долларах"
                     : "Больше шума и ложных сигналов. Подходит опытным трейдерам."
                 },
+                "0.0001": {
+                  label: "0.0001 — десятитысячные",
+                  badge: "микро-уровни",
+                  when: "Уровни через каждый 1 пипс — максимум сигналов",
+                  example: isJpy ? "109.090 / 109.100 / 109.110" : "1.17490 / 1.17500 / 1.17510",
+                  warning: isCrypto || isStock
+                    ? "Для крипты и акций не применимо"
+                    : "Очень высокий шум. Только для быстрого скальпинга 1–2 мин."
+                },
               }
               const info = stepInfo[String(currentStep)]
 
               return (
                 <div>
                   <Label className="text-zinc-400 font-space-mono text-xs mb-2 block">Шаг уровней</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {([0.01, 0.001] as const).map((step) => (
+                  <div className="grid grid-cols-3 gap-2">
+                    {([0.01, 0.001, 0.0001] as const).map((step) => (
                       <button
                         key={step}
                         onClick={() => set({ rufusStep: step })}
@@ -1611,9 +1620,9 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                             : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"
                         }`}
                       >
-                        <div>{step === 0.01 ? "0.0100 — сотые" : "0.0010 — тысячные"}</div>
+                        <div>{stepInfo[String(step)]?.label ?? String(step)}</div>
                         <div className={`text-[9px] mt-0.5 font-normal ${currentStep === step ? "text-purple-400" : "text-zinc-600"}`}>
-                          {step === 0.01 ? stepInfo["0.01"].badge : stepInfo["0.001"].badge}
+                          {stepInfo[String(step)]?.badge}
                         </div>
                       </button>
                     ))}

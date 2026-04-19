@@ -1606,32 +1606,38 @@ class POClient:
                     url, ping_interval=None, ping_timeout=None, open_timeout=15,
                     **{_hdr_kw: _headers}
                 )
-                # 1. Получаем "0{...}" — Engine.IO open
+                # 1. EIO open "0{...}"
                 msg0 = await asyncio.wait_for(self._ws.recv(), timeout=10)
-                print(f"[WS] EIO open: {msg0[:60]}")
-                # 2. Отправляем "40" — Socket.IO connect namespace
+                print(f"[WS] EIO open: {msg0[:80]}")
+                # 2. Socket.IO connect namespace
                 await self._ws.send("40")
-                # 3. Ждём "40" — подтверждение namespace
+                # 3. Читаем до получения "40{...}" namespace confirm
                 for _ in range(10):
                     msg1 = await asyncio.wait_for(self._ws.recv(), timeout=5)
-                    print(f"[WS] recv: {msg1[:60]}")
-                    if msg1.startswith("40"):
-                        break
-                    if msg1 == "2":
-                        await self._ws.send("3")  # pong
-                # 4. Отправляем SESSION_ID как auth
+                    print(f"[WS] recv: {msg1[:80]}")
+                    if msg1 == "2": await self._ws.send("3")
+                    if msg1.startswith("40"): break
+                # 4. Auth
                 await self._ws.send(self.session_id)
-                print(f"[WS] Auth отправлен, ждём баланс...")
-                # 5. Запускаем receive loop
+                print(f"[WS] Auth → {url}")
+                # 5. Читаем сообщения до получения баланса (не через ensure_future!)
+                import time as _t
+                _deadline = _t.time() + 30
+                while _t.time() < _deadline:
+                    try:
+                        raw = await asyncio.wait_for(self._ws.recv(), timeout=2)
+                        print(f"[WS] msg: {raw[:120]}")
+                        if raw == "2": await self._ws.send("3")
+                        await self._handle(raw)
+                        if self._balance > 0:
+                            self._connected = True
+                            print(f"[WS] Авторизован! Баланс: {self._balance} {self._currency}")
+                            asyncio.ensure_future(self._recv_loop())
+                            return True
+                    except asyncio.TimeoutError:
+                        pass
+                print(f"[WS] Баланс не получен за 30 сек — продолжаем")
                 asyncio.ensure_future(self._recv_loop())
-                # 6. Ждём баланс до 30 сек
-                for _ in range(30):
-                    await asyncio.sleep(1)
-                    if self._balance > 0:
-                        self._connected = True
-                        print(f"[WS] Авторизован! Баланс: {self._balance} {self._currency}")
-                        return True
-                print(f"[WS] Баланс не получен за 30 сек — продолжаем без него")
                 self._connected = True
                 return True
             except Exception as e:
@@ -3560,24 +3566,32 @@ class POClient:
                     **{_hdr_kw: _headers}
                 )
                 msg0 = await asyncio.wait_for(self._ws.recv(), timeout=10)
-                print(f"[WS] EIO open: {msg0[:60]}")
+                print(f"[WS] EIO open: {msg0[:80]}")
                 await self._ws.send("40")
                 for _ in range(10):
                     msg1 = await asyncio.wait_for(self._ws.recv(), timeout=5)
-                    print(f"[WS] recv: {msg1[:60]}")
-                    if msg1.startswith("40"):
-                        break
-                    if msg1 == "2":
-                        await self._ws.send("3")
+                    print(f"[WS] recv: {msg1[:80]}")
+                    if msg1 == "2": await self._ws.send("3")
+                    if msg1.startswith("40"): break
                 await self._ws.send(self.session_id)
-                print(f"[WS] Auth отправлен ({url}), ждём баланс...")
+                print(f"[WS] Auth → {url}")
+                import time as _t2
+                _deadline2 = _t2.time() + 30
+                while _t2.time() < _deadline2:
+                    try:
+                        raw = await asyncio.wait_for(self._ws.recv(), timeout=2)
+                        print(f"[WS] msg: {raw[:120]}")
+                        if raw == "2": await self._ws.send("3")
+                        await self._handle(raw)
+                        if self._balance > 0:
+                            self._connected = True
+                            print(f"[WS] Авторизован! Баланс: {self._balance} {self._currency}")
+                            asyncio.ensure_future(self._recv_loop())
+                            return True
+                    except asyncio.TimeoutError:
+                        pass
+                print(f"[WS] Баланс не получен за 30 сек — продолжаем")
                 asyncio.ensure_future(self._recv_loop())
-                for _ in range(30):
-                    await asyncio.sleep(1)
-                    if self._balance > 0:
-                        self._connected = True
-                        print(f"[WS] Авторизован! Баланс: {self._balance} {self._currency}")
-                        return True
                 self._connected = True
                 return True
             except Exception as e:

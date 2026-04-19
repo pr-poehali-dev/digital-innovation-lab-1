@@ -1517,10 +1517,6 @@ def fetch_candles_twelvedata():
     import urllib.request as _ur, json as _jj, time as _ti, math as _math
     global _td_cache
     now = _ti.time()
-    # Вычисляем сколько секунд прошло с начала текущей минуты
-    secs_in_minute = now % 60
-    # Свеча закрывается в начале каждой минуты — обновляем в первые 5 сек новой минуты
-    # или если прошло больше 60 сек с последнего обновления
     minute_now = int(now // 60)
     minute_cached = int(_td_cache["ts"] // 60) if _td_cache["ts"] else 0
     fresh = (minute_now == minute_cached) and _td_cache["candles"]
@@ -1539,7 +1535,11 @@ def fetch_candles_twelvedata():
         print(f"[CANDLES] Twelve Data: {len(prices)} свечей M1 | последняя цена: {prices[-1]:.5f}")
         return candles, prices
     except Exception as e:
-        print(f"[CANDLES] Twelve Data ошибка: {e} — используем кэш")
+        cache_age = int(now - _td_cache["ts"]) if _td_cache["ts"] else 99999
+        if cache_age > 600:
+            print(f"[CANDLES] Twelve Data ошибка: {e} — кэш устарел ({cache_age}с), переключаемся на PO API")
+            return None, None
+        print(f"[CANDLES] Twelve Data ошибка: {e} — используем кэш ({cache_age}с)")
         return _td_cache["candles"], _td_cache["prices"]
 
 async def try_get_candles(client, asset_name):

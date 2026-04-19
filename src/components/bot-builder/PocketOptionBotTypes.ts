@@ -1548,12 +1548,27 @@ def fetch_candles_twelvedata():
         return _td_cache["candles"], _td_cache["prices"]
 
 # ===== PO WEBSOCKET CLIENT =====
+def _extract_session_cookie(session_id_str):
+    """Извлекает session token из SESSION_ID для передачи как cookie"""
+    try:
+        m = re.search(r'"session"\\s*:\\s*"([^"]+)"', session_id_str)
+        if m:
+            return m.group(1)
+    except Exception:
+        pass
+    return None
+
 class POClient:
     """Чистый WebSocket клиент для Pocket Option — без сторонних зависимостей"""
-    WS_URLS = [
-        "wss://api-spb.po.market/socket.io/?EIO=4&transport=websocket",
+    WS_URLS_DEMO = [
+        "wss://demo-api-eu.po.market/socket.io/?EIO=4&transport=websocket",
+        "wss://demo-api-us.po.market/socket.io/?EIO=4&transport=websocket",
         "wss://api-l.po.market/socket.io/?EIO=4&transport=websocket",
-        "wss://pocketoption.com/socket.io/?EIO=4&transport=websocket",
+    ]
+    WS_URLS_REAL = [
+        "wss://api-eu.po.market/socket.io/?EIO=4&transport=websocket",
+        "wss://api-us.po.market/socket.io/?EIO=4&transport=websocket",
+        "wss://api-l.po.market/socket.io/?EIO=4&transport=websocket",
     ]
 
     def __init__(self, session_id, is_demo=True):
@@ -1565,6 +1580,7 @@ class POClient:
         self._candles_cache = {}
         self._orders = {}
         self._connected = False
+        self._session_cookie = _extract_session_cookie(session_id)
 
     async def connect(self):
         try:
@@ -1572,38 +1588,45 @@ class POClient:
         except ImportError:
             print("[ERROR] Установи: pip install websockets")
             return False
+        urls = self.WS_URLS_DEMO if self.is_demo else self.WS_URLS_REAL
+        _cookie = f"session={self._session_cookie}" if self._session_cookie else ""
         _headers = {
             "Origin": "https://pocketoption.com",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
         }
-        for attempt in range(6):
-            url = self.WS_URLS[attempt % len(self.WS_URLS)]
+        if _cookie:
+            _headers["Cookie"] = _cookie
+        _ws_ver = tuple(int(x) for x in websockets.__version__.split(".")[:2])
+        _hdr_kw = "additional_headers" if _ws_ver >= (14, 0) else "extra_headers"
+        for attempt in range(len(urls) * 2):
+            url = urls[attempt % len(urls)]
             try:
-                # websockets 14+ использует additional_headers, 10-13 — extra_headers
-                _ws_ver = tuple(int(x) for x in websockets.__version__.split(".")[:2])
-                _kw = {"additional_headers": _headers} if _ws_ver >= (14, 0) else {"extra_headers": _headers}
                 self._ws = await websockets.connect(
-                    url, ping_interval=20, ping_timeout=20, open_timeout=10, **_kw
+                    url, ping_interval=20, ping_timeout=20, open_timeout=15,
+                    **{_hdr_kw: _headers}
                 )
                 # Socket.IO handshake
                 msg = await asyncio.wait_for(self._ws.recv(), timeout=10)
                 if msg.startswith("0"):
                     await self._ws.send("40")
-                    await asyncio.sleep(0.5)
-                # Авторизация
+                    await asyncio.sleep(0.3)
+                # Отправляем SESSION_ID как auth payload
                 await self._ws.send(self.session_id)
                 asyncio.ensure_future(self._recv_loop())
+                print(f"[WS] Соединение установлено: {url}")
                 # Ждём баланс до 25 сек
                 for _ in range(25):
                     await asyncio.sleep(1)
                     if self._balance > 0:
                         self._connected = True
-                        print(f"[WS] Подключено: {url}")
                         return True
+                # Если баланс не пришёл но соединение есть — всё равно продолжаем
                 self._connected = True
                 return True
             except Exception as e:
-                print(f"[WS] Попытка {attempt+1}/6 ({url}): {e}")
+                print(f"[WS] Попытка {attempt+1} ({url}): {e}")
                 await asyncio.sleep(2)
         return False
 
@@ -3458,12 +3481,27 @@ async def get_candles_data(client):
         return [], []
 
 # ===== PO WEBSOCKET CLIENT =====
+def _extract_session_cookie(session_id_str):
+    try:
+        import re as _re2
+        m = _re2.search(r'"session"\\s*:\\s*"([^"]+)"', session_id_str)
+        if m:
+            return m.group(1)
+    except Exception:
+        pass
+    return None
+
 class POClient:
     """Чистый WebSocket клиент для Pocket Option — без сторонних зависимостей"""
-    WS_URLS = [
-        "wss://api-spb.po.market/socket.io/?EIO=4&transport=websocket",
+    WS_URLS_DEMO = [
+        "wss://demo-api-eu.po.market/socket.io/?EIO=4&transport=websocket",
+        "wss://demo-api-us.po.market/socket.io/?EIO=4&transport=websocket",
         "wss://api-l.po.market/socket.io/?EIO=4&transport=websocket",
-        "wss://pocketoption.com/socket.io/?EIO=4&transport=websocket",
+    ]
+    WS_URLS_REAL = [
+        "wss://api-eu.po.market/socket.io/?EIO=4&transport=websocket",
+        "wss://api-us.po.market/socket.io/?EIO=4&transport=websocket",
+        "wss://api-l.po.market/socket.io/?EIO=4&transport=websocket",
     ]
 
     def __init__(self, session_id, is_demo=True):
@@ -3475,6 +3513,7 @@ class POClient:
         self._candles_cache = {}
         self._orders = {}
         self._connected = False
+        self._session_cookie = _extract_session_cookie(session_id)
 
     async def connect(self):
         try:
@@ -3482,34 +3521,40 @@ class POClient:
         except ImportError:
             print("[ERROR] Установи: pip install websockets")
             return False
+        urls = self.WS_URLS_DEMO if self.is_demo else self.WS_URLS_REAL
+        _cookie = f"session={self._session_cookie}" if self._session_cookie else ""
         _headers = {
             "Origin": "https://pocketoption.com",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Cache-Control": "no-cache",
         }
-        for attempt in range(6):
-            url = self.WS_URLS[attempt % len(self.WS_URLS)]
+        if _cookie:
+            _headers["Cookie"] = _cookie
+        _ws_ver = tuple(int(x) for x in _ws_lib.__version__.split(".")[:2])
+        _hdr_kw = "additional_headers" if _ws_ver >= (14, 0) else "extra_headers"
+        for attempt in range(len(urls) * 2):
+            url = urls[attempt % len(urls)]
             try:
-                _ws_ver = tuple(int(x) for x in _ws_lib.__version__.split(".")[:2])
-                _kw = {"additional_headers": _headers} if _ws_ver >= (14, 0) else {"extra_headers": _headers}
                 self._ws = await _ws_lib.connect(
-                    url, ping_interval=20, ping_timeout=20, open_timeout=10, **_kw
+                    url, ping_interval=20, ping_timeout=20, open_timeout=15,
+                    **{_hdr_kw: _headers}
                 )
                 msg = await asyncio.wait_for(self._ws.recv(), timeout=10)
                 if msg.startswith("0"):
                     await self._ws.send("40")
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(0.3)
                 await self._ws.send(self.session_id)
                 asyncio.ensure_future(self._recv_loop())
+                print(f"[WS] Соединение установлено: {url}")
                 for _ in range(25):
                     await asyncio.sleep(1)
                     if self._balance > 0:
                         self._connected = True
-                        print(f"[WS] Подключено: {url}")
                         return True
                 self._connected = True
                 return True
             except Exception as e:
-                print(f"[WS] Попытка {attempt+1}/6 ({url}): {e}")
+                print(f"[WS] Попытка {attempt+1} ({url}): {e}")
                 await asyncio.sleep(2)
         return False
 

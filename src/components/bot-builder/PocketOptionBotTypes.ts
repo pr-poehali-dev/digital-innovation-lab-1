@@ -1653,7 +1653,7 @@ class POClient:
         try:
             async for msg in self._ws:
                 if msg == "2":
-                    await self._ws.send("3")  # Engine.IO pong
+                    await self._ws.send("3")
                     continue
                 await self._handle(msg)
         except Exception:
@@ -1661,22 +1661,47 @@ class POClient:
 
     async def _handle(self, msg):
         try:
+            # binary attachment — payload от предыдущего 451- события
+            if isinstance(msg, bytes):
+                payload = json.loads(msg.decode("utf-8"))
+                ev = getattr(self, "_pending_event", None)
+                self._pending_event = None
+                self._apply_event(ev, payload)
+                return
+            # 451-["eventName",{"_placeholder":true}] — Socket.IO binary event
+            if msg.startswith("451-"):
+                inner = json.loads(msg[4:])
+                event = inner[0] if inner else ""
+                self._pending_event = event
+                return
+            # обычный 42["eventName", payload]
             if msg.startswith("42"):
-                data = json.loads(msg[2:])
-                event = data[0] if data else ""
-                payload = data[1] if len(data) > 1 else {}
-                if event in ("updateBalance", "successauth", "changeBalance"):
-                    b = payload if isinstance(payload, dict) else {}
-                    bal = b.get("balance") or b.get("demoBalance") or b.get("realBalance") or b.get("amount") or 0
-                    if bal:
-                        self._balance = float(bal)
-                    cur = b.get("currency")
-                    if cur:
-                        self._currency = cur
-                elif event == "candles":
-                    asset = payload.get("asset", "")
-                    self._candles_cache[asset] = payload.get("candles", [])
-                elif event in ("successopenOrder", "updateOrder"):
+                inner = json.loads(msg[2:])
+                event = inner[0] if inner else ""
+                payload = inner[1] if len(inner) > 1 else {}
+                self._apply_event(event, payload)
+        except Exception:
+            pass
+
+    def _apply_event(self, event, payload):
+        try:
+            if event in ("successupdateBalance", "updateBalance", "changeBalance", "successauth"):
+                b = payload if isinstance(payload, dict) else {}
+                bal = b.get("balance") or b.get("demoBalance") or b.get("realBalance") or b.get("amount") or 0
+                if bal:
+                    self._balance = float(bal)
+                cur = b.get("currency")
+                if cur:
+                    self._currency = cur
+            elif event == "candles":
+                asset = payload.get("asset", "") if isinstance(payload, dict) else ""
+                candles = payload.get("candles", payload) if isinstance(payload, dict) else payload
+                if asset:
+                    self._candles_cache[asset] = candles
+                elif isinstance(payload, list):
+                    self._candles_cache["__last__"] = payload
+            elif event in ("successopenOrder", "updateOrder"):
+                if isinstance(payload, dict):
                     oid = str(payload.get("id", ""))
                     if oid:
                         self._orders[oid] = payload
@@ -3615,22 +3640,43 @@ class POClient:
 
     async def _handle(self, msg):
         try:
+            if isinstance(msg, bytes):
+                payload = json.loads(msg.decode("utf-8"))
+                ev = getattr(self, "_pending_event", None)
+                self._pending_event = None
+                self._apply_event(ev, payload)
+                return
+            if msg.startswith("451-"):
+                inner = json.loads(msg[4:])
+                self._pending_event = inner[0] if inner else ""
+                return
             if msg.startswith("42"):
-                data = json.loads(msg[2:])
-                event = data[0] if data else ""
-                payload = data[1] if len(data) > 1 else {}
-                if event in ("updateBalance", "successauth", "changeBalance"):
-                    b = payload if isinstance(payload, dict) else {}
-                    bal = b.get("balance") or b.get("demoBalance") or b.get("amount") or 0
-                    if bal:
-                        self._balance = float(bal)
-                    cur = b.get("currency")
-                    if cur:
-                        self._currency = cur
-                elif event == "candles":
-                    asset = payload.get("asset", "")
-                    self._candles_cache[asset] = payload.get("candles", [])
-                elif event in ("successopenOrder", "updateOrder"):
+                inner = json.loads(msg[2:])
+                event = inner[0] if inner else ""
+                payload = inner[1] if len(inner) > 1 else {}
+                self._apply_event(event, payload)
+        except Exception:
+            pass
+
+    def _apply_event(self, event, payload):
+        try:
+            if event in ("successupdateBalance", "updateBalance", "changeBalance", "successauth"):
+                b = payload if isinstance(payload, dict) else {}
+                bal = b.get("balance") or b.get("demoBalance") or b.get("realBalance") or b.get("amount") or 0
+                if bal:
+                    self._balance = float(bal)
+                cur = b.get("currency")
+                if cur:
+                    self._currency = cur
+            elif event == "candles":
+                asset = payload.get("asset", "") if isinstance(payload, dict) else ""
+                candles = payload.get("candles", payload) if isinstance(payload, dict) else payload
+                if asset:
+                    self._candles_cache[asset] = candles
+                elif isinstance(payload, list):
+                    self._candles_cache["__last__"] = payload
+            elif event in ("successopenOrder", "updateOrder"):
+                if isinstance(payload, dict):
                     oid = str(payload.get("id", ""))
                     if oid:
                         self._orders[oid] = payload

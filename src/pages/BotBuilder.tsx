@@ -779,9 +779,9 @@ export default function BotBuilder() {
                             <div className="space-y-3 border-t border-zinc-800 pt-4">
                               <p className="text-white font-orbitron text-sm font-semibold">Как запустить бота</p>
                               <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-1">
-                                <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 1 — Скачайте файл</p>
-                                <p className="text-zinc-400 font-space-mono text-xs">Нажмите кнопку <span className="text-green-400">.py</span> выше — файл сохранится на ваш компьютер.</p>
-                                <p className="text-zinc-400 font-space-mono text-xs">Переименуйте скачанный файл в <span className="text-white">bot.py</span>.</p>
+                                <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 1 — Скачайте файлы</p>
+                                <p className="text-zinc-400 font-space-mono text-xs">Нажмите кнопку <span className="text-green-400">.py</span> и кнопку <span className="text-yellow-400">.env</span> выше.</p>
+                                <p className="text-zinc-400 font-space-mono text-xs">Положите <span className="text-white">bot.py</span> и <span className="text-white">.env</span> в одну папку.</p>
                               </div>
                               <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-3 space-y-2">
                                 <p className="text-red-400 font-orbitron text-xs font-semibold">Шаг 2 — Установите Python</p>
@@ -789,18 +789,25 @@ export default function BotBuilder() {
                               </div>
                               <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-3 space-y-2">
                                 <p className="text-green-400 font-orbitron text-xs font-semibold">Шаг 3 — Установите зависимости</p>
-                                <p className="text-zinc-400 font-space-mono text-xs">Откройте терминал (PowerShell / cmd) и выполните:</p>
-                                <div className="flex items-center gap-2 bg-black rounded p-2 mt-1">
+                                <div className="flex items-center gap-2 bg-black rounded p-2">
                                   <code className="text-green-400 font-space-mono text-xs flex-1">pip install websockets</code>
-                                  <button
-                                    onClick={() => { navigator.clipboard.writeText("pip install websockets") }}
-                                    className="text-zinc-500 hover:text-zinc-300 transition-colors"
-                                    title="Скопировать"
-                                  >
+                                  <button onClick={() => { navigator.clipboard.writeText("pip install websockets") }} className="text-zinc-500 hover:text-zinc-300 transition-colors" title="Скопировать">
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                                   </button>
                                 </div>
-                                <p className="text-zinc-500 font-space-mono text-xs">Это единственная зависимость — бот работает на Python 3.10, 3.11, 3.12, 3.13</p>
+                              </div>
+                              <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3 space-y-2">
+                                <p className="text-blue-400 font-orbitron text-xs font-semibold">Шаг 4 — Запустите бота</p>
+                                <p className="text-zinc-400 font-space-mono text-xs">Откройте PowerShell <span className="text-white font-bold">в папке с bot.py</span> и выполните:</p>
+                                <div className="flex items-center gap-2 bg-black rounded p-2">
+                                  <code className="text-blue-300 font-space-mono text-xs flex-1">python bot.py</code>
+                                  <button onClick={() => { navigator.clipboard.writeText("python bot.py") }} className="text-zinc-500 hover:text-zinc-300 transition-colors" title="Скопировать">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                                  </button>
+                                </div>
+                                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded p-2">
+                                  <p className="text-yellow-400 font-space-mono text-xs">⚠️ SESSION_ID уже зашит в <span className="text-white">.env</span> файл — вставлять его в терминал вручную не нужно!</p>
+                                </div>
                               </div>
                             </div>
                           )}

@@ -1594,7 +1594,6 @@ class POClient:
             "Origin": "https://pocketoption.com",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Cache-Control": "no-cache",
-            "Pragma": "no-cache",
         }
         if _cookie:
             _headers["Cookie"] = _cookie
@@ -1604,35 +1603,52 @@ class POClient:
             url = urls[attempt % len(urls)]
             try:
                 self._ws = await websockets.connect(
-                    url, ping_interval=20, ping_timeout=20, open_timeout=15,
+                    url, ping_interval=None, ping_timeout=None, open_timeout=15,
                     **{_hdr_kw: _headers}
                 )
-                # Socket.IO handshake
-                msg = await asyncio.wait_for(self._ws.recv(), timeout=10)
-                if msg.startswith("0"):
-                    await self._ws.send("40")
-                    await asyncio.sleep(0.3)
-                # Отправляем SESSION_ID как auth payload
+                # 1. Получаем "0{...}" — Engine.IO open
+                msg0 = await asyncio.wait_for(self._ws.recv(), timeout=10)
+                print(f"[WS] EIO open: {msg0[:60]}")
+                # 2. Отправляем "40" — Socket.IO connect namespace
+                await self._ws.send("40")
+                # 3. Ждём "40" — подтверждение namespace
+                for _ in range(10):
+                    msg1 = await asyncio.wait_for(self._ws.recv(), timeout=5)
+                    print(f"[WS] recv: {msg1[:60]}")
+                    if msg1.startswith("40"):
+                        break
+                    if msg1 == "2":
+                        await self._ws.send("3")  # pong
+                # 4. Отправляем SESSION_ID как auth
                 await self._ws.send(self.session_id)
+                print(f"[WS] Auth отправлен, ждём баланс...")
+                # 5. Запускаем receive loop
                 asyncio.ensure_future(self._recv_loop())
-                print(f"[WS] Соединение установлено: {url}")
-                # Ждём баланс до 25 сек
-                for _ in range(25):
+                # 6. Ждём баланс до 30 сек
+                for _ in range(30):
                     await asyncio.sleep(1)
                     if self._balance > 0:
                         self._connected = True
+                        print(f"[WS] Авторизован! Баланс: {self._balance} {self._currency}")
                         return True
-                # Если баланс не пришёл но соединение есть — всё равно продолжаем
+                print(f"[WS] Баланс не получен за 30 сек — продолжаем без него")
                 self._connected = True
                 return True
             except Exception as e:
                 print(f"[WS] Попытка {attempt+1} ({url}): {e}")
+                try:
+                    await self._ws.close()
+                except Exception:
+                    pass
                 await asyncio.sleep(2)
         return False
 
     async def _recv_loop(self):
         try:
             async for msg in self._ws:
+                if msg == "2":
+                    await self._ws.send("3")  # Engine.IO pong
+                    continue
                 await self._handle(msg)
         except Exception:
             self._connected = False
@@ -1643,10 +1659,14 @@ class POClient:
                 data = json.loads(msg[2:])
                 event = data[0] if data else ""
                 payload = data[1] if len(data) > 1 else {}
-                if event in ("updateBalance", "successauth"):
+                if event in ("updateBalance", "successauth", "changeBalance"):
                     b = payload if isinstance(payload, dict) else {}
-                    self._balance = float(b.get("balance", b.get("demoBalance", b.get("realBalance", 0))) or 0)
-                    self._currency = b.get("currency", "USD")
+                    bal = b.get("balance") or b.get("demoBalance") or b.get("realBalance") or b.get("amount") or 0
+                    if bal:
+                        self._balance = float(bal)
+                    cur = b.get("currency")
+                    if cur:
+                        self._currency = cur
                 elif event == "candles":
                     asset = payload.get("asset", "")
                     self._candles_cache[asset] = payload.get("candles", [])
@@ -3536,31 +3556,45 @@ class POClient:
             url = urls[attempt % len(urls)]
             try:
                 self._ws = await _ws_lib.connect(
-                    url, ping_interval=20, ping_timeout=20, open_timeout=15,
+                    url, ping_interval=None, ping_timeout=None, open_timeout=15,
                     **{_hdr_kw: _headers}
                 )
-                msg = await asyncio.wait_for(self._ws.recv(), timeout=10)
-                if msg.startswith("0"):
-                    await self._ws.send("40")
-                    await asyncio.sleep(0.3)
+                msg0 = await asyncio.wait_for(self._ws.recv(), timeout=10)
+                print(f"[WS] EIO open: {msg0[:60]}")
+                await self._ws.send("40")
+                for _ in range(10):
+                    msg1 = await asyncio.wait_for(self._ws.recv(), timeout=5)
+                    print(f"[WS] recv: {msg1[:60]}")
+                    if msg1.startswith("40"):
+                        break
+                    if msg1 == "2":
+                        await self._ws.send("3")
                 await self._ws.send(self.session_id)
+                print(f"[WS] Auth отправлен ({url}), ждём баланс...")
                 asyncio.ensure_future(self._recv_loop())
-                print(f"[WS] Соединение установлено: {url}")
-                for _ in range(25):
+                for _ in range(30):
                     await asyncio.sleep(1)
                     if self._balance > 0:
                         self._connected = True
+                        print(f"[WS] Авторизован! Баланс: {self._balance} {self._currency}")
                         return True
                 self._connected = True
                 return True
             except Exception as e:
                 print(f"[WS] Попытка {attempt+1} ({url}): {e}")
+                try:
+                    await self._ws.close()
+                except Exception:
+                    pass
                 await asyncio.sleep(2)
         return False
 
     async def _recv_loop(self):
         try:
             async for msg in self._ws:
+                if msg == "2":
+                    await self._ws.send("3")
+                    continue
                 await self._handle(msg)
         except Exception:
             self._connected = False
@@ -3571,10 +3605,14 @@ class POClient:
                 data = json.loads(msg[2:])
                 event = data[0] if data else ""
                 payload = data[1] if len(data) > 1 else {}
-                if event in ("updateBalance", "successauth"):
+                if event in ("updateBalance", "successauth", "changeBalance"):
                     b = payload if isinstance(payload, dict) else {}
-                    self._balance = float(b.get("balance", b.get("demoBalance", 0)) or 0)
-                    self._currency = b.get("currency", "USD")
+                    bal = b.get("balance") or b.get("demoBalance") or b.get("amount") or 0
+                    if bal:
+                        self._balance = float(bal)
+                    cur = b.get("currency")
+                    if cur:
+                        self._currency = cur
                 elif event == "candles":
                     asset = payload.get("asset", "")
                     self._candles_cache[asset] = payload.get("candles", [])

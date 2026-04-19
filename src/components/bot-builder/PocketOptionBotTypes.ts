@@ -711,13 +711,17 @@ Pocket Option Bot — ${strategyLabel}
 ════════════════════════════════════════
 
 Установка зависимостей:
-    pip install pocketoptionapi-async PySocks
+    pip install websockets
 """
 
 import asyncio
 import os
+import json
+import time
+import uuid
+import re
+import threading
 from datetime import datetime
-from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
 
 # ===== НАСТРОЙКИ =====
 ASSET        = os.environ.get("PO_ASSET", "${assetSymbol}")
@@ -1543,6 +1547,136 @@ def fetch_candles_twelvedata():
         print(f"[CANDLES] Twelve Data ошибка: {e} — используем кэш ({cache_age}с)")
         return _td_cache["candles"], _td_cache["prices"]
 
+# ===== PO WEBSOCKET CLIENT =====
+class POClient:
+    """Чистый WebSocket клиент для Pocket Option — без сторонних зависимостей"""
+    WS_URL = "wss://api-l.po.market/socket.io/?EIO=4&transport=websocket"
+
+    def __init__(self, session_id, is_demo=True):
+        self.session_id = session_id
+        self.is_demo = is_demo
+        self._ws = None
+        self._balance = 0.0
+        self._currency = "USD"
+        self._candles_cache = {}
+        self._orders = {}
+        self._connected = False
+        self._lock = asyncio.Lock()
+
+    async def connect(self):
+        try:
+            import websockets
+        except ImportError:
+            print("[ERROR] Установи: pip install websockets")
+            return False
+        for attempt in range(3):
+            try:
+                self._ws = await websockets.connect(
+                    self.WS_URL,
+                    additional_headers={"Origin": "https://po.market"},
+                    ping_interval=20, ping_timeout=20
+                )
+                # Handshake
+                await self._ws.recv()  # "0{...}"
+                await self._ws.send("40")
+                await asyncio.sleep(1)
+                # Auth
+                await self._ws.send(self.session_id)
+                asyncio.ensure_future(self._recv_loop())
+                # Ждём баланс
+                for _ in range(20):
+                    await asyncio.sleep(1)
+                    if self._balance > 0:
+                        self._connected = True
+                        return True
+                self._connected = True
+                return True
+            except Exception as e:
+                print(f"[WS] Попытка {attempt+1}/3: {e}")
+                await asyncio.sleep(3)
+        return False
+
+    async def _recv_loop(self):
+        try:
+            async for msg in self._ws:
+                await self._handle(msg)
+        except Exception:
+            self._connected = False
+
+    async def _handle(self, msg):
+        try:
+            if msg.startswith("42"):
+                data = json.loads(msg[2:])
+                event = data[0] if data else ""
+                payload = data[1] if len(data) > 1 else {}
+                if event in ("updateBalance", "successauth"):
+                    b = payload if isinstance(payload, dict) else {}
+                    self._balance = float(b.get("balance", b.get("demoBalance", b.get("realBalance", 0))) or 0)
+                    self._currency = b.get("currency", "USD")
+                elif event == "candles":
+                    asset = payload.get("asset", "")
+                    self._candles_cache[asset] = payload.get("candles", [])
+                elif event in ("successopenOrder", "updateOrder"):
+                    oid = str(payload.get("id", ""))
+                    if oid:
+                        self._orders[oid] = payload
+        except Exception:
+            pass
+
+    async def get_balance(self):
+        await self._ws.send('42["getBalance"]')
+        await asyncio.sleep(1)
+        return type("B", (), {"balance": self._balance, "currency": self._currency, "is_demo": self.is_demo})()
+
+    async def get_candles(self, asset, timeframe=60, count=100):
+        req = json.dumps(["getCandles", {"asset": asset, "period": timeframe, "count": count}])
+        await self._ws.send("42" + req)
+        for _ in range(15):
+            await asyncio.sleep(0.5)
+            if asset in self._candles_cache:
+                raw = self._candles_cache.pop(asset)
+                result = []
+                for c in raw:
+                    result.append(type("C", (), {
+                        "time": c.get("time", c.get("t", 0)),
+                        "open": float(c.get("open", c.get("o", 0))),
+                        "high": float(c.get("high", c.get("h", 0))),
+                        "low":  float(c.get("low", c.get("l", 0))),
+                        "close": float(c.get("close", c.get("c", 0))),
+                    })())
+                return result
+        return []
+
+    async def place_order(self, asset, amount, direction, duration):
+        oid = str(uuid.uuid4())
+        cmd = 0 if direction == "CALL" else 1
+        req = json.dumps(["openOrder", {
+            "asset": asset, "amount": amount,
+            "command": cmd, "time": duration,
+            "isDemo": 1 if self.is_demo else 0,
+            "tournamentId": 0, "requestId": oid,
+        }])
+        await self._ws.send("42" + req)
+        for _ in range(10):
+            await asyncio.sleep(0.5)
+            for k, v in self._orders.items():
+                if v.get("requestId") == oid or v.get("asset") == asset:
+                    return type("O", (), {"order_id": str(v.get("id", k))})()
+        return type("O", (), {"order_id": oid})()
+
+    async def get_deal(self, order_id):
+        for _ in range(5):
+            if order_id in self._orders:
+                d = self._orders[order_id]
+                profit = float(d.get("profit", d.get("win", 0)) or 0)
+                return type("D", (), {"profit": profit, "id": order_id})()
+            await asyncio.sleep(2)
+        return None
+
+    async def disconnect(self):
+        if self._ws:
+            await self._ws.close()
+
 async def try_get_candles(client, asset_name):
     """Попытка получить свечи, с авто-переподключением при обрыве"""
     for attempt in range(3):
@@ -1550,7 +1684,7 @@ async def try_get_candles(client, asset_name):
             raw = await client.get_candles(asset=asset_name, timeframe=CANDLE_TF, count=100)
             if raw:
                 return raw
-            return None  # пустой ответ — актив не найден, не повторяем
+            return None
         except Exception as e:
             err = str(e)
             if "Not connected" in err or "reconnection failed" in err:
@@ -1561,7 +1695,7 @@ async def try_get_candles(client, asset_name):
                 except Exception:
                     pass
             else:
-                return None  # любая другая ошибка — не повторяем
+                return None
     print("[ERROR] Не удалось подключиться после 3 попыток")
     return None
 
@@ -1648,7 +1782,6 @@ async def _resolve_trade_asset(client):
 async def place_trade(client, direction, amount):
     """Открытие опциона с авто-поиском формата актива"""
     global _resolved_asset
-    dir_val = OrderDirection.CALL if direction == "CALL" else OrderDirection.PUT
     base = ASSET.replace("_otc", "").replace("#", "")
     is_otc = "otc" in ASSET.lower()
     candidates_try = []
@@ -1664,7 +1797,7 @@ async def place_trade(client, direction, amount):
             continue
         seen.append(trade_asset)
         try:
-            order = await client.place_order(asset=trade_asset, amount=amount, direction=dir_val, duration=EXPIRY_SEC)
+            order = await client.place_order(asset=trade_asset, amount=amount, direction=direction, duration=EXPIRY_SEC)
             _resolved_asset = trade_asset
             print(f"[TRADE] {direction} | {amount} | {EXPIRY_SEC//60} мин | актив: {trade_asset} | ID: {order.order_id}")
             return order.order_id
@@ -1765,28 +1898,16 @@ async def main():
     print("[CACHE] Кэш свечей сброшен")
 
     print("Подключение к Pocket Option...")
-    client = AsyncPocketOptionClient(SESSION_ID, is_demo=IS_DEMO, enable_logging=True)
-    connected = False
-    try:
-        connect_task = asyncio.create_task(client.connect())
-        for _ in range(20):
-            await asyncio.sleep(1)
-            if getattr(client, 'connected', False) or getattr(client, 'is_connected', False):
-                connected = True
-                break
-        if not connected:
-            connect_task.cancel()
-            print("[ERROR] Не удалось подключиться за 20 сек.")
-            print("[HINT] Попробуй:")
-            print("  1. pip install --upgrade pocketoptionapi-async")
-            print("  2. Убедись что VPN включён и работает")
-            print('  3. Проверь SESSION_ID — он должен начинаться с: 42["auth",{')
-            return
-        print("[INFO] WebSocket подключён, ждём авторизации...")
-    except Exception as e:
-        print(f"[ERROR] connect(): {e}")
-        print("[HINT] pip install --upgrade pocketoptionapi-async")
+    client = POClient(SESSION_ID, is_demo=IS_DEMO)
+    connected = await client.connect()
+    if not connected:
+        print("[ERROR] Не удалось подключиться за 20 сек.")
+        print("[HINT] Попробуй:")
+        print("  1. pip install --upgrade websockets")
+        print("  2. Убедись что VPN включён и работает")
+        print('  3. Проверь SESSION_ID — он должен начинаться с: 42["auth",{')
         return
+    print("[INFO] WebSocket подключён, ждём авторизации...")
     balance, currency = 0.0, "USD"
     for i in range(15):
         await asyncio.sleep(3)
@@ -2479,13 +2600,14 @@ Pocket Option КОМБО-Бот
 ════════════════════════════════════════
 
 Установка зависимостей:
-    pip install pocketoptionapi-async PySocks
+    pip install websockets
 """
 
 import asyncio
 import os
+import json
+import uuid
 from datetime import datetime
-from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
 
 # ===== НАСТРОЙКИ =====
 ASSET        = "${comboAssetSymbol}"
@@ -3324,12 +3446,134 @@ async def get_candles_data(client):
         print(f"[ERROR] get_candles: {e}")
         return [], []
 
+# ===== PO WEBSOCKET CLIENT =====
+class POClient:
+    """Чистый WebSocket клиент для Pocket Option — без сторонних зависимостей"""
+    WS_URL = "wss://api-l.po.market/socket.io/?EIO=4&transport=websocket"
+
+    def __init__(self, session_id, is_demo=True):
+        self.session_id = session_id
+        self.is_demo = is_demo
+        self._ws = None
+        self._balance = 0.0
+        self._currency = "USD"
+        self._candles_cache = {}
+        self._orders = {}
+        self._connected = False
+
+    async def connect(self):
+        try:
+            import websockets as _ws_lib
+        except ImportError:
+            print("[ERROR] Установи: pip install websockets")
+            return False
+        for attempt in range(3):
+            try:
+                self._ws = await _ws_lib.connect(
+                    self.WS_URL,
+                    additional_headers={"Origin": "https://po.market"},
+                    ping_interval=20, ping_timeout=20
+                )
+                await self._ws.recv()
+                await self._ws.send("40")
+                await asyncio.sleep(1)
+                await self._ws.send(self.session_id)
+                asyncio.ensure_future(self._recv_loop())
+                for _ in range(20):
+                    await asyncio.sleep(1)
+                    if self._balance > 0:
+                        self._connected = True
+                        return True
+                self._connected = True
+                return True
+            except Exception as e:
+                print(f"[WS] Попытка {attempt+1}/3: {e}")
+                await asyncio.sleep(3)
+        return False
+
+    async def _recv_loop(self):
+        try:
+            async for msg in self._ws:
+                await self._handle(msg)
+        except Exception:
+            self._connected = False
+
+    async def _handle(self, msg):
+        try:
+            if msg.startswith("42"):
+                data = json.loads(msg[2:])
+                event = data[0] if data else ""
+                payload = data[1] if len(data) > 1 else {}
+                if event in ("updateBalance", "successauth"):
+                    b = payload if isinstance(payload, dict) else {}
+                    self._balance = float(b.get("balance", b.get("demoBalance", 0)) or 0)
+                    self._currency = b.get("currency", "USD")
+                elif event == "candles":
+                    asset = payload.get("asset", "")
+                    self._candles_cache[asset] = payload.get("candles", [])
+                elif event in ("successopenOrder", "updateOrder"):
+                    oid = str(payload.get("id", ""))
+                    if oid:
+                        self._orders[oid] = payload
+        except Exception:
+            pass
+
+    async def get_balance(self):
+        await self._ws.send('42["getBalance"]')
+        await asyncio.sleep(1)
+        return type("B", (), {"balance": self._balance, "currency": self._currency})()
+
+    async def get_candles(self, asset, timeframe=60, count=100):
+        req = json.dumps(["getCandles", {"asset": asset, "period": timeframe, "count": count}])
+        await self._ws.send("42" + req)
+        for _ in range(15):
+            await asyncio.sleep(0.5)
+            if asset in self._candles_cache:
+                raw = self._candles_cache.pop(asset)
+                return [type("C", (), {
+                    "time": c.get("time", c.get("t", 0)),
+                    "open": float(c.get("open", c.get("o", 0))),
+                    "high": float(c.get("high", c.get("h", 0))),
+                    "low":  float(c.get("low", c.get("l", 0))),
+                    "close": float(c.get("close", c.get("c", 0))),
+                })() for c in raw]
+        return []
+
+    async def place_order(self, asset, amount, direction, duration):
+        oid = str(uuid.uuid4())
+        cmd = 0 if direction == "CALL" else 1
+        req = json.dumps(["openOrder", {
+            "asset": asset, "amount": amount,
+            "command": cmd, "time": duration,
+            "isDemo": 1 if self.is_demo else 0,
+            "requestId": oid,
+        }])
+        await self._ws.send("42" + req)
+        for _ in range(10):
+            await asyncio.sleep(0.5)
+            for k, v in self._orders.items():
+                if v.get("requestId") == oid or v.get("asset") == asset:
+                    return type("O", (), {"order_id": str(v.get("id", k))})()
+        return type("O", (), {"order_id": oid})()
+
+    async def get_deal(self, order_id):
+        for _ in range(5):
+            if order_id in self._orders:
+                d = self._orders[order_id]
+                profit = float(d.get("profit", 0) or 0)
+                return type("D", (), {"profit": profit})()
+            await asyncio.sleep(2)
+        return None
+
+    async def disconnect(self):
+        if self._ws:
+            await self._ws.close()
+
 _combo_resolved_asset = None
 
 async def place_trade(client, direction, amount):
     """Открытие опциона с авто-поиском формата актива"""
     global _combo_resolved_asset
-    dir_val = OrderDirection.CALL if direction == "CALL" else OrderDirection.PUT
     base = ASSET.replace("_otc", "").replace("#", "")
     is_otc = "otc" in ASSET.lower()
     candidates_try = []
@@ -3345,7 +3589,7 @@ async def place_trade(client, direction, amount):
             continue
         seen.append(trade_asset)
         try:
-            order = await client.place_order(asset=trade_asset, amount=amount, direction=dir_val, duration=EXPIRY_SEC)
+            order = await client.place_order(asset=trade_asset, amount=amount, direction=direction, duration=EXPIRY_SEC)
             _combo_resolved_asset = trade_asset
             print(f"[TRADE] {direction} | {amount} | {EXPIRY_SEC//60} мин | актив: {trade_asset} | ID: {order.order_id}")
             return order.order_id
@@ -3427,20 +3671,12 @@ async def main():
     global total_profit, trades_today, current_bet
     _daily_report_scheduler()
 
-    client = AsyncPocketOptionClient(SESSION_ID, is_demo=IS_DEMO, enable_logging=False)
-    await client.connect()
-    for i in range(15):
-        await asyncio.sleep(2)
-        try:
-            balance, currency = await get_balance(client)
-            if balance > 0:
-                break
-        except Exception:
-            pass
-        print(f"[WAIT] Ожидание соединения... ({i+1}/15)")
-    else:
-        print("[ERROR] Не удалось подключиться за 30 сек. Проверь SESSION_ID.")
+    client = POClient(SESSION_ID, is_demo=IS_DEMO)
+    connected = await client.connect()
+    if not connected:
+        print("[ERROR] Не удалось подключиться. Проверь SESSION_ID и pip install websockets")
         return
+    balance, currency = await get_balance(client)
 
     account_type = "🟡 ДЕМО-СЧЁТ" if IS_DEMO else "🔴 РЕАЛЬНЫЙ СЧЁТ"
 

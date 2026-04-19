@@ -1478,6 +1478,15 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                   match: (a: string) => ["EUR","GBP","AUD","NZD","CAD","CHF"].some(c => a.includes(c)) && !a.includes("JPY"),
                 },
                 {
+                  label: "EUR/USD x10",
+                  icon: "🔬",
+                  desc: "Микро — 1 пипс",
+                  patch: { rufusStep: 0.0001 as const, rufusPips: 2, rufusPipSize: 0.0001 },
+                  color: "border-violet-500/40 text-violet-300 bg-violet-500/10 hover:bg-violet-500/20",
+                  active: "border-violet-500 bg-violet-500/20 text-violet-200",
+                  match: (_a: string) => false,
+                },
+                {
                   label: "USD/JPY",
                   icon: "🇯🇵",
                   desc: "Иена — шаг 0.05",

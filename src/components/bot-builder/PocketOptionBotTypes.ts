@@ -570,14 +570,15 @@ def get_signal(prices, candles=None):
 # ===== RUFUS — алгоритм уровней поддержки/сопротивления =====
 RUFUS_PIPS     = ${cfg.rufusPips ?? 5}       # Радиус приближения к уровню (в пипсах)
 RUFUS_LOOKBACK = ${cfg.rufusLookback ?? 10}  # Свечей назад для определения направления
-RUFUS_STEP     = ${cfg.rufusStep ?? 0.01}    # Шаг уровней: 0.01 (сотые) или 0.001 (тысячные)
+RUFUS_STEP     = ${cfg.rufusStep ?? 0.01}    # Шаг уровней: 0.01 / 0.001 / 0.0001
 RUFUS_PIP_SIZE = ${getPipSize(cfg.asset, cfg.rufusPipSize ?? null)}  # Размер 1 пипса для ${cfg.asset}
 
 def get_rufus_levels(price):
     """Ближайшие круглые уровни (каждые RUFUS_STEP)"""
     step = RUFUS_STEP
-    lower = round(int(price / step) * step, 5)
-    upper = round(lower + step, 5)
+    decimals = max(5, len(str(step).rstrip('0').split('.')[-1]) + 1)
+    lower = round(int(round(price / step)) * step, decimals)
+    upper = round(lower + step, decimals)
     return lower, upper
 
 def get_signal(prices, candles=None):

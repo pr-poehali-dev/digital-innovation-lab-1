@@ -1312,6 +1312,22 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
           </div>
 
           <div>
+            <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+              Пауза после сделки: {config.pauseAfterTrade === 0 ? "авто (= экспирация)" : `${config.pauseAfterTrade} сек`}
+            </Label>
+            <Slider min={0} max={300} step={5} value={[config.pauseAfterTrade]} onValueChange={([v]) => set({ pauseAfterTrade: v })} />
+            <p className="text-zinc-600 font-space-mono text-xs mt-1.5">
+              {config.pauseAfterTrade === 0
+                ? "⏱ Авто — бот ждёт ровно время экспирации + 5 сек"
+                : config.pauseAfterTrade <= 30
+                ? "⚡ Коротко — следующий сигнал почти сразу"
+                : config.pauseAfterTrade <= 120
+                ? "⚖️ Умеренно — даёт рынку время успокоиться"
+                : "🐢 Долго — меньше сделок, больше осторожности"}
+            </p>
+          </div>
+
+          <div>
             <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Выплата брокера: {config.payoutRate}%</Label>
             <Slider min={50} max={99} step={1} value={[config.payoutRate]} onValueChange={([v]) => set({ payoutRate: v })} />
             <p className="text-zinc-600 font-space-mono text-xs mt-1.5">

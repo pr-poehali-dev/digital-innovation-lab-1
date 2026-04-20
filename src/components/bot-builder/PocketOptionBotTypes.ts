@@ -45,6 +45,7 @@ export interface POBotConfig {
   invertSignalRufus: boolean
   invertSignalMartingale: boolean
   checkInterval: number
+  pauseAfterTrade: number
   payoutRate: number
   tradeDirection: "all" | "call_only" | "put_only"
   // Фильтр по времени
@@ -321,6 +322,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   invertSignalMartingale: false,
   tgProxy: "",
   checkInterval: 10,
+  pauseAfterTrade: 0,
   payoutRate: 92,
   tradeDirection: "all",
   timeFilterEnabled: false,
@@ -745,6 +747,7 @@ MARTINGALE_MULT  = ${cfg.martingaleMultiplier}
 MARTINGALE_STEPS = ${cfg.martingaleSteps}
 
 CHECK_INTERVAL   = ${cfg.checkInterval}      # Интервал проверки сигнала (сек)
+PAUSE_AFTER_TRADE = ${cfg.pauseAfterTrade ?? 0}      # 0 = авто (= экспирация + 5 сек)
 TRADE_DIRECTION  = "${cfg.tradeDirection ?? "all"}"  # "all" | "call_only" | "put_only"
 PAYOUT_RATE      = ${cfg.payoutRate ?? 0.85}         # Коэффициент выплаты (0.85 = 85%)
 
@@ -2395,7 +2398,8 @@ async def main():
                         _main_buttons()
                     )
                     print_stats()
-                    await asyncio.sleep(EXPIRY_SEC + 5)  # пауза после сделки = экспирация + 5 сек
+                    _pause = PAUSE_AFTER_TRADE if PAUSE_AFTER_TRADE > 0 else EXPIRY_SEC + 5
+                    await asyncio.sleep(_pause)  # пауза после сделки
                     if LOSS_STREAK_PAUSE_ENABLED:
                         if won:
                             _loss_streak = 0

@@ -1700,11 +1700,21 @@ class POClient:
                     self._candles_cache[asset] = candles
                 elif isinstance(payload, list):
                     self._candles_cache["__last__"] = payload
-            elif event in ("successopenOrder", "updateOrder"):
+            elif event in ("successopenOrder", "updateOrder", "closedOrder", "updateDeal", "successclosedOrder"):
+                print(f"[WS-ORDER] event={event} payload={str(payload)[:200]}")
                 if isinstance(payload, dict):
-                    oid = str(payload.get("id", ""))
+                    oid = str(payload.get("id", payload.get("deal_id", payload.get("order_id", ""))))
                     if oid:
                         self._orders[oid] = payload
+                elif isinstance(payload, list):
+                    for item in payload:
+                        if isinstance(item, dict):
+                            oid = str(item.get("id", item.get("deal_id", "")))
+                            if oid:
+                                self._orders[oid] = item
+            else:
+                if event and event not in ("updateAssets", "updateCharts", "updateOpenedDeals", "successupdatePending", "updateClosedDeals", "successupdateBalance", "successauth"):
+                    print(f"[WS-EVENT] {event}: {str(payload)[:120]}")
         except Exception:
             pass
 
@@ -1741,12 +1751,22 @@ class POClient:
             "isDemo": 1 if self.is_demo else 0,
             "tournamentId": 0, "requestId": oid,
         }])
+        _orders_before = set(self._orders.keys())
         await self._ws.send("42" + req)
-        for _ in range(10):
+        for _ in range(20):
             await asyncio.sleep(0.5)
+            # новый ордер появился
+            new_keys = set(self._orders.keys()) - _orders_before
+            if new_keys:
+                k = next(iter(new_keys))
+                v = self._orders[k]
+                print(f"[ORDER] Принят сервером: id={k} asset={v.get('asset','?')} dir={v.get('command','?')}")
+                return type("O", (), {"order_id": str(v.get("id", k))})()
+            # старый ордер по requestId или asset
             for k, v in self._orders.items():
-                if v.get("requestId") == oid or v.get("asset") == asset:
+                if v.get("requestId") == oid or (v.get("asset") == asset and k not in _orders_before):
                     return type("O", (), {"order_id": str(v.get("id", k))})()
+        print(f"[WARN] Ответ сервера на openOrder не получен за 10с — используем локальный ID")
         return type("O", (), {"order_id": oid})()
 
     async def get_deal(self, order_id):
@@ -3676,11 +3696,21 @@ class POClient:
                     self._candles_cache[asset] = candles
                 elif isinstance(payload, list):
                     self._candles_cache["__last__"] = payload
-            elif event in ("successopenOrder", "updateOrder"):
+            elif event in ("successopenOrder", "updateOrder", "closedOrder", "updateDeal", "successclosedOrder"):
+                print(f"[WS-ORDER] event={event} payload={str(payload)[:200]}")
                 if isinstance(payload, dict):
-                    oid = str(payload.get("id", ""))
+                    oid = str(payload.get("id", payload.get("deal_id", payload.get("order_id", ""))))
                     if oid:
                         self._orders[oid] = payload
+                elif isinstance(payload, list):
+                    for item in payload:
+                        if isinstance(item, dict):
+                            oid = str(item.get("id", item.get("deal_id", "")))
+                            if oid:
+                                self._orders[oid] = item
+            else:
+                if event and event not in ("updateAssets", "updateCharts", "updateOpenedDeals", "successupdatePending", "updateClosedDeals", "successupdateBalance", "successauth"):
+                    print(f"[WS-EVENT] {event}: {str(payload)[:120]}")
         except Exception:
             pass
 
@@ -3714,12 +3744,20 @@ class POClient:
             "isDemo": 1 if self.is_demo else 0,
             "requestId": oid,
         }])
+        _orders_before = set(self._orders.keys())
         await self._ws.send("42" + req)
-        for _ in range(10):
+        for _ in range(20):
             await asyncio.sleep(0.5)
+            new_keys = set(self._orders.keys()) - _orders_before
+            if new_keys:
+                k = next(iter(new_keys))
+                v = self._orders[k]
+                print(f"[ORDER] Принят сервером: id={k} asset={v.get('asset','?')}")
+                return type("O", (), {"order_id": str(v.get("id", k))})()
             for k, v in self._orders.items():
-                if v.get("requestId") == oid or v.get("asset") == asset:
+                if v.get("requestId") == oid or (v.get("asset") == asset and k not in _orders_before):
                     return type("O", (), {"order_id": str(v.get("id", k))})()
+        print(f"[WARN] Ответ сервера на openOrder не получен за 10с — используем локальный ID")
         return type("O", (), {"order_id": oid})()
 
     async def get_deal(self, order_id):

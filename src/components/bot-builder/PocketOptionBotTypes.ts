@@ -1666,6 +1666,11 @@ class POClient:
                 payload = json.loads(msg.decode("utf-8"))
                 ev = getattr(self, "_pending_event", None)
                 self._pending_event = None
+                # библиотека ловит ордер по requestId=="buy" в bytes
+                if isinstance(payload, dict) and payload.get("requestId") == "buy":
+                    oid = str(payload.get("id", ""))
+                    if oid:
+                        self._orders[oid] = payload
                 self._apply_event(ev, payload)
                 return
             # 451-["eventName",{"_placeholder":true}] — Socket.IO binary event
@@ -1758,11 +1763,9 @@ class POClient:
             "amount": amount,
             "action": action,
             "isDemo": 1 if self.is_demo else 0,
-            "requestId": oid,
+            "requestId": "buy",
             "optionType": 100,
             "time": duration,
-            "tournamentId": 0,
-            "isFastOption": False,
         }])
         _orders_before = set(self._orders.keys())
         await self._ws.send("42" + req)
@@ -3678,6 +3681,10 @@ class POClient:
                 payload = json.loads(msg.decode("utf-8"))
                 ev = getattr(self, "_pending_event", None)
                 self._pending_event = None
+                if isinstance(payload, dict) and payload.get("requestId") == "buy":
+                    oid = str(payload.get("id", ""))
+                    if oid:
+                        self._orders[oid] = payload
                 self._apply_event(ev, payload)
                 return
             if msg.startswith("451-"):
@@ -3756,11 +3763,9 @@ class POClient:
             "amount": amount,
             "action": action,
             "isDemo": 1 if self.is_demo else 0,
-            "requestId": oid,
+            "requestId": "buy",
             "optionType": 100,
             "time": duration,
-            "tournamentId": 0,
-            "isFastOption": False,
         }])
         _orders_before = set(self._orders.keys())
         await self._ws.send("42" + req)

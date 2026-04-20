@@ -123,7 +123,7 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
       const data = typeof raw === "string" ? JSON.parse(raw) : raw
       setResults(data.top)
       const topForex = data.top?.find((r: TrendResult) => r.category === "forex")
-      if (topForex) onSelect(topForex.asset_otc)
+      if (topForex) onSelect(topForex.asset)
     } catch {
       setError("Не удалось получить данные")
     } finally {
@@ -286,10 +286,10 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
 
                     <button
                       type="button"
-                      onClick={() => onSelect(r.asset_otc)}
+                      onClick={() => onSelect(r.asset)}
                       className="shrink-0 text-zinc-500 hover:text-yellow-400 font-space-mono text-xs transition-colors"
                     >
-                      OTC →
+                      →
                     </button>
                   </div>
 
@@ -323,7 +323,7 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
               )
             })}
             {visible && visible.length > 0 && (
-              <p className="text-zinc-600 font-space-mono text-xs text-center pt-0.5">Нажми "OTC →" — актив выберется автоматически</p>
+              <p className="text-zinc-600 font-space-mono text-xs text-center pt-0.5">Нажми "→" — актив выберется автоматически</p>
             )}
           </div>
         </>

@@ -1661,7 +1661,10 @@ class POClient:
                     continue
                 await self._handle(msg)
         except Exception:
+            pass
+        finally:
             self._connected = False
+            print("[WS] _recv_loop завершён — соединение закрыто")
 
     async def _handle(self, msg):
         try:
@@ -3710,7 +3713,10 @@ class POClient:
                     continue
                 await self._handle(msg)
         except Exception:
+            pass
+        finally:
             self._connected = False
+            print("[WS] _recv_loop завершён — соединение закрыто")
 
     async def _handle(self, msg):
         try:

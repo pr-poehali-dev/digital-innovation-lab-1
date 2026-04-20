@@ -1736,13 +1736,13 @@ class POClient:
                         if oid:
                             self._orders[oid] = item
                 if event == "successcloseOrder" and isinstance(payload, dict) and "deals" in payload:
-                    profit_close = payload.get("profit", 0)
                     for deal in payload.get("deals", []):
                         if isinstance(deal, dict):
                             deal_id = str(deal.get("id", ""))
                             if deal_id:
-                                deal["profit"] = profit_close
+                                deal["_closed"] = True
                                 self._orders[deal_id] = deal
+                                print(f"[WS-CLOSE] id={deal_id} profit={deal.get('profit')} win={deal.get('win')} raw={str(deal)[:250]}")
                 elif isinstance(payload, list):
                     for item in payload: _store_order(item)
                 else:
@@ -1824,19 +1824,28 @@ class POClient:
         wait_total = max(90, getattr(self, "_last_duration", 60) + 15)
         for _ in range(wait_total):
             await asyncio.sleep(1)
+            def _extract(d):
+                # ищем поля — используем get с sentinel чтобы различать 0 и None
+                _s = object()
+                for field in ("profit", "win", "result"):
+                    v = d.get(field, _s)
+                    if v is not _s and v is not None:
+                        return float(v)
+                return None
             # ищем в _orders по id (сервер кладёт туда закрытые сделки)
             if order_id in self._orders:
                 d = self._orders[order_id]
-                profit_raw = d.get("profit") or d.get("win") or d.get("result")
-                if profit_raw is not None:
-                    profit = float(profit_raw)
-                    return type("D", (), {"profit": profit, "id": order_id})()
+                if d.get("_closed"):
+                    profit = _extract(d)
+                    if profit is not None:
+                        print(f"[GET-DEAL] найден id={order_id} profit={profit}")
+                        return type("D", (), {"profit": profit, "id": order_id})()
             # ищем по любому ключу где id совпадает
             for k, d in self._orders.items():
-                if str(d.get("id", "")) == str(order_id):
-                    profit_raw = d.get("profit") or d.get("win") or d.get("result")
-                    if profit_raw is not None:
-                        profit = float(profit_raw)
+                if str(d.get("id", "")) == str(order_id) and d.get("_closed"):
+                    profit = _extract(d)
+                    if profit is not None:
+                        print(f"[GET-DEAL] найден (scan) id={order_id} profit={profit}")
                         return type("D", (), {"profit": profit, "id": order_id})()
         return None
 
@@ -3814,13 +3823,13 @@ class POClient:
                         if oid:
                             self._orders[oid] = item
                 if event == "successcloseOrder" and isinstance(payload, dict) and "deals" in payload:
-                    profit_close = payload.get("profit", 0)
                     for deal in payload.get("deals", []):
                         if isinstance(deal, dict):
                             deal_id = str(deal.get("id", ""))
                             if deal_id:
-                                deal["profit"] = profit_close
+                                deal["_closed"] = True
                                 self._orders[deal_id] = deal
+                                print(f"[WS-CLOSE] id={deal_id} profit={deal.get('profit')} win={deal.get('win')} raw={str(deal)[:250]}")
                 elif isinstance(payload, list):
                     for item in payload: _store_order(item)
                 else:

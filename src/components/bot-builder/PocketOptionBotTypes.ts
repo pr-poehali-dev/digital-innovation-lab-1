@@ -1938,7 +1938,6 @@ async def get_balance(client):
     """Текущий баланс"""
     try:
         b = await client.get_balance()
-        print(f"[DEBUG] get_balance raw: {b} | type: {type(b)} | attrs: {dir(b)}")
         if b is None:
             return 0.0, "USD"
         amount = 0.0
@@ -2044,6 +2043,8 @@ async def main():
     _reconnect_attempts = 0
     _loss_streak = 0
     _loss_streak_pause_until = 0
+    _last_signal_time = __import__("time").time()
+    _no_signal_alert_sent = False
 
     while True:
         try:

@@ -1719,13 +1719,21 @@ class POClient:
             pass
 
     async def get_balance(self):
-        await self._ws.send('42["getBalance"]')
-        await asyncio.sleep(1)
+        if self._balance > 0:
+            return type("B", (), {"balance": self._balance, "currency": self._currency, "is_demo": self.is_demo})()
+        try:
+            await self._ws.send('42["getBalance"]')
+            await asyncio.sleep(1)
+        except Exception:
+            pass
         return type("B", (), {"balance": self._balance, "currency": self._currency, "is_demo": self.is_demo})()
 
     async def get_candles(self, asset, timeframe=60, count=100):
         req = json.dumps(["getCandles", {"asset": asset, "period": timeframe, "count": count}])
-        await self._ws.send("42" + req)
+        try:
+            await self._ws.send("42" + req)
+        except Exception:
+            return []
         for _ in range(15):
             await asyncio.sleep(0.5)
             if asset in self._candles_cache:
@@ -1758,6 +1766,8 @@ class POClient:
         _deadline = _t.time() + 15
         while _t.time() < _deadline:
             await asyncio.sleep(0.3)
+            if not self._connected:
+                raise ConnectionError("WS disconnected while waiting for order")
             new_keys = set(self._orders.keys()) - _orders_before
             if new_keys:
                 k = next(iter(new_keys))
@@ -3749,6 +3759,8 @@ class POClient:
         _deadline2 = _t2.time() + 15
         while _t2.time() < _deadline2:
             await asyncio.sleep(0.3)
+            if not self._connected:
+                raise ConnectionError("WS disconnected while waiting for order")
             new_keys = set(self._orders.keys()) - _orders_before
             if new_keys:
                 k = next(iter(new_keys))

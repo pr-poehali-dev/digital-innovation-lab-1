@@ -1752,12 +1752,12 @@ class POClient:
 
     async def place_order(self, asset, amount, direction, duration):
         oid = str(uuid.uuid4())
-        cmd = 0 if direction == "CALL" else 1
+        action = "call" if direction == "CALL" else "put"
         req = json.dumps(["openOrder", {
             "asset": asset, "amount": amount,
-            "command": cmd, "time": duration,
-            "isDemo": 1 if self.is_demo else 0,
-            "tournamentId": 0, "requestId": oid,
+            "action": action, "isDemo": 1 if self.is_demo else 0,
+            "requestId": oid, "optionType": 100,
+            "time": duration,
         }])
         _orders_before = set(self._orders.keys())
         await self._ws.send("42" + req)
@@ -3745,12 +3745,12 @@ class POClient:
 
     async def place_order(self, asset, amount, direction, duration):
         oid = str(uuid.uuid4())
-        cmd = 0 if direction == "CALL" else 1
+        action = "call" if direction == "CALL" else "put"
         req = json.dumps(["openOrder", {
             "asset": asset, "amount": amount,
-            "command": cmd, "time": duration,
-            "isDemo": 1 if self.is_demo else 0,
-            "requestId": oid,
+            "action": action, "isDemo": 1 if self.is_demo else 0,
+            "requestId": oid, "optionType": 100,
+            "time": duration,
         }])
         _orders_before = set(self._orders.keys())
         await self._ws.send("42" + req)

@@ -1753,20 +1753,32 @@ class POClient:
         }])
         _orders_before = set(self._orders.keys())
         await self._ws.send("42" + req)
-        for _ in range(20):
-            await asyncio.sleep(0.5)
-            # новый ордер появился
-            new_keys = set(self._orders.keys()) - _orders_before
-            if new_keys:
-                k = next(iter(new_keys))
-                v = self._orders[k]
-                print(f"[ORDER] Принят сервером: id={k} asset={v.get('asset','?')} dir={v.get('command','?')}")
-                return type("O", (), {"order_id": str(v.get("id", k))})()
-            # старый ордер по requestId или asset
-            for k, v in self._orders.items():
-                if v.get("requestId") == oid or (v.get("asset") == asset and k not in _orders_before):
+        print(f"[ORDER-SEND] {req[:120]}")
+        # читаем сообщения прямо здесь — не ждём _recv_loop
+        import time as _t
+        _deadline = _t.time() + 15
+        while _t.time() < _deadline:
+            try:
+                raw = await asyncio.wait_for(self._ws.recv(), timeout=1)
+                if raw == "2":
+                    await self._ws.send("3")
+                    continue
+                print(f"[ORDER-RECV] {raw[:200] if isinstance(raw,str) else raw.decode()[:200]}")
+                await self._handle(raw)
+                new_keys = set(self._orders.keys()) - _orders_before
+                if new_keys:
+                    k = next(iter(new_keys))
+                    v = self._orders[k]
+                    print(f"[ORDER-OK] id={k}")
                     return type("O", (), {"order_id": str(v.get("id", k))})()
-        print(f"[WARN] Ответ сервера на openOrder не получен за 10с — используем локальный ID")
+            except asyncio.TimeoutError:
+                # проверяем через _recv_loop (на случай если уже обработано)
+                new_keys = set(self._orders.keys()) - _orders_before
+                if new_keys:
+                    k = next(iter(new_keys))
+                    v = self._orders[k]
+                    return type("O", (), {"order_id": str(v.get("id", k))})()
+        print(f"[WARN] Ответ сервера на openOrder не получен за 15с — используем локальный ID")
         return type("O", (), {"order_id": oid})()
 
     async def get_deal(self, order_id):
@@ -3746,18 +3758,30 @@ class POClient:
         }])
         _orders_before = set(self._orders.keys())
         await self._ws.send("42" + req)
-        for _ in range(20):
-            await asyncio.sleep(0.5)
-            new_keys = set(self._orders.keys()) - _orders_before
-            if new_keys:
-                k = next(iter(new_keys))
-                v = self._orders[k]
-                print(f"[ORDER] Принят сервером: id={k} asset={v.get('asset','?')}")
-                return type("O", (), {"order_id": str(v.get("id", k))})()
-            for k, v in self._orders.items():
-                if v.get("requestId") == oid or (v.get("asset") == asset and k not in _orders_before):
+        print(f"[ORDER-SEND] {req[:120]}")
+        import time as _t2
+        _deadline2 = _t2.time() + 15
+        while _t2.time() < _deadline2:
+            try:
+                raw = await asyncio.wait_for(self._ws.recv(), timeout=1)
+                if raw == "2":
+                    await self._ws.send("3")
+                    continue
+                print(f"[ORDER-RECV] {raw[:200] if isinstance(raw,str) else raw.decode()[:200]}")
+                await self._handle(raw)
+                new_keys = set(self._orders.keys()) - _orders_before
+                if new_keys:
+                    k = next(iter(new_keys))
+                    v = self._orders[k]
+                    print(f"[ORDER-OK] id={k}")
                     return type("O", (), {"order_id": str(v.get("id", k))})()
-        print(f"[WARN] Ответ сервера на openOrder не получен за 10с — используем локальный ID")
+            except asyncio.TimeoutError:
+                new_keys = set(self._orders.keys()) - _orders_before
+                if new_keys:
+                    k = next(iter(new_keys))
+                    v = self._orders[k]
+                    return type("O", (), {"order_id": str(v.get("id", k))})()
+        print(f"[WARN] Ответ сервера на openOrder не получен за 15с — используем локальный ID")
         return type("O", (), {"order_id": oid})()
 
     async def get_deal(self, order_id):

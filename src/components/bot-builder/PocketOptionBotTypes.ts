@@ -1824,6 +1824,9 @@ class POClient:
         wait_total = max(90, getattr(self, "_last_duration", 60) + 15)
         for _ in range(wait_total):
             await asyncio.sleep(1)
+            if not self._connected:
+                print(f"[GET-DEAL] WS отвалился — прерываем ожидание id={order_id}")
+                return None
             def _extract(d):
                 # ищем поля — используем get с sentinel чтобы различать 0 и None
                 _s = object()
@@ -2046,6 +2049,9 @@ async def check_result(client, order_id, balance_before, bet):
                 print(f"[WAIT] Попытка {attempt+1}: {e_inner}")
                 await asyncio.sleep(1)
                 continue
+        if not client._connected:
+            print(f"[WARN] WS отвалился во время ожидания — поднимаю реконнект")
+            raise ConnectionError("WS disconnected during check_result")
         print(f"[WARN] Таймаут get_deal — fallback по балансу")
         balance_after, _ = await get_balance(client)
         diff = round(balance_after - balance_before, 2)
@@ -2054,6 +2060,8 @@ async def check_result(client, order_id, balance_before, bet):
         loss_amount = round(bet, 2) if not won else 0.0
         print(f"[WARN] diff={diff} → {'ВЫИГРЫШ ✅' if won else 'ПРОИГРЫШ ❌'} | Профит: {profit}")
         return won, profit, loss_amount
+    except ConnectionError:
+        raise
     except Exception as e:
         print(f"[ERROR] Результат: {e}")
         return False, 0.0, round(bet, 2)

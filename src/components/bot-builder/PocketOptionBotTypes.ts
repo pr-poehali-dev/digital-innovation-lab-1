@@ -2029,7 +2029,6 @@ async def check_result(client, order_id, balance_before, bet):
                 if deal is None:
                     await asyncio.sleep(1)
                     continue
-                print(f"[DEBUG-DEAL] type={type(deal)} dict={getattr(deal,'__dict__',deal)}")
                 profit_raw = getattr(deal, 'profit', None) or getattr(deal, 'win', None) or getattr(deal, 'result', None)
                 if profit_raw is None and hasattr(deal, '__dict__'):
                     profit_raw = deal.__dict__.get('profit') or deal.__dict__.get('win') or deal.__dict__.get('result')

@@ -729,7 +729,7 @@ from datetime import datetime
 ASSET        = os.environ.get("PO_ASSET", "${assetSymbol}")
 EXPIRY_SEC   = ${String(parseInt(cfg.expiry) * 60)}             # Экспирация в секундах
 CANDLE_TF    = 60                                               # Таймфрейм свечей для индикаторов (1 мин)
-TWELVE_DATA_KEYS = [k.strip() for k in os.environ.get("TWELVE_DATA_KEY", "c7268bb91057482d9e78c17a85ea45fb").split(",") if k.strip()]
+TWELVE_DATA_KEYS = [k.strip() for k in os.environ.get("TWELVE_DATA_KEY", "c7268bb91057482d9e78c17a85ea45fb,69cfc0c18cdc44cc806ebdb1a1903b51").split(",") if k.strip()]
 TWELVE_DATA_KEY = TWELVE_DATA_KEYS[0] if TWELVE_DATA_KEYS else ""
 _td_key_index = 0
 TWELVE_DATA_SYMBOL = "${(() => { const s = assetSymbol.replace(/_otc$/,'').replace(/^#/,'').toUpperCase(); if (s.endsWith('USDT')) return s.replace('USDT','/USD'); const m = s.match(/^([A-Z]{3})([A-Z]{3})$/); return m ? m[1]+'/'+m[2] : s; })()}"

@@ -2395,6 +2395,7 @@ async def main():
                         _main_buttons()
                     )
                     print_stats()
+                    await asyncio.sleep(EXPIRY_SEC + 5)  # пауза после сделки = экспирация + 5 сек
                     if LOSS_STREAK_PAUSE_ENABLED:
                         if won:
                             _loss_streak = 0

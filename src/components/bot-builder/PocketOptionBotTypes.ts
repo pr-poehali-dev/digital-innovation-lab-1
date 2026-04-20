@@ -729,7 +729,9 @@ from datetime import datetime
 ASSET        = os.environ.get("PO_ASSET", "${assetSymbol}")
 EXPIRY_SEC   = ${String(parseInt(cfg.expiry) * 60)}             # Экспирация в секундах
 CANDLE_TF    = 60                                               # Таймфрейм свечей для индикаторов (1 мин)
-TWELVE_DATA_KEY = os.environ.get("TWELVE_DATA_KEY", "c7268bb91057482d9e78c17a85ea45fb")
+TWELVE_DATA_KEYS = [k.strip() for k in os.environ.get("TWELVE_DATA_KEY", "c7268bb91057482d9e78c17a85ea45fb").split(",") if k.strip()]
+TWELVE_DATA_KEY = TWELVE_DATA_KEYS[0] if TWELVE_DATA_KEYS else ""
+_td_key_index = 0
 TWELVE_DATA_SYMBOL = "${(() => { const s = assetSymbol.replace(/_otc$/,'').replace(/^#/,'').toUpperCase(); if (s.endsWith('USDT')) return s.replace('USDT','/USD'); const m = s.match(/^([A-Z]{3})([A-Z]{3})$/); return m ? m[1]+'/'+m[2] : s; })()}"
 
 BASE_BET     = ${cfg.betAmount}          # Базовая ставка ₽
@@ -1524,32 +1526,45 @@ _td_cache = {"candles": [], "prices": [], "ts": 0}
 def fetch_candles_twelvedata():
     """Получение свежих свечей M1 с Twelve Data — обновляет сразу после закрытия новой свечи"""
     import urllib.request as _ur, json as _jj, time as _ti, math as _math
-    global _td_cache
+    global _td_cache, _td_key_index, TWELVE_DATA_KEY
     now = _ti.time()
     minute_now = int(now // 60)
     minute_cached = int(_td_cache["ts"] // 60) if _td_cache["ts"] else 0
     fresh = (minute_now == minute_cached) and _td_cache["candles"]
     if fresh:
         return _td_cache["candles"], _td_cache["prices"]
-    try:
-        url = f"https://api.twelvedata.com/time_series?symbol={TWELVE_DATA_SYMBOL}&interval=1min&outputsize=50&apikey={TWELVE_DATA_KEY}"
-        req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        data = _jj.loads(_ur.urlopen(req, timeout=10).read())
-        if data.get("status") == "error":
-            raise Exception(data.get("message", "TD error"))
-        values = list(reversed(data.get("values", [])))
-        candles = [(float(c["open"]), float(c["high"]), float(c["low"]), float(c["close"])) for c in values]
-        prices  = [float(c["close"]) for c in values]
-        _td_cache = {"candles": candles, "prices": prices, "ts": now}
-        print(f"[CANDLES] Twelve Data: {len(prices)} свечей M1 | последняя цена: {prices[-1]:.5f}")
-        return candles, prices
-    except Exception as e:
-        cache_age = int(now - _td_cache["ts"]) if _td_cache["ts"] else 99999
-        if cache_age > 600:
-            print(f"[CANDLES] Twelve Data ошибка: {e} — кэш устарел ({cache_age}с), переключаемся на PO API")
-            return None, None
-        print(f"[CANDLES] Twelve Data ошибка: {e} — используем кэш ({cache_age}с)")
-        return _td_cache["candles"], _td_cache["prices"]
+    last_error = None
+    for attempt in range(len(TWELVE_DATA_KEYS)):
+        key = TWELVE_DATA_KEYS[(_td_key_index + attempt) % len(TWELVE_DATA_KEYS)]
+        try:
+            url = f"https://api.twelvedata.com/time_series?symbol={TWELVE_DATA_SYMBOL}&interval=1min&outputsize=50&apikey={key}"
+            req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            data = _jj.loads(_ur.urlopen(req, timeout=10).read())
+            if data.get("status") == "error":
+                msg = data.get("message", "TD error")
+                if "credits" in msg.lower() or "limit" in msg.lower():
+                    print(f"[CANDLES] TD ключ {attempt+1}/{len(TWELVE_DATA_KEYS)} исчерпан — пробую следующий")
+                    last_error = Exception(msg)
+                    continue
+                raise Exception(msg)
+            values = list(reversed(data.get("values", [])))
+            candles = [(float(c["open"]), float(c["high"]), float(c["low"]), float(c["close"])) for c in values]
+            prices  = [float(c["close"]) for c in values]
+            _td_cache = {"candles": candles, "prices": prices, "ts": now}
+            _td_key_index = (_td_key_index + attempt) % len(TWELVE_DATA_KEYS)
+            TWELVE_DATA_KEY = key
+            print(f"[CANDLES] Twelve Data: {len(prices)} свечей M1 | последняя цена: {prices[-1]:.5f}")
+            return candles, prices
+        except Exception as e:
+            last_error = e
+            continue
+    e = last_error or Exception("no keys")
+    cache_age = int(now - _td_cache["ts"]) if _td_cache["ts"] else 99999
+    if cache_age > 600:
+        print(f"[CANDLES] Twelve Data ошибка: {e} — кэш устарел ({cache_age}с), переключаемся на PO API")
+        return None, None
+    print(f"[CANDLES] Twelve Data ошибка: {e} — используем кэш ({cache_age}с)")
+    return _td_cache["candles"], _td_cache["prices"]
 
 # ===== PO WEBSOCKET CLIENT =====
 def _extract_session_cookie(session_id_str):
@@ -1899,6 +1914,28 @@ async def get_candles_data(client):
         except Exception as e:
             print(f"[CACHE_ERR] {e}")
             continue
+    # OTC недоступен — пробуем обычный актив без _otc
+    if "_otc" in ASSET.lower():
+        fallback = ASSET.replace("_otc", "").replace("#", "")
+        print(f"[WARN] OTC актив недоступен — переключаюсь на {fallback}")
+        for name in [f"#{fallback}", fallback]:
+            try:
+                raw = await try_get_candles(client, name)
+                if not raw:
+                    continue
+                _resolved_asset = name
+                sorted_raw = sorted(raw, key=lambda c: c.time) if hasattr(raw[0], 'time') else list(raw)
+                closed_raw = sorted_raw[:-1]
+                if not closed_raw:
+                    continue
+                cur_candle = sorted_raw[-1]
+                candles_all = [(c.open, c.high, c.low, c.close) for c in closed_raw]
+                candles_all += [(cur_candle.open, cur_candle.high, cur_candle.low, cur_candle.close)]
+                prices_all = [c[3] for c in candles_all]
+                print(f"[INFO] Работаю с {name} вместо OTC")
+                return candles_all, prices_all
+            except Exception:
+                continue
     print(f"[FATAL] Актив {ASSET} не найден ни в одном формате — бот остановлен")
     print(f"[HINT] Выбери другой актив из списка сканера тренда")
     try:

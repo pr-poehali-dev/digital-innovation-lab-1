@@ -2478,7 +2478,7 @@ async def main():
                         _main_buttons()
                     )
                     print_stats()
-                    _pause = PAUSE_AFTER_TRADE if PAUSE_AFTER_TRADE > 0 else EXPIRY_SEC + 5
+                    _pause = max(PAUSE_AFTER_TRADE, EXPIRY_SEC + 5) if PAUSE_AFTER_TRADE > 0 else EXPIRY_SEC + 5
                     await asyncio.sleep(_pause)  # пауза после сделки
                     if LOSS_STREAK_PAUSE_ENABLED:
                         if won:

@@ -1758,14 +1758,17 @@ class POClient:
     async def place_order(self, asset, amount, direction, duration):
         oid = str(uuid.uuid4())
         action = "call" if direction == "CALL" else "put"
+        # убираем # из актива — сервер принимает без него
+        clean_asset = asset.lstrip("#")
         req = json.dumps(["openOrder", {
-            "asset": asset,
+            "asset": clean_asset,
             "amount": amount,
             "action": action,
             "isDemo": 1 if self.is_demo else 0,
             "requestId": "buy",
             "optionType": 100,
             "time": duration,
+            "tournamentId": 0,
         }])
         _orders_before = set(self._orders.keys())
         await self._ws.send("42" + req)
@@ -3758,14 +3761,17 @@ class POClient:
     async def place_order(self, asset, amount, direction, duration):
         oid = str(uuid.uuid4())
         action = "call" if direction == "CALL" else "put"
+        # убираем # из актива — сервер принимает без него
+        clean_asset = asset.lstrip("#")
         req = json.dumps(["openOrder", {
-            "asset": asset,
+            "asset": clean_asset,
             "amount": amount,
             "action": action,
             "isDemo": 1 if self.is_demo else 0,
             "requestId": "buy",
             "optionType": 100,
             "time": duration,
+            "tournamentId": 0,
         }])
         _orders_before = set(self._orders.keys())
         await self._ws.send("42" + req)

@@ -1923,6 +1923,13 @@ async def _resolve_trade_asset(client):
 async def place_trade(client, direction, amount):
     """Открытие опциона с авто-поиском формата актива"""
     global _resolved_asset
+    if not client._connected:
+        print("[RECONNECT] WS отключён перед сделкой — переподключаюсь...")
+        ok = await client.connect()
+        if not ok:
+            print("[ERROR] place_trade: переподключение не удалось")
+            return None
+        await asyncio.sleep(2)
     base = ASSET.replace("_otc", "").replace("#", "")
     is_otc = "otc" in ASSET.lower()
     candidates_try = []
@@ -1947,6 +1954,10 @@ async def place_trade(client, direction, amount):
                 print(f"[ASSET] {trade_asset} не подходит, пробуем следующий...")
                 continue
             print(f"[ERROR] place_trade: {e}")
+            if not client._connected:
+                print("[RECONNECT] WS упал во время сделки — переподключаюсь...")
+                await client.connect()
+                await asyncio.sleep(2)
             return None
     print(f"[ERROR] place_trade: актив {ASSET} не найден ни в одном формате")
     return None

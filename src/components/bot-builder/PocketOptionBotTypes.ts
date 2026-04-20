@@ -2372,6 +2372,10 @@ async def main():
                 tg("\\n".join(tg_parts))
                 balance_before, _ = await get_balance(client)
                 order_id = await place_trade(client, signal, bet)
+                if not order_id:
+                    print(f"[SKIP] Сделка не открыта — ждём {CHECK_INTERVAL} сек перед следующей попыткой")
+                    await asyncio.sleep(CHECK_INTERVAL)
+                    continue
                 if order_id:
                     won, profit, loss_amount = await check_result(client, order_id, balance_before, bet)
                     _update_daily_stats(won, profit, loss_amount)

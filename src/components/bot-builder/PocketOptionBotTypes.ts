@@ -746,6 +746,7 @@ MARTINGALE_STEPS = ${cfg.martingaleSteps}
 
 CHECK_INTERVAL   = ${cfg.checkInterval}      # Интервал проверки сигнала (сек)
 TRADE_DIRECTION  = "${cfg.tradeDirection ?? "all"}"  # "all" | "call_only" | "put_only"
+PAYOUT_RATE      = ${cfg.payoutRate ?? 0.85}         # Коэффициент выплаты (0.85 = 85%)
 
 TIME_FILTER_ENABLED   = ${cfg.timeFilterEnabled ? "True" : "False"}
 TIME_FILTER_FROM      = "${cfg.timeFilterFrom ?? "09:00"}"

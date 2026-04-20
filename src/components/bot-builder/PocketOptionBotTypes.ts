@@ -2027,8 +2027,9 @@ async def check_result(client, order_id, balance_before, bet):
                     await asyncio.sleep(1)
                     continue
                 profit_val = float(profit_raw)
-                won = profit_val > 0
-                profit = round(profit_val, 2) if won else 0.0
+                won = profit_val > bet
+                net_profit = round(profit_val - bet, 2) if won else 0.0
+                profit = net_profit
                 loss_amount = round(bet, 2) if not won else 0.0
                 status = "ВЫИГРЫШ ✅" if won else "ПРОИГРЫШ ❌"
                 print(f"[RESULT] {status} | deal.profit={profit_val} | bet={bet} | Профит: {profit}")

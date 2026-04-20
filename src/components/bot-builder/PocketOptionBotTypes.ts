@@ -1762,6 +1762,7 @@ class POClient:
             "optionType": 100,
             "time": duration,
             "tournamentId": 0,
+            "isFastOption": False,
         }])
         _orders_before = set(self._orders.keys())
         await self._ws.send("42" + req)
@@ -3759,6 +3760,7 @@ class POClient:
             "optionType": 100,
             "time": duration,
             "tournamentId": 0,
+            "isFastOption": False,
         }])
         _orders_before = set(self._orders.keys())
         await self._ws.send("42" + req)

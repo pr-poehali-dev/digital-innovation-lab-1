@@ -1712,7 +1712,7 @@ class POClient:
                     self._candles_cache[asset] = candles
                 elif isinstance(payload, list):
                     self._candles_cache["__last__"] = payload
-            elif event in ("successopenOrder", "updateOrder", "closedOrder", "updateDeal", "successclosedOrder", "updateClosedDeals"):
+            elif event in ("successopenOrder", "updateOrder", "closedOrder", "updateDeal", "successclosedOrder", "updateClosedDeals", "successcloseOrder"):
                 if event != "updateClosedDeals":
                     print(f"[WS-ORDER] event={event} payload={str(payload)[:200]}")
                 def _store_order(item):
@@ -1720,7 +1720,15 @@ class POClient:
                         oid = str(item.get("id", item.get("deal_id", item.get("order_id", ""))))
                         if oid:
                             self._orders[oid] = item
-                if isinstance(payload, list):
+                if event == "successcloseOrder" and isinstance(payload, dict) and "deals" in payload:
+                    profit_close = payload.get("profit", 0)
+                    for deal in payload.get("deals", []):
+                        if isinstance(deal, dict):
+                            deal_id = str(deal.get("id", ""))
+                            if deal_id:
+                                deal["profit"] = profit_close
+                                self._orders[deal_id] = deal
+                elif isinstance(payload, list):
                     for item in payload: _store_order(item)
                 else:
                     _store_order(payload)
@@ -3759,7 +3767,7 @@ class POClient:
                     self._candles_cache[asset] = candles
                 elif isinstance(payload, list):
                     self._candles_cache["__last__"] = payload
-            elif event in ("successopenOrder", "updateOrder", "closedOrder", "updateDeal", "successclosedOrder", "updateClosedDeals"):
+            elif event in ("successopenOrder", "updateOrder", "closedOrder", "updateDeal", "successclosedOrder", "updateClosedDeals", "successcloseOrder"):
                 if event != "updateClosedDeals":
                     print(f"[WS-ORDER] event={event} payload={str(payload)[:200]}")
                 def _store_order(item):
@@ -3767,7 +3775,15 @@ class POClient:
                         oid = str(item.get("id", item.get("deal_id", item.get("order_id", ""))))
                         if oid:
                             self._orders[oid] = item
-                if isinstance(payload, list):
+                if event == "successcloseOrder" and isinstance(payload, dict) and "deals" in payload:
+                    profit_close = payload.get("profit", 0)
+                    for deal in payload.get("deals", []):
+                        if isinstance(deal, dict):
+                            deal_id = str(deal.get("id", ""))
+                            if deal_id:
+                                deal["profit"] = profit_close
+                                self._orders[deal_id] = deal
+                elif isinstance(payload, list):
                     for item in payload: _store_order(item)
                 else:
                     _store_order(payload)

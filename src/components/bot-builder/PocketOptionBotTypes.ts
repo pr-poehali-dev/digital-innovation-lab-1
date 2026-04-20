@@ -1754,14 +1754,18 @@ class POClient:
         oid = str(uuid.uuid4())
         action = "call" if direction == "CALL" else "put"
         req = json.dumps(["openOrder", {
-            "asset": asset, "amount": amount,
-            "action": action, "isDemo": 1 if self.is_demo else 0,
-            "requestId": oid, "optionType": 100,
+            "asset": asset,
+            "amount": amount,
+            "action": action,
+            "isDemo": 1 if self.is_demo else 0,
+            "requestId": oid,
+            "optionType": 100,
             "time": duration,
+            "tournamentId": 0,
         }])
         _orders_before = set(self._orders.keys())
         await self._ws.send("42" + req)
-        print(f"[ORDER-SEND] {req[:120]}")
+        print(f"[ORDER-SEND] {req}")
         import time as _t
         _deadline = _t.time() + 15
         while _t.time() < _deadline:
@@ -3747,14 +3751,18 @@ class POClient:
         oid = str(uuid.uuid4())
         action = "call" if direction == "CALL" else "put"
         req = json.dumps(["openOrder", {
-            "asset": asset, "amount": amount,
-            "action": action, "isDemo": 1 if self.is_demo else 0,
-            "requestId": oid, "optionType": 100,
+            "asset": asset,
+            "amount": amount,
+            "action": action,
+            "isDemo": 1 if self.is_demo else 0,
+            "requestId": oid,
+            "optionType": 100,
             "time": duration,
+            "tournamentId": 0,
         }])
         _orders_before = set(self._orders.keys())
         await self._ws.send("42" + req)
-        print(f"[ORDER-SEND] {req[:120]}")
+        print(f"[ORDER-SEND] {req}")
         import time as _t2
         _deadline2 = _t2.time() + 15
         while _t2.time() < _deadline2:

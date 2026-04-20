@@ -1770,6 +1770,7 @@ class POClient:
             "time": duration,
             "tournamentId": 0,
         }])
+        self._last_duration = duration
         _orders_before = set(self._orders.keys())
         await self._ws.send("42" + req)
         print(f"[ORDER-SEND] {req}")
@@ -1789,9 +1790,10 @@ class POClient:
         return type("O", (), {"order_id": oid})()
 
     async def get_deal(self, order_id):
-        # ждём до 120 сек пока сделка закроется
-        for _ in range(60):
-            await asyncio.sleep(2)
+        # ждём до (экспирация + 15 сек)
+        wait_total = max(90, getattr(self, "_last_duration", 60) + 15)
+        for _ in range(wait_total):
+            await asyncio.sleep(1)
             # ищем в _orders по id (сервер кладёт туда закрытые сделки)
             if order_id in self._orders:
                 d = self._orders[order_id]
@@ -3784,6 +3786,7 @@ class POClient:
             "time": duration,
             "tournamentId": 0,
         }])
+        self._last_duration = duration
         _orders_before = set(self._orders.keys())
         await self._ws.send("42" + req)
         print(f"[ORDER-SEND] {req}")

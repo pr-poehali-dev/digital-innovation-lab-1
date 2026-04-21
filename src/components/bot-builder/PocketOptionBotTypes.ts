@@ -2523,6 +2523,7 @@ async def main():
                 order_id = await place_trade(client, signal, bet)
                 if not order_id:
                     print(f"[SKIP] Сделка не открыта — ждём {CHECK_INTERVAL} сек перед следующей попыткой")
+                    tg_info(f"⚠️ <b>[{BOT_NAME}] Сделка не открыта</b>\\nWS недоступен, сигнал пропущен: {signal} {ASSET}\\nЖду {CHECK_INTERVAL} сек...")
                     await asyncio.sleep(CHECK_INTERVAL)
                     continue
                 tg_parts = [f"{emoji} <b>[{BOT_NAME}] Сделка открыта</b>", f"{signal} | {bet} {currency} | {ASSET} | {EXPIRY_SEC//60} мин"]
@@ -4419,6 +4420,7 @@ async def main():
             order_id = await place_trade(client, signal, bet)
             if not order_id:
                 print(f"[SKIP] Комбо-сделка не открыта — ждём {CHECK_INTERVAL} сек")
+                tg_info(f"⚠️ <b>[{BOT_NAME}] Сделка не открыта</b>\\nWS недоступен, сигнал пропущен: {signal} {ASSET}\\nЖду {CHECK_INTERVAL} сек...")
                 await asyncio.sleep(CHECK_INTERVAL)
                 continue
             tg_parts = [f"{emoji} <b>[{BOT_NAME}] Комбо-сделка</b>", f"{signal} | {bet} {currency} | {ASSET}"]

@@ -2030,11 +2030,18 @@ async def check_result(client, order_id, balance_before, bet):
             try:
                 deal = await client.get_deal(order_id)
                 if deal is None:
+                    if attempt % 10 == 0:
+                        print(f"[WAIT] Попытка {attempt+1}/120 — deal=None, ожидаем...")
                     await asyncio.sleep(1)
                     continue
-                profit_raw = getattr(deal, 'profit', None) or getattr(deal, 'win', None) or getattr(deal, 'result', None)
+                print(f"[WAIT] deal получен: {deal.__dict__ if hasattr(deal, '__dict__') else deal}")
+                def _first_not_none(*vals):
+                    for v in vals:
+                        if v is not None: return v
+                    return None
+                profit_raw = _first_not_none(getattr(deal, 'profit', None), getattr(deal, 'win', None), getattr(deal, 'result', None))
                 if profit_raw is None and hasattr(deal, '__dict__'):
-                    profit_raw = deal.__dict__.get('profit') or deal.__dict__.get('win') or deal.__dict__.get('result')
+                    profit_raw = _first_not_none(deal.__dict__.get('profit'), deal.__dict__.get('win'), deal.__dict__.get('result'))
                 if profit_raw is None:
                     await asyncio.sleep(1)
                     continue

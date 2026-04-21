@@ -2040,14 +2040,32 @@ async def check_result(client, order_id, balance_before, bet, after_reconnect=Fa
     print(f"[WAIT] Ожидаем результат...")
     try:
         if after_reconnect:
-            print(f"[WAIT] Режим после реконнекта — сразу fallback по балансу (сделка могла истечь)")
+            print(f"[WAIT] Режим после реконнекта — жду результат через get_deal (до {EXPIRY_SEC + 60} сек)")
+            for _ra in range(EXPIRY_SEC + 60):
+                try:
+                    deal = await client.get_deal(order_id)
+                    if deal is not None:
+                        _profit_raw = getattr(deal, "profit", None) or (deal.get("profit") if isinstance(deal, dict) else None)
+                        if _profit_raw is not None:
+                            _p = float(_profit_raw)
+                            won = _p > 0
+                            profit = round(_p, 2) if won else 0.0
+                            loss_amount = round(bet, 2) if not won else 0.0
+                            print(f"[RECONNECT-RESULT] get_deal → {'ВЫИГРЫШ ✅' if won else 'ПРОИГРЫШ ❌'} | Профит: {profit}")
+                            return won, profit, loss_amount
+                except Exception:
+                    pass
+                if _ra % 10 == 0:
+                    print(f"[RECONNECT-WAIT] Ожидаем результат... {_ra}/{EXPIRY_SEC + 60} сек")
+                await asyncio.sleep(1)
+            print(f"[RECONNECT-RESULT] get_deal не дал результат — fallback по балансу")
             await asyncio.sleep(3)
             balance_after, _ = await get_balance(client)
             diff = round(balance_after - balance_before, 2)
             won = diff > 0
             profit = round(diff, 2) if won else 0.0
             loss_amount = round(bet, 2) if not won else 0.0
-            print(f"[RECONNECT-RESULT] diff={diff} → {'ВЫИГРЫШ ✅' if won else 'ПРОИГРЫШ ❌'} | Профит: {profit}")
+            print(f"[RECONNECT-RESULT] баланс diff={diff} → {'ВЫИГРЫШ ✅' if won else 'ПРОИГРЫШ ❌'} | Профит: {profit}")
             return won, profit, loss_amount
         _ws_disconnect_count = 0
         for attempt in range(120):
@@ -2231,6 +2249,7 @@ async def main():
     _active_order_id = None
     _active_order_balance_before = 0.0
     _active_order_bet = 0.0
+    _active_order_open_ts = 0.0
 
     while True:
         try:
@@ -2517,6 +2536,7 @@ async def main():
                     _active_order_id = order_id
                     _active_order_balance_before = balance_before
                     _active_order_bet = bet
+                    _active_order_open_ts = __import__("time").time()
                     won, profit, loss_amount = await check_result(client, order_id, balance_before, bet)
                     _active_order_id = None
                     _update_daily_stats(won, profit, loss_amount)

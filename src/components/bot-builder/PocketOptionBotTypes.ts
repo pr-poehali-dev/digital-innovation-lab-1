@@ -1877,7 +1877,7 @@ async def try_get_candles(client, asset_name):
             return None
         except Exception as e:
             err = str(e)
-            if "Not connected" in err or "reconnection failed" in err:
+            if "Not connected" in err or "reconnection failed" in err or "WinError" in err or "10054" in err or "10064" in err or "недоступно" in err or "разорвал" in err:
                 print(f"[RECONNECT] Нет соединения, попытка переподключения {attempt+1}/3...")
                 try:
                     await client.connect()
@@ -1959,16 +1959,18 @@ async def get_candles_data(client):
                 return candles_all, prices_all
             except Exception:
                 continue
-    print(f"[FATAL] Актив {ASSET} не найден ни в одном формате — бот остановлен")
-    print(f"[HINT] Выбери другой актив из списка сканера тренда")
+    if _candle_cache:
+        print(f"[WARN] Актив {ASSET} временно недоступен — используем кэш свечей ({len(_candle_cache)} шт)")
+        prices_cache = [c[3] for c in _candle_cache]
+        return _candle_cache, prices_cache
+    print(f"[FATAL] Актив {ASSET} не найден ни в одном формате и нет кэша — ожидание 30 сек...")
+    await asyncio.sleep(30)
     try:
-        assets = await client.get_available_assets()
-        if assets:
-            names = [str(a) for a in list(assets)[:20]]
-            print(f"[HINT] Доступные активы: {', '.join(names)}")
+        await client.connect()
+        await asyncio.sleep(5)
     except Exception:
         pass
-    import sys; sys.exit(1)
+    raise ConnectionError(f"Asset {ASSET} unavailable")
 
 async def _resolve_trade_asset(client):
     """Ищет рабочий формат актива для сделки"""
@@ -2132,7 +2134,22 @@ def print_stats():
     winrate = (wins / total * 100) if total else 0
     print(f"\\n[STATS] {wins}/{total} сделок | Winrate: {winrate:.1f}% | Сессия: {round(total_profit, 2)} {CURRENCY}")
     print(f"[STATS] Всего сделок: {trades_today} | Профит: {total_profit:+.2f}")
-    print(f"[STATS] Отклонено сигналов: {rejected_signals} (нет тренда: {rejected_no_trend}, конфликт: {rejected_conflict})\\n")
+    print(f"[STATS] Отклонено сигналов: {rejected_signals} (нет тренда: {rejected_no_trend}, конфликт: {rejected_conflict})")
+    if trade_log:
+        by_strat = {}
+        for t in trade_log:
+            key = t.get("strategy", "—")[:60]
+            s = by_strat.setdefault(key, {"w": 0, "l": 0, "profit": 0.0})
+            if t["won"]:
+                s["w"] += 1; s["profit"] += t.get("profit", 0.0)
+            else:
+                s["l"] += 1; s["profit"] -= t.get("amount", 0.0)
+        print("[STATS] По стратегиям:")
+        for key, s in by_strat.items():
+            _wr = round(s["w"] / (s["w"] + s["l"]) * 100) if (s["w"] + s["l"]) > 0 else 0
+            _sign = "+" if s["profit"] >= 0 else ""
+            print(f"  ✅{s['w']} ❌{s['l']} WR:{_wr}% P&L:{_sign}{s['profit']:.2f} | {key}")
+    print()
 
 async def main():
     global total_profit, trades_today, current_bet, rejected_signals, rejected_no_trend, rejected_conflict
@@ -2512,12 +2529,17 @@ async def main():
                     wr    = wins / len(trade_log) * 100
                     res_emoji = "✅" if won else "❌"
                     _balance_now, _ = await get_balance(client)
+                    _strat_wins  = sum(1 for t in trade_log if t["won"] and t.get("strategy","") == (signal_info or "${cfg.strategy}"))
+                    _strat_total = sum(1 for t in trade_log if t.get("strategy","") == (signal_info or "${cfg.strategy}"))
+                    _strat_wr    = round(_strat_wins / _strat_total * 100) if _strat_total else 0
                     _tg_inline(
                         f"{res_emoji} <b>[{BOT_NAME}] {'Выигрыш' if won else 'Проигрыш'}</b>\\n"
                         f"{signal} | {bet} {currency} | {ASSET}\\n"
+                        f"📊 {signal_info or '${cfg.strategy}'}\\n"
                         f"Профит: {profit:+.2f} {currency}\\n"
                         f"Баланс: {_balance_now:.2f} {currency}\\n"
-                        f"Сессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)})",
+                        f"Сессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)})\\n"
+                        f"По этому сигналу: ✅{_strat_wins} ❌{_strat_total - _strat_wins} WR:{_strat_wr}%",
                         _main_buttons()
                     )
                     print_stats()
@@ -4077,6 +4099,20 @@ def print_stats():
     wr    = (wins / total * 100) if total else 0
     print(f"[STATS] {wins}/{total} | WR: {wr:.1f}% | Сессия: {total_profit:.2f} {CURRENCY}")
     print(f"[STATS] Всего сделок: {trades_today} | Профит: {total_profit:+.2f}")
+    if trade_log:
+        by_strat = {}
+        for t in trade_log:
+            key = t.get("strategy", "—")[:60]
+            s = by_strat.setdefault(key, {"w": 0, "l": 0, "profit": 0.0})
+            if t["won"]:
+                s["w"] += 1; s["profit"] += t.get("profit", 0.0)
+            else:
+                s["l"] += 1; s["profit"] -= t.get("amount", t.get("profit", 0.0))
+        print("[STATS] По стратегиям:")
+        for key, s in by_strat.items():
+            _wr = round(s["w"] / (s["w"] + s["l"]) * 100) if (s["w"] + s["l"]) > 0 else 0
+            _sign = "+" if s["profit"] >= 0 else ""
+            print(f"  ✅{s['w']} ❌{s['l']} WR:{_wr}% P&L:{_sign}{s['profit']:.2f} | {key}")
 
 async def main():
     global total_profit, trades_today, current_bet
@@ -4369,7 +4405,11 @@ async def main():
                 wr   = wins / len(trade_log) * 100
                 res_emoji = "✅" if won else "❌"
                 _balance_now, _ = await get_balance(client)
-                tg(f"{res_emoji} <b>[{BOT_NAME}] {'Выигрыш' if won else 'Проигрыш'}</b>\\n{signal} | {bet} {currency} | {ASSET}\\nПрофит: {profit:+.2f} {currency}\\nБаланс: {_balance_now:.2f} {currency}\\nСессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
+                _strat_key = signal_info or "комбо"
+                _strat_wins  = sum(1 for t in trade_log if t["won"] and t.get("strategy","") == _strat_key)
+                _strat_total = sum(1 for t in trade_log if t.get("strategy","") == _strat_key)
+                _strat_wr    = round(_strat_wins / _strat_total * 100) if _strat_total else 0
+                tg(f"{res_emoji} <b>[{BOT_NAME}] {'Выигрыш' if won else 'Проигрыш'}</b>\\n{signal} | {bet} {currency} | {ASSET}\\n📊 {_strat_key}\\nПрофит: {profit:+.2f} {currency}\\nБаланс: {_balance_now:.2f} {currency}\\nСессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)})\\nПо сигналу: ✅{_strat_wins} ❌{_strat_total - _strat_wins} WR:{_strat_wr}%")
                 print_stats()
                 if LOSS_STREAK_PAUSE_ENABLED:
                     if won:

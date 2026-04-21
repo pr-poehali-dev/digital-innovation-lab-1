@@ -2518,20 +2518,20 @@ async def main():
                 _candle_line = ""
                 if len(candles) >= 6:
                     _candle_line = f"🕯 {_emojis}{_cur_e} (▲{_ups6}/▼{_dns6})"
-                tg_parts = [f"{emoji} <b>[{BOT_NAME}] Сделка открыта</b>", f"{signal} | {bet} {currency} | {ASSET} | {EXPIRY_SEC//60} мин"]
-                if _candle_line:
-                    tg_parts.append(_candle_line)
-                if sig_line:
-                    tg_parts.append(sig_line)
-                tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")
                 import time as _ts_t; _last_signal_time = _ts_t.time(); _no_signal_alert_sent = False
-                tg("\\n".join(tg_parts))
                 balance_before, _ = await get_balance(client)
                 order_id = await place_trade(client, signal, bet)
                 if not order_id:
                     print(f"[SKIP] Сделка не открыта — ждём {CHECK_INTERVAL} сек перед следующей попыткой")
                     await asyncio.sleep(CHECK_INTERVAL)
                     continue
+                tg_parts = [f"{emoji} <b>[{BOT_NAME}] Сделка открыта</b>", f"{signal} | {bet} {currency} | {ASSET} | {EXPIRY_SEC//60} мин"]
+                if _candle_line:
+                    tg_parts.append(_candle_line)
+                if sig_line:
+                    tg_parts.append(sig_line)
+                tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")
+                tg("\\n".join(tg_parts))
                 if order_id:
                     _active_order_id = order_id
                     _active_order_balance_before = balance_before
@@ -4414,14 +4414,18 @@ async def main():
             if INVERT_SIGNAL:
                 signal = "PUT" if signal == "CALL" else "CALL"
             emoji = "📈" if signal == "CALL" else "📉"
+            import time as _ts_t2; _last_signal_time = _ts_t2.time(); _no_signal_alert_sent = False
+            balance_before, _ = await get_balance(client)
+            order_id = await place_trade(client, signal, bet)
+            if not order_id:
+                print(f"[SKIP] Комбо-сделка не открыта — ждём {CHECK_INTERVAL} сек")
+                await asyncio.sleep(CHECK_INTERVAL)
+                continue
             tg_parts = [f"{emoji} <b>[{BOT_NAME}] Комбо-сделка</b>", f"{signal} | {bet} {currency} | {ASSET}"]
             if signal_info:
                 tg_parts.append(f"📊 Сигнал: {signal_info}")
             tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")
-            import time as _ts_t2; _last_signal_time = _ts_t2.time(); _no_signal_alert_sent = False
             tg("\\n".join(tg_parts))
-            balance_before, _ = await get_balance(client)
-            order_id = await place_trade(client, signal, bet)
             if order_id:
                 _active_order_id = order_id
                 _active_order_balance_before = balance_before

@@ -1822,34 +1822,36 @@ class POClient:
     async def get_deal(self, order_id):
         # ждём до (экспирация + 15 сек)
         wait_total = max(90, getattr(self, "_last_duration", 60) + 15)
-        for _ in range(wait_total):
-            await asyncio.sleep(1)
-            if not self._connected:
-                print(f"[GET-DEAL] WS отвалился — прерываем ожидание id={order_id}")
-                return None
-            def _extract(d):
-                # ищем поля — используем get с sentinel чтобы различать 0 и None
-                _s = object()
-                for field in ("profit", "win", "result"):
-                    v = d.get(field, _s)
-                    if v is not _s and v is not None:
-                        return float(v)
-                return None
-            # ищем в _orders по id (сервер кладёт туда закрытые сделки)
+        def _extract(d):
+            _s = object()
+            for field in ("profit", "win", "result"):
+                v = d.get(field, _s)
+                if v is not _s and v is not None:
+                    return float(v)
+            return None
+        def _find_in_cache():
             if order_id in self._orders:
                 d = self._orders[order_id]
                 if d.get("_closed"):
                     profit = _extract(d)
                     if profit is not None:
-                        print(f"[GET-DEAL] найден id={order_id} profit={profit}")
+                        print(f"[GET-DEAL] найден в кэше id={order_id} profit={profit}")
                         return type("D", (), {"profit": profit, "id": order_id})()
-            # ищем по любому ключу где id совпадает
             for k, d in self._orders.items():
                 if str(d.get("id", "")) == str(order_id) and d.get("_closed"):
                     profit = _extract(d)
                     if profit is not None:
                         print(f"[GET-DEAL] найден (scan) id={order_id} profit={profit}")
                         return type("D", (), {"profit": profit, "id": order_id})()
+            return None
+        for _ in range(wait_total):
+            await asyncio.sleep(1)
+            cached = _find_in_cache()
+            if cached is not None:
+                return cached
+            if not self._connected:
+                print(f"[GET-DEAL] WS отвалился, результат не найден в кэше id={order_id}")
+                return None
         return None
 
     async def disconnect(self):

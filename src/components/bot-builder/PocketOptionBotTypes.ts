@@ -2195,6 +2195,9 @@ async def main():
     _loss_streak_pause_until = 0
     _last_signal_time = __import__("time").time()
     _no_signal_alert_sent = False
+    _active_order_id = None
+    _active_order_balance_before = 0.0
+    _active_order_bet = 0.0
 
     while True:
         try:
@@ -2471,7 +2474,11 @@ async def main():
                     await asyncio.sleep(CHECK_INTERVAL)
                     continue
                 if order_id:
+                    _active_order_id = order_id
+                    _active_order_balance_before = balance_before
+                    _active_order_bet = bet
                     won, profit, loss_amount = await check_result(client, order_id, balance_before, bet)
+                    _active_order_id = None
                     _update_daily_stats(won, profit, loss_amount)
                     total_profit += profit - loss_amount
                     trades_today += 1
@@ -2537,6 +2544,19 @@ async def main():
                 await asyncio.sleep(5)
                 print("[RECONNECT] Переподключение успешно, продолжаю...")
                 tg_info(f"✅ <b>Переподключение успешно</b>\\nБот продолжает работу | Сессия: {total_profit:+.2f} {CURRENCY}")
+                _reconnect_attempts = 0
+                if _active_order_id:
+                    print(f"[RECONNECT] Была активная сделка {_active_order_id} — ожидаем результат...")
+                    won, profit, loss_amount = await check_result(client, _active_order_id, _active_order_balance_before, _active_order_bet)
+                    _active_order_id = None
+                    _update_daily_stats(won, profit, loss_amount)
+                    total_profit += profit - loss_amount
+                    trades_today += 1
+                    current_bet = adjust_bet(won)
+                    res_emoji = "✅" if won else "❌"
+                    tg(f"{res_emoji} <b>[{BOT_NAME}] {'Выигрыш' if won else 'Проигрыш'} (после реконнекта)</b>\\nПрофит: {profit:+.2f} {CURRENCY}\\nСессия: {total_profit:+.2f} {CURRENCY}")
+                    _pause = max(PAUSE_AFTER_TRADE, EXPIRY_SEC + 5) if PAUSE_AFTER_TRADE > 0 else EXPIRY_SEC + 5
+                    await asyncio.sleep(_pause)
             except Exception as re:
                 print(f"[RECONNECT] Не удалось переподключиться: {re}")
                 await asyncio.sleep(10)
@@ -4087,7 +4107,12 @@ async def main():
     last_lost_signal = None
     _loss_streak = 0
     _loss_streak_pause_until = 0
+    _reconnect_attempts = 0
+    _active_order_id = None
+    _active_order_balance_before = 0.0
+    _active_order_bet = 0.0
     while True:
+      try:
         if total_profit >= TAKE_PROFIT:
             print(f"[TP] +{total_profit:.2f} {CURRENCY}")
             _w = sum(1 for t in trade_log if t["won"]); _l = trades_today - _w; _wr = round(_w/trades_today*100,1) if trades_today else 0
@@ -4310,7 +4335,11 @@ async def main():
             balance_before, _ = await get_balance(client)
             order_id = await place_trade(client, signal, bet)
             if order_id:
+                _active_order_id = order_id
+                _active_order_balance_before = balance_before
+                _active_order_bet = bet
                 won, profit = await check_result(client, order_id, balance_before, bet)
+                _active_order_id = None
                 loss_amount = round(bet, 2) if not won else 0.0
                 _update_daily_stats(won, profit if won else 0.0, loss_amount)
                 total_profit += profit
@@ -4338,6 +4367,33 @@ async def main():
             reason = f" ({signal_info})" if signal_info else ""
             print(f"[{ts}] Нет сигнала{reason} | ожидание {CHECK_INTERVAL} сек...")
             await asyncio.sleep(CHECK_INTERVAL)
+      except Exception as e:
+          err = str(e)
+          _reconnect_attempts += 1
+          if _reconnect_attempts > 10:
+              print("[ERROR] Слишком много обрывов подряд, завершение.")
+              break
+          print(f"[RECONNECT] Обрыв соединения ({_reconnect_attempts}/10): {err}")
+          try:
+              await client.connect()
+              await asyncio.sleep(5)
+              print("[RECONNECT] Переподключение успешно, продолжаю...")
+              _reconnect_attempts = 0
+              if _active_order_id:
+                  print(f"[RECONNECT] Была активная сделка {_active_order_id} — ожидаем результат...")
+                  won, profit = await check_result(client, _active_order_id, _active_order_balance_before, _active_order_bet)
+                  _active_order_id = None
+                  loss_amount = round(_active_order_bet, 2) if not won else 0.0
+                  _update_daily_stats(won, profit if won else 0.0, loss_amount)
+                  total_profit += profit
+                  trades_today += 1
+                  current_bet = adjust_bet(won)
+                  res_emoji = "✅" if won else "❌"
+                  tg(f"{res_emoji} <b>[{BOT_NAME}] {'Выигрыш' if won else 'Проигрыш'} (после реконнекта)</b>\\nПрофит: {profit:+.2f} {CURRENCY}\\nСессия: {total_profit:+.2f} {CURRENCY}")
+                  await asyncio.sleep(EXPIRY_SEC + 5)
+          except Exception as re:
+              print(f"[RECONNECT] Не удалось переподключиться: {re}")
+              await asyncio.sleep(10)
 
     journal_end_session()
     await client.disconnect()

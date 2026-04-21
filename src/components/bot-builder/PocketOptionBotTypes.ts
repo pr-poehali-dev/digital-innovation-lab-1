@@ -2495,10 +2495,12 @@ async def main():
                     wins  = sum(1 for t in trade_log if t["won"])
                     wr    = wins / len(trade_log) * 100
                     res_emoji = "✅" if won else "❌"
+                    _balance_now, _ = await get_balance(client)
                     _tg_inline(
                         f"{res_emoji} <b>[{BOT_NAME}] {'Выигрыш' if won else 'Проигрыш'}</b>\\n"
                         f"{signal} | {bet} {currency} | {ASSET}\\n"
                         f"Профит: {profit:+.2f} {currency}\\n"
+                        f"Баланс: {_balance_now:.2f} {currency}\\n"
                         f"Сессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)})",
                         _main_buttons()
                     )
@@ -4350,7 +4352,8 @@ async def main():
                 wins = sum(1 for t in trade_log if t["won"])
                 wr   = wins / len(trade_log) * 100
                 res_emoji = "✅" if won else "❌"
-                tg(f"{res_emoji} <b>[{BOT_NAME}] {'Выигрыш' if won else 'Проигрыш'}</b>\\n{signal} | {bet} {currency} | {ASSET}\\nПрофит: {profit:+.2f} {currency}\\nСессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
+                _balance_now, _ = await get_balance(client)
+                tg(f"{res_emoji} <b>[{BOT_NAME}] {'Выигрыш' if won else 'Проигрыш'}</b>\\n{signal} | {bet} {currency} | {ASSET}\\nПрофит: {profit:+.2f} {currency}\\nБаланс: {_balance_now:.2f} {currency}\\nСессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
                 print_stats()
                 if LOSS_STREAK_PAUSE_ENABLED:
                     if won:

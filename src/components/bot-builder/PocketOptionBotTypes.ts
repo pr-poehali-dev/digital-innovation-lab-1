@@ -1598,6 +1598,7 @@ class POClient:
         self._currency = "USD"
         self._candles_cache = {}
         self._orders = {}
+        self._uid = None
         self._connected = False
         self._session_cookie = _extract_session_cookie(session_id)
 
@@ -1720,6 +1721,9 @@ class POClient:
                 cur = b.get("currency")
                 if cur:
                     self._currency = cur
+                uid = b.get("uid") or b.get("userId") or b.get("user_id") or b.get("id")
+                if uid and not self._uid:
+                    self._uid = str(uid)
             elif event == "candles":
                 asset = payload.get("asset", "") if isinstance(payload, dict) else ""
                 candles = payload.get("candles", payload) if isinstance(payload, dict) else payload
@@ -1730,14 +1734,19 @@ class POClient:
             elif event in ("successopenOrder", "updateOrder", "closedOrder", "updateDeal", "successclosedOrder", "updateClosedDeals", "successcloseOrder"):
                 if event != "updateClosedDeals":
                     print(f"[WS-ORDER] event={event} payload={str(payload)[:200]}")
+                def _is_mine(item):
+                    if not self._uid:
+                        return True
+                    item_uid = str(item.get("uid", item.get("userId", item.get("user_id", ""))))
+                    return not item_uid or item_uid == self._uid
                 def _store_order(item):
-                    if isinstance(item, dict):
+                    if isinstance(item, dict) and _is_mine(item):
                         oid = str(item.get("id", item.get("deal_id", item.get("order_id", ""))))
                         if oid:
                             self._orders[oid] = item
                 if event == "successcloseOrder" and isinstance(payload, dict) and "deals" in payload:
                     for deal in payload.get("deals", []):
-                        if isinstance(deal, dict):
+                        if isinstance(deal, dict) and _is_mine(deal):
                             deal_id = str(deal.get("id", ""))
                             if deal_id:
                                 deal["_closed"] = True
@@ -3711,6 +3720,7 @@ class POClient:
         self._currency = "USD"
         self._candles_cache = {}
         self._orders = {}
+        self._uid = None
         self._connected = False
         self._session_cookie = _extract_session_cookie(session_id)
 
@@ -3823,6 +3833,9 @@ class POClient:
                 cur = b.get("currency")
                 if cur:
                     self._currency = cur
+                uid = b.get("uid") or b.get("userId") or b.get("user_id") or b.get("id")
+                if uid and not self._uid:
+                    self._uid = str(uid)
             elif event == "candles":
                 asset = payload.get("asset", "") if isinstance(payload, dict) else ""
                 candles = payload.get("candles", payload) if isinstance(payload, dict) else payload
@@ -3833,14 +3846,19 @@ class POClient:
             elif event in ("successopenOrder", "updateOrder", "closedOrder", "updateDeal", "successclosedOrder", "updateClosedDeals", "successcloseOrder"):
                 if event != "updateClosedDeals":
                     print(f"[WS-ORDER] event={event} payload={str(payload)[:200]}")
+                def _is_mine(item):
+                    if not self._uid:
+                        return True
+                    item_uid = str(item.get("uid", item.get("userId", item.get("user_id", ""))))
+                    return not item_uid or item_uid == self._uid
                 def _store_order(item):
-                    if isinstance(item, dict):
+                    if isinstance(item, dict) and _is_mine(item):
                         oid = str(item.get("id", item.get("deal_id", item.get("order_id", ""))))
                         if oid:
                             self._orders[oid] = item
                 if event == "successcloseOrder" and isinstance(payload, dict) and "deals" in payload:
                     for deal in payload.get("deals", []):
-                        if isinstance(deal, dict):
+                        if isinstance(deal, dict) and _is_mine(deal):
                             deal_id = str(deal.get("id", ""))
                             if deal_id:
                                 deal["_closed"] = True

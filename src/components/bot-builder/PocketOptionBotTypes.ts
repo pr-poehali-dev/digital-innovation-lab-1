@@ -2242,11 +2242,18 @@ async def main():
                 winrate = round(wins_count / trades_today * 100, 1) if trades_today > 0 else 0
                 _ss_tp = {}
                 for _t in trade_log:
-                    _sk = str(_t.get("strategy", "${cfg.strategy}"))[:40]
-                    _ss_tp.setdefault(_sk, {"w": 0, "l": 0})
-                    if _t["won"]: _ss_tp[_sk]["w"] += 1
-                    else: _ss_tp[_sk]["l"] += 1
-                _sl_tp = "\\n".join(f"  {k}: ✅{v['w']} / ❌{v['l']}" for k, v in _ss_tp.items())
+                    _sk = str(_t.get("strategy", "${cfg.strategy}"))[:50]
+                    _ss_tp.setdefault(_sk, {"w": 0, "l": 0, "pnl": 0.0})
+                    if _t["won"]: _ss_tp[_sk]["w"] += 1; _ss_tp[_sk]["pnl"] += _t.get("profit", 0.0)
+                    else: _ss_tp[_sk]["l"] += 1; _ss_tp[_sk]["pnl"] -= _t.get("amount", 0.0)
+                def _fmt_ss(d):
+                    lines = []
+                    for k, v in d.items():
+                        _t2 = v["w"] + v["l"]; _w2 = round(v["w"]/_t2*100) if _t2 else 0
+                        _p = v["pnl"]; _ps = "+" if _p >= 0 else ""
+                        lines.append(f"  <b>{k}</b>\\n    ✅{v['w']} ❌{v['l']} WR:{_w2}% P&L:{_ps}{_p:.2f}")
+                    return "\\n".join(lines) if lines else "  —"
+                _sl_tp = _fmt_ss(_ss_tp)
                 tg(
                     f"✅ <b>Take Profit достигнут!</b>\\n"
                     f"━━━━━━━━━━━━━━━━━━━━\\n"
@@ -2281,11 +2288,11 @@ async def main():
                 winrate_sl = round(wins_count_sl / trades_today * 100, 1) if trades_today > 0 else 0
                 _ss_sl = {}
                 for _t in trade_log:
-                    _sk = str(_t.get("strategy", "${cfg.strategy}"))[:40]
-                    _ss_sl.setdefault(_sk, {"w": 0, "l": 0})
-                    if _t["won"]: _ss_sl[_sk]["w"] += 1
-                    else: _ss_sl[_sk]["l"] += 1
-                _sl_sl = "\\n".join(f"  {k}: ✅{v['w']} / ❌{v['l']}" for k, v in _ss_sl.items())
+                    _sk = str(_t.get("strategy", "${cfg.strategy}"))[:50]
+                    _ss_sl.setdefault(_sk, {"w": 0, "l": 0, "pnl": 0.0})
+                    if _t["won"]: _ss_sl[_sk]["w"] += 1; _ss_sl[_sk]["pnl"] += _t.get("profit", 0.0)
+                    else: _ss_sl[_sk]["l"] += 1; _ss_sl[_sk]["pnl"] -= _t.get("amount", 0.0)
+                _sl_sl = _fmt_ss(_ss_sl)
                 tg(
                     f"🛑 <b>Stop Loss достигнут!</b>\\n"
                     f"━━━━━━━━━━━━━━━━━━━━\\n"
@@ -2319,11 +2326,11 @@ async def main():
                 winrate_lim = round(wins_lim / trades_today * 100, 1) if trades_today > 0 else 0
                 _ss_lim = {}
                 for _t in trade_log:
-                    _sk = str(_t.get("strategy", "${cfg.strategy}"))[:40]
-                    _ss_lim.setdefault(_sk, {"w": 0, "l": 0})
-                    if _t["won"]: _ss_lim[_sk]["w"] += 1
-                    else: _ss_lim[_sk]["l"] += 1
-                _sl_lim = "\\n".join(f"  {k}: ✅{v['w']} / ❌{v['l']}" for k, v in _ss_lim.items())
+                    _sk = str(_t.get("strategy", "${cfg.strategy}"))[:50]
+                    _ss_lim.setdefault(_sk, {"w": 0, "l": 0, "pnl": 0.0})
+                    if _t["won"]: _ss_lim[_sk]["w"] += 1; _ss_lim[_sk]["pnl"] += _t.get("profit", 0.0)
+                    else: _ss_lim[_sk]["l"] += 1; _ss_lim[_sk]["pnl"] -= _t.get("amount", 0.0)
+                _sl_lim = _fmt_ss(_ss_lim)
                 tg(
                     f"⚠️ <b>Дневной лимит исчерпан</b>\\n"
                     f"━━━━━━━━━━━━━━━━━━━━\\n"
@@ -4172,11 +4179,18 @@ async def main():
             _w = sum(1 for t in trade_log if t["won"]); _l = trades_today - _w; _wr = round(_w/trades_today*100,1) if trades_today else 0
             _ss = {}
             for _t in trade_log:
-                _sk = str(_t.get("strategy", "комбо"))[:30]
-                _ss.setdefault(_sk, {"w": 0, "l": 0})
-                if _t["won"]: _ss[_sk]["w"] += 1
-                else: _ss[_sk]["l"] += 1
-            _sl = "\\n".join(f"  {k}: ✅{v['w']} / ❌{v['l']}" for k, v in _ss.items())
+                _sk = str(_t.get("strategy", "комбо"))[:50]
+                _ss.setdefault(_sk, {"w": 0, "l": 0, "pnl": 0.0})
+                if _t["won"]: _ss[_sk]["w"] += 1; _ss[_sk]["pnl"] += _t.get("profit", 0.0)
+                else: _ss[_sk]["l"] += 1; _ss[_sk]["pnl"] -= _t.get("amount", _t.get("profit", 0.0))
+            def _fmt_ss(d):
+                lines = []
+                for k, v in d.items():
+                    _t2 = v["w"] + v["l"]; _w2 = round(v["w"]/_t2*100) if _t2 else 0
+                    _p = v["pnl"]; _ps = "+" if _p >= 0 else ""
+                    lines.append(f"  <b>{k}</b>\\n    ✅{v['w']} ❌{v['l']} WR:{_w2}% P&L:{_ps}{_p:.2f}")
+                return "\\n".join(lines) if lines else "  —"
+            _sl = _fmt_ss(_ss)
             tg(
                 f"✅ <b>Take Profit достигнут!</b>\\n"
                 f"━━━━━━━━━━━━━━━━━━━━\\n"
@@ -4199,11 +4213,11 @@ async def main():
             _w2 = sum(1 for t in trade_log if t["won"]); _l2 = trades_today - _w2; _wr2 = round(_w2/trades_today*100,1) if trades_today else 0
             _ss2 = {}
             for _t in trade_log:
-                _sk2 = str(_t.get("strategy", "комбо"))[:30]
-                _ss2.setdefault(_sk2, {"w": 0, "l": 0})
-                if _t["won"]: _ss2[_sk2]["w"] += 1
-                else: _ss2[_sk2]["l"] += 1
-            _sl2 = "\\n".join(f"  {k}: ✅{v['w']} / ❌{v['l']}" for k, v in _ss2.items())
+                _sk2 = str(_t.get("strategy", "комбо"))[:50]
+                _ss2.setdefault(_sk2, {"w": 0, "l": 0, "pnl": 0.0})
+                if _t["won"]: _ss2[_sk2]["w"] += 1; _ss2[_sk2]["pnl"] += _t.get("profit", 0.0)
+                else: _ss2[_sk2]["l"] += 1; _ss2[_sk2]["pnl"] -= _t.get("amount", _t.get("profit", 0.0))
+            _sl2 = _fmt_ss(_ss2)
             tg(
                 f"🛑 <b>Stop Loss достигнут!</b>\\n"
                 f"━━━━━━━━━━━━━━━━━━━━\\n"
@@ -4226,11 +4240,11 @@ async def main():
             _w3 = sum(1 for t in trade_log if t["won"]); _l3 = trades_today - _w3; _wr3 = round(_w3/trades_today*100,1) if trades_today else 0
             _ss3 = {}
             for _t in trade_log:
-                _sk3 = str(_t.get("strategy", "комбо"))[:30]
-                _ss3.setdefault(_sk3, {"w": 0, "l": 0})
-                if _t["won"]: _ss3[_sk3]["w"] += 1
-                else: _ss3[_sk3]["l"] += 1
-            _sl3 = "\\n".join(f"  {k}: ✅{v['w']} / ❌{v['l']}" for k, v in _ss3.items())
+                _sk3 = str(_t.get("strategy", "комбо"))[:50]
+                _ss3.setdefault(_sk3, {"w": 0, "l": 0, "pnl": 0.0})
+                if _t["won"]: _ss3[_sk3]["w"] += 1; _ss3[_sk3]["pnl"] += _t.get("profit", 0.0)
+                else: _ss3[_sk3]["l"] += 1; _ss3[_sk3]["pnl"] -= _t.get("amount", _t.get("profit", 0.0))
+            _sl3 = _fmt_ss(_ss3)
             tg(
                 f"⚠️ <b>Дневной лимит исчерпан</b>\\n"
                 f"━━━━━━━━━━━━━━━━━━━━\\n"

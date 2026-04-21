@@ -2032,19 +2032,36 @@ async def place_trade(client, direction, amount):
             return None
     print(f"[ERROR] place_trade: актив {ASSET} не найден ни в одном формате")
     return None
-async def check_result(client, order_id, balance_before, bet):
+async def check_result(client, order_id, balance_before, bet, after_reconnect=False):
     """Ожидание результата по конкретной сделке через get_deal (точно, не зависит от других ботов)."""
     PAYOUT = ${cfg.payoutRate} / 100
     print(f"[WAIT] Ожидаем результат...")
     try:
+        if after_reconnect:
+            print(f"[WAIT] Режим после реконнекта — сразу fallback по балансу (сделка могла истечь)")
+            await asyncio.sleep(3)
+            balance_after, _ = await get_balance(client)
+            diff = round(balance_after - balance_before, 2)
+            won = diff > 0
+            profit = round(diff, 2) if won else 0.0
+            loss_amount = round(bet, 2) if not won else 0.0
+            print(f"[RECONNECT-RESULT] diff={diff} → {'ВЫИГРЫШ ✅' if won else 'ПРОИГРЫШ ❌'} | Профит: {profit}")
+            return won, profit, loss_amount
+        _ws_disconnect_count = 0
         for attempt in range(120):
             try:
                 deal = await client.get_deal(order_id)
                 if deal is None:
+                    if not client._connected:
+                        _ws_disconnect_count += 1
+                        if _ws_disconnect_count >= 3:
+                            print(f"[WARN] WS отвалился во время ожидания — поднимаю реконнект")
+                            raise ConnectionError("WS disconnected during check_result")
                     if attempt % 10 == 0:
                         print(f"[WAIT] Попытка {attempt+1}/120 — deal=None, ожидаем...")
                     await asyncio.sleep(1)
                     continue
+                _ws_disconnect_count = 0
                 print(f"[WAIT] deal получен: {deal.__dict__ if hasattr(deal, '__dict__') else deal}")
                 def _first_not_none(*vals):
                     for v in vals:
@@ -2063,13 +2080,12 @@ async def check_result(client, order_id, balance_before, bet):
                 status = "ВЫИГРЫШ ✅" if won else "ПРОИГРЫШ ❌"
                 print(f"[RESULT] {status} | deal.profit={profit_val} | bet={bet} | Профит: {profit}")
                 return won, profit, loss_amount
+            except ConnectionError:
+                raise
             except Exception as e_inner:
                 print(f"[WAIT] Попытка {attempt+1}: {e_inner}")
                 await asyncio.sleep(1)
                 continue
-        if not client._connected:
-            print(f"[WARN] WS отвалился во время ожидания — поднимаю реконнект")
-            raise ConnectionError("WS disconnected during check_result")
         print(f"[WARN] Таймаут get_deal — fallback по балансу")
         balance_after, _ = await get_balance(client)
         diff = round(balance_after - balance_before, 2)
@@ -2549,7 +2565,7 @@ async def main():
                 _reconnect_attempts = 0
                 if _active_order_id:
                     print(f"[RECONNECT] Была активная сделка {_active_order_id} — ожидаем результат...")
-                    won, profit, loss_amount = await check_result(client, _active_order_id, _active_order_balance_before, _active_order_bet)
+                    won, profit, loss_amount = await check_result(client, _active_order_id, _active_order_balance_before, _active_order_bet, after_reconnect=True)
                     _active_order_id = None
                     _update_daily_stats(won, profit, loss_amount)
                     total_profit += profit - loss_amount
@@ -4384,7 +4400,7 @@ async def main():
               _reconnect_attempts = 0
               if _active_order_id:
                   print(f"[RECONNECT] Была активная сделка {_active_order_id} — ожидаем результат...")
-                  won, profit = await check_result(client, _active_order_id, _active_order_balance_before, _active_order_bet)
+                  won, profit = await check_result(client, _active_order_id, _active_order_balance_before, _active_order_bet, after_reconnect=True)
                   _active_order_id = None
                   loss_amount = round(_active_order_bet, 2) if not won else 0.0
                   _update_daily_stats(won, profit if won else 0.0, loss_amount)

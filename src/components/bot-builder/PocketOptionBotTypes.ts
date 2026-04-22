@@ -1783,14 +1783,15 @@ class POClient:
                 else:
                     _store_order(payload)
             else:
-                if event and event not in ("updateAssets", "updateCharts", "updateOpenedDeals", "successupdatePending", "successupdateBalance", "successauth", "updateStream", "updateQuotes", "tick"):
+                if event and event not in ("updateAssets", "updateCharts", "updateOpenedDeals", "successupdatePending", "successupdateBalance", "successauth", "updateStream", "updateQuotes", "tick", "updateHistoryNewFast"):
                     print(f"[WS-EVENT] {event}: {str(payload)[:120]}")
-                if event and isinstance(payload, (list, dict)):
+                # updateHistoryNewFast — это тики [time, price], не OHLC свечи — игнорируем
+                if event and event != "updateHistoryNewFast" and isinstance(payload, (list, dict)):
                     _p = payload if isinstance(payload, dict) else {}
-                    _has_candle_data = any(k in _p for k in ("candles", "history", "data", "ohlc")) or (isinstance(payload, list) and payload and isinstance(payload[0], dict) and any(k in payload[0] for k in ("open", "close", "o", "c", "t", "time")))
+                    _has_candle_data = any(k in _p for k in ("candles", "ohlc")) or (isinstance(payload, list) and payload and isinstance(payload[0], dict) and any(k in payload[0] for k in ("open", "close", "o", "c")))
                     if _has_candle_data:
                         print(f"[WS-CANDLE-DETECT] Найдены свечи в событии '{event}': {str(payload)[:200]}")
-                        _candles_data = _p.get("candles", _p.get("data", _p.get("history", payload if isinstance(payload, list) else [])))
+                        _candles_data = _p.get("candles", _p.get("ohlc", payload if isinstance(payload, list) else []))
                         if _candles_data:
                             self._candles_cache["__last__"] = _candles_data
         except Exception:

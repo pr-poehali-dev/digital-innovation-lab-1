@@ -1777,20 +1777,31 @@ class POClient:
             await self._ws.send("42" + req)
         except Exception:
             return []
-        for _ in range(15):
+        def _parse_raw(raw):
+            result = []
+            for c in raw:
+                result.append(type("C", (), {
+                    "time": c.get("time", c.get("t", 0)),
+                    "open": float(c.get("open", c.get("o", 0))),
+                    "high": float(c.get("high", c.get("h", 0))),
+                    "low":  float(c.get("low", c.get("l", 0))),
+                    "close": float(c.get("close", c.get("c", 0))),
+                })())
+            return result
+        asset_lower = asset.lower()
+        for _ in range(30):
             await asyncio.sleep(0.5)
+            # точное совпадение
             if asset in self._candles_cache:
-                raw = self._candles_cache.pop(asset)
-                result = []
-                for c in raw:
-                    result.append(type("C", (), {
-                        "time": c.get("time", c.get("t", 0)),
-                        "open": float(c.get("open", c.get("o", 0))),
-                        "high": float(c.get("high", c.get("h", 0))),
-                        "low":  float(c.get("low", c.get("l", 0))),
-                        "close": float(c.get("close", c.get("c", 0))),
-                    })())
-                return result
+                return _parse_raw(self._candles_cache.pop(asset))
+            # регистронезависимое совпадение (сервер может вернуть другой регистр)
+            for key in list(self._candles_cache.keys()):
+                if key.lower() == asset_lower:
+                    return _parse_raw(self._candles_cache.pop(key))
+            # fallback: сервер не вернул asset в payload — берём __last__
+            if "__last__" in self._candles_cache:
+                return _parse_raw(self._candles_cache.pop("__last__"))
+        print(f"[WS] Таймаут ожидания свечей для {asset} (15 сек) — кэш: {list(self._candles_cache.keys())}")
         return []
 
     async def place_order(self, asset, amount, direction, duration):
@@ -3979,18 +3990,29 @@ class POClient:
 
     async def get_candles(self, asset, timeframe=60, count=100):
         req = json.dumps(["getCandles", {"asset": asset, "period": timeframe, "count": count}])
-        await self._ws.send("42" + req)
-        for _ in range(15):
+        try:
+            await self._ws.send("42" + req)
+        except Exception:
+            return []
+        def _parse_raw(raw):
+            return [type("C", (), {
+                "time": c.get("time", c.get("t", 0)),
+                "open": float(c.get("open", c.get("o", 0))),
+                "high": float(c.get("high", c.get("h", 0))),
+                "low":  float(c.get("low", c.get("l", 0))),
+                "close": float(c.get("close", c.get("c", 0))),
+            })() for c in raw]
+        asset_lower = asset.lower()
+        for _ in range(30):
             await asyncio.sleep(0.5)
             if asset in self._candles_cache:
-                raw = self._candles_cache.pop(asset)
-                return [type("C", (), {
-                    "time": c.get("time", c.get("t", 0)),
-                    "open": float(c.get("open", c.get("o", 0))),
-                    "high": float(c.get("high", c.get("h", 0))),
-                    "low":  float(c.get("low", c.get("l", 0))),
-                    "close": float(c.get("close", c.get("c", 0))),
-                })() for c in raw]
+                return _parse_raw(self._candles_cache.pop(asset))
+            for key in list(self._candles_cache.keys()):
+                if key.lower() == asset_lower:
+                    return _parse_raw(self._candles_cache.pop(key))
+            if "__last__" in self._candles_cache:
+                return _parse_raw(self._candles_cache.pop("__last__"))
+        print(f"[WS] Таймаут ожидания свечей для {asset} (15 сек) — кэш: {list(self._candles_cache.keys())}")
         return []
 
     async def place_order(self, asset, amount, direction, duration):

@@ -1824,13 +1824,31 @@ class POClient:
         def _parse_raw(raw):
             result = []
             for c in raw:
-                result.append(type("C", (), {
-                    "time": c.get("time", c.get("t", 0)),
-                    "open": float(c.get("open", c.get("o", 0))),
-                    "high": float(c.get("high", c.get("h", 0))),
-                    "low":  float(c.get("low", c.get("l", 0))),
-                    "close": float(c.get("close", c.get("c", 0))),
-                })())
+                if isinstance(c, dict):
+                    result.append(type("C", (), {
+                        "time":  c.get("time", c.get("t", c.get("timestamp", 0))),
+                        "open":  float(c.get("open",  c.get("o", 0))),
+                        "high":  float(c.get("high",  c.get("h", 0))),
+                        "low":   float(c.get("low",   c.get("l", 0))),
+                        "close": float(c.get("close", c.get("c", 0))),
+                    })())
+                elif isinstance(c, (list, tuple)) and len(c) >= 5:
+                    # формат [time, open, high, low, close] или [time, open, close, high, low]
+                    result.append(type("C", (), {
+                        "time":  c[0],
+                        "open":  float(c[1]),
+                        "high":  float(c[2]),
+                        "low":   float(c[3]),
+                        "close": float(c[4]),
+                    })())
+                elif isinstance(c, (list, tuple)) and len(c) == 4:
+                    result.append(type("C", (), {
+                        "time":  0,
+                        "open":  float(c[0]),
+                        "high":  float(c[1]),
+                        "low":   float(c[2]),
+                        "close": float(c[3]),
+                    })())
             return result
         asset_lower = asset.lower()
         for _ in range(30):

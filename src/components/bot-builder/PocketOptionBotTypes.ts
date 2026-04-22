@@ -1868,24 +1868,28 @@ class POClient:
 
 async def try_get_candles(client, asset_name):
     """Попытка получить свечи, с авто-переподключением при обрыве"""
+    last_err = None
     for attempt in range(3):
         try:
             raw = await client.get_candles(asset=asset_name, timeframe=CANDLE_TF, count=100)
             if raw:
                 return raw
-            return None
+            print(f"[CANDLES] Попытка {attempt+1}/3 — пустой ответ для {asset_name}, повтор через 5 сек...")
+            await asyncio.sleep(5)
         except Exception as e:
+            last_err = e
             err = str(e)
+            print(f"[CANDLES] Попытка {attempt+1}/3 — ошибка: {err}")
             if "Not connected" in err or "reconnection failed" in err or "WinError" in err or "10054" in err or "10064" in err or "недоступно" in err or "разорвал" in err:
-                print(f"[RECONNECT] Нет соединения, попытка переподключения {attempt+1}/3...")
+                print(f"[RECONNECT] Нет соединения, попытка переподключения...")
                 try:
                     await client.connect()
                     await asyncio.sleep(3)
                 except Exception:
                     pass
             else:
-                return None
-    print("[ERROR] Не удалось подключиться после 3 попыток")
+                await asyncio.sleep(5)
+    print(f"[ERROR] Не удалось получить свечи после 3 попыток: {last_err}")
     return None
 
 async def get_candles_data(client):
@@ -3720,20 +3724,67 @@ def fetch_candles_twelvedata():
         print(f"[CANDLES] Twelve Data ошибка: {e} — используем кэш")
         return _td_cache["candles"], _td_cache["prices"]
 
+async def try_get_candles(client, asset_name):
+    """Попытка получить свечи, с авто-переподключением при обрыве"""
+    last_err = None
+    for attempt in range(3):
+        try:
+            raw = await client.get_candles(asset=asset_name, timeframe=CANDLE_TF, count=100)
+            if raw:
+                return raw
+            print(f"[CANDLES] Попытка {attempt+1}/3 — пустой ответ для {asset_name}, повтор через 5 сек...")
+            await asyncio.sleep(5)
+        except Exception as e:
+            last_err = e
+            err = str(e)
+            print(f"[CANDLES] Попытка {attempt+1}/3 — ошибка: {err}")
+            if "Not connected" in err or "reconnection failed" in err or "WinError" in err or "10054" in err or "10064" in err or "недоступно" in err or "разорвал" in err:
+                print(f"[RECONNECT] Нет соединения, попытка переподключения...")
+                try:
+                    await client.connect()
+                    await asyncio.sleep(3)
+                except Exception:
+                    pass
+            else:
+                await asyncio.sleep(5)
+    print(f"[ERROR] Не удалось получить свечи после 3 попыток: {last_err}")
+    return None
+
+_candle_cache_combo: list = []
+
 async def get_candles_data(client):
-    if TWELVE_DATA_KEY and TWELVE_DATA_SYMBOL:
+    """Получение свечей — сначала Twelve Data (только не-OTC), fallback на PO API"""
+    _is_otc = "_otc" in ASSET.lower()
+    if TWELVE_DATA_KEY and TWELVE_DATA_SYMBOL and not _is_otc:
         candles, prices = fetch_candles_twelvedata()
         if candles and prices:
             return candles, prices
+    if _is_otc and TWELVE_DATA_KEY:
+        print(f"[CANDLES] OTC актив — Twelve Data пропущен, используем PO API")
+    global _candle_cache_combo
     try:
-        raw = await client.get_candles(asset=ASSET, timeframe=CANDLE_TF, count=100)
+        raw = await try_get_candles(client, ASSET)
+        if not raw:
+            raise Exception(f"Актив {ASSET} вернул пустые свечи")
         candles = [(c.open, c.high, c.low, c.close) for c in raw]
         prices  = [c.close for c in raw]
+        _candle_cache_combo = candles
         print(f"[CANDLES] PO API: {len(prices)} свечей | таймфрейм: {CANDLE_TF}с")
         return candles, prices
     except Exception as e:
-        print(f"[ERROR] get_candles: {e}")
-        return [], []
+        print(f"[CACHE_ERR] {e}")
+    if _candle_cache_combo:
+        print(f"[WARN] Актив {ASSET} временно недоступен — используем кэш свечей ({len(_candle_cache_combo)} шт)")
+        prices_cache = [c[3] for c in _candle_cache_combo]
+        return _candle_cache_combo, prices_cache
+    print(f"[FATAL] Актив {ASSET} недоступен и нет кэша — ожидание 30 сек...")
+    await asyncio.sleep(30)
+    try:
+        await client.connect()
+        await asyncio.sleep(5)
+    except Exception:
+        pass
+    raise ConnectionError(f"Asset {ASSET} unavailable")
 
 # ===== PO WEBSOCKET CLIENT =====
 def _extract_session_cookie(session_id_str):

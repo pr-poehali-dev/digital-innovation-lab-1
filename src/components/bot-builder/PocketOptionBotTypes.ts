@@ -1714,6 +1714,21 @@ class POClient:
 
     def _apply_event(self, event, payload):
         try:
+            if event == "updateCharts":
+                charts = payload if isinstance(payload, list) else [payload] if isinstance(payload, dict) else []
+                for chart in charts:
+                    if not isinstance(chart, dict):
+                        continue
+                    _asset = chart.get("asset", chart.get("symbol", chart.get("name", "")))
+                    _candles = chart.get("candles", chart.get("history", chart.get("data", [])))
+                    if _asset and isinstance(_candles, list) and _candles:
+                        print(f"[WS-CHART] asset={_asset!r} candles={len(_candles)}")
+                        self._candles_cache[_asset] = _candles
+                        self._candles_cache[_asset.lower()] = _candles
+                        self._candles_cache["__last__"] = _candles
+                    elif isinstance(_candles, list) and _candles:
+                        self._candles_cache["__last__"] = _candles
+                return
             if event in ("successupdateBalance", "updateBalance", "changeBalance", "successauth"):
                 b = payload if isinstance(payload, dict) else {}
                 bal = b.get("balance") or b.get("demoBalance") or b.get("realBalance") or b.get("amount") or 0
@@ -3955,6 +3970,21 @@ class POClient:
 
     def _apply_event(self, event, payload):
         try:
+            if event == "updateCharts":
+                charts = payload if isinstance(payload, list) else [payload] if isinstance(payload, dict) else []
+                for chart in charts:
+                    if not isinstance(chart, dict):
+                        continue
+                    _asset = chart.get("asset", chart.get("symbol", chart.get("name", "")))
+                    _candles = chart.get("candles", chart.get("history", chart.get("data", [])))
+                    if _asset and isinstance(_candles, list) and _candles:
+                        print(f"[WS-CHART] asset={_asset!r} candles={len(_candles)}")
+                        self._candles_cache[_asset] = _candles
+                        self._candles_cache[_asset.lower()] = _candles
+                        self._candles_cache["__last__"] = _candles
+                    elif isinstance(_candles, list) and _candles:
+                        self._candles_cache["__last__"] = _candles
+                return
             if event in ("successupdateBalance", "updateBalance", "changeBalance", "successauth"):
                 b = payload if isinstance(payload, dict) else {}
                 bal = b.get("balance") or b.get("demoBalance") or b.get("realBalance") or b.get("amount") or 0

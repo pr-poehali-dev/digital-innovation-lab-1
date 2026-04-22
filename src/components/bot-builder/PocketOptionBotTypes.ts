@@ -1890,11 +1890,14 @@ async def try_get_candles(client, asset_name):
     return None
 
 async def get_candles_data(client):
-    """Получение свечей — сначала Twelve Data, fallback на PO API"""
-    if TWELVE_DATA_KEY and TWELVE_DATA_SYMBOL:
+    """Получение свечей — сначала Twelve Data (только не-OTC), fallback на PO API"""
+    _is_otc = "_otc" in ASSET.lower()
+    if TWELVE_DATA_KEY and TWELVE_DATA_SYMBOL and not _is_otc:
         candles, prices = fetch_candles_twelvedata()
         if candles and prices:
             return candles, prices
+    if _is_otc and TWELVE_DATA_KEY:
+        print(f"[CANDLES] OTC актив — Twelve Data пропущен, используем PO API")
     global _candle_cache, _candle_asset, _last_candle_time, _resolved_asset
     base = ASSET.replace("_otc", "").replace("#", "")
     candidates = [ASSET, f"#{ASSET}", f"{base}_otc", f"#{base}_otc", base]
@@ -2517,7 +2520,8 @@ async def main():
                 sig_line = f"📊 Сигнал: {signal_info}" if signal_info else ""
                 _candle_line = ""
                 if len(candles) >= 6:
-                    _candle_line = f"🕯 {_emojis}{_cur_e} (▲{_ups6}/▼{_dns6})"
+                    _candle_src = "PO" if "_otc" in ASSET.lower() else "TD"
+                    _candle_line = f"🕯 {_emojis}{_cur_e} (▲{_ups6}/▼{_dns6}) [{_candle_src}]"
                 if _active_order_id:
                     print(f"[LOCK] Уже есть активная сделка — пропускаю сигнал {signal}")
                     await asyncio.sleep(CHECK_INTERVAL)
@@ -4444,7 +4448,21 @@ async def main():
                 tg_info(f"⚠️ <b>[{BOT_NAME}] Сделка не открыта</b>\\nWS недоступен, сигнал пропущен: {signal} {ASSET}\\nЖду {CHECK_INTERVAL} сек...")
                 await asyncio.sleep(CHECK_INTERVAL)
                 continue
+            _combo_candle_line = ""
+            if len(candles) >= 6:
+                _cl5 = candles[-6:-1]
+                _cc  = candles[-1]
+                _ce  = "".join("🟢" if c[3] >= c[0] else "🔴" for c in _cl5)
+                _cce = "🟢" if _cc[3] >= _cc[0] else "🔴"
+                _cu  = sum(1 for c in _cl5 if c[3] >= c[0])
+                _cd  = 5 - _cu + (0 if _cc[3] >= _cc[0] else 1)
+                _cu6 = _cu + (1 if _cc[3] >= _cc[0] else 0)
+                _cd6 = 6 - _cu6
+                _csrc = "PO" if "_otc" in ASSET.lower() else "TD"
+                _combo_candle_line = f"🕯 {_ce}{_cce} (▲{_cu6}/▼{_cd6}) [{_csrc}]"
             tg_parts = [f"{emoji} <b>[{BOT_NAME}] Комбо-сделка</b>", f"{signal} | {bet} {currency} | {ASSET}"]
+            if _combo_candle_line:
+                tg_parts.append(_combo_candle_line)
             if signal_info:
                 tg_parts.append(f"📊 Сигнал: {signal_info}")
             tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")

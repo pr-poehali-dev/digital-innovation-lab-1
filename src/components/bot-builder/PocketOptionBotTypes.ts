@@ -2530,10 +2530,17 @@ async def main():
                 balance_before, _ = await get_balance(client)
                 order_id = await place_trade(client, signal, bet)
                 if not order_id:
-                    print(f"[SKIP] Сделка не открыта — ждём {CHECK_INTERVAL} сек перед следующей попыткой")
-                    tg_info(f"⚠️ <b>[{BOT_NAME}] Сделка не открыта</b>\\nWS недоступен, сигнал пропущен: {signal} {ASSET}\\nЖду {CHECK_INTERVAL} сек...")
-                    await asyncio.sleep(CHECK_INTERVAL)
-                    continue
+                    print(f"[RECONNECT] WS недоступен — пытаюсь переподключиться...")
+                    _rc_ok = await client.connect()
+                    if _rc_ok:
+                        print(f"[RECONNECT] Переподключение успешно — повторяю сделку {signal}")
+                        await asyncio.sleep(1)
+                        order_id = await place_trade(client, signal, bet)
+                    if not order_id:
+                        print(f"[SKIP] Сделка не открыта после переподключения — пропускаю сигнал")
+                        tg_info(f"⚠️ <b>[{BOT_NAME}] Сделка не открыта</b>\\nWS недоступен, сигнал пропущен: {signal} {ASSET}\\nЖду {CHECK_INTERVAL} сек...")
+                        await asyncio.sleep(CHECK_INTERVAL)
+                        continue
                 tg_parts = [f"{emoji} <b>[{BOT_NAME}] Сделка открыта</b>", f"{signal} | {bet} {currency} | {ASSET} | {EXPIRY_SEC//60} мин"]
                 if _candle_line:
                     tg_parts.append(_candle_line)
@@ -4444,10 +4451,17 @@ async def main():
             balance_before, _ = await get_balance(client)
             order_id = await place_trade(client, signal, bet)
             if not order_id:
-                print(f"[SKIP] Комбо-сделка не открыта — ждём {CHECK_INTERVAL} сек")
-                tg_info(f"⚠️ <b>[{BOT_NAME}] Сделка не открыта</b>\\nWS недоступен, сигнал пропущен: {signal} {ASSET}\\nЖду {CHECK_INTERVAL} сек...")
-                await asyncio.sleep(CHECK_INTERVAL)
-                continue
+                print(f"[RECONNECT] WS недоступен — пытаюсь переподключиться...")
+                _rc_ok2 = await client.connect()
+                if _rc_ok2:
+                    print(f"[RECONNECT] Переподключение успешно — повторяю комбо-сделку {signal}")
+                    await asyncio.sleep(1)
+                    order_id = await place_trade(client, signal, bet)
+                if not order_id:
+                    print(f"[SKIP] Комбо-сделка не открыта после переподключения — пропускаю сигнал")
+                    tg_info(f"⚠️ <b>[{BOT_NAME}] Сделка не открыта</b>\\nWS недоступен, сигнал пропущен: {signal} {ASSET}\\nЖду {CHECK_INTERVAL} сек...")
+                    await asyncio.sleep(CHECK_INTERVAL)
+                    continue
             _combo_candle_line = ""
             if len(candles) >= 6:
                 _cl5 = candles[-6:-1]

@@ -1252,7 +1252,7 @@ async def tg_poll_commands():
     global _tg_paused, _tg_stopped, _tg_offset, TAKE_PROFIT, STOP_LOSS, BASE_BET
     if not TG_ENABLED:
         return
-    import urllib.request, json as _json
+    import urllib.request, json as _json, re as _re
     _poll_proxies = [p.strip() for p in TG_PROXY.split(",") if p.strip()] if TG_PROXY else [None]
     def _fetch():
         url = f"https://api.telegram.org/bot{TG_TOKEN}/getUpdates?offset={_tg_offset}&timeout=0&limit=10"
@@ -1331,7 +1331,6 @@ async def tg_poll_commands():
                     tg(f"❌ Формат: /setbet {BOT_NAME} 10")
             elif cmd == "/setreport" and for_me:
                 new_time = val.strip() if val else ""
-                import re as _re
                 if _re.match(r"^\\d{1,2}:\\d{2}$", new_time):
                     _register_in_scheduler(report_time=new_time)
                     _tg_inline(f"✅ <b>[{BOT_NAME}]</b> Авто-отчёт теперь в <b>{new_time}</b>", _main_buttons())
@@ -2170,10 +2169,11 @@ async def main():
     journal_start_session()
     _register_in_scheduler()
 
+    import time as _time_m
     _reconnect_attempts = 0
     _loss_streak = 0
     _loss_streak_pause_until = 0
-    _last_signal_time = __import__("time").time()
+    _last_signal_time = _time_m.time()
     _no_signal_alert_sent = False
     _active_order_id = None
     _active_order_balance_before = 0.0
@@ -2458,7 +2458,7 @@ async def main():
                     print(f"[LOCK] Уже есть активная сделка — пропускаю сигнал {signal}")
                     await asyncio.sleep(CHECK_INTERVAL)
                     continue
-                import time as _ts_t; _last_signal_time = _ts_t.time(); _no_signal_alert_sent = False
+                _last_signal_time = _time_m.time(); _no_signal_alert_sent = False
                 balance_before, _ = await get_balance(client)
                 order_id = await place_trade(client, signal, bet)
                 if not order_id:
@@ -2534,8 +2534,7 @@ async def main():
                 ts = datetime.now().strftime("%H:%M:%S")
                 reason = f" ({signal_info})" if signal_info else ""
                 print(f"[{ts}] Нет сигнала{reason} | ожидание {CHECK_INTERVAL} сек...")
-                import time as _ta
-                if _ta.time() - _last_signal_time > 1800 and not _no_signal_alert_sent:
+                if _time_m.time() - _last_signal_time > 1800 and not _no_signal_alert_sent:
                     _no_signal_alert_sent = True
                     _tg_inline(
                         f"⚠️ <b>[{BOT_NAME}] Нет сигналов 30 минут</b>\\n"
@@ -3418,7 +3417,7 @@ async def tg_poll_commands():
     global _tg_paused, _tg_stopped, _tg_offset, TAKE_PROFIT, STOP_LOSS, BASE_BET
     if not TG_ENABLED:
         return
-    import urllib.request, json as _json
+    import urllib.request, json as _json, re as _re
     _poll_proxies = [p.strip() for p in TG_PROXY.split(",") if p.strip()] if TG_PROXY else [None]
     def _fetch():
         url = f"https://api.telegram.org/bot{TG_TOKEN}/getUpdates?offset={_tg_offset}&timeout=0&limit=10"
@@ -3497,7 +3496,6 @@ async def tg_poll_commands():
                     tg(f"❌ Формат: /setbet {BOT_NAME} 10")
             elif cmd == "/setreport" and for_me:
                 new_time = val.strip() if val else ""
-                import re as _re
                 if _re.match(r"^\\d{1,2}:\\d{2}$", new_time):
                     _register_in_scheduler(report_time=new_time)
                     _tg_inline(f"✅ <b>[{BOT_NAME}]</b> Авто-отчёт теперь в <b>{new_time}</b>", _main_buttons())

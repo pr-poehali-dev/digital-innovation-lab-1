@@ -2633,6 +2633,19 @@ async def main():
                 print(f"[RECONNECT] Не удалось переподключиться: {re}")
                 await asyncio.sleep(10)
 
+    _w = _daily_stats.get("wins", 0)
+    _l = _daily_stats.get("losses", 0)
+    _t = _daily_stats.get("total", 0)
+    _wr = round(_w / _t * 100) if _t > 0 else 0
+    _ms_w = _daily_stats.get("max_win_streak", 0)
+    _ms_l = _daily_stats.get("max_loss_streak", 0)
+    _fp = _daily_stats.get("profit", 0.0)
+    tg_info(
+        f"📊 <b>[{BOT_NAME}] Итог сессии</b>\\n"
+        f"Сделок: {_t} | ✅ {_w} / ❌ {_l} | Винрейт: {_wr}%\\n"
+        f"Профит: {_fp:+.2f} {CURRENCY}\\n"
+        f"Макс. серия побед: {_ms_w} | проигрышей: {_ms_l}"
+    )
     journal_end_session()
     await client.disconnect()
 
@@ -4502,6 +4515,19 @@ async def main():
               print(f"[RECONNECT] Не удалось переподключиться: {re}")
               await asyncio.sleep(10)
 
+    _w = _daily_stats.get("wins", 0)
+    _l = _daily_stats.get("losses", 0)
+    _t = _daily_stats.get("total", 0)
+    _wr = round(_w / _t * 100) if _t > 0 else 0
+    _ms_w = _daily_stats.get("max_win_streak", 0)
+    _ms_l = _daily_stats.get("max_loss_streak", 0)
+    _fp = _daily_stats.get("profit", 0.0)
+    tg_info(
+        f"📊 <b>[{BOT_NAME}] Итог сессии</b>\\n"
+        f"Сделок: {_t} | ✅ {_w} / ❌ {_l} | Винрейт: {_wr}%\\n"
+        f"Профит: {_fp:+.2f} {CURRENCY}\\n"
+        f"Макс. серия побед: {_ms_w} | проигрышей: {_ms_l}"
+    )
     journal_end_session()
     await client.disconnect()
 

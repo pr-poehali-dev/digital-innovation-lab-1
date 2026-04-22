@@ -1997,8 +1997,7 @@ async def _resolve_trade_asset(client):
     return ASSET
 
 async def place_trade(client, direction, amount):
-    """Открытие опциона с авто-поиском формата актива"""
-    global _resolved_asset
+    """Открытие опциона"""
     if not client._connected:
         print("[RECONNECT] WS отключён перед сделкой — переподключаюсь...")
         ok = await client.connect()
@@ -2006,37 +2005,17 @@ async def place_trade(client, direction, amount):
             print("[ERROR] place_trade: переподключение не удалось")
             return None
         await asyncio.sleep(2)
-    base = ASSET.replace("_otc", "").replace("#", "")
-    is_otc = "otc" in ASSET.lower()
-    candidates_try = []
-    if _resolved_asset:
-        candidates_try = [_resolved_asset]
-    if is_otc:
-        candidates_try += [f"#{base}_otc", f"{base}_otc"]
-    else:
-        candidates_try += [f"#{base}", base]
-    seen = []
-    for trade_asset in candidates_try:
-        if trade_asset in seen:
-            continue
-        seen.append(trade_asset)
-        try:
-            order = await client.place_order(asset=trade_asset, amount=amount, direction=direction, duration=EXPIRY_SEC)
-            _resolved_asset = trade_asset
-            print(f"[TRADE] {direction} | {amount} | {EXPIRY_SEC//60} мин | актив: {trade_asset} | ID: {order.order_id}")
-            return order.order_id
-        except Exception as e:
-            if "Invalid asset" in str(e):
-                print(f"[ASSET] {trade_asset} не подходит, пробуем следующий...")
-                continue
-            print(f"[ERROR] place_trade: {e}")
-            if not client._connected:
-                print("[RECONNECT] WS упал во время сделки — переподключаюсь...")
-                await client.connect()
-                await asyncio.sleep(2)
-            return None
-    print(f"[ERROR] place_trade: актив {ASSET} не найден ни в одном формате")
-    return None
+    try:
+        order = await client.place_order(asset=ASSET, amount=amount, direction=direction, duration=EXPIRY_SEC)
+        print(f"[TRADE] {direction} | {amount} | {EXPIRY_SEC//60} мин | актив: {ASSET} | ID: {order.order_id}")
+        return order.order_id
+    except Exception as e:
+        print(f"[ERROR] place_trade: {e}")
+        if not client._connected:
+            print("[RECONNECT] WS упал во время сделки — переподключаюсь...")
+            await client.connect()
+            await asyncio.sleep(2)
+        return None
 async def check_result(client, order_id, balance_before, bet, after_reconnect=False):
     """Ожидание результата по конкретной сделке через get_deal (точно, не зависит от других ботов)."""
     PAYOUT = ${cfg.payoutRate} / 100
@@ -4061,35 +4040,25 @@ class POClient:
 _combo_resolved_asset = None
 
 async def place_trade(client, direction, amount):
-    """Открытие опциона с авто-поиском формата актива"""
-    global _combo_resolved_asset
-    base = ASSET.replace("_otc", "").replace("#", "")
-    is_otc = "otc" in ASSET.lower()
-    candidates_try = []
-    if _combo_resolved_asset:
-        candidates_try = [_combo_resolved_asset]
-    if is_otc:
-        candidates_try += [f"#{base}_otc", f"{base}_otc"]
-    else:
-        candidates_try += [f"#{base}", base]
-    seen = []
-    for trade_asset in candidates_try:
-        if trade_asset in seen:
-            continue
-        seen.append(trade_asset)
-        try:
-            order = await client.place_order(asset=trade_asset, amount=amount, direction=direction, duration=EXPIRY_SEC)
-            _combo_resolved_asset = trade_asset
-            print(f"[TRADE] {direction} | {amount} | {EXPIRY_SEC//60} мин | актив: {trade_asset} | ID: {order.order_id}")
-            return order.order_id
-        except Exception as e:
-            if "Invalid asset" in str(e):
-                print(f"[ASSET] {trade_asset} не подходит, пробуем следующий...")
-                continue
-            print(f"[ERROR] place_trade: {e}")
+    """Открытие опциона"""
+    if not client._connected:
+        print("[RECONNECT] WS отключён перед сделкой — переподключаюсь...")
+        ok = await client.connect()
+        if not ok:
+            print("[ERROR] place_trade: переподключение не удалось")
             return None
-    print(f"[ERROR] place_trade: актив {ASSET} не найден ни в одном формате")
-    return None
+        await asyncio.sleep(2)
+    try:
+        order = await client.place_order(asset=ASSET, amount=amount, direction=direction, duration=EXPIRY_SEC)
+        print(f"[TRADE] {direction} | {amount} | {EXPIRY_SEC//60} мин | актив: {ASSET} | ID: {order.order_id}")
+        return order.order_id
+    except Exception as e:
+        print(f"[ERROR] place_trade: {e}")
+        if not client._connected:
+            print("[RECONNECT] WS упал во время сделки — переподключаюсь...")
+            await client.connect()
+            await asyncio.sleep(2)
+        return None
 
 async def check_result(client, order_id, balance_before, bet):
     print(f"[WAIT] Ожидаем результат {EXPIRY_SEC//60} мин...")

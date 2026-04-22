@@ -1953,8 +1953,16 @@ async def try_get_candles(client, asset_name):
             raw = await client.get_candles(asset=asset_name, timeframe=CANDLE_TF, count=100)
             if raw:
                 return raw
-            print(f"[CANDLES] Попытка {attempt+1}/3 — пустой ответ для {asset_name}, повтор через 5 сек...")
-            await asyncio.sleep(5)
+            if not client._connected:
+                print(f"[CANDLES] Попытка {attempt+1}/3 — WS отключён, реконнект...")
+                try:
+                    await client.connect()
+                    await asyncio.sleep(3)
+                except Exception:
+                    pass
+            else:
+                print(f"[CANDLES] Попытка {attempt+1}/3 — пустой ответ для {asset_name}, повтор через 5 сек...")
+                await asyncio.sleep(5)
         except Exception as e:
             last_err = e
             err = str(e)
@@ -3812,8 +3820,16 @@ async def try_get_candles(client, asset_name):
             raw = await client.get_candles(asset=asset_name, timeframe=CANDLE_TF, count=100)
             if raw:
                 return raw
-            print(f"[CANDLES] Попытка {attempt+1}/3 — пустой ответ для {asset_name}, повтор через 5 сек...")
-            await asyncio.sleep(5)
+            if not client._connected:
+                print(f"[CANDLES] Попытка {attempt+1}/3 — WS отключён, реконнект...")
+                try:
+                    await client.connect()
+                    await asyncio.sleep(3)
+                except Exception:
+                    pass
+            else:
+                print(f"[CANDLES] Попытка {attempt+1}/3 — пустой ответ для {asset_name}, повтор через 5 сек...")
+                await asyncio.sleep(5)
         except Exception as e:
             last_err = e
             err = str(e)

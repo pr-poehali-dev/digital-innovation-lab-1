@@ -1651,6 +1651,14 @@ class POClient:
                         if self._balance > 0:
                             self._connected = True
                             print(f"[WS] Авторизован! Баланс: {self._balance} {self._currency}")
+                            try:
+                                _sym = getattr(self, '_subscribe_asset', None)
+                                if _sym:
+                                    _sub = json.dumps(["changeSymbol", {"asset": _sym, "period": 60}])
+                                    await self._ws.send("42" + _sub)
+                                    print(f"[WS] changeSymbol → {_sym}")
+                            except Exception:
+                                pass
                             asyncio.ensure_future(self._recv_loop())
                             return True
                     except asyncio.TimeoutError:
@@ -2164,6 +2172,7 @@ async def main():
 
     print("Подключение к Pocket Option...")
     client = POClient(SESSION_ID, is_demo=IS_DEMO)
+    client._subscribe_asset = ASSET
     connected = await client.connect()
     if not connected:
         print("[ERROR] Не удалось подключиться за 20 сек.")
@@ -3914,6 +3923,14 @@ class POClient:
                         if self._balance > 0:
                             self._connected = True
                             print(f"[WS] Авторизован! Баланс: {self._balance} {self._currency}")
+                            try:
+                                _sym = getattr(self, '_subscribe_asset', None)
+                                if _sym:
+                                    _sub = json.dumps(["changeSymbol", {"asset": _sym, "period": 60}])
+                                    await self._ws.send("42" + _sub)
+                                    print(f"[WS] changeSymbol → {_sym}")
+                            except Exception:
+                                pass
                             asyncio.ensure_future(self._recv_loop())
                             return True
                     except asyncio.TimeoutError:
@@ -4229,6 +4246,7 @@ async def main():
     _daily_report_scheduler()
 
     client = POClient(SESSION_ID, is_demo=IS_DEMO)
+    client._subscribe_asset = ASSET
     connected = await client.connect()
     if not connected:
         print("[ERROR] Не удалось подключиться. Проверь SESSION_ID и pip install websockets")

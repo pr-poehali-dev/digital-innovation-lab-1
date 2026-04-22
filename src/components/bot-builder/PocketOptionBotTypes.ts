@@ -1723,13 +1723,15 @@ class POClient:
                 uid = b.get("uid") or b.get("userId") or b.get("user_id") or b.get("id")
                 if uid and not self._uid:
                     self._uid = str(uid)
-            elif event == "candles":
-                asset = payload.get("asset", "") if isinstance(payload, dict) else ""
-                candles = payload.get("candles", payload) if isinstance(payload, dict) else payload
+            elif event in ("candles", "successgetCandles", "history", "loadHistory", "successLoadHistory", "successCandles"):
+                asset = payload.get("asset", payload.get("symbol", "")) if isinstance(payload, dict) else ""
+                candles = payload.get("candles", payload.get("data", payload.get("history", payload))) if isinstance(payload, dict) else payload
+                print(f"[WS-CANDLES] event={event} asset={asset!r} count={len(candles) if isinstance(candles, list) else '?'}")
                 if asset:
                     self._candles_cache[asset] = candles
-                elif isinstance(payload, list):
-                    self._candles_cache["__last__"] = payload
+                    self._candles_cache[asset.lower()] = candles
+                if isinstance(candles, list) and candles:
+                    self._candles_cache["__last__"] = candles
             elif event in ("successopenOrder", "updateOrder", "closedOrder", "updateDeal", "successclosedOrder", "updateClosedDeals", "successcloseOrder"):
                 if event != "updateClosedDeals":
                     print(f"[WS-ORDER] event={event} payload={str(payload)[:200]}")
@@ -1756,8 +1758,16 @@ class POClient:
                 else:
                     _store_order(payload)
             else:
-                if event and event not in ("updateAssets", "updateCharts", "updateOpenedDeals", "successupdatePending", "successupdateBalance", "successauth"):
+                if event and event not in ("updateAssets", "updateCharts", "updateOpenedDeals", "successupdatePending", "successupdateBalance", "successauth", "updateStream", "updateQuotes", "tick"):
                     print(f"[WS-EVENT] {event}: {str(payload)[:120]}")
+                if event and isinstance(payload, (list, dict)):
+                    _p = payload if isinstance(payload, dict) else {}
+                    _has_candle_data = any(k in _p for k in ("candles", "history", "data", "ohlc")) or (isinstance(payload, list) and payload and isinstance(payload[0], dict) and any(k in payload[0] for k in ("open", "close", "o", "c", "t", "time")))
+                    if _has_candle_data:
+                        print(f"[WS-CANDLE-DETECT] Найдены свечи в событии '{event}': {str(payload)[:200]}")
+                        _candles_data = _p.get("candles", _p.get("data", _p.get("history", payload if isinstance(payload, list) else [])))
+                        if _candles_data:
+                            self._candles_cache["__last__"] = _candles_data
         except Exception:
             pass
 
@@ -3945,13 +3955,15 @@ class POClient:
                 uid = b.get("uid") or b.get("userId") or b.get("user_id") or b.get("id")
                 if uid and not self._uid:
                     self._uid = str(uid)
-            elif event == "candles":
-                asset = payload.get("asset", "") if isinstance(payload, dict) else ""
-                candles = payload.get("candles", payload) if isinstance(payload, dict) else payload
+            elif event in ("candles", "successgetCandles", "history", "loadHistory", "successLoadHistory", "successCandles"):
+                asset = payload.get("asset", payload.get("symbol", "")) if isinstance(payload, dict) else ""
+                candles = payload.get("candles", payload.get("data", payload.get("history", payload))) if isinstance(payload, dict) else payload
+                print(f"[WS-CANDLES] event={event} asset={asset!r} count={len(candles) if isinstance(candles, list) else '?'}")
                 if asset:
                     self._candles_cache[asset] = candles
-                elif isinstance(payload, list):
-                    self._candles_cache["__last__"] = payload
+                    self._candles_cache[asset.lower()] = candles
+                if isinstance(candles, list) and candles:
+                    self._candles_cache["__last__"] = candles
             elif event in ("successopenOrder", "updateOrder", "closedOrder", "updateDeal", "successclosedOrder", "updateClosedDeals", "successcloseOrder"):
                 if event != "updateClosedDeals":
                     print(f"[WS-ORDER] event={event} payload={str(payload)[:200]}")

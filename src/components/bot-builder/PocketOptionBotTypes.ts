@@ -998,7 +998,8 @@ def tg_info(text):
     tg(text)
 
 _daily_stats = {"total": 0, "wins": 0, "losses": 0, "profit": 0.0, "max_win_streak": 0, "max_loss_streak": 0, "_cur_win": 0, "_cur_loss": 0}
-_last_signal_time = __import__("time").time()
+import time as _time_m
+_last_signal_time = _time_m.time()
 _no_signal_alert_sent = False
 
 def _tg_inline(text, buttons):
@@ -3163,7 +3164,8 @@ def tg_info(text):
     tg(text)
 
 _daily_stats = {"total": 0, "wins": 0, "losses": 0, "profit": 0.0, "max_win_streak": 0, "max_loss_streak": 0, "_cur_win": 0, "_cur_loss": 0}
-_last_signal_time = __import__("time").time()
+import time as _time_m
+_last_signal_time = _time_m.time()
 _no_signal_alert_sent = False
 
 def _tg_inline(text, buttons):
@@ -4236,9 +4238,8 @@ async def main():
             await asyncio.sleep(CHECK_INTERVAL)
             continue
 
-        import time as _time
         global _last_report_time
-        if TG_ENABLED and (_time.time() - _last_report_time) >= 3600:
+        if TG_ENABLED and (_time_m.time() - _last_report_time) >= 3600:
             _wins_r = sum(1 for t in trade_log if t["won"])
             _wr_r   = round(_wins_r / trades_today * 100, 1) if trades_today > 0 else 0
             _strat_stat = {}

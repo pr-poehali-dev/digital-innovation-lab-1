@@ -1479,7 +1479,6 @@ _last_trend = None
 _candle_cache     = []
 _candle_asset     = None
 _last_candle_time = None
-_resolved_asset   = None
 
 def candle_color(c):
     return "UP" if c[3] >= c[0] else "DOWN"
@@ -1898,75 +1897,42 @@ async def get_candles_data(client):
             return candles, prices
     if _is_otc and TWELVE_DATA_KEY:
         print(f"[CANDLES] OTC актив — Twelve Data пропущен, используем PO API")
-    global _candle_cache, _candle_asset, _last_candle_time, _resolved_asset
-    base = ASSET.replace("_otc", "").replace("#", "")
-    candidates = [ASSET, f"#{ASSET}", f"{base}_otc", f"#{base}_otc", base]
-    seen = []
-    for name in candidates:
-        if name in seen:
-            continue
-        seen.append(name)
-        try:
-            raw = await try_get_candles(client, name)
-            if not raw:
-                continue
-            _resolved_asset = name
-            if name != ASSET:
-                print(f"[INFO] Актив найден как: {name}")
-            if hasattr(raw[0], 'time'):
-                sorted_raw = sorted(raw, key=lambda c: c.time)
-                now_ts = datetime.now().timestamp()
-                sample_time = sorted_raw[-1].time
-                if sample_time > 1e10:
-                    closed_raw = [c for c in sorted_raw if c.time / 1000 + CANDLE_TF <= now_ts]
-                else:
-                    closed_raw = [c for c in sorted_raw if c.time + CANDLE_TF <= now_ts]
-                if not closed_raw:
-                    closed_raw = sorted_raw[:-1]
-                print(f"[TIME_DEBUG] now={now_ts:.0f} last_candle_time={sorted_raw[-1].time} ms={sample_time > 1e10} candle_tf={CANDLE_TF} closed={len(closed_raw)}/{len(sorted_raw)}")
+    global _candle_cache, _candle_asset, _last_candle_time
+    try:
+        raw = await try_get_candles(client, ASSET)
+        if not raw:
+            raise Exception(f"Актив {ASSET} вернул пустые свечи")
+        if hasattr(raw[0], 'time'):
+            sorted_raw = sorted(raw, key=lambda c: c.time)
+            now_ts = datetime.now().timestamp()
+            sample_time = sorted_raw[-1].time
+            if sample_time > 1e10:
+                closed_raw = [c for c in sorted_raw if c.time / 1000 + CANDLE_TF <= now_ts]
             else:
-                sorted_raw = list(raw)
-                closed_raw = sorted_raw[:-1]
+                closed_raw = [c for c in sorted_raw if c.time + CANDLE_TF <= now_ts]
             if not closed_raw:
-                continue
-            cur_candle = sorted_raw[-1]
-            lc = closed_raw[-1]
-            emoji = '🟢' if lc.close >= lc.open else '🔴'
-            print(f"[CANDLE] Последняя закрытая: {emoji} o={lc.open:.5f} c={lc.close:.5f} | закрытых: {len(closed_raw)}")
-            candles_all = [(c.open, c.high, c.low, c.close) for c in closed_raw]
-            candles_all += [(cur_candle.open, cur_candle.high, cur_candle.low, cur_candle.close)]
-            prices_all  = [c[3] for c in candles_all]
-            return candles_all, prices_all
-        except Exception as e:
-            print(f"[CACHE_ERR] {e}")
-            continue
-    # OTC недоступен — пробуем обычный актив без _otc
-    if "_otc" in ASSET.lower():
-        fallback = ASSET.replace("_otc", "").replace("#", "")
-        print(f"[WARN] OTC актив недоступен — переключаюсь на {fallback}")
-        for name in [f"#{fallback}", fallback]:
-            try:
-                raw = await try_get_candles(client, name)
-                if not raw:
-                    continue
-                _resolved_asset = name
-                sorted_raw = sorted(raw, key=lambda c: c.time) if hasattr(raw[0], 'time') else list(raw)
                 closed_raw = sorted_raw[:-1]
-                if not closed_raw:
-                    continue
-                cur_candle = sorted_raw[-1]
-                candles_all = [(c.open, c.high, c.low, c.close) for c in closed_raw]
-                candles_all += [(cur_candle.open, cur_candle.high, cur_candle.low, cur_candle.close)]
-                prices_all = [c[3] for c in candles_all]
-                print(f"[INFO] Работаю с {name} вместо OTC")
-                return candles_all, prices_all
-            except Exception:
-                continue
+            print(f"[TIME_DEBUG] now={now_ts:.0f} last_candle_time={sorted_raw[-1].time} ms={sample_time > 1e10} candle_tf={CANDLE_TF} closed={len(closed_raw)}/{len(sorted_raw)}")
+        else:
+            sorted_raw = list(raw)
+            closed_raw = sorted_raw[:-1]
+        if not closed_raw:
+            raise Exception(f"Нет закрытых свечей для {ASSET}")
+        cur_candle = sorted_raw[-1]
+        lc = closed_raw[-1]
+        emoji = '🟢' if lc.close >= lc.open else '🔴'
+        print(f"[CANDLE] Последняя закрытая: {emoji} o={lc.open:.5f} c={lc.close:.5f} | закрытых: {len(closed_raw)}")
+        candles_all = [(c.open, c.high, c.low, c.close) for c in closed_raw]
+        candles_all += [(cur_candle.open, cur_candle.high, cur_candle.low, cur_candle.close)]
+        prices_all  = [c[3] for c in candles_all]
+        return candles_all, prices_all
+    except Exception as e:
+        print(f"[CACHE_ERR] {e}")
     if _candle_cache:
         print(f"[WARN] Актив {ASSET} временно недоступен — используем кэш свечей ({len(_candle_cache)} шт)")
         prices_cache = [c[3] for c in _candle_cache]
         return _candle_cache, prices_cache
-    print(f"[FATAL] Актив {ASSET} не найден ни в одном формате и нет кэша — ожидание 30 сек...")
+    print(f"[FATAL] Актив {ASSET} недоступен и нет кэша — ожидание 30 сек...")
     await asyncio.sleep(30)
     try:
         await client.connect()
@@ -1975,26 +1941,7 @@ async def get_candles_data(client):
         pass
     raise ConnectionError(f"Asset {ASSET} unavailable")
 
-async def _resolve_trade_asset(client):
-    """Ищет рабочий формат актива для сделки"""
-    global _resolved_asset
-    if _resolved_asset:
-        return _resolved_asset
-    base = ASSET.replace("_otc", "").replace("#", "")
-    candidates = [f"#{base}_otc", f"#{base}", f"{base}_otc", base, ASSET]
-    for name in candidates:
-        try:
-            dir_val = OrderDirection.CALL
-            order = await client.place_order(asset=name, amount=0.01, direction=dir_val, duration=60)
-            _resolved_asset = name
-            print(f"[ASSET] Рабочий формат: {name}")
-            return name
-        except Exception as e:
-            if "Invalid asset" in str(e):
-                continue
-            _resolved_asset = name
-            return name
-    return ASSET
+
 
 async def place_trade(client, direction, amount):
     """Открытие опциона"""
@@ -2207,7 +2154,7 @@ async def main():
         f"📋 <b>Параметры сессии</b>\\n"
         f"  Счёт: {account_type}\\n"
         f"  Стратегия: <b>${strategyLabel}</b>\\n"
-        f"  Актив: <b>{_resolved_asset or ASSET}</b>" + (" ✅ авто" if _resolved_asset and _resolved_asset != ASSET else "") + "\\n"
+        f"  Актив: <b>{ASSET}</b>\\n"
         f"  Начальный баланс: <b>{balance:.2f} {CURRENCY}</b>\\n"
         f"  Take Profit: <b>+{TAKE_PROFIT} {CURRENCY}</b>\\n"
         f"  Stop Loss: <b>-{STOP_LOSS} {CURRENCY}</b>\\n"
@@ -3692,7 +3639,6 @@ _last_trend = None
 _candle_cache     = []
 _candle_asset     = None
 _last_candle_time = None
-_resolved_asset   = None
 
 def candle_color(c):
     return "UP" if c[3] >= c[0] else "DOWN"
@@ -4037,8 +3983,6 @@ class POClient:
         if self._ws:
             await self._ws.close()
 
-_combo_resolved_asset = None
-
 async def place_trade(client, direction, amount):
     """Открытие опциона"""
     if not client._connected:
@@ -4167,13 +4111,13 @@ async def main():
         f"  Счёт: {account_type}\\n"
         f"  Стратегия: <b>${labels}</b>\\n"
         f"  Логика: <b>${cfg.comboLogic}</b>\\n"
-        f"  Актив: <b>{_combo_resolved_asset or ASSET}</b>" + (" ✅ авто" if _combo_resolved_asset and _combo_resolved_asset != ASSET else "") + "\\n"
+        f"  Актив: <b>{ASSET}</b>\\n"
         f"  Начальный баланс: <b>{balance:.2f} {CURRENCY}</b>\\n"
         f"  Take Profit: <b>+{TAKE_PROFIT} {CURRENCY}</b>\\n"
         f"  Stop Loss: <b>-{STOP_LOSS} {CURRENCY}</b>\\n"
         f"━━━━━━━━━━━━━━━━━━━━\\n"
         f"📊 <b>Актив</b>\\n"
-        f"  Инструмент: <b>{_combo_resolved_asset or ASSET}</b>\\n"
+        f"  Инструмент: <b>{ASSET}</b>\\n"
         f"  Экспирация: <b>{EXPIRY_SEC//60} мин</b>\\n"
         f"  Начальная ставка: <b>{BASE_BET} {CURRENCY}</b>\\n"
         f"━━━━━━━━━━━━━━━━━━━━\\n"
@@ -4319,7 +4263,7 @@ async def main():
             continue
 
         try:
-            _live2 = await client.get_candles(asset=_combo_resolved_asset or ASSET, timeframe=5, count=3)
+            _live2 = await client.get_candles(asset=ASSET, timeframe=5, count=3)
             if _live2:
                 _ts_attr2 = 'time' if hasattr(_live2[0], 'time') else ('timestamp' if hasattr(_live2[0], 'timestamp') else None)
                 _sorted_live2 = sorted(_live2, key=lambda c: getattr(c, _ts_attr2)) if _ts_attr2 else list(_live2)

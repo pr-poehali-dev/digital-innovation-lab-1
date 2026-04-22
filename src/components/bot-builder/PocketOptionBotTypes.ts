@@ -1785,8 +1785,9 @@ class POClient:
             else:
                 if event and event not in ("updateAssets", "updateCharts", "updateOpenedDeals", "successupdatePending", "successupdateBalance", "successauth", "updateStream", "updateQuotes", "tick", "updateHistoryNewFast"):
                     print(f"[WS-EVENT] {event}: {str(payload)[:120]}")
-                # updateHistoryNewFast — это тики [time, price], не OHLC свечи — игнорируем
-                if event and event != "updateHistoryNewFast" and isinstance(payload, (list, dict)):
+                # updateHistoryNewFast / updateStream — тики [time, price], не OHLC свечи — игнорируем
+                _TICK_EVENTS = {"updateHistoryNewFast", "updateStream", "updateQuotes", "tick"}
+                if event and event not in _TICK_EVENTS and isinstance(payload, (list, dict)):
                     _p = payload if isinstance(payload, dict) else {}
                     _has_candle_data = any(k in _p for k in ("candles", "ohlc")) or (isinstance(payload, list) and payload and isinstance(payload[0], dict) and any(k in payload[0] for k in ("open", "close", "o", "c")))
                     if _has_candle_data:
@@ -1854,6 +1855,10 @@ class POClient:
         asset_lower = asset.lower()
         for _ in range(30):
             await asyncio.sleep(0.5)
+            # соединение закрылось во время ожидания — выходим сразу
+            if not self._connected:
+                print(f"[WS] Соединение закрыто во время ожидания свечей для {asset} — выход")
+                return []
             # точное совпадение
             if asset in self._candles_cache:
                 return _parse_raw(self._candles_cache.pop(asset))

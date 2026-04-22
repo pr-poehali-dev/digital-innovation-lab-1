@@ -2023,14 +2023,24 @@ async def get_candles_data(client):
         print(f"[WARN] Актив {ASSET} временно недоступен — используем кэш свечей ({len(_candle_cache)} шт)")
         prices_cache = [c[3] for c in _candle_cache]
         return _candle_cache, prices_cache
-    print(f"[FATAL] Актив {ASSET} недоступен и нет кэша — ожидание 30 сек...")
-    await asyncio.sleep(30)
-    try:
-        await client.connect()
-        await asyncio.sleep(5)
-    except Exception:
-        pass
-    raise ConnectionError(f"Asset {ASSET} unavailable")
+    _wait = 0
+    while True:
+        _wait += 1
+        print(f"[WAIT] Актив {ASSET} недоступен — ожидание 60 сек (попытка {_wait})...")
+        await asyncio.sleep(60)
+        try:
+            if not client._connected:
+                await client.connect()
+                await asyncio.sleep(5)
+            raw2 = await try_get_candles(client, ASSET)
+            if raw2:
+                print(f"[WAIT] Актив {ASSET} снова доступен после {_wait} мин — продолжаю")
+                closed2 = sorted(raw2, key=lambda c: c.time)
+                candles2 = [(c.open, c.high, c.low, c.close) for c in closed2]
+                prices2  = [c[3] for c in candles2]
+                return candles2, prices2
+        except Exception:
+            pass
 
 
 
@@ -3873,14 +3883,24 @@ async def get_candles_data(client):
         print(f"[WARN] Актив {ASSET} временно недоступен — используем кэш свечей ({len(_candle_cache_combo)} шт)")
         prices_cache = [c[3] for c in _candle_cache_combo]
         return _candle_cache_combo, prices_cache
-    print(f"[FATAL] Актив {ASSET} недоступен и нет кэша — ожидание 30 сек...")
-    await asyncio.sleep(30)
-    try:
-        await client.connect()
-        await asyncio.sleep(5)
-    except Exception:
-        pass
-    raise ConnectionError(f"Asset {ASSET} unavailable")
+    _wait = 0
+    while True:
+        _wait += 1
+        print(f"[WAIT] Актив {ASSET} недоступен — ожидание 60 сек (попытка {_wait})...")
+        await asyncio.sleep(60)
+        try:
+            if not client._connected:
+                await client.connect()
+                await asyncio.sleep(5)
+            raw2 = await try_get_candles(client, ASSET)
+            if raw2:
+                print(f"[WAIT] Актив {ASSET} снова доступен после {_wait} мин — продолжаю")
+                closed2 = sorted(raw2, key=lambda c: c.time)
+                candles2 = [(c.open, c.high, c.low, c.close) for c in closed2]
+                prices2  = [c[3] for c in candles2]
+                return candles2, prices2
+        except Exception:
+            pass
 
 # ===== PO WEBSOCKET CLIENT =====
 def _extract_session_cookie(session_id_str):

@@ -1700,6 +1700,8 @@ class POClient:
                 inner = json.loads(msg[4:])
                 event = inner[0] if inner else ""
                 self._pending_event = event
+                if event and event not in ("updateAssets", "updateCharts", "updateOpenedDeals", "updateStream", "updateQuotes"):
+                    print(f"[WS-451] event={event!r} inner={str(inner)[:150]}")
                 return
             # обычный 42["eventName", payload]
             if msg.startswith("42"):
@@ -1723,7 +1725,7 @@ class POClient:
                 uid = b.get("uid") or b.get("userId") or b.get("user_id") or b.get("id")
                 if uid and not self._uid:
                     self._uid = str(uid)
-            elif event in ("candles", "successgetCandles", "history", "loadHistory", "successLoadHistory", "successCandles"):
+            elif event in ("candles", "successgetCandles", "history", "loadHistory", "successLoadHistory", "successCandles", "successloadHistoryV2", "loadHistoryV2", "successHistoryV2", "historyV2"):
                 asset = payload.get("asset", payload.get("symbol", "")) if isinstance(payload, dict) else ""
                 candles = payload.get("candles", payload.get("data", payload.get("history", payload))) if isinstance(payload, dict) else payload
                 print(f"[WS-CANDLES] event={event} asset={asset!r} count={len(candles) if isinstance(candles, list) else '?'}")
@@ -3964,7 +3966,7 @@ class POClient:
                 uid = b.get("uid") or b.get("userId") or b.get("user_id") or b.get("id")
                 if uid and not self._uid:
                     self._uid = str(uid)
-            elif event in ("candles", "successgetCandles", "history", "loadHistory", "successLoadHistory", "successCandles"):
+            elif event in ("candles", "successgetCandles", "history", "loadHistory", "successLoadHistory", "successCandles", "successloadHistoryV2", "loadHistoryV2", "successHistoryV2", "historyV2"):
                 asset = payload.get("asset", payload.get("symbol", "")) if isinstance(payload, dict) else ""
                 candles = payload.get("candles", payload.get("data", payload.get("history", payload))) if isinstance(payload, dict) else payload
                 print(f"[WS-CANDLES] event={event} asset={asset!r} count={len(candles) if isinstance(candles, list) else '?'}")

@@ -1675,8 +1675,8 @@ class POClient:
                     await self._ws.send("3")
                     continue
                 await self._handle(msg)
-        except Exception:
-            pass
+        except Exception as _recv_err:
+            print(f"[WS] _recv_loop ошибка: {type(_recv_err).__name__}: {_recv_err}")
         finally:
             self._connected = False
             print("[WS] _recv_loop завершён — соединение закрыто")
@@ -1782,11 +1782,20 @@ class POClient:
         return type("B", (), {"balance": self._balance, "currency": self._currency, "is_demo": self.is_demo})()
 
     async def get_candles(self, asset, timeframe=60, count=100):
-        req = json.dumps(["getCandles", {"asset": asset, "period": timeframe, "count": count}])
+        import time as _time
+        _end = int(_time.time())
+        req1 = json.dumps(["loadHistoryV2", {"asset": asset, "period": timeframe, "time": _end, "index": 0}])
+        req2 = json.dumps(["getCandles", {"asset": asset, "period": timeframe, "count": count}])
         try:
-            await self._ws.send("42" + req)
+            print(f"[WS-REQ] loadHistoryV2 asset={asset} period={timeframe}")
+            await self._ws.send("42" + req1)
         except Exception:
             return []
+        await asyncio.sleep(0.3)
+        try:
+            await self._ws.send("42" + req2)
+        except Exception:
+            pass
         def _parse_raw(raw):
             result = []
             for c in raw:
@@ -3912,8 +3921,8 @@ class POClient:
                     await self._ws.send("3")
                     continue
                 await self._handle(msg)
-        except Exception:
-            pass
+        except Exception as _recv_err:
+            print(f"[WS] _recv_loop ошибка: {type(_recv_err).__name__}: {_recv_err}")
         finally:
             self._connected = False
             print("[WS] _recv_loop завершён — соединение закрыто")
@@ -4001,11 +4010,20 @@ class POClient:
         return type("B", (), {"balance": self._balance, "currency": self._currency})()
 
     async def get_candles(self, asset, timeframe=60, count=100):
-        req = json.dumps(["getCandles", {"asset": asset, "period": timeframe, "count": count}])
+        import time as _time
+        _end = int(_time.time())
+        req1 = json.dumps(["loadHistoryV2", {"asset": asset, "period": timeframe, "time": _end, "index": 0}])
+        req2 = json.dumps(["getCandles", {"asset": asset, "period": timeframe, "count": count}])
         try:
-            await self._ws.send("42" + req)
+            print(f"[WS-REQ] loadHistoryV2 asset={asset} period={timeframe}")
+            await self._ws.send("42" + req1)
         except Exception:
             return []
+        await asyncio.sleep(0.3)
+        try:
+            await self._ws.send("42" + req2)
+        except Exception:
+            pass
         def _parse_raw(raw):
             return [type("C", (), {
                 "time": c.get("time", c.get("t", 0)),

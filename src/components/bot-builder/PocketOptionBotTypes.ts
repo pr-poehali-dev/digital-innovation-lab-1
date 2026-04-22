@@ -2518,6 +2518,10 @@ async def main():
                 _candle_line = ""
                 if len(candles) >= 6:
                     _candle_line = f"🕯 {_emojis}{_cur_e} (▲{_ups6}/▼{_dns6})"
+                if _active_order_id:
+                    print(f"[LOCK] Уже есть активная сделка — пропускаю сигнал {signal}")
+                    await asyncio.sleep(CHECK_INTERVAL)
+                    continue
                 import time as _ts_t; _last_signal_time = _ts_t.time(); _no_signal_alert_sent = False
                 balance_before, _ = await get_balance(client)
                 order_id = await place_trade(client, signal, bet)
@@ -4415,6 +4419,10 @@ async def main():
             if INVERT_SIGNAL:
                 signal = "PUT" if signal == "CALL" else "CALL"
             emoji = "📈" if signal == "CALL" else "📉"
+            if _active_order_id:
+                print(f"[LOCK] Уже есть активная сделка — пропускаю комбо-сигнал {signal}")
+                await asyncio.sleep(CHECK_INTERVAL)
+                continue
             import time as _ts_t2; _last_signal_time = _ts_t2.time(); _no_signal_alert_sent = False
             balance_before, _ = await get_balance(client)
             order_id = await place_trade(client, signal, bet)

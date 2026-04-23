@@ -1724,18 +1724,28 @@ class POClient:
         try:
             if event == "updateCharts":
                 charts = payload if isinstance(payload, list) else [payload] if isinstance(payload, dict) else []
+                global _live_prices_buf_single
                 for chart in charts:
                     if not isinstance(chart, dict):
                         continue
                     _asset = chart.get("asset", chart.get("symbol", chart.get("name", "")))
-                    _candles = chart.get("candles", chart.get("history", chart.get("data", [])))
-                    if _asset and isinstance(_candles, list) and _candles:
-                        print(f"[WS-CHART] asset={_asset!r} candles={len(_candles)}")
-                        self._candles_cache[_asset] = _candles
-                        self._candles_cache[_asset.lower()] = _candles
-                        self._candles_cache["__last__"] = _candles
-                    elif isinstance(_candles, list) and _candles:
-                        self._candles_cache["__last__"] = _candles
+                    if _asset and _asset.lower() != ASSET.lower():
+                        continue
+                    _price = chart.get("close", chart.get("price", chart.get("c")))
+                    if _price is None:
+                        _raw_c = chart.get("candles", chart.get("history", chart.get("data", [])))
+                        if isinstance(_raw_c, list) and _raw_c:
+                            _last = _raw_c[-1]
+                            _price = _last.get("close", _last.get("c")) if isinstance(_last, dict) else None
+                    if _price is not None:
+                        try:
+                            _p = float(_price)
+                            if _p > 0:
+                                _live_prices_buf_single.append(_p)
+                                if len(_live_prices_buf_single) > _LIVE_BUF_MAX_SINGLE:
+                                    _live_prices_buf_single = _live_prices_buf_single[-_LIVE_BUF_MAX_SINGLE:]
+                        except Exception:
+                            pass
                 return
             if event in ("successupdateBalance", "updateBalance", "changeBalance", "successauth"):
                 b = payload if isinstance(payload, dict) else {}
@@ -1979,68 +1989,18 @@ async def try_get_candles(client, asset_name):
     print(f"[ERROR] Не удалось получить свечи после 3 попыток: {last_err}")
     return None
 
+_live_prices_buf_single: list = []
+_LIVE_BUF_MAX_SINGLE = 500
+
 async def get_candles_data(client):
-    """Получение свечей — сначала Twelve Data (только не-OTC), fallback на PO API"""
-    _is_otc = "_otc" in ASSET.lower()
-    if TWELVE_DATA_KEY and TWELVE_DATA_SYMBOL and not _is_otc:
-        candles, prices = fetch_candles_twelvedata()
-        if candles and prices:
-            return candles, prices
-    if _is_otc and TWELVE_DATA_KEY:
-        print(f"[CANDLES] OTC актив — Twelve Data пропущен, используем PO API")
-    global _candle_cache, _candle_asset, _last_candle_time
-    try:
-        raw = await try_get_candles(client, ASSET)
-        if not raw:
-            raise Exception(f"Актив {ASSET} вернул пустые свечи")
-        if hasattr(raw[0], 'time'):
-            sorted_raw = sorted(raw, key=lambda c: c.time)
-            now_ts = datetime.now().timestamp()
-            sample_time = sorted_raw[-1].time
-            if sample_time > 1e10:
-                closed_raw = [c for c in sorted_raw if c.time / 1000 + CANDLE_TF <= now_ts]
-            else:
-                closed_raw = [c for c in sorted_raw if c.time + CANDLE_TF <= now_ts]
-            if not closed_raw:
-                closed_raw = sorted_raw[:-1]
-            print(f"[TIME_DEBUG] now={now_ts:.0f} last_candle_time={sorted_raw[-1].time} ms={sample_time > 1e10} candle_tf={CANDLE_TF} closed={len(closed_raw)}/{len(sorted_raw)}")
-        else:
-            sorted_raw = list(raw)
-            closed_raw = sorted_raw[:-1]
-        if not closed_raw:
-            raise Exception(f"Нет закрытых свечей для {ASSET}")
-        cur_candle = sorted_raw[-1]
-        lc = closed_raw[-1]
-        emoji = '🟢' if lc.close >= lc.open else '🔴'
-        print(f"[CANDLE] Последняя закрытая: {emoji} o={lc.open:.5f} c={lc.close:.5f} | закрытых: {len(closed_raw)}")
-        candles_all = [(c.open, c.high, c.low, c.close) for c in closed_raw]
-        candles_all += [(cur_candle.open, cur_candle.high, cur_candle.low, cur_candle.close)]
-        prices_all  = [c[3] for c in candles_all]
-        return candles_all, prices_all
-    except Exception as e:
-        print(f"[CACHE_ERR] {e}")
-    if _candle_cache:
-        print(f"[WARN] Актив {ASSET} временно недоступен — используем кэш свечей ({len(_candle_cache)} шт)")
-        prices_cache = [c[3] for c in _candle_cache]
-        return _candle_cache, prices_cache
-    _wait = 0
-    while True:
-        _wait += 1
-        print(f"[WAIT] Актив {ASSET} недоступен — ожидание 60 сек (попытка {_wait})...")
-        await asyncio.sleep(60)
-        try:
-            if not client._connected:
-                await client.connect()
-                await asyncio.sleep(5)
-            raw2 = await try_get_candles(client, ASSET)
-            if raw2:
-                print(f"[WAIT] Актив {ASSET} снова доступен после {_wait} мин — продолжаю")
-                closed2 = sorted(raw2, key=lambda c: c.time)
-                candles2 = [(c.open, c.high, c.low, c.close) for c in closed2]
-                prices2  = [c[3] for c in candles2]
-                return candles2, prices2
-        except Exception:
-            pass
+    """Получение данных — из буфера живых цен updateCharts"""
+    prices = list(_live_prices_buf_single)
+    if len(prices) < 10:
+        print(f"[CANDLES] Накапливаю цены из updateCharts: {len(prices)}/10 минимум — жду...")
+        return [], []
+    candles = [(p, p, p, p) for p in prices]
+    print(f"[CANDLES] Live буфер: {len(prices)} цен | последняя: {prices[-1]:.5f}")
+    return candles, prices
 
 
 
@@ -3856,51 +3816,19 @@ async def try_get_candles(client, asset_name):
     print(f"[ERROR] Не удалось получить свечи после 3 попыток: {last_err}")
     return None
 
-_candle_cache_combo: list = []
+_live_prices_buf: list = []
+_LIVE_BUF_MAX = 500
 
 async def get_candles_data(client):
-    """Получение свечей — сначала Twelve Data (только не-OTC), fallback на PO API"""
-    _is_otc = "_otc" in ASSET.lower()
-    if TWELVE_DATA_KEY and TWELVE_DATA_SYMBOL and not _is_otc:
-        candles, prices = fetch_candles_twelvedata()
-        if candles and prices:
-            return candles, prices
-    if _is_otc and TWELVE_DATA_KEY:
-        print(f"[CANDLES] OTC актив — Twelve Data пропущен, используем PO API")
-    global _candle_cache_combo
-    try:
-        raw = await try_get_candles(client, ASSET)
-        if not raw:
-            raise Exception(f"Актив {ASSET} вернул пустые свечи")
-        candles = [(c.open, c.high, c.low, c.close) for c in raw]
-        prices  = [c.close for c in raw]
-        _candle_cache_combo = candles
-        print(f"[CANDLES] PO API: {len(prices)} свечей | таймфрейм: {CANDLE_TF}с")
-        return candles, prices
-    except Exception as e:
-        print(f"[CACHE_ERR] {e}")
-    if _candle_cache_combo:
-        print(f"[WARN] Актив {ASSET} временно недоступен — используем кэш свечей ({len(_candle_cache_combo)} шт)")
-        prices_cache = [c[3] for c in _candle_cache_combo]
-        return _candle_cache_combo, prices_cache
-    _wait = 0
-    while True:
-        _wait += 1
-        print(f"[WAIT] Актив {ASSET} недоступен — ожидание 60 сек (попытка {_wait})...")
-        await asyncio.sleep(60)
-        try:
-            if not client._connected:
-                await client.connect()
-                await asyncio.sleep(5)
-            raw2 = await try_get_candles(client, ASSET)
-            if raw2:
-                print(f"[WAIT] Актив {ASSET} снова доступен после {_wait} мин — продолжаю")
-                closed2 = sorted(raw2, key=lambda c: c.time)
-                candles2 = [(c.open, c.high, c.low, c.close) for c in closed2]
-                prices2  = [c[3] for c in candles2]
-                return candles2, prices2
-        except Exception:
-            pass
+    """Получение данных — из буфера живых цен updateCharts"""
+    global _live_prices_buf
+    prices = list(_live_prices_buf)
+    if len(prices) < 10:
+        print(f"[CANDLES] Накапливаю цены из updateCharts: {len(prices)}/10 минимум — жду...")
+        return [], []
+    candles = [(p, p, p, p) for p in prices]
+    print(f"[CANDLES] Live буфер: {len(prices)} цен | последняя: {prices[-1]:.5f}")
+    return candles, prices
 
 # ===== PO WEBSOCKET CLIENT =====
 def _extract_session_cookie(session_id_str):
@@ -4054,18 +3982,28 @@ class POClient:
         try:
             if event == "updateCharts":
                 charts = payload if isinstance(payload, list) else [payload] if isinstance(payload, dict) else []
+                global _live_prices_buf
                 for chart in charts:
                     if not isinstance(chart, dict):
                         continue
                     _asset = chart.get("asset", chart.get("symbol", chart.get("name", "")))
-                    _candles = chart.get("candles", chart.get("history", chart.get("data", [])))
-                    if _asset and isinstance(_candles, list) and _candles:
-                        print(f"[WS-CHART] asset={_asset!r} candles={len(_candles)}")
-                        self._candles_cache[_asset] = _candles
-                        self._candles_cache[_asset.lower()] = _candles
-                        self._candles_cache["__last__"] = _candles
-                    elif isinstance(_candles, list) and _candles:
-                        self._candles_cache["__last__"] = _candles
+                    if _asset and _asset.lower() != ASSET.lower():
+                        continue
+                    _price = chart.get("close", chart.get("price", chart.get("c")))
+                    if _price is None:
+                        _raw_c = chart.get("candles", chart.get("history", chart.get("data", [])))
+                        if isinstance(_raw_c, list) and _raw_c:
+                            _last = _raw_c[-1]
+                            _price = _last.get("close", _last.get("c")) if isinstance(_last, dict) else None
+                    if _price is not None:
+                        try:
+                            _p = float(_price)
+                            if _p > 0:
+                                _live_prices_buf.append(_p)
+                                if len(_live_prices_buf) > _LIVE_BUF_MAX:
+                                    _live_prices_buf = _live_prices_buf[-_LIVE_BUF_MAX:]
+                        except Exception:
+                            pass
                 return
             if event in ("successupdateBalance", "updateBalance", "changeBalance", "successauth"):
                 b = payload if isinstance(payload, dict) else {}
@@ -4484,20 +4422,6 @@ async def main():
         if not prices:
             await asyncio.sleep(CHECK_INTERVAL)
             continue
-
-        try:
-            _live2 = await client.get_candles(asset=ASSET, timeframe=5, count=3)
-            if _live2:
-                _ts_attr2 = 'time' if hasattr(_live2[0], 'time') else ('timestamp' if hasattr(_live2[0], 'timestamp') else None)
-                _sorted_live2 = sorted(_live2, key=lambda c: getattr(c, _ts_attr2)) if _ts_attr2 else list(_live2)
-                _cur2 = _sorted_live2[-1]
-                _tick_val2 = float(_cur2.close) if hasattr(_cur2, 'close') else float(_cur2[3])
-                _tick_ts2 = getattr(_cur2, _ts_attr2, 0) if _ts_attr2 else 0
-                if _tick_val2 > 0:
-                    prices = prices[:-1] + [_tick_val2]
-                    print(f"[PRICE] Текущая цена с PO: {_tick_val2:.5f} (ts={_tick_ts2})")
-        except Exception as _e:
-            print(f"[PRICE_ERR] Не удалось получить цену с PO: {_e}")
 
         new_trend, old_trend = check_trend_change(candles)
         if new_trend:

@@ -2011,14 +2011,40 @@ _live_prices_buf_single: list = []
 _LIVE_BUF_MAX_SINGLE = 500
 
 async def get_candles_data(client):
-    """Получение данных — из буфера живых цен updateCharts"""
-    prices = list(_live_prices_buf_single)
-    if len(prices) < 10:
-        print(f"[CANDLES] Накапливаю цены из updateCharts: {len(prices)}/10 минимум — жду...")
+    """Получение данных — исторические минутные свечи + live тики"""
+    raw = await client.get_candles(asset=ASSET, timeframe=1, count=50)
+    if raw and len(raw) >= 5:
+        candles = []
+        prices = []
+        for c in raw:
+            if hasattr(c, 'open'):
+                o, h, l, cl = float(c.open), float(c.high), float(c.low), float(c.close)
+            elif isinstance(c, (list, tuple)) and len(c) >= 4:
+                o, h, l, cl = float(c[0]), float(c[1]), float(c[2]), float(c[3])
+            elif isinstance(c, dict):
+                o  = float(c.get('open',  c.get('o', 0)))
+                h  = float(c.get('high',  c.get('h', 0)))
+                l  = float(c.get('low',   c.get('l', 0)))
+                cl = float(c.get('close', c.get('c', 0)))
+            else:
+                continue
+            if cl > 0:
+                candles.append((o, h, l, cl))
+                prices.append(cl)
+        if len(prices) >= 5:
+            live = list(_live_prices_buf_single)
+            if live:
+                prices.append(live[-1])
+                candles.append((live[-1], live[-1], live[-1], live[-1]))
+            print(f"[CANDLES] {len(candles)} свечей | последняя close: {prices[-1]:.5f}")
+            return candles, prices
+    live = list(_live_prices_buf_single)
+    if len(live) < 10:
+        print(f"[CANDLES] Накапливаю цены: {len(live)}/10 минимум — жду...")
         return [], []
-    candles = [(p, p, p, p) for p in prices]
-    print(f"[CANDLES] Live буфер: {len(prices)} цен | последняя: {prices[-1]:.5f}")
-    return candles, prices
+    candles = [(p, p, p, p) for p in live]
+    print(f"[CANDLES] Live буфер: {len(live)} цен | последняя: {live[-1]:.5f}")
+    return candles, live
 
 
 

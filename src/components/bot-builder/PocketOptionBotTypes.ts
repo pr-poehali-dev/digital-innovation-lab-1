@@ -1725,8 +1725,8 @@ class POClient:
 
     def _apply_event(self, event, payload):
         try:
+            global _live_prices_buf_single, _global_ticks_cache
             if event == "updateStream":
-                global _live_prices_buf_single, _global_ticks_cache
                 rows = payload if isinstance(payload, list) else []
                 for row in rows:
                     if isinstance(row, list) and len(row) >= 3:
@@ -1781,7 +1781,6 @@ class POClient:
                 if uid and not self._uid:
                     self._uid = str(uid)
             elif event == "updateHistoryNewFast":
-                global _global_ticks_cache
                 if isinstance(payload, dict):
                     _asset = payload.get("asset", payload.get("symbol", ""))
                     _hist  = payload.get("history", payload.get("candles", payload.get("data", [])))
@@ -4054,8 +4053,8 @@ class POClient:
 
     def _apply_event(self, event, payload):
         try:
+            global _live_prices_buf, _global_ticks_cache
             if event == "updateStream":
-                global _live_prices_buf, _global_ticks_cache
                 rows = payload if isinstance(payload, list) else []
                 for row in rows:
                     if isinstance(row, list) and len(row) >= 3:
@@ -4110,7 +4109,6 @@ class POClient:
                 if uid and not self._uid:
                     self._uid = str(uid)
             elif event == "updateHistoryNewFast":
-                global _global_ticks_cache
                 if isinstance(payload, dict):
                     _asset = payload.get("asset", payload.get("symbol", ""))
                     _hist  = payload.get("history", payload.get("candles", payload.get("data", [])))

@@ -1729,12 +1729,24 @@ class POClient:
 
     def _apply_event(self, event, payload):
         try:
+            if event == "updateStream":
+                global _live_prices_buf_single
+                rows = payload if isinstance(payload, list) else []
+                for row in rows:
+                    if isinstance(row, list) and len(row) >= 3:
+                        _sym, _ts, _p = row[0], row[1], row[2]
+                        if str(_sym).lower() == ASSET.lower():
+                            try:
+                                _pf = float(_p)
+                                if _pf > 0:
+                                    _live_prices_buf_single.append(_pf)
+                                    if len(_live_prices_buf_single) > _LIVE_BUF_MAX_SINGLE:
+                                        _live_prices_buf_single = _live_prices_buf_single[-_LIVE_BUF_MAX_SINGLE:]
+                            except Exception:
+                                pass
+                return
             if event == "updateCharts":
                 charts = payload if isinstance(payload, list) else [payload] if isinstance(payload, dict) else []
-                global _live_prices_buf_single
-                if charts:
-                    _sample = charts[0] if isinstance(charts[0], dict) else charts[0]
-                    print(f"[DEBUG-CHART] keys={list(_sample.keys()) if isinstance(_sample, dict) else type(_sample).__name__} raw={str(_sample)[:200]}")
                 for chart in charts:
                     if not isinstance(chart, dict):
                         continue
@@ -3994,12 +4006,24 @@ class POClient:
 
     def _apply_event(self, event, payload):
         try:
+            if event == "updateStream":
+                global _live_prices_buf
+                rows = payload if isinstance(payload, list) else []
+                for row in rows:
+                    if isinstance(row, list) and len(row) >= 3:
+                        _sym, _ts, _p = row[0], row[1], row[2]
+                        if str(_sym).lower() == ASSET.lower():
+                            try:
+                                _pf = float(_p)
+                                if _pf > 0:
+                                    _live_prices_buf.append(_pf)
+                                    if len(_live_prices_buf) > _LIVE_BUF_MAX:
+                                        _live_prices_buf = _live_prices_buf[-_LIVE_BUF_MAX:]
+                            except Exception:
+                                pass
+                return
             if event == "updateCharts":
                 charts = payload if isinstance(payload, list) else [payload] if isinstance(payload, dict) else []
-                global _live_prices_buf
-                if charts:
-                    _sample = charts[0] if isinstance(charts[0], dict) else charts[0]
-                    print(f"[DEBUG-CHART] keys={list(_sample.keys()) if isinstance(_sample, dict) else type(_sample).__name__} raw={str(_sample)[:200]}")
                 for chart in charts:
                     if not isinstance(chart, dict):
                         continue

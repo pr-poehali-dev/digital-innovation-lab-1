@@ -1734,10 +1734,15 @@ class POClient:
                         if str(_sym).lower() == ASSET.lower():
                             try:
                                 _pf = float(_p)
+                                _tsf = float(_ts)
                                 if _pf > 0:
                                     _live_prices_buf_single.append(_pf)
                                     if len(_live_prices_buf_single) > _LIVE_BUF_MAX_SINGLE:
                                         _live_prices_buf_single = _live_prices_buf_single[-_LIVE_BUF_MAX_SINGLE:]
+                                    _tick = [_tsf, _pf]
+                                    for _ck in (ASSET, ASSET.lower(), "__last__"):
+                                        if _ck in self._candles_cache and isinstance(self._candles_cache[_ck], list):
+                                            self._candles_cache[_ck].append(_tick)
                             except Exception:
                                 pass
                 return

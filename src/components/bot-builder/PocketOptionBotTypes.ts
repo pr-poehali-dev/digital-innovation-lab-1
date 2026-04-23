@@ -4055,7 +4055,7 @@ class POClient:
     def _apply_event(self, event, payload):
         try:
             if event == "updateStream":
-                global _live_prices_buf
+                global _live_prices_buf, _global_ticks_cache
                 rows = payload if isinstance(payload, list) else []
                 for row in rows:
                     if isinstance(row, list) and len(row) >= 3:
@@ -4063,10 +4063,14 @@ class POClient:
                         if str(_sym).lower() == ASSET.lower():
                             try:
                                 _pf = float(_p)
+                                _tsf = float(_ts)
                                 if _pf > 0:
                                     _live_prices_buf.append(_pf)
                                     if len(_live_prices_buf) > _LIVE_BUF_MAX:
                                         _live_prices_buf = _live_prices_buf[-_LIVE_BUF_MAX:]
+                                    _global_ticks_cache.append([_tsf, _pf])
+                                    if len(_global_ticks_cache) > _GLOBAL_TICKS_MAX:
+                                        del _global_ticks_cache[:len(_global_ticks_cache) - _GLOBAL_TICKS_MAX]
                             except Exception:
                                 pass
                 return

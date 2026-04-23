@@ -1725,6 +1725,9 @@ class POClient:
             if event == "updateCharts":
                 charts = payload if isinstance(payload, list) else [payload] if isinstance(payload, dict) else []
                 global _live_prices_buf_single
+                if charts:
+                    _sample = charts[0] if isinstance(charts[0], dict) else charts[0]
+                    print(f"[DEBUG-CHART] keys={list(_sample.keys()) if isinstance(_sample, dict) else type(_sample).__name__} raw={str(_sample)[:200]}")
                 for chart in charts:
                     if not isinstance(chart, dict):
                         continue
@@ -3983,6 +3986,9 @@ class POClient:
             if event == "updateCharts":
                 charts = payload if isinstance(payload, list) else [payload] if isinstance(payload, dict) else []
                 global _live_prices_buf
+                if charts:
+                    _sample = charts[0] if isinstance(charts[0], dict) else charts[0]
+                    print(f"[DEBUG-CHART] keys={list(_sample.keys()) if isinstance(_sample, dict) else type(_sample).__name__} raw={str(_sample)[:200]}")
                 for chart in charts:
                     if not isinstance(chart, dict):
                         continue

@@ -2009,9 +2009,12 @@ async def try_get_candles(client, asset_name):
 
 _live_prices_buf_single: list = []
 _LIVE_BUF_MAX_SINGLE = 500
+_last_good_candles_single: list = []
+_last_good_prices_single: list = []
 
 async def get_candles_data(client):
     """Получение данных — исторические минутные свечи + live тики"""
+    global _last_good_candles_single, _last_good_prices_single
     raw = await client.get_candles(asset=ASSET, timeframe=1, count=50)
     if raw and len(raw) >= 5:
         candles = []
@@ -2037,7 +2040,18 @@ async def get_candles_data(client):
                 prices.append(live[-1])
                 candles.append((live[-1], live[-1], live[-1], live[-1]))
             print(f"[CANDLES] {len(candles)} свечей | последняя close: {prices[-1]:.5f}")
+            _last_good_candles_single = candles
+            _last_good_prices_single = prices
             return candles, prices
+    if _last_good_candles_single:
+        live = list(_live_prices_buf_single)
+        prices = list(_last_good_prices_single)
+        candles = list(_last_good_candles_single)
+        if live:
+            prices = prices[:-1] + [live[-1]]
+            candles = candles[:-1] + [(live[-1], live[-1], live[-1], live[-1])]
+        print(f"[CANDLES] WS недоступен — кэш {len(candles)} свечей | последняя: {prices[-1]:.5f}")
+        return candles, prices
     live = list(_live_prices_buf_single)
     if len(live) < 10:
         print(f"[CANDLES] Накапливаю цены: {len(live)}/10 минимум — жду...")

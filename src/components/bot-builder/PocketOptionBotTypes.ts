@@ -1776,6 +1776,16 @@ class POClient:
                 uid = b.get("uid") or b.get("userId") or b.get("user_id") or b.get("id")
                 if uid and not self._uid:
                     self._uid = str(uid)
+            elif event == "updateHistoryNewFast":
+                if isinstance(payload, dict):
+                    _asset = payload.get("asset", payload.get("symbol", ""))
+                    _hist  = payload.get("history", payload.get("candles", payload.get("data", [])))
+                    if isinstance(_hist, list) and _hist:
+                        print(f"[WS-CANDLES] updateHistoryNewFast asset={_asset!r} count={len(_hist)}")
+                        if _asset:
+                            self._candles_cache[_asset] = _hist
+                            self._candles_cache[_asset.lower()] = _hist
+                        self._candles_cache["__last__"] = _hist
             elif event in ("candles", "successgetCandles", "history", "loadHistory", "successLoadHistory", "successCandles", "successloadHistoryV2", "loadHistoryV2", "successHistoryV2", "historyV2"):
                 asset = payload.get("asset", payload.get("symbol", "")) if isinstance(payload, dict) else ""
                 candles = payload.get("candles", payload.get("data", payload.get("history", payload))) if isinstance(payload, dict) else payload
@@ -1811,10 +1821,10 @@ class POClient:
                 else:
                     _store_order(payload)
             else:
-                if event and event not in ("updateAssets", "updateCharts", "updateOpenedDeals", "successupdatePending", "successupdateBalance", "successauth", "updateStream", "updateQuotes", "tick", "updateHistoryNewFast"):
+                if event and event not in ("updateAssets", "updateCharts", "updateOpenedDeals", "successupdatePending", "successupdateBalance", "successauth", "updateStream", "updateQuotes", "tick"):
                     print(f"[WS-EVENT] {event}: {str(payload)[:120]}")
-                # updateHistoryNewFast / updateStream — тики [time, price], не OHLC свечи — игнорируем
-                _TICK_EVENTS = {"updateHistoryNewFast", "updateStream", "updateQuotes", "tick"}
+                # updateStream — тики [time, price], не OHLC свечи — игнорируем
+                _TICK_EVENTS = {"updateStream", "updateQuotes", "tick"}
                 if event and event not in _TICK_EVENTS and isinstance(payload, (list, dict)):
                     _p = payload if isinstance(payload, dict) else {}
                     _has_candle_data = any(k in _p for k in ("candles", "ohlc")) or (isinstance(payload, list) and payload and isinstance(payload[0], dict) and any(k in payload[0] for k in ("open", "close", "o", "c")))
@@ -4076,6 +4086,16 @@ class POClient:
                 uid = b.get("uid") or b.get("userId") or b.get("user_id") or b.get("id")
                 if uid and not self._uid:
                     self._uid = str(uid)
+            elif event == "updateHistoryNewFast":
+                if isinstance(payload, dict):
+                    _asset = payload.get("asset", payload.get("symbol", ""))
+                    _hist  = payload.get("history", payload.get("candles", payload.get("data", [])))
+                    if isinstance(_hist, list) and _hist:
+                        print(f"[WS-CANDLES] updateHistoryNewFast asset={_asset!r} count={len(_hist)}")
+                        if _asset:
+                            self._candles_cache[_asset] = _hist
+                            self._candles_cache[_asset.lower()] = _hist
+                        self._candles_cache["__last__"] = _hist
             elif event in ("candles", "successgetCandles", "history", "loadHistory", "successLoadHistory", "successCandles", "successloadHistoryV2", "loadHistoryV2", "successHistoryV2", "historyV2"):
                 asset = payload.get("asset", payload.get("symbol", "")) if isinstance(payload, dict) else ""
                 candles = payload.get("candles", payload.get("data", payload.get("history", payload))) if isinstance(payload, dict) else payload

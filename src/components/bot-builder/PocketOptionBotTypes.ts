@@ -2498,6 +2498,7 @@ async def main():
             trend = get_trend(candles)
             trend_sig = trend_to_signal(trend)
             signal, signal_info = get_signal(prices, candles)
+            print(f"[DEBUG-SIGNAL] signal={signal!r} info={signal_info!r}")
 
             import time as _time_mod
             if TIME_FILTER_ENABLED:

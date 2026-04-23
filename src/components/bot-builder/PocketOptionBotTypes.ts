@@ -335,7 +335,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   lossStreakCount: 3,
   lossStreakPauseMin: 30,
   emaTrendFilterEnabled: false,
-  rufusPips: 5,
+  rufusPips: 6,
   rufusLookback: 10,
   rufusStep: 0.01,
   rufusPipSize: null,

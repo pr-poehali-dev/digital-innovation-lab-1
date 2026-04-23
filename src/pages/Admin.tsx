@@ -54,13 +54,11 @@ export default function Admin() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setAuthError('');
-    setLoading(true);
     const res = await fetch(ADMIN_URL, { headers: { 'X-Admin-Password': password } });
-    if (res.status === 401) { setAuthError('Неверный пароль'); setLoading(false); return; }
+    if (res.status === 401) { setAuthError('Неверный пароль'); return; }
     const data = await res.json();
     setKeys(data.keys || []);
     setAuthed(true);
-    setLoading(false);
   }
 
   async function handleGenerate(e: React.FormEvent) {

@@ -18,74 +18,19 @@ import {
   PO_ASSETS,
   PO_ASSETS_GROUPS,
   PO_EXPIRY_LABELS,
-  PO_PIP_SIZE,
-  getPipSize,
 } from "./PocketOptionBotTypes"
 
 const TREND_SCANNER_URL = "https://functions.poehali.dev/d55c380e-7fd5-4871-aca7-c8670be08cde"
-
-interface Candle {
-  t: string
-  o: number
-  h: number
-  l: number
-  c: number
-  green: boolean
-}
 
 interface TrendResult {
   asset: string
   asset_otc: string
   category: "crypto" | "forex"
+  change_pct: number
   trend_strength: number
-  direction: "UP" | "DOWN" | "NEUTRAL"
-  summary: "STRONG_BUY" | "BUY" | "NEUTRAL" | "SELL" | "STRONG_SELL"
-  greens?: number
-  reds?: number
-  candles?: Candle[]
-}
-
-const TIMEFRAMES = [
-  { label: "M5",  value: "5min" },
-  { label: "M15", value: "15min" },
-  { label: "M30", value: "30min" },
-  { label: "H1",  value: "1h" },
-  { label: "H4",  value: "4h" },
-]
-
-function MiniChart({ candles }: { candles: Candle[] }) {
-  if (!candles || candles.length === 0) return null
-  const ordered = [...candles].reverse()
-  const allPrices = ordered.flatMap(c => [c.h, c.l])
-  const minP = Math.min(...allPrices)
-  const maxP = Math.max(...allPrices)
-  const range = maxP - minP || 0.0001
-  const W = 60
-  const H = 28
-  const candleW = 6
-  const gap = 3
-  const totalW = ordered.length * (candleW + gap) - gap
-
-  const toY = (p: number) => H - ((p - minP) / range) * H
-
-  return (
-    <svg width={totalW} height={H} className="shrink-0">
-      {ordered.map((c, i) => {
-        const x = i * (candleW + gap)
-        const bodyTop = toY(Math.max(c.o, c.c))
-        const bodyBot = toY(Math.min(c.o, c.c))
-        const bodyH = Math.max(bodyBot - bodyTop, 1)
-        const color = c.green ? "#22c55e" : "#ef4444"
-        const wickX = x + candleW / 2
-        return (
-          <g key={i}>
-            <line x1={wickX} y1={toY(c.h)} x2={wickX} y2={toY(c.l)} stroke={color} strokeWidth={1} />
-            <rect x={x} y={bodyTop} width={candleW} height={bodyH} fill={color} rx={1} />
-          </g>
-        )
-      })}
-    </svg>
-  )
+  direction: "UP" | "DOWN"
+  volume_usd?: number
+  position_in_range: number | null
 }
 
 function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
@@ -93,8 +38,9 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
   const [results, setResults] = useState<TrendResult[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [collapsed, setCollapsed] = useState(false)
-  const [interval, setInterval] = useState("1h")
+  // payouts[asset] — выплата введённая вручную для каждого актива
   const [payouts, setPayouts] = useState<Record<string, string>>({})
+  // минимальная выплата для фильтра
   const [minPayout, setMinPayout] = useState<string>("80")
 
   function setPayout(asset: string, val: string) {
@@ -118,12 +64,12 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
     setError(null)
     setResults(null)
     try {
-      const resp = await fetch(`${TREND_SCANNER_URL}?interval=${interval}`)
+      const resp = await fetch(TREND_SCANNER_URL)
       const raw = await resp.json()
       const data = typeof raw === "string" ? JSON.parse(raw) : raw
       setResults(data.top)
       const topForex = data.top?.find((r: TrendResult) => r.category === "forex")
-      if (topForex) onSelect(topForex.asset)
+      if (topForex) onSelect(topForex.asset_otc)
     } catch {
       setError("Не удалось получить данные")
     } finally {
@@ -135,24 +81,6 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
 
   return (
     <div className="space-y-2">
-      {/* Выбор таймфрейма */}
-      <div className="flex gap-1">
-        {TIMEFRAMES.map(tf => (
-          <button
-            key={tf.value}
-            type="button"
-            onClick={() => setInterval(tf.value)}
-            className={`flex-1 h-7 rounded font-space-mono text-xs border transition-colors ${
-              interval === tf.value
-                ? "bg-yellow-500/20 border-yellow-500/50 text-yellow-400"
-                : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white"
-            }`}
-          >
-            {tf.label}
-          </button>
-        ))}
-      </div>
-
       {/* Кнопка сканирования + закрытие */}
       <div className="flex gap-2">
         <Button
@@ -164,7 +92,7 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
         >
           {loading
             ? <><Icon name="Loader2" size={13} className="mr-1.5 animate-spin" />Сканирую рынок...</>
-            : <><Icon name="Zap" size={13} className="mr-1.5" />Найти сильный тренд</>
+            : <><Icon name="Zap" size={13} className="mr-1.5" />Найти сильный тренд (Binance)</>
           }
         </Button>
         {results && (
@@ -221,53 +149,29 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
             {visible && visible.length === 0 && (
               <p className="text-zinc-500 font-space-mono text-xs text-center py-2">Все активы скрыты фильтром — снизь минимум</p>
             )}
-            {visible && visible.map((r) => {
+            {visible && visible.map((r, i) => {
               const barPct = (r.trend_strength / maxStrength) * 100
               const isUp = r.direction === "UP"
-              const isDown = r.direction === "DOWN"
               const topForexAsset = visible.find(x => x.category === "forex")?.asset
               const isTop = r.asset === topForexAsset
               const payoutVal = payouts[r.asset] ?? ""
               const payoutNum = Number(payoutVal)
               const payoutColor = payoutNum >= 85 ? "text-green-400" : payoutNum >= 75 ? "text-yellow-400" : payoutNum > 0 ? "text-red-400" : "text-zinc-500"
 
-              const summaryLabel: Record<string, string> = {
-                STRONG_BUY: "STRONG BUY",
-                BUY: "BUY",
-                NEUTRAL: "NEUTRAL",
-                SELL: "SELL",
-                STRONG_SELL: "STRONG SELL",
-              }
-              const summaryColor: Record<string, string> = {
-                STRONG_BUY: "text-green-400 bg-green-500/10 border-green-500/30",
-                BUY: "text-green-300 bg-green-500/5 border-green-500/20",
-                NEUTRAL: "text-zinc-400 bg-zinc-700/50 border-zinc-600",
-                SELL: "text-red-300 bg-red-500/5 border-red-500/20",
-                STRONG_SELL: "text-red-400 bg-red-500/10 border-red-500/30",
-              }
-              const total = (r.greens ?? 0) + (r.reds ?? 0)
-
               return (
                 <div
                   key={r.asset}
                   className={`rounded border ${isTop ? "bg-yellow-500/5 border-yellow-500/30" : "bg-zinc-800 border-zinc-700"}`}
                 >
-                  {/* Верхняя строка: актив + summary + выплата + кнопка */}
+                  {/* Верхняя строка: актив + выплата + кнопка выбрать */}
                   <div className="flex items-center gap-2 px-2.5 pt-1.5 pb-1">
-                    <span className={`text-xs font-bold shrink-0 ${isUp ? "text-green-400" : isDown ? "text-red-400" : "text-zinc-400"}`}>
-                      {isUp ? "▲" : isDown ? "▼" : "—"}
+                    <span className={`text-xs font-bold shrink-0 ${isUp ? "text-green-400" : "text-red-400"}`}>
+                      {isUp ? "▲" : "▼"}
                     </span>
                     <span className="text-xs shrink-0">{r.category === "crypto" ? "₿" : "💱"}</span>
                     <span className={`font-space-mono text-xs flex-1 ${isTop ? "text-yellow-300 font-bold" : "text-white"}`}>
                       {r.asset}{isTop && " 🔥"}
                     </span>
-
-                    {/* TradingView summary badge */}
-                    {r.summary && (
-                      <span className={`font-space-mono text-[10px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${summaryColor[r.summary] ?? "text-zinc-400"}`}>
-                        {summaryLabel[r.summary] ?? r.summary}
-                      </span>
-                    )}
 
                     {/* Поле ввода выплаты */}
                     <div className="flex items-center gap-1 shrink-0">
@@ -284,38 +188,23 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
                       <span className="text-zinc-500 font-space-mono text-xs">%</span>
                     </div>
 
+                    <span className={`font-space-mono text-xs font-bold shrink-0 ${isUp ? "text-green-400" : "text-red-400"}`}>
+                      {r.change_pct > 0 ? "+" : ""}{r.change_pct}%
+                    </span>
+
                     <button
                       type="button"
-                      onClick={() => onSelect(r.asset)}
+                      onClick={() => onSelect(r.asset_otc)}
                       className="shrink-0 text-zinc-500 hover:text-yellow-400 font-space-mono text-xs transition-colors"
                     >
-                      →
+                      OTC →
                     </button>
-                  </div>
-
-                  {/* Мини-график свечей + счётчик зелёных/красных */}
-                  <div className="flex items-center gap-3 px-2.5 pb-1.5">
-                    {r.candles && r.candles.length > 0 && (
-                      <div className="shrink-0">
-                        <MiniChart candles={r.candles} />
-                      </div>
-                    )}
-                    {total > 0 && (
-                      <div className="flex items-center gap-1 flex-1">
-                        <div className="flex-1 h-1 rounded bg-zinc-700 overflow-hidden flex">
-                          <div className="h-full bg-green-500 transition-all" style={{ width: `${Math.round(((r.greens ?? 0) / total) * 100)}%` }} />
-                          <div className="h-full bg-red-500 transition-all" style={{ width: `${Math.round(((r.reds ?? 0) / total) * 100)}%` }} />
-                        </div>
-                        <span className="text-[10px] font-space-mono text-green-400 shrink-0">{r.greens}🟢</span>
-                        <span className="text-[10px] font-space-mono text-red-400 shrink-0">{r.reds}🔴</span>
-                      </div>
-                    )}
                   </div>
 
                   {/* Полоска силы тренда */}
                   <div className="w-full bg-zinc-700 rounded-b h-1">
                     <div
-                      className={`h-1 rounded-b transition-all ${isUp ? "bg-green-500" : isDown ? "bg-red-500" : "bg-zinc-500"}`}
+                      className={`h-1 rounded-b transition-all ${isUp ? "bg-green-500" : "bg-red-500"}`}
                       style={{ width: `${barPct}%` }}
                     />
                   </div>
@@ -323,7 +212,7 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
               )
             })}
             {visible && visible.length > 0 && (
-              <p className="text-zinc-600 font-space-mono text-xs text-center pt-0.5">Нажми "→" — актив выберется автоматически</p>
+              <p className="text-zinc-600 font-space-mono text-xs text-center pt-0.5">Нажми "OTC →" — актив выберется автоматически</p>
             )}
           </div>
         </>
@@ -334,19 +223,7 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
 
 
 
-function AssetSelector({
-  value,
-  onChange,
-  rufusPips = 5,
-  rufusPipSize = null,
-  onFix,
-}: {
-  value: string
-  onChange: (v: string) => void
-  rufusPips?: number
-  rufusPipSize?: number | null
-  onFix?: (patch: { rufusPipSize?: number; rufusStep?: 0.01 | 0.001; rufusPips?: number }) => void
-}) {
+function AssetSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [search, setSearch] = useState("")
   const [open, setOpen] = useState(false)
 
@@ -358,70 +235,8 @@ function AssetSelector({
       .filter((g) => g.assets.length > 0)
   }, [search])
 
-  const selectedPip = getPipSize(value, rufusPipSize ?? null)
-  const selectedThreshold = rufusPips * selectedPip
-  const selectedComment = PO_PIP_SIZE[value]?.comment ?? "форекс стандарт"
-
-  // Пример цены для разных типов активов
-  const examplePrice = useMemo(() => {
-    if (value.includes("BTC")) return 65000
-    if (value.includes("ETH") || value.includes("BNB")) return 3200
-    if (value.includes("SOL")) return 150
-    if (value.includes("DOGE")) return 0.15
-    if (value.includes("Gold")) return 2350
-    if (value.includes("Silver")) return 28
-    if (value.includes("Platinum") || value.includes("Palladium")) return 980
-    if (value.includes("Oil") || value.includes("Brent") || value.includes("WTI")) return 80
-    if (value.includes("Gas")) return 2.5
-    if (value.includes("S&P") || value.includes("NASDAQ") || value.includes("Dow") || value.includes("AUS") || value.includes("VIX")) return 5200
-    if (value.includes("JPY")) return 155.00
-    if (value.includes("Apple") || value.includes("Intel")) return 195
-    if (value.includes("Tesla")) return 175
-    if (value.includes("Nvidia")) return 870
-    if (value.includes("Netflix")) return 630
-    if (value.includes("McDonald") || value.includes("VISA") || value.includes("ExxonMobil") || value.includes("Boeing") || value.includes("Palantir") || value.includes("Alibaba") || value.includes("GameStop")) return 180
-    return 1.1300
-  }, [value])
-
-  const exampleLevel = Math.round(examplePrice / (rufusPipSize ?? selectedPip) / 100) * (rufusPipSize ?? selectedPip) * 100
-  const decimals = selectedPip < 0.001 ? 5 : selectedPip < 0.01 ? 4 : selectedPip < 0.1 ? 3 : selectedPip < 1 ? 2 : 0
-
-  // Проверка конфликта шага уровней и пипса
-  const stepNum = typeof rufusPipSize === "number" && rufusPipSize > 0 ? rufusPipSize : null
-  // rufusStep передаётся снаружи — берём из props
-  const stepWarn = useMemo(() => {
-    const pip = selectedPip
-    const radius = rufusPips * pip
-    if (pip <= 0.0001 && !stepNum) {
-      return {
-        type: "too_rare" as const,
-        msg: `Для ${value} пип = ${pip}. Шаг уровней 0.01 = 100 пипсов — уровни очень редкие, бот будет ждать часами.`,
-        rec: "Рекомендуем rufusStep = 0.001 (10 пипсов между уровнями)",
-        fix: { rufusStep: 0.001 as const },
-      }
-    }
-    if (pip >= 1 && !stepNum) {
-      return {
-        type: "too_frequent" as const,
-        msg: `Для ${value} пип = ${pip}. Шаг уровней мелкий — бот будет входить слишком часто.`,
-        rec: "Рекомендуем задать пипс вручную (например 1.0 для индексов, 10 для BTC)",
-        fix: { rufusPipSize: pip },
-      }
-    }
-    if (stepNum && radius > stepNum / 2) {
-      const fixedStep = parseFloat((radius * 3).toFixed(6))
-      return {
-        type: "overlap" as const,
-        msg: `Радиус входа (${radius.toFixed(6)}) > половины шага (${(stepNum/2).toFixed(6)}) — зоны перекрываются, бот входит почти на каждой свече.`,
-        rec: `Увеличь шаг уровней минимум до ${fixedStep} или уменьши rufusPips`,
-        fix: { rufusPipSize: fixedStep },
-      }
-    }
-    return null
-  }, [value, selectedPip, rufusPips, stepNum])
-
   return (
-    <div className="space-y-2">
+    <div>
       <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Торговый актив</Label>
       <Select
         value={value}
@@ -449,93 +264,17 @@ function AssetSelector({
               filtered.map((group) => (
                 <SelectGroup key={group.label}>
                   <SelectLabel className="text-zinc-500 font-space-mono text-xs px-2 py-1">{group.label}</SelectLabel>
-                  {group.assets.map((a) => {
-                    const pip = getPipSize(a, rufusPipSize ?? null)
-                    const thr = (rufusPips * pip).toFixed(pip < 0.001 ? 6 : pip < 0.1 ? 4 : 2)
-                    const comment = PO_PIP_SIZE[a]?.comment ?? ""
-                    return (
-                      <SelectItem key={a} value={a} className="text-white font-space-mono text-xs hover:bg-zinc-700 pr-2">
-                        <div className="flex flex-col gap-0.5 py-0.5">
-                          <span>{a}</span>
-                          <span className="text-purple-400/70 text-[10px]">
-                            пип {pip} · порог {thr} · {comment.split(",")[0]}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    )
-                  })}
+                  {group.assets.map((a) => (
+                    <SelectItem key={a} value={a} className="text-white font-space-mono text-xs hover:bg-zinc-700">
+                      {a}
+                    </SelectItem>
+                  ))}
                 </SelectGroup>
               ))
             )}
           </div>
         </SelectContent>
       </Select>
-
-      {/* Карточка-подсказка под дропдауном */}
-      <div className="bg-purple-950/20 border border-purple-500/20 rounded-lg px-3 py-2.5 space-y-1.5 font-space-mono">
-        <div className="flex items-center justify-between">
-          <span className="text-purple-300 text-xs font-semibold">📏 Rufus — параметры для {value}</span>
-        </div>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
-          <span className="text-zinc-500">Размер пипса: <span className="text-purple-400 font-bold">{selectedPip}</span></span>
-          <span className="text-zinc-500">Радиус ({rufusPips} пип): <span className="text-purple-400 font-bold">±{selectedThreshold.toFixed(selectedPip < 0.001 ? 6 : selectedPip < 0.1 ? 4 : 2)}</span></span>
-          <span className="text-zinc-500 col-span-2 truncate">Почему: {selectedComment}</span>
-        </div>
-        <div className="border-t border-purple-500/10 pt-1.5 text-[11px] space-y-0.5">
-          <p className="text-zinc-400 font-semibold">Пример входа (цена ~{examplePrice.toLocaleString()}):</p>
-          <p className="text-zinc-500">
-            Уровень <span className="text-white">{exampleLevel.toFixed(decimals)}</span>
-            {" "}→ вход в диапазоне{" "}
-            <span className="text-green-400">{(exampleLevel - selectedThreshold).toFixed(decimals)}</span>
-            {" "}–{" "}
-            <span className="text-green-400">{(exampleLevel + selectedThreshold).toFixed(decimals)}</span>
-          </p>
-          <p className="text-zinc-600">
-            Подход сверху ({(exampleLevel + selectedThreshold * 0.5).toFixed(decimals)}) → <span className="text-green-400">CALL</span>
-            &nbsp;|&nbsp;
-            снизу ({(exampleLevel - selectedThreshold * 0.5).toFixed(decimals)}) → <span className="text-red-400">PUT</span>
-          </p>
-        </div>
-
-        {/* Предупреждение о конфликте */}
-        {stepWarn && (
-          <div className={`border rounded-lg px-3 py-2 text-[11px] space-y-1 font-space-mono
-            ${stepWarn.type === "overlap"
-              ? "bg-red-950/30 border-red-500/30"
-              : stepWarn.type === "too_rare"
-              ? "bg-yellow-950/30 border-yellow-500/30"
-              : "bg-orange-950/30 border-orange-500/30"
-            }`}
-          >
-            <p className={`font-semibold flex items-center gap-1
-              ${stepWarn.type === "overlap" ? "text-red-400" : stepWarn.type === "too_rare" ? "text-yellow-400" : "text-orange-400"}`}
-            >
-              {stepWarn.type === "overlap" ? "⚠️ Зоны перекрываются" : stepWarn.type === "too_rare" ? "⚠️ Уровни слишком редкие" : "⚠️ Шаг не подходит"}
-            </p>
-            <p className="text-zinc-400">{stepWarn.msg}</p>
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <p className={`${stepWarn.type === "overlap" ? "text-red-300" : stepWarn.type === "too_rare" ? "text-yellow-300" : "text-orange-300"}`}>
-                💡 {stepWarn.rec}
-              </p>
-              {onFix && stepWarn.fix && (
-                <button
-                  type="button"
-                  onClick={() => onFix(stepWarn.fix!)}
-                  className={`shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-orbitron font-bold border transition-all
-                    ${stepWarn.type === "overlap"
-                      ? "bg-red-500/20 border-red-500/40 text-red-300 hover:bg-red-500/30"
-                      : stepWarn.type === "too_rare"
-                      ? "bg-yellow-500/20 border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/30"
-                      : "bg-orange-500/20 border-orange-500/40 text-orange-300 hover:bg-orange-500/30"
-                    }`}
-                >
-                  ✓ Исправить
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   )
 }
@@ -567,7 +306,6 @@ function StrategyCard({
   onClick,
   showDetail,
   onToggleDetail,
-  inverted,
 }: {
   stratKey: POStrategy
   active: boolean
@@ -575,7 +313,6 @@ function StrategyCard({
   onClick: () => void
   showDetail: boolean
   onToggleDetail: () => void
-  inverted?: boolean
 }) {
   const s = PO_STRATEGIES[stratKey]
   return (
@@ -599,7 +336,6 @@ function StrategyCard({
               {s.label}
             </span>
             <Badge className={`text-xs ${RISK_COLORS[s.risk]}`}>{s.risk} риск</Badge>
-            {inverted && <span className="text-[10px] font-space-mono font-semibold text-orange-400 bg-orange-500/10 border border-orange-500/30 rounded px-1.5 py-0.5">🔄 INV</span>}
           </div>
           <p className="text-zinc-500 text-xs mt-0.5 leading-snug">{s.description}</p>
           <div className="flex gap-3 mt-1.5 text-xs font-space-mono">
@@ -1001,7 +737,6 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
               </div>
             )}
 
-
             {/* Presets */}
             <div>
               <p className="text-zinc-500 font-space-mono text-xs mb-2">⚡ Быстрые пресеты</p>
@@ -1063,12 +798,6 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
             <div className="space-y-2">
               {strategies.filter((k) => k !== "martingale").map((key) => {
                 const isActive = config.comboStrategies.includes(key)
-                const isInverted =
-                  (key === "rsi_reversal" && (config.invertSignalRsi ?? false)) ||
-                  (key === "ema_cross" && (config.invertSignalEma ?? false)) ||
-                  (key === "candle_pattern" && (config.invertSignalCandle ?? false)) ||
-                  (key === "support_resistance" && (config.invertSignalRufus ?? false)) ||
-                  (key === "martingale" && (config.invertSignalMartingale ?? false))
                 return (
                   <StrategyCard
                     key={key}
@@ -1078,7 +807,6 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                     onClick={() => toggleComboStrategy(key)}
                     showDetail={!!detailOpen["combo_" + key]}
                     onToggleDetail={() => toggleDetail("combo_" + key)}
-                    inverted={isActive && isInverted}
                   />
                 )
               })}
@@ -1152,7 +880,34 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                 </div>
               )
             })()}
-
+            {/* Trend mode */}
+            <div className="space-y-2 pt-1">
+              <Label className="text-zinc-300 text-sm">Режим анализа свечей</Label>
+              <p className="text-zinc-500 text-xs font-space-mono">Как бот читает 2 последних свечи перед входом</p>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => set({ trendMode: "same" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "same" ? "border-green-500/60 bg-green-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🟢🟢 / 🔴🔴</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Одинаковые</span>
+                </button>
+                <button
+                  onClick={() => set({ trendMode: "reverse" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "reverse" ? "border-blue-500/60 bg-blue-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🔴🟢 / 🟢🔴</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Разворот</span>
+                </button>
+                <button
+                  onClick={() => set({ trendMode: "any" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "any" ? "border-purple-500/60 bg-purple-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🔀 Любой</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Все паттерны</span>
+                </button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -1163,22 +918,8 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
           <CardTitle className="font-orbitron text-white text-base">Актив и экспирация</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <TrendScanner onSelect={(v) => {
-            const isCrypto = ["BTC","ETH","SOL","BNB","DOGE"].some(c => v.includes(c))
-            set({ asset: v, rufusStep: isCrypto ? 0.01 : 0.01 })
-          }} />
-          <AssetSelector
-            value={config.asset}
-            rufusPips={config.rufusPips ?? 5}
-            rufusPipSize={config.rufusPipSize ?? null}
-            onFix={(patch) => set(patch)}
-            onChange={(v) => {
-              const isCrypto = ["BTC","ETH","SOL","BNB","DOGE"].some(c => v.includes(c))
-              const isJpy = v.includes("JPY")
-              const rufusStep: 0.01 | 0.001 = isJpy ? 0.01 : isCrypto ? 0.01 : 0.01
-              set({ asset: v, rufusStep })
-            }}
-          />
+          <TrendScanner onSelect={(v) => set({ asset: v })} />
+          <AssetSelector value={config.asset} onChange={(v) => set({ asset: v })} />
 
           <div>
             <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Экспирация опциона</Label>
@@ -1282,48 +1023,9 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
 
           <div>
             <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Интервал проверки: {config.checkInterval} сек</Label>
-            <Slider min={10} max={300} step={5} value={[config.checkInterval]} onValueChange={([v]) => set({ checkInterval: v })} />
+            <Slider min={10} max={120} step={5} value={[config.checkInterval]} onValueChange={([v]) => set({ checkInterval: v })} />
             <p className="text-zinc-600 font-space-mono text-xs mt-1.5">
-              {config.checkInterval <= 15
-                ? "⚡ Быстро — больше сигналов, тратит ~120 кредитов TwelveData/час"
-                : config.checkInterval <= 30
-                ? "⚖️ Баланс — ~60 кредитов/час, оптимально"
-                : config.checkInterval <= 60
-                ? "🐢 Экономно — ~30 кредитов/час, 800 кредитов хватит на 26 часов"
-                : "💤 Медленно — ~10 кредитов/час, бесплатный лимит не исчерпается за день"}
-            </p>
-            {config.checkInterval <= 15 && (
-              <div className="mt-1.5 bg-yellow-950/30 border border-yellow-500/20 rounded-lg px-3 py-2 flex items-start justify-between gap-2">
-                <div className="flex items-start gap-2">
-                  <span className="text-yellow-400 text-xs shrink-0">⚠️</span>
-                  <p className="text-yellow-400/80 font-space-mono text-xs leading-relaxed">
-                    Лимит TwelveData (800 кредитов) закончится через <b>~{Math.round(800 / (3600 / config.checkInterval))} ч</b>. Бот остановится до следующего дня.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => set({ checkInterval: 60 })}
-                  className="shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-orbitron font-bold border bg-yellow-500/20 border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/30 transition-all"
-                >
-                  → 60 сек
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div>
-            <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
-              Пауза после сделки: {config.pauseAfterTrade === 0 ? "авто (= экспирация)" : `${config.pauseAfterTrade} сек`}
-            </Label>
-            <Slider min={0} max={300} step={5} value={[config.pauseAfterTrade]} onValueChange={([v]) => set({ pauseAfterTrade: v })} />
-            <p className="text-zinc-600 font-space-mono text-xs mt-1.5">
-              {config.pauseAfterTrade === 0
-                ? "⏱ Авто — бот ждёт ровно время экспирации + 5 сек"
-                : config.pauseAfterTrade <= 30
-                ? "⚡ Коротко — следующий сигнал почти сразу"
-                : config.pauseAfterTrade <= 120
-                ? "⚖️ Умеренно — даёт рынку время успокоиться"
-                : "🐢 Долго — меньше сделок, больше осторожности"}
+              {config.checkInterval <= 15 ? "⚡ Быстро — больше сигналов, больше шума" : config.checkInterval >= 60 ? "🐢 Медленно — меньше шума, реже проверка" : "⚖️ Баланс — оптимально для большинства стратегий"}
             </p>
           </div>
 
@@ -1406,13 +1108,6 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                 )
               })}
             </div>
-            <div className="flex items-center justify-between bg-red-950/30 border border-red-500/20 rounded-lg px-3 py-2">
-              <span className="text-red-400 text-xs font-space-mono">🔄 Инверсия сигналов Мартингейл</span>
-              <Switch checked={config.invertSignalMartingale ?? false} onCheckedChange={(v) => set({ invertSignalMartingale: v })} className="scale-75" />
-            </div>
-            {config.invertSignalMartingale && (
-              <p className="text-zinc-500 text-xs font-space-mono px-1">⚡ Большинство вверх → PUT &nbsp;|&nbsp; Большинство вниз → CALL</p>
-            )}
           </CardContent>
         )}
       </Card>
@@ -1437,13 +1132,53 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
               </div>
             </div>
             <AIComment {...rsiComment(config)} />
-            <div className="flex items-center justify-between bg-blue-950/30 border border-blue-500/20 rounded-lg px-3 py-2">
-              <span className="text-blue-400 text-xs font-space-mono">🔄 Инверсия сигналов RSI</span>
-              <Switch checked={config.invertSignalRsi ?? false} onCheckedChange={(v) => set({ invertSignalRsi: v })} className="scale-75" />
+            {/* Trend direction */}
+            <div className="space-y-2">
+              <Label className="text-zinc-300 text-sm">Направление входа</Label>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button onClick={() => set({ trendFollow: "follow" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "follow" ? "border-green-500/60 bg-green-500/10 text-green-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗ По тренду</button>
+                <button onClick={() => set({ trendFollow: "reverse" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "reverse" ? "border-orange-500/60 bg-orange-500/10 text-orange-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↙ Против</button>
+                <button onClick={() => set({ trendFollow: "combo" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "combo" ? "border-blue-500/60 bg-blue-500/10 text-blue-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗↙ Комбо</button>
+              </div>
+              {config.trendFollow === "reverse" && (
+                <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-3 py-2">
+                  <span className="text-orange-400 text-xs font-space-mono leading-relaxed">⚠️ Только для флета. На сильном тренде увеличивает убытки.</span>
+                </div>
+              )}
+              {config.trendFollow === "combo" && (
+                <div className="flex items-start gap-2 bg-blue-950/40 border border-blue-500/30 rounded-lg px-3 py-2">
+                  <span className="text-blue-400 text-xs font-space-mono leading-relaxed">Комбо: бот ставит по любому сигналу стратегии без фильтра тренда.</span>
+                </div>
+              )}
             </div>
-            {config.invertSignalRsi && (
-              <p className="text-zinc-500 text-xs font-space-mono px-1">⚡ Перепроданность → PUT &nbsp;|&nbsp; Перекупленность → CALL</p>
-            )}
+            {/* Trend mode */}
+            <div className="space-y-2">
+              <Label className="text-zinc-300 text-sm">Режим анализа свечей</Label>
+              <p className="text-zinc-500 text-xs font-space-mono">Как бот читает 2 последних свечи перед входом</p>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => set({ trendMode: "same" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "same" ? "border-green-500/60 bg-green-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🟢🟢 / 🔴🔴</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Одинаковые</span>
+                </button>
+                <button
+                  onClick={() => set({ trendMode: "reverse" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "reverse" ? "border-blue-500/60 bg-blue-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🔴🟢 / 🟢🔴</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Разворот</span>
+                </button>
+                <button
+                  onClick={() => set({ trendMode: "any" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "any" ? "border-purple-500/60 bg-purple-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🔀 Любой</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Все паттерны</span>
+                </button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -1456,300 +1191,109 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
             <p className="text-zinc-500 text-xs font-space-mono leading-relaxed">
               Бот ищет разворотные паттерны (молот, поглощение, доджи). Сигнал формируется при закрытии свечи.
             </p>
-            <div className="flex items-center justify-between bg-yellow-950/30 border border-yellow-500/20 rounded-lg px-3 py-2">
-              <span className="text-yellow-400 text-xs font-space-mono">🔄 Инверсия сигналов паттернов</span>
-              <Switch checked={config.invertSignalCandle ?? false} onCheckedChange={(v) => set({ invertSignalCandle: v })} className="scale-75" />
+            <div className="space-y-2">
+              <Label className="text-zinc-300 text-sm">Направление входа</Label>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button onClick={() => set({ trendFollow: "follow" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "follow" ? "border-green-500/60 bg-green-500/10 text-green-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗ По тренду</button>
+                <button onClick={() => set({ trendFollow: "reverse" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "reverse" ? "border-orange-500/60 bg-orange-500/10 text-orange-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↙ Против</button>
+                <button onClick={() => set({ trendFollow: "combo" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "combo" ? "border-blue-500/60 bg-blue-500/10 text-blue-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗↙ Комбо</button>
+              </div>
+              {config.trendFollow === "reverse" && (
+                <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-3 py-2">
+                  <span className="text-orange-400 text-xs font-space-mono leading-relaxed">⚠️ Только для флета. На сильном тренде увеличивает убытки.</span>
+                </div>
+              )}
+              {config.trendFollow === "combo" && (
+                <div className="flex items-start gap-2 bg-blue-950/40 border border-blue-500/30 rounded-lg px-3 py-2">
+                  <span className="text-blue-400 text-xs font-space-mono leading-relaxed">Комбо: бот ставит по любому сигналу стратегии без фильтра тренда.</span>
+                </div>
+              )}
             </div>
-            {config.invertSignalCandle && (
-              <p className="text-zinc-500 text-xs font-space-mono px-1">⚡ Бычий паттерн → PUT &nbsp;|&nbsp; Медвежий паттерн → CALL</p>
-            )}
+            {/* Trend mode */}
+            <div className="space-y-2">
+              <Label className="text-zinc-300 text-sm">Режим анализа свечей</Label>
+              <p className="text-zinc-500 text-xs font-space-mono">Как бот читает 2 последних свечи перед входом</p>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => set({ trendMode: "same" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "same" ? "border-green-500/60 bg-green-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🟢🟢 / 🔴🔴</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Одинаковые</span>
+                </button>
+                <button
+                  onClick={() => set({ trendMode: "reverse" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "reverse" ? "border-blue-500/60 bg-blue-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🔴🟢 / 🟢🔴</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Разворот</span>
+                </button>
+                <button
+                  onClick={() => set({ trendMode: "any" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "any" ? "border-purple-500/60 bg-purple-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🔀 Любой</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Все паттерны</span>
+                </button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Support/Resistance settings — RUFUS */}
+      {/* Support/Resistance settings */}
       {!config.comboMode && config.strategy === "support_resistance" && (
         <Card className="bg-zinc-900 border-purple-500/20">
-          <CardHeader className="pb-3">
-            <CardTitle className="font-orbitron text-white text-base flex items-center gap-2">
-              Настройки уровней
-              <span className="text-[10px] font-space-mono font-normal bg-purple-500/20 border border-purple-500/40 text-purple-300 rounded px-1.5 py-0.5">RUFUS</span>
-            </CardTitle>
-          </CardHeader>
+          <CardHeader className="pb-3"><CardTitle className="font-orbitron text-white text-base">Настройки уровней</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <p className="text-zinc-500 text-xs font-space-mono leading-relaxed">
-              Алгоритм <b className="text-purple-400">Rufus</b> торгует от круглых уровней. Подход сверху → поддержка → <span className="text-green-400">CALL</span>. Подход снизу → сопротивление → <span className="text-red-400">PUT</span>.
+              Бот торгует от уровней поддержки и сопротивления. Вход при отбое от уровня.
             </p>
-
-            {/* Пресеты для быстрой настройки */}
-            {(() => {
-              const RUFUS_PRESETS = [
-                {
-                  label: "EUR/USD",
-                  icon: "💱",
-                  desc: "Стандартный форекс",
-                  patch: { rufusStep: 0.001 as const, rufusPips: 3, rufusPipSize: 0.0001 },
-                  color: "border-blue-500/40 text-blue-300 bg-blue-500/10 hover:bg-blue-500/20",
-                  active: "border-blue-500 bg-blue-500/20 text-blue-200",
-                  match: (a: string) => ["EUR","GBP","AUD","NZD","CAD","CHF"].some(c => a.includes(c)) && !a.includes("JPY"),
-                },
-                {
-                  label: "EUR/USD x10",
-                  icon: "🔬",
-                  desc: "Микро — 1 пипс",
-                  patch: { rufusStep: 0.0001 as const, rufusPips: 2, rufusPipSize: 0.0001 },
-                  color: "border-violet-500/40 text-violet-300 bg-violet-500/10 hover:bg-violet-500/20",
-                  active: "border-violet-500 bg-violet-500/20 text-violet-200",
-                  match: (_a: string) => false,
-                },
-                {
-                  label: "USD/JPY",
-                  icon: "🇯🇵",
-                  desc: "Иена — шаг 0.05",
-                  patch: { rufusStep: 0.01 as const, rufusPips: 3, rufusPipSize: 0.01 },
-                  color: "border-red-500/40 text-red-300 bg-red-500/10 hover:bg-red-500/20",
-                  active: "border-red-500 bg-red-500/20 text-red-200",
-                  match: (a: string) => a.includes("JPY"),
-                },
-                {
-                  label: "BTC/ETH",
-                  icon: "₿",
-                  desc: "Крипта — крупный пип",
-                  patch: { rufusStep: 0.01 as const, rufusPips: 3, rufusPipSize: 10.0 },
-                  color: "border-yellow-500/40 text-yellow-300 bg-yellow-500/10 hover:bg-yellow-500/20",
-                  active: "border-yellow-500 bg-yellow-500/20 text-yellow-200",
-                  match: (a: string) => ["BTC","ETH","SOL","BNB","DOGE"].some(c => a.includes(c)),
-                },
-                {
-                  label: "Gold",
-                  icon: "🥇",
-                  desc: "Золото / нефть",
-                  patch: { rufusStep: 0.01 as const, rufusPips: 3, rufusPipSize: 0.1 },
-                  color: "border-amber-500/40 text-amber-300 bg-amber-500/10 hover:bg-amber-500/20",
-                  active: "border-amber-500 bg-amber-500/20 text-amber-200",
-                  match: (a: string) => ["Gold","Silver","Oil","Brent","WTI"].some(c => a.includes(c)),
-                },
-                {
-                  label: "RUB",
-                  icon: "₽",
-                  desc: "EUR/RUB, USD/RUB",
-                  patch: { rufusStep: 0.01 as const, rufusPips: 3, rufusPipSize: 0.001 },
-                  color: "border-green-500/40 text-green-300 bg-green-500/10 hover:bg-green-500/20",
-                  active: "border-green-500 bg-green-500/20 text-green-200",
-                  match: (a: string) => a.includes("RUB"),
-                },
-              ]
-              const asset = config.asset ?? ""
-              const autoPreset = RUFUS_PRESETS.find(p => p.match(asset))
-              const isApplied = (p: typeof RUFUS_PRESETS[0]) =>
-                config.rufusPipSize === p.patch.rufusPipSize &&
-                config.rufusPips === p.patch.rufusPips &&
-                config.rufusStep === p.patch.rufusStep
-
-              return (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-zinc-400 font-space-mono text-xs">⚡ Быстрые пресеты</Label>
-                    {autoPreset && !isApplied(autoPreset) && (
-                      <span className="text-[10px] font-space-mono text-purple-400 animate-pulse">
-                        ← рекомендован для {asset}
-                      </span>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {RUFUS_PRESETS.map((p) => {
-                      const applied = isApplied(p)
-                      const recommended = autoPreset?.label === p.label
-                      return (
-                        <button
-                          key={p.label}
-                          type="button"
-                          onClick={() => set(p.patch)}
-                          className={`rounded-lg px-3 py-2 text-xs font-space-mono border transition-all text-left relative
-                            ${applied ? p.active : p.color}`}
-                        >
-                          {recommended && !applied && (
-                            <span className="absolute top-1 right-1 text-[8px] bg-purple-500/40 text-purple-300 rounded px-1">авто</span>
-                          )}
-                          <div className="font-bold">{p.icon} {p.label}</div>
-                          <div className="text-[10px] opacity-70 mt-0.5">{p.desc}</div>
-                          <div className="text-[9px] opacity-50 mt-0.5">
-                            пип {p.patch.rufusPipSize} · радиус {p.patch.rufusPips} · шаг {p.patch.rufusStep}
-                          </div>
-                          {applied && <div className="text-[9px] mt-0.5 font-bold">✓ применён</div>}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              )
-            })()}
-            {(() => {
-              const asset = config.asset ?? ""
-              const isJpy = asset.includes("JPY")
-              const isCrypto = ["BTC","ETH","SOL","BNB","DOGE"].some(c => asset.includes(c))
-              const isStock = ["Nvidia","Apple","Tesla","VISA","Palantir","GameStop","ExxonMobil","Netflix","McDonald","Intel","Boeing","Alibaba"].some(c => asset.includes(c))
-              const isCommodity = ["Gold","Silver","Oil","Gas","Platinum","Palladium"].some(c => asset.includes(c))
-              const currentStep = config.rufusStep ?? 0.01
-
-              type StepInfo = { label: string; badge: string; when: string; example: string; warning?: string }
-              const stepInfo: Record<string, StepInfo> = {
-                "0.01": {
-                  label: "0.0100 — сотые",
-                  badge: "рекомендовано",
-                  when: isJpy
-                    ? "Для USD/JPY уровни на целых числах (109.00, 110.00)"
-                    : isCrypto
-                    ? "Для крипты круглые уровни — тысячи (30000, 31000)"
-                    : isStock
-                    ? "Для акций уровни на целых ценах ($150, $200)"
-                    : isCommodity
-                    ? "Для Gold/Oil уровни на круглых ценах ($1900, $2000)"
-                    : "Стандарт для EUR/USD, GBP/USD, AUD/USD",
-                  example: isJpy ? "109.00 / 110.00 / 111.00" : isCrypto ? "30000 / 31000 / 32000" : "1.1200 / 1.1300 / 1.1400",
-                },
-                "0.001": {
-                  label: "0.0010 — тысячные",
-                  badge: "для скальпинга",
-                  when: "Больше сигналов — уровни через каждые 10 пипсов",
-                  example: isJpy ? "109.00 / 109.10 / 109.20" : "1.1290 / 1.1300 / 1.1310",
-                  warning: isCrypto
-                    ? "Для крипты 0.001 не имеет смысла — цены в тысячах"
-                    : isStock
-                    ? "Для акций 0.001 не имеет смысла — цены в долларах"
-                    : "Больше шума и ложных сигналов. Подходит опытным трейдерам."
-                },
-                "0.0001": {
-                  label: "0.0001 — десятитысячные",
-                  badge: "микро-уровни",
-                  when: "Уровни через каждый 1 пипс — максимум сигналов",
-                  example: isJpy ? "109.090 / 109.100 / 109.110" : "1.17490 / 1.17500 / 1.17510",
-                  warning: isCrypto || isStock
-                    ? "Для крипты и акций не применимо"
-                    : "Очень высокий шум. Только для быстрого скальпинга 1–2 мин."
-                },
-              }
-              const stepKey = (s: number) => s === 0.0001 ? "0.0001" : s === 0.001 ? "0.001" : "0.01"
-              const info = stepInfo[stepKey(currentStep)]
-
-              return (
-                <div>
-                  <Label className="text-zinc-400 font-space-mono text-xs mb-2 block">Шаг уровней</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {([0.01, 0.001, 0.0001] as const).map((step) => (
-                      <button
-                        key={step}
-                        onClick={() => set({ rufusStep: step })}
-                        className={`rounded-md px-3 py-2 text-xs font-space-mono font-semibold border transition-all text-left ${
-                          currentStep === step
-                            ? "bg-purple-500/20 border-purple-500/50 text-purple-300"
-                            : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"
-                        }`}
-                      >
-                        <div>{stepInfo[stepKey(step)]?.label ?? String(step)}</div>
-                        <div className={`text-[9px] mt-0.5 font-normal ${currentStep === step ? "text-purple-400" : "text-zinc-600"}`}>
-                          {stepInfo[stepKey(step)]?.badge}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="mt-2 bg-zinc-800/50 border border-zinc-700/40 rounded-lg px-3 py-2 space-y-1.5">
-                    <p className="text-zinc-300 font-space-mono text-[10px] font-semibold">
-                      💡 {info.when}
-                    </p>
-                    <p className="text-zinc-500 font-space-mono text-[10px]">
-                      Уровни: {info.example}
-                    </p>
-                    {info.warning && (
-                      <p className="text-amber-500/80 font-space-mono text-[10px]">⚠ {info.warning}</p>
-                    )}
-                    {isCrypto && currentStep === 0.01 && (
-                      <p className="text-amber-500/80 font-space-mono text-[10px]">⚠ Rufus даёт мало сигналов на крипте — рассмотри форекс-пары</p>
-                    )}
-                  </div>
-                </div>
-              )
-            })()}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Радиус входа (пипсов)</Label>
-                <Input
-                  type="number" min={1} max={50}
-                  value={config.rufusPips ?? 5}
-                  onChange={(e) => set({ rufusPips: Number(e.target.value) })}
-                  className="bg-zinc-800 border-zinc-700 text-purple-400 font-space-mono text-sm"
-                />
-                <p className="text-zinc-600 font-space-mono text-[10px] mt-1">Как близко к уровню должна быть цена</p>
+            <div className="space-y-2">
+              <Label className="text-zinc-300 text-sm">Направление входа</Label>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button onClick={() => set({ trendFollow: "follow" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "follow" ? "border-green-500/60 bg-green-500/10 text-green-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗ По тренду</button>
+                <button onClick={() => set({ trendFollow: "reverse" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "reverse" ? "border-orange-500/60 bg-orange-500/10 text-orange-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↙ Против</button>
+                <button onClick={() => set({ trendFollow: "combo" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "combo" ? "border-blue-500/60 bg-blue-500/10 text-blue-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗↙ Комбо</button>
               </div>
-              <div>
-                <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Свечей для направления</Label>
-                <Input
-                  type="number" min={3} max={50}
-                  value={config.rufusLookback ?? 10}
-                  onChange={(e) => set({ rufusLookback: Number(e.target.value) })}
-                  className="bg-zinc-800 border-zinc-700 text-purple-400 font-space-mono text-sm"
-                />
-                <p className="text-zinc-600 font-space-mono text-[10px] mt-1">За сколько свечей смотреть направление</p>
-              </div>
-            </div>
-            {/* Размер пипса */}
-            <div className="bg-zinc-800 border border-zinc-700 rounded-xl p-3 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-white font-space-mono text-xs font-semibold">📏 Размер пипса</p>
-                  <p className="text-zinc-500 font-space-mono text-[10px] mt-0.5">
-                    Авто: {PO_PIP_SIZE[config.asset]?.pip ?? 0.0001} ({PO_PIP_SIZE[config.asset]?.comment ?? "форекс стандарт"})
-                  </p>
-                </div>
-                <button
-                  onClick={() => set({ rufusPipSize: config.rufusPipSize !== null ? null : (PO_PIP_SIZE[config.asset]?.pip ?? 0.0001) })}
-                  className={`text-[10px] font-space-mono px-2 py-1 rounded-lg border transition-all ${
-                    config.rufusPipSize !== null
-                      ? "bg-purple-500/20 border-purple-500/40 text-purple-400"
-                      : "bg-zinc-900 border-zinc-600 text-zinc-400"
-                  }`}
-                >
-                  {config.rufusPipSize !== null ? "✏️ Ручной" : "🤖 Авто"}
-                </button>
-              </div>
-              {config.rufusPipSize !== null && (
-                <div>
-                  <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Свой размер пипса</Label>
-                  <Input
-                    type="number"
-                    min={0.000001}
-                    step={0.0001}
-                    value={config.rufusPipSize}
-                    onChange={(e) => set({ rufusPipSize: Number(e.target.value) })}
-                    className="bg-zinc-900 border-zinc-600 text-purple-400 font-space-mono text-sm"
-                  />
-                  <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
-                    Форекс: 0.0001 &nbsp;|&nbsp; JPY/индексы: 0.01 &nbsp;|&nbsp; BTC: 1.0 &nbsp;|&nbsp; Газ: 0.001
-                  </p>
+              {config.trendFollow === "reverse" && (
+                <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-3 py-2">
+                  <span className="text-orange-400 text-xs font-space-mono leading-relaxed">⚠️ Только для флета. На сильном тренде увеличивает убытки.</span>
                 </div>
               )}
-              <div className="text-purple-400 font-space-mono text-xs bg-purple-950/30 border border-purple-500/20 rounded-lg px-3 py-1.5">
-                Активный пип: <span className="font-bold">{getPipSize(config.asset, config.rufusPipSize ?? null)}</span>
-                &nbsp;→ порог входа: <span className="font-bold">{((config.rufusPips ?? 5) * getPipSize(config.asset, config.rufusPipSize ?? null)).toFixed(6)}</span>
+              {config.trendFollow === "combo" && (
+                <div className="flex items-start gap-2 bg-blue-950/40 border border-blue-500/30 rounded-lg px-3 py-2">
+                  <span className="text-blue-400 text-xs font-space-mono leading-relaxed">Комбо: бот ставит по любому сигналу стратегии без фильтра тренда.</span>
+                </div>
+              )}
+            </div>
+            <div className="space-y-2 pt-1">
+              <Label className="text-zinc-300 text-sm">Режим анализа свечей</Label>
+              <p className="text-zinc-500 text-xs font-space-mono">Как бот читает 2 последних свечи перед входом</p>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => set({ trendMode: "same" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "same" ? "border-green-500/60 bg-green-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🟢🟢 / 🔴🔴</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Одинаковые</span>
+                </button>
+                <button
+                  onClick={() => set({ trendMode: "reverse" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "reverse" ? "border-blue-500/60 bg-blue-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🔴🟢 / 🟢🔴</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Разворот</span>
+                </button>
+                <button
+                  onClick={() => set({ trendMode: "any" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "any" ? "border-purple-500/60 bg-purple-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🔀 Любой</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Все паттерны</span>
+                </button>
               </div>
             </div>
-
-            <div className="bg-purple-950/30 border border-purple-500/20 rounded-lg px-3 py-2 space-y-1">
-              <p className="text-purple-300 text-xs font-space-mono font-semibold">Пример при {config.rufusPips ?? 5} пипс:</p>
-              <p className="text-zinc-400 text-xs font-space-mono">
-                Уровень {(config.rufusStep ?? 0.01) === 0.01 ? "1.1300" : "1.1300"} → вход в диапазоне {(1.1300 - (config.rufusPips ?? 5) * getPipSize(config.asset, config.rufusPipSize ?? null)).toFixed(5)}–{(1.1300 + (config.rufusPips ?? 5) * getPipSize(config.asset, config.rufusPipSize ?? null)).toFixed(5)}
-              </p>
-              <p className="text-zinc-500 text-[10px] font-space-mono">
-                Уровни: каждые {config.rufusStep ?? 0.01} ({(config.rufusStep ?? 0.01) === 0.01 ? "сотые" : "тысячные"})
-              </p>
-            </div>
-            <div className="flex items-center justify-between bg-purple-950/30 border border-purple-500/20 rounded-lg px-3 py-2">
-              <span className="text-purple-300 text-xs font-space-mono">🔄 Инверсия сигналов Rufus</span>
-              <Switch checked={config.invertSignalRufus ?? false} onCheckedChange={(v) => set({ invertSignalRufus: v })} className="scale-75" />
-            </div>
-            {config.invertSignalRufus && (
-              <p className="text-zinc-500 text-xs font-space-mono px-1">⚡ Подход сверху → PUT &nbsp;|&nbsp; Подход снизу → CALL</p>
-            )}
           </CardContent>
         </Card>
       )}
@@ -1794,20 +1338,59 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                 <Input type="number" value={config.emaSlow} onChange={(e) => set({ emaSlow: Number(e.target.value), emaTrendMode: "custom" })} className="bg-zinc-800 border-zinc-700 text-blue-400 font-space-mono text-sm" />
               </div>
             </div>
-            <AIComment {...emaComment(config)} />
-            <div className="flex items-center justify-between bg-green-950/30 border border-green-500/20 rounded-lg px-3 py-2">
-              <span className="text-green-400 text-xs font-space-mono">🔄 Инверсия сигналов EMA</span>
-              <Switch checked={config.invertSignalEma ?? false} onCheckedChange={(v) => set({ invertSignalEma: v })} className="scale-75" />
+            {/* Trend direction */}
+            <div className="space-y-2">
+              <Label className="text-zinc-300 text-sm">Направление входа</Label>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button onClick={() => set({ trendFollow: "follow" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "follow" ? "border-green-500/60 bg-green-500/10 text-green-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗ По тренду</button>
+                <button onClick={() => set({ trendFollow: "reverse" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "reverse" ? "border-orange-500/60 bg-orange-500/10 text-orange-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↙ Против</button>
+                <button onClick={() => set({ trendFollow: "combo" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "combo" ? "border-blue-500/60 bg-blue-500/10 text-blue-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗↙ Комбо</button>
+              </div>
+              {config.trendFollow === "reverse" && (
+                <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-3 py-2">
+                  <span className="text-orange-400 text-xs font-space-mono leading-relaxed">⚠️ Только для флета. На сильном тренде увеличивает убытки.</span>
+                </div>
+              )}
+              {config.trendFollow === "combo" && (
+                <div className="flex items-start gap-2 bg-blue-950/40 border border-blue-500/30 rounded-lg px-3 py-2">
+                  <span className="text-blue-400 text-xs font-space-mono leading-relaxed">Комбо: бот ставит по любому сигналу стратегии без фильтра тренда.</span>
+                </div>
+              )}
             </div>
-            {config.invertSignalEma && (
-              <p className="text-zinc-500 text-xs font-space-mono px-1">⚡ Пересечение вверх → PUT &nbsp;|&nbsp; Пересечение вниз → CALL</p>
-            )}
+            <div className="space-y-2 pt-1">
+              <Label className="text-zinc-300 text-sm">Режим анализа свечей</Label>
+              <p className="text-zinc-500 text-xs font-space-mono">Как бот читает 2 последних свечи перед входом</p>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => set({ trendMode: "same" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "same" ? "border-green-500/60 bg-green-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🟢🟢 / 🔴🔴</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Одинаковые</span>
+                </button>
+                <button
+                  onClick={() => set({ trendMode: "reverse" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "reverse" ? "border-blue-500/60 bg-blue-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🔴🟢 / 🟢🔴</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Разворот</span>
+                </button>
+                <button
+                  onClick={() => set({ trendMode: "any" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "any" ? "border-purple-500/60 bg-purple-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🔀 Любой</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Все паттерны</span>
+                </button>
+              </div>
+            </div>
+            <AIComment {...emaComment(config)} />
           </CardContent>
         </Card>
       )}
 
-      {/* Combo RSI+EMA+Rufus settings */}
-      {config.comboMode && (config.comboStrategies.includes("rsi_reversal") || config.comboStrategies.includes("ema_cross") || config.comboStrategies.includes("support_resistance")) && (
+      {/* Combo RSI+EMA settings */}
+      {config.comboMode && (config.comboStrategies.includes("rsi_reversal") || config.comboStrategies.includes("ema_cross")) && (
         <Card className="bg-zinc-900 border-zinc-700">
           <CardHeader className="pb-3"><CardTitle className="font-orbitron text-white text-base">Параметры индикаторов</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -1829,11 +1412,21 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                   </div>
                 </div>
                 <AIComment {...rsiComment(config)} />
-                <div className="flex items-center justify-between bg-blue-950/30 border border-blue-500/20 rounded-lg px-3 py-1.5">
-                  <span className="text-blue-400 text-xs font-space-mono">🔄 Инверсия RSI</span>
-                  <Switch checked={config.invertSignalRsi ?? false} onCheckedChange={(v) => set({ invertSignalRsi: v })} className="scale-75" />
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button onClick={() => set({ trendFollow: "follow" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "follow" ? "border-green-500/60 bg-green-500/10 text-green-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗ По тренду</button>
+                  <button onClick={() => set({ trendFollow: "reverse" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "reverse" ? "border-orange-500/60 bg-orange-500/10 text-orange-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↙ Против</button>
+                  <button onClick={() => set({ trendFollow: "combo" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "combo" ? "border-blue-500/60 bg-blue-500/10 text-blue-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗↙ Комбо</button>
                 </div>
-                {config.invertSignalRsi && <p className="text-zinc-500 text-[10px] font-space-mono px-1">⚡ Перепроданность → PUT | Перекупленность → CALL</p>}
+                {config.trendFollow === "reverse" && (
+                  <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-2.5 py-2">
+                    <span className="text-orange-400 text-xs font-space-mono leading-relaxed">⚠️ Только для флета. На трендовом рынке увеличивает убытки.</span>
+                  </div>
+                )}
+                {config.trendFollow === "combo" && (
+                  <div className="flex items-start gap-2 bg-blue-950/40 border border-blue-500/30 rounded-lg px-2.5 py-2">
+                    <span className="text-blue-400 text-xs font-space-mono leading-relaxed">Комбо: ставит по любому сигналу без фильтра тренда.</span>
+                  </div>
+                )}
               </div>
             )}
             {config.comboStrategies.includes("ema_cross") && (
@@ -1867,168 +1460,239 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                     <Input type="number" value={config.emaSlow} onChange={(e) => set({ emaSlow: Number(e.target.value), emaTrendMode: "custom" })} className="bg-zinc-800 border-zinc-700 text-blue-400 font-space-mono text-xs h-8" />
                   </div>
                 </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button onClick={() => set({ trendFollow: "follow" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "follow" ? "border-green-500/60 bg-green-500/10 text-green-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗ По тренду</button>
+                  <button onClick={() => set({ trendFollow: "reverse" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "reverse" ? "border-orange-500/60 bg-orange-500/10 text-orange-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↙ Против</button>
+                  <button onClick={() => set({ trendFollow: "combo" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "combo" ? "border-blue-500/60 bg-blue-500/10 text-blue-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗↙ Комбо</button>
+                </div>
+                {config.trendFollow === "reverse" && (
+                  <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-2.5 py-2">
+                    <span className="text-orange-400 text-xs font-space-mono leading-relaxed">⚠️ Только для флета. На трендовом рынке увеличивает убытки.</span>
+                  </div>
+                )}
+                {config.trendFollow === "combo" && (
+                  <div className="flex items-start gap-2 bg-blue-950/40 border border-blue-500/30 rounded-lg px-2.5 py-2">
+                    <span className="text-blue-400 text-xs font-space-mono leading-relaxed">Комбо: ставит по любому сигналу без фильтра тренда.</span>
+                  </div>
+                )}
                 <AIComment {...emaComment(config)} />
-                <div className="flex items-center justify-between bg-green-950/30 border border-green-500/20 rounded-lg px-3 py-1.5">
-                  <span className="text-green-400 text-xs font-space-mono">🔄 Инверсия EMA</span>
-                  <Switch checked={config.invertSignalEma ?? false} onCheckedChange={(v) => set({ invertSignalEma: v })} className="scale-75" />
-                </div>
-                {config.invertSignalEma && <p className="text-zinc-500 text-[10px] font-space-mono px-1">⚡ Пересечение вверх → PUT | Вниз → CALL</p>}
               </div>
             )}
-            {config.comboStrategies.includes("support_resistance") && (() => {
-              const asset = config.asset ?? ""
-              const isJpy = asset.includes("JPY")
-              const isCrypto = ["BTC","ETH","SOL","BNB","DOGE"].some(c => asset.includes(c))
-              const isStock = ["Nvidia","Apple","Tesla","VISA","Palantir","GameStop","ExxonMobil","Netflix","McDonald","Intel","Boeing","Alibaba"].some(c => asset.includes(c))
-              const isCommodity = ["Gold","Silver","Oil","Gas","Platinum","Palladium"].some(c => asset.includes(c))
-              const currentStep = config.rufusStep ?? 0.01
-              const when01 = isJpy ? "USD/JPY — целые числа (109.00, 110.00)"
-                : isCrypto ? "Крипта — уровни на тысячах (30000, 31000)"
-                : isStock ? "Акции — целые цены ($150, $200)"
-                : isCommodity ? "Gold/Oil — круглые цены ($1900, $2000)"
-                : "EUR/USD, GBP/USD — стандарт (1.1300, 1.1400)"
-              const example01 = isJpy ? "109.00 / 110.00 / 111.00" : isCrypto ? "30000 / 31000 / 32000" : "1.1200 / 1.1300 / 1.1400"
-              const example001 = isJpy ? "109.00 / 109.10 / 109.20" : "1.1290 / 1.1300 / 1.1310"
-              const warning001 = isCrypto ? "Для крипты 0.001 не имеет смысла" : isStock ? "Для акций 0.001 не имеет смысла" : "Больше шума. Для опытных трейдеров."
-              const RUFUS_PRESETS_COMBO = [
-                { label: "EUR/USD", icon: "💱", patch: { rufusStep: 0.001 as const, rufusPips: 3, rufusPipSize: 0.0001 }, match: (a: string) => ["EUR","GBP","AUD","NZD","CAD","CHF"].some(c => a.includes(c)) && !a.includes("JPY") && !a.includes("RUB"), color: "border-blue-500/40 text-blue-300 bg-blue-500/10 hover:bg-blue-500/20", active: "border-blue-500 bg-blue-500/20 text-blue-200" },
-                { label: "USD/JPY", icon: "🇯🇵", patch: { rufusStep: 0.01 as const, rufusPips: 3, rufusPipSize: 0.01 }, match: (a: string) => a.includes("JPY"), color: "border-red-500/40 text-red-300 bg-red-500/10 hover:bg-red-500/20", active: "border-red-500 bg-red-500/20 text-red-200" },
-                { label: "BTC/ETH", icon: "₿", patch: { rufusStep: 0.01 as const, rufusPips: 3, rufusPipSize: 10.0 }, match: (a: string) => ["BTC","ETH","SOL","BNB","DOGE"].some(c => a.includes(c)), color: "border-yellow-500/40 text-yellow-300 bg-yellow-500/10 hover:bg-yellow-500/20", active: "border-yellow-500 bg-yellow-500/20 text-yellow-200" },
-                { label: "Gold", icon: "🥇", patch: { rufusStep: 0.01 as const, rufusPips: 3, rufusPipSize: 0.1 }, match: (a: string) => ["Gold","Silver","Oil","Brent","WTI"].some(c => a.includes(c)), color: "border-amber-500/40 text-amber-300 bg-amber-500/10 hover:bg-amber-500/20", active: "border-amber-500 bg-amber-500/20 text-amber-200" },
-                { label: "RUB", icon: "₽", patch: { rufusStep: 0.01 as const, rufusPips: 3, rufusPipSize: 0.001 }, match: (a: string) => a.includes("RUB"), color: "border-green-500/40 text-green-300 bg-green-500/10 hover:bg-green-500/20", active: "border-green-500 bg-green-500/20 text-green-200" },
-              ]
-              const autoPresetCombo = RUFUS_PRESETS_COMBO.find(p => p.match(asset))
-              const isAppliedCombo = (p: typeof RUFUS_PRESETS_COMBO[0]) =>
-                config.rufusPipSize === p.patch.rufusPipSize && config.rufusPips === p.patch.rufusPips && config.rufusStep === p.patch.rufusStep
-
-              return (
-                <div className="space-y-2">
-                  <p className="text-purple-400 font-space-mono text-xs font-semibold flex items-center gap-1.5">
-                    RUFUS <span className="text-[9px] bg-purple-500/20 border border-purple-500/30 rounded px-1 py-0.5 text-purple-300">уровни</span>
-                  </p>
-
-                  {/* Пресеты */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-zinc-500 font-space-mono text-[10px]">⚡ Быстрые пресеты</span>
-                      {autoPresetCombo && !isAppliedCombo(autoPresetCombo) && (
-                        <span className="text-[10px] font-space-mono text-purple-400 animate-pulse">← для {asset}</span>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {RUFUS_PRESETS_COMBO.map((p) => {
-                        const applied = isAppliedCombo(p)
-                        const recommended = autoPresetCombo?.label === p.label
-                        return (
-                          <button key={p.label} type="button" onClick={() => set(p.patch)}
-                            className={`rounded-lg px-2 py-1.5 text-[10px] font-space-mono border transition-all text-left relative ${applied ? p.active : p.color}`}
-                          >
-                            {recommended && !applied && <span className="absolute top-0.5 right-1 text-[8px] bg-purple-500/40 text-purple-300 rounded px-1">авто</span>}
-                            <div className="font-bold">{p.icon} {p.label}</div>
-                            <div className="opacity-50 text-[9px]">пип {p.patch.rufusPipSize} · р.{p.patch.rufusPips}</div>
-                            {applied && <div className="text-[9px] font-bold">✓</div>}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {([0.01, 0.001] as const).map((step) => (
-                      <button
-                        key={step}
-                        onClick={() => set({ rufusStep: step })}
-                        className={`rounded px-2 py-2 text-[10px] font-space-mono font-semibold border transition-all text-left ${
-                          currentStep === step
-                            ? "bg-purple-500/20 border-purple-500/50 text-purple-300"
-                            : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"
-                        }`}
-                      >
-                        <div>{step === 0.01 ? "0.0100 — сотые" : "0.0010 — тысячные"}</div>
-                        <div className={`text-[9px] mt-0.5 font-normal ${currentStep === step ? "text-purple-400" : "text-zinc-600"}`}>
-                          {step === 0.01 ? "рекомендовано" : "для скальпинга"}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="bg-zinc-800/50 border border-zinc-700/40 rounded-lg px-2.5 py-2 space-y-1">
-                    <p className="text-zinc-300 font-space-mono text-[10px] font-semibold">
-                      💡 {currentStep === 0.01 ? when01 : "Уровни через каждые 10 пипсов"}
-                    </p>
-                    <p className="text-zinc-500 font-space-mono text-[10px]">
-                      Уровни: {currentStep === 0.01 ? example01 : example001}
-                    </p>
-                    {currentStep === 0.001 && (
-                      <p className="text-amber-500/80 font-space-mono text-[10px]">⚠ {warning001}</p>
-                    )}
-                    {isCrypto && currentStep === 0.01 && (
-                      <p className="text-amber-500/80 font-space-mono text-[10px]">⚠ Rufus даёт мало сигналов на крипте</p>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Радиус (пипсов)</Label>
-                      <Input type="number" min={1} max={50} value={config.rufusPips ?? 5} onChange={(e) => set({ rufusPips: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-purple-400 font-space-mono text-xs h-8" />
-                    </div>
-                    <div>
-                      <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Свечей назад</Label>
-                      <Input type="number" min={3} max={50} value={config.rufusLookback ?? 10} onChange={(e) => set({ rufusLookback: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-purple-400 font-space-mono text-xs h-8" />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between bg-purple-950/30 border border-purple-500/20 rounded-lg px-3 py-1.5">
-                    <span className="text-purple-300 text-xs font-space-mono">🔄 Инверсия Rufus</span>
-                    <Switch checked={config.invertSignalRufus ?? false} onCheckedChange={(v) => set({ invertSignalRufus: v })} className="scale-75" />
-                  </div>
-                  {config.invertSignalRufus && <p className="text-zinc-500 text-[10px] font-space-mono px-1">⚡ Подход сверху → PUT | Снизу → CALL</p>}
-                </div>
-              )
-            })()}
+            <div className="space-y-2 pt-1">
+              <Label className="text-zinc-300 text-sm">Режим анализа свечей</Label>
+              <p className="text-zinc-500 text-xs font-space-mono">Как бот читает 2 последних свечи перед входом</p>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => set({ trendMode: "same" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "same" ? "border-green-500/60 bg-green-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🟢🟢 / 🔴🔴</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Одинаковые</span>
+                </button>
+                <button
+                  onClick={() => set({ trendMode: "reverse" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "reverse" ? "border-blue-500/60 bg-blue-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🔴🟢 / 🟢🔴</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Разворот</span>
+                </button>
+                <button
+                  onClick={() => set({ trendMode: "any" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "any" ? "border-purple-500/60 bg-purple-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🔀 Любой</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Все паттерны</span>
+                </button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Комбо: инверсия для candle_pattern и martingale */}
-      {config.comboMode && (config.comboStrategies.includes("candle_pattern") || config.comboStrategies.includes("martingale")) && (
+      {/* Combo candle_pattern + support_resistance settings */}
+      {config.comboMode && (config.comboStrategies.includes("candle_pattern") || config.comboStrategies.includes("support_resistance")) && (
         <Card className="bg-zinc-900 border-zinc-700">
-          <CardHeader className="pb-2 pt-4 px-4"><CardTitle className="text-sm font-space-mono text-zinc-200">🔄 Инверсия сигналов</CardTitle></CardHeader>
-          <CardContent className="px-4 pb-4 space-y-3">
-            {config.comboStrategies.includes("candle_pattern") && (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between bg-yellow-950/30 border border-yellow-500/20 rounded-lg px-3 py-1.5">
-                  <span className="text-yellow-400 text-xs font-space-mono">🔄 Инверсия паттернов свечей</span>
-                  <Switch checked={config.invertSignalCandle ?? false} onCheckedChange={(v) => set({ invertSignalCandle: v })} className="scale-75" />
-                </div>
-                {config.invertSignalCandle && <p className="text-zinc-500 text-[10px] font-space-mono px-1">⚡ Бычий паттерн → PUT | Медвежий → CALL</p>}
+          <CardHeader className="pb-3"><CardTitle className="font-orbitron text-white text-base">Направление входа</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <Label className="text-zinc-300 text-sm">Направление входа</Label>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button onClick={() => set({ trendFollow: "follow" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "follow" ? "border-green-500/60 bg-green-500/10 text-green-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗ По тренду</button>
+                <button onClick={() => set({ trendFollow: "reverse" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "reverse" ? "border-orange-500/60 bg-orange-500/10 text-orange-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↙ Против</button>
+                <button onClick={() => set({ trendFollow: "combo" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "combo" ? "border-blue-500/60 bg-blue-500/10 text-blue-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗↙ Комбо</button>
               </div>
-            )}
-            {config.comboStrategies.includes("martingale") && (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between bg-red-950/30 border border-red-500/20 rounded-lg px-3 py-1.5">
-                  <span className="text-red-400 text-xs font-space-mono">🔄 Инверсия Мартингейл</span>
-                  <Switch checked={config.invertSignalMartingale ?? false} onCheckedChange={(v) => set({ invertSignalMartingale: v })} className="scale-75" />
+              {config.trendFollow === "reverse" && (
+                <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-2.5 py-2">
+                  <span className="text-orange-400 text-xs font-space-mono leading-relaxed">⚠️ Только для флета. На трендовом рынке увеличивает убытки.</span>
                 </div>
-                {config.invertSignalMartingale && <p className="text-zinc-500 text-[10px] font-space-mono px-1">⚡ Большинство вверх → PUT | Вниз → CALL</p>}
+              )}
+              {config.trendFollow === "combo" && (
+                <div className="flex items-start gap-2 bg-blue-950/40 border border-blue-500/30 rounded-lg px-2.5 py-2">
+                  <span className="text-blue-400 text-xs font-space-mono leading-relaxed">Комбо: ставит по любому сигналу без фильтра тренда.</span>
+                </div>
+              )}
+            </div>
+            <div className="space-y-2 pt-1">
+              <Label className="text-zinc-300 text-sm">Режим анализа свечей</Label>
+              <p className="text-zinc-500 text-xs font-space-mono">Как бот читает 2 последних свечи перед входом</p>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => set({ trendMode: "same" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "same" ? "border-green-500/60 bg-green-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🟢🟢 / 🔴🔴</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Одинаковые</span>
+                </button>
+                <button
+                  onClick={() => set({ trendMode: "reverse" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "reverse" ? "border-blue-500/60 bg-blue-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🔴🟢 / 🟢🔴</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Разворот</span>
+                </button>
+                <button
+                  onClick={() => set({ trendMode: "any" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "any" ? "border-purple-500/60 bg-purple-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🔀 Любой</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Все паттерны</span>
+                </button>
               </div>
-            )}
+            </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Итоговая сводка — одиночный режим */}
-      {!config.comboMode && (config.timeFilterEnabled || config.rsiThresholdEnabled || config.lossStreakPauseEnabled || (config.tradeDirection ?? "all") !== "all") && (
+      <Card className="bg-zinc-900 border-zinc-700">
+        <CardHeader className="pb-3">
+          <CardTitle className="font-orbitron text-white text-sm flex items-center gap-2">
+            <Icon name="Bot" size={16} className="text-purple-400" />
+            Имя бота
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Название для Telegram</Label>
+            <Input
+              type="text"
+              value={config.botName ?? `Бот ${botIndex}`}
+              onChange={(e) => set({ botName: e.target.value })}
+              placeholder={`Бот ${botIndex}`}
+              className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-sm"
+            />
+            <p className="text-zinc-500 font-space-mono text-xs mt-1">⚠️ При двух ботах задай разные имена. Управление: <span className="text-purple-400">/stop {config.botName ?? `Бот ${botIndex}`}</span> или <span className="text-zinc-400">/stop all</span></p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-zinc-900 border-zinc-700">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="font-orbitron text-white text-sm flex items-center gap-2">
+              <Icon name="Send" size={16} className="text-blue-400" />
+              Telegram уведомления
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-space-mono ${!config.tgEnabled ? "text-zinc-400" : "text-zinc-600"}`}>Выкл</span>
+              <Switch checked={config.tgEnabled} onCheckedChange={(v) => set({ tgEnabled: v })} />
+              <span className={`text-xs font-space-mono ${config.tgEnabled ? "text-green-400" : "text-zinc-600"}`}>Вкл</span>
+            </div>
+          </div>
+        </CardHeader>
+        {config.tgEnabled && (
+          <CardContent className="space-y-3">
+            <div>
+              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Bot Token</Label>
+              <Input
+                type="password"
+                value={config.tgToken}
+                onChange={(e) => set({ tgToken: e.target.value })}
+                placeholder="123456:ABCdef..."
+                className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-sm"
+              />
+              <p className="text-zinc-600 font-space-mono text-xs mt-1">Получи у @BotFather в Telegram</p>
+            </div>
+            <div>
+              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Chat ID</Label>
+              <Input
+                type="text"
+                value={config.tgChatId}
+                onChange={(e) => set({ tgChatId: e.target.value })}
+                placeholder="123456789"
+                className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-sm"
+              />
+              <p className="text-zinc-600 font-space-mono text-xs mt-1">Узнай у @userinfobot</p>
+            </div>
+            <div>
+              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">SOCKS5 прокси (если Telegram заблокирован)</Label>
+              <Input
+                type="text"
+                value={config.tgProxy}
+                onChange={(e) => set({ tgProxy: e.target.value })}
+                placeholder="socks5://user:pass@host:1080"
+                className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-sm"
+              />
+              <p className="text-zinc-600 font-space-mono text-xs mt-1">Оставь пустым если Telegram работает</p>
+            </div>
+            <div>
+              <Label className="text-zinc-400 font-space-mono text-xs mb-2 block">Какие уведомления получать</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => set({ tgNotifyMode: "all" })}
+                  className={`rounded-lg px-3 py-2 text-xs font-space-mono border transition-all text-left ${(config.tgNotifyMode ?? "all") === "all" ? "bg-blue-600/20 border-blue-500/50 text-blue-300" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}
+                >
+                  <div className="font-bold mb-0.5">📡 Все события</div>
+                  <div className="text-zinc-500 text-[10px]">Запуск, тренды, ставки, реконнект</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => set({ tgNotifyMode: "bets_only" })}
+                  className={`rounded-lg px-3 py-2 text-xs font-space-mono border transition-all text-left ${(config.tgNotifyMode ?? "all") === "bets_only" ? "bg-blue-600/20 border-blue-500/50 text-blue-300" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}
+                >
+                  <div className="font-bold mb-0.5">🎯 Только ставки</div>
+                  <div className="text-zinc-500 text-[10px]">TP/SL + результат каждой сделки</div>
+                </button>
+              </div>
+            </div>
+            {config.tgToken && config.tgChatId && (
+              <div className="flex items-center gap-2 bg-green-950/40 border border-green-500/30 rounded-lg px-2.5 py-2">
+                <Icon name="CheckCircle" size={14} className="text-green-400" />
+                <span className="text-green-400 text-xs font-space-mono">Уведомления настроены</span>
+              </div>
+            )}
+            {config.tgEnabled && (!config.tgToken || !config.tgChatId) && (
+              <div className="flex items-center gap-2 bg-yellow-950/40 border border-yellow-500/30 rounded-lg px-2.5 py-2">
+                <Icon name="AlertTriangle" size={14} className="text-yellow-400" />
+                <span className="text-yellow-400 text-xs font-space-mono">Заполни Token и Chat ID</span>
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Итоговая сводка перед генерацией */}
+      {config.comboMode && (
         <div className="rounded-xl border border-zinc-600 bg-zinc-900 px-4 py-3 space-y-2 font-space-mono text-xs">
-          <p className="text-zinc-300 font-semibold">🛡 Активные защиты:</p>
-          {(config.tradeDirection ?? "all") !== "all" && (
-            <p className="text-red-400">🚦 Только {config.tradeDirection === "call_only" ? "CALL (рост)" : "PUT (падение)"} — {config.tradeDirection === "call_only" ? "PUT" : "CALL"} игнорируется</p>
-          )}
-          {config.timeFilterEnabled && (
-            <p className="text-blue-400">🕐 Торговое окно: {config.timeFilterFrom}–{config.timeFilterTo}</p>
-          )}
-          {config.rsiThresholdEnabled && (
-            <p className="text-purple-400">📉 RSI-порог: вход только ≤{config.rsiThresholdOversold} / ≥{config.rsiThresholdOverbought}</p>
-          )}
-          {config.lossStreakPauseEnabled && (
-            <p className="text-orange-400">⏸️ Пауза {config.lossStreakPauseMin} мин после {config.lossStreakCount} проигрышей подряд</p>
+          <p className="text-zinc-300 font-semibold">📋 Итог настройки комбо-бота</p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-zinc-500">
+            <p>Актив: <span className="text-white">{config.asset}</span></p>
+            <p>Экспирация: <span className="text-white">{config.expiry} мин</span></p>
+            <p>Ставка: <span className="text-white">{config.currency || "$"}{config.betAmount}</span></p>
+            <p>Выплата: <span className="text-white">{config.payoutRate}%</span></p>
+            <p>Take Profit: <span className="text-green-400">{config.currency || "$"}{config.takeProfitRub}</span></p>
+            <p>Stop Loss: <span className="text-red-400">{config.currency || "$"}{config.stopLossRub}</span></p>
+            <p>Лимит/день: <span className="text-white">{config.dailyLimit} сделок</span></p>
+            <p>Режим свечей: <span className="text-white">{config.trendMode === "same" ? "Одинаковые" : config.trendMode === "reverse" ? "Разворот" : "Любой"}</span></p>
+            <p>Стратегии: <span className="text-white">{config.comboStrategies.filter(s => s !== "martingale").map(s => PO_STRATEGIES[s]?.label).join(", ") || "—"}</span></p>
+            <p>Логика: <span className={config.comboLogic === "AND" ? "text-green-400" : "text-yellow-400"}>{config.comboLogic}</span></p>
+          </div>
+          {config.stopLossRub > 0 && config.takeProfitRub > 0 && (
+            <p className={`text-[11px] mt-1 ${config.takeProfitRub >= config.stopLossRub * 1.5 ? "text-green-400" : "text-orange-400"}`}>
+              {config.takeProfitRub >= config.stopLossRub * 1.5
+                ? `✅ TP/SL = ${(config.takeProfitRub / config.stopLossRub).toFixed(1)}x — хорошее соотношение`
+                : `⚠️ TP/SL = ${(config.takeProfitRub / config.stopLossRub).toFixed(1)}x — рекомендуем TP выше SL в 1.5x`}
+            </p>
           )}
         </div>
       )}
@@ -2069,216 +1733,6 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
           )}
         </CardContent>
       </Card>
-
-      {/* Инверсия сигналов */}
-      <Card className="bg-zinc-900 border-zinc-700">
-        <CardHeader className="pb-2 pt-4 px-4">
-          <CardTitle className="text-sm font-space-mono text-zinc-200 flex items-center gap-2">
-            <span>🔄</span> Инверсия сигналов
-            <Switch checked={config.invertSignal ?? false} onCheckedChange={(v) => set({ invertSignal: v })} className="ml-auto scale-90" />
-          </CardTitle>
-        </CardHeader>
-        {config.invertSignal && (
-          <CardContent className="px-4 pb-4 space-y-2">
-            <p className="text-zinc-500 text-xs font-space-mono">Бот будет открывать противоположную сделку от сигнала стратегии</p>
-            <div className="flex items-center gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-2.5 py-2">
-              <span className="text-orange-400 text-xs font-space-mono">⚡ CALL → PUT &nbsp;|&nbsp; PUT → CALL</span>
-            </div>
-          </CardContent>
-        )}
-      </Card>
-
-      {/* Фильтр по времени */}
-      <Card className="bg-zinc-900 border-zinc-700">
-        <CardHeader className="pb-2 pt-4 px-4">
-          <CardTitle className="text-sm font-space-mono text-zinc-200 flex items-center gap-2">
-            <span>🕐</span> Фильтр по времени
-            <Switch checked={config.timeFilterEnabled ?? false} onCheckedChange={(v) => set({ timeFilterEnabled: v })} className="ml-auto scale-90" />
-          </CardTitle>
-        </CardHeader>
-        {(config.timeFilterEnabled) && (
-          <CardContent className="px-4 pb-4 space-y-3">
-            <p className="text-zinc-500 text-xs font-space-mono">Бот будет открывать сделки только в указанный промежуток (по московскому времени)</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-zinc-400 font-space-mono text-xs mb-1 block">С</Label>
-                <Input type="time" value={config.timeFilterFrom ?? "09:00"} onChange={(e) => set({ timeFilterFrom: e.target.value })} className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-sm h-9" />
-              </div>
-              <div>
-                <Label className="text-zinc-400 font-space-mono text-xs mb-1 block">До</Label>
-                <Input type="time" value={config.timeFilterTo ?? "21:00"} onChange={(e) => set({ timeFilterTo: e.target.value })} className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-sm h-9" />
-              </div>
-            </div>
-          </CardContent>
-        )}
-      </Card>
-
-      {/* RSI-порог */}
-      <Card className="bg-zinc-900 border-zinc-700">
-        <CardHeader className="pb-2 pt-4 px-4">
-          <CardTitle className="text-sm font-space-mono text-zinc-200 flex items-center gap-2">
-            <span>📉</span> Жёсткий RSI-порог
-            <Switch checked={config.rsiThresholdEnabled ?? false} onCheckedChange={(v) => set({ rsiThresholdEnabled: v })} className="ml-auto scale-90" />
-          </CardTitle>
-        </CardHeader>
-        {(config.rsiThresholdEnabled) && (
-          <CardContent className="px-4 pb-4 space-y-3">
-            <p className="text-zinc-500 text-xs font-space-mono">Бот войдёт только при экстремальных значениях RSI — меньше сигналов, но точнее</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-zinc-400 font-space-mono text-xs mb-1 block">Перепроданность ≤</Label>
-                <Input type="number" min={5} max={40} value={config.rsiThresholdOversold ?? 25} onChange={(e) => set({ rsiThresholdOversold: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-green-400 font-space-mono text-sm h-9" />
-              </div>
-              <div>
-                <Label className="text-zinc-400 font-space-mono text-xs mb-1 block">Перекупленность ≥</Label>
-                <Input type="number" min={60} max={95} value={config.rsiThresholdOverbought ?? 75} onChange={(e) => set({ rsiThresholdOverbought: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-red-400 font-space-mono text-sm h-9" />
-              </div>
-            </div>
-            <div className="flex items-center gap-2 bg-blue-950/40 border border-blue-500/30 rounded-lg px-2.5 py-2">
-              <span className="text-blue-400 text-xs font-space-mono">Стандарт RSI 30/70. Здесь ты задаёшь более жёсткие границы — бот пропустит слабые сигналы.</span>
-            </div>
-          </CardContent>
-        )}
-      </Card>
-
-      {/* Пауза после серии проигрышей */}
-      <Card className="bg-zinc-900 border-zinc-700">
-        <CardHeader className="pb-2 pt-4 px-4">
-          <CardTitle className="text-sm font-space-mono text-zinc-200 flex items-center gap-2">
-            <span>⏸️</span> Пауза после проигрышей
-            <Switch checked={config.lossStreakPauseEnabled ?? false} onCheckedChange={(v) => set({ lossStreakPauseEnabled: v })} className="ml-auto scale-90" />
-          </CardTitle>
-        </CardHeader>
-        {(config.lossStreakPauseEnabled) && (
-          <CardContent className="px-4 pb-4 space-y-3">
-            <p className="text-zinc-500 text-xs font-space-mono">Бот автоматически останавливается при серии проигрышей подряд</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-zinc-400 font-space-mono text-xs mb-1 block">Проигрышей подряд</Label>
-                <Input type="number" min={1} max={20} value={config.lossStreakCount ?? 3} onChange={(e) => set({ lossStreakCount: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-orange-400 font-space-mono text-sm h-9" />
-              </div>
-              <div>
-                <Label className="text-zinc-400 font-space-mono text-xs mb-1 block">Пауза (минут)</Label>
-                <Input type="number" min={5} max={480} value={config.lossStreakPauseMin ?? 30} onChange={(e) => set({ lossStreakPauseMin: Number(e.target.value) })} className="bg-zinc-800 border-zinc-700 text-orange-400 font-space-mono text-sm h-9" />
-              </div>
-            </div>
-          </CardContent>
-        )}
-      </Card>
-
-      {/* Следование тренду EMA100 */}
-      <Card className="bg-zinc-900 border-zinc-700">
-        <CardHeader className="pb-2 pt-4 px-4">
-          <CardTitle className="text-sm font-space-mono text-zinc-200 flex items-center gap-2">
-            <span>📈</span> Следование тренду (EMA100)
-            <Switch checked={config.emaTrendFilterEnabled ?? false} onCheckedChange={(v) => set({ emaTrendFilterEnabled: v })} className="ml-auto scale-90" />
-          </CardTitle>
-        </CardHeader>
-        {config.emaTrendFilterEnabled && (
-          <CardContent className="px-4 pb-4 space-y-3">
-            <p className="text-zinc-500 text-xs font-space-mono">Бот проверяет цену относительно EMA100 перед каждой сделкой</p>
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 bg-green-500/5 border border-green-500/20 rounded-lg px-3 py-2">
-                <span className="text-green-400 text-base">📈</span>
-                <div>
-                  <p className="text-green-400 font-space-mono text-xs font-semibold">Цена выше EMA100 → только CALL</p>
-                  <p className="text-zinc-500 font-space-mono text-xs">Сигналы PUT отвергаются</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 bg-red-500/5 border border-red-500/20 rounded-lg px-3 py-2">
-                <span className="text-red-400 text-base">📉</span>
-                <div>
-                  <p className="text-red-400 font-space-mono text-xs font-semibold">Цена ниже EMA100 → только PUT</p>
-                  <p className="text-zinc-500 font-space-mono text-xs">Сигналы CALL отвергаются</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        )}
-      </Card>
-
-      {/* Подтверждение сигнала свечами */}
-      <Card className="bg-zinc-900 border-zinc-700">
-        <CardHeader className="pb-2 pt-4 px-4">
-          <CardTitle className="text-sm font-space-mono text-zinc-200 flex items-center gap-2">
-            <span>🕯️</span> Подтверждение сигнала свечами
-            <Switch checked={config.candleConfirmEnabled ?? false} onCheckedChange={(v) => set({ candleConfirmEnabled: v })} className="ml-auto scale-90" />
-          </CardTitle>
-        </CardHeader>
-        {config.candleConfirmEnabled && (
-          <CardContent className="px-4 pb-4 space-y-3">
-            <p className="text-zinc-500 text-xs font-space-mono">Сделка открывается только если сигнал стратегии совпадает с N свечами одного цвета подряд прямо сейчас</p>
-            <div>
-              <p className="text-zinc-400 font-space-mono text-xs mb-2">Сколько свечей подряд нужно:</p>
-              <div className="grid grid-cols-3 gap-2">
-                {([2, 3, 4] as const).map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => set({ candleConfirmCount: n })}
-                    className={`py-2 rounded-lg border font-orbitron text-sm font-bold transition-all
-                      ${config.candleConfirmCount === n
-                        ? "bg-orange-500/20 border-orange-500/50 text-orange-400"
-                        : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500"
-                      }`}
-                  >
-                    {"🕯️".repeat(n)}
-                    <div className="text-[10px] font-space-mono font-normal mt-0.5 text-zinc-500">
-                      {n} свечи
-                    </div>
-                  </button>
-                ))}
-              </div>
-              <div className="mt-2 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2 text-xs font-space-mono text-orange-400">
-                {config.candleConfirmCount === 2 && "⚡ 2 свечи — больше сигналов, чуть ниже точность"}
-                {config.candleConfirmCount === 3 && "✅ 3 свечи — оптимальный баланс сигналов и точности"}
-                {config.candleConfirmCount === 4 && "🔒 4 свечи — редкие, но очень надёжные входы"}
-              </div>
-            </div>
-          </CardContent>
-        )}
-      </Card>
-
-      {/* Итоговая сводка перед генерацией */}
-      {config.comboMode && (
-        <div className="rounded-xl border border-zinc-600 bg-zinc-900 px-4 py-3 space-y-2 font-space-mono text-xs">
-          <p className="text-zinc-300 font-semibold">📋 Итог настройки комбо-бота</p>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-zinc-500">
-            <p>Актив: <span className="text-white">{config.asset}</span></p>
-            <p>Экспирация: <span className="text-white">{config.expiry} мин</span></p>
-            <p>Ставка: <span className="text-white">{config.currency || "$"}{config.betAmount}</span></p>
-            <p>Выплата: <span className="text-white">{config.payoutRate}%</span></p>
-            <p>Take Profit: <span className="text-green-400">{config.currency || "$"}{config.takeProfitRub}</span></p>
-            <p>Stop Loss: <span className="text-red-400">{config.currency || "$"}{config.stopLossRub}</span></p>
-            <p>Лимит/день: <span className="text-white">{config.dailyLimit} сделок</span></p>
-            <p>Стратегии: <span className="text-white">{config.comboStrategies.filter(s => s !== "martingale").map(s => PO_STRATEGIES[s]?.label).join(", ") || "—"}</span></p>
-            <p>Логика: <span className={config.comboLogic === "AND" ? "text-green-400" : "text-yellow-400"}>{config.comboLogic}</span></p>
-          </div>
-          {config.stopLossRub > 0 && config.takeProfitRub > 0 && (
-            <p className={`text-[11px] mt-1 ${config.takeProfitRub >= config.stopLossRub * 1.5 ? "text-green-400" : "text-orange-400"}`}>
-              {config.takeProfitRub >= config.stopLossRub * 1.5
-                ? `✅ TP/SL = ${(config.takeProfitRub / config.stopLossRub).toFixed(1)}x — хорошее соотношение`
-                : `⚠️ TP/SL = ${(config.takeProfitRub / config.stopLossRub).toFixed(1)}x — рекомендуем TP выше SL в 1.5x`}
-            </p>
-          )}
-          {(config.timeFilterEnabled || config.rsiThresholdEnabled || config.lossStreakPauseEnabled || (config.tradeDirection ?? "all") !== "all") && (
-            <div className="mt-2 pt-2 border-t border-zinc-700 space-y-1">
-              <p className="text-zinc-400 text-[11px] font-semibold">🛡 Активные защиты:</p>
-              {(config.tradeDirection ?? "all") !== "all" && (
-                <p className="text-red-400 text-[11px]">🚦 Только {config.tradeDirection === "call_only" ? "CALL (рост)" : "PUT (падение)"} — {config.tradeDirection === "call_only" ? "PUT" : "CALL"} игнорируется</p>
-              )}
-              {config.timeFilterEnabled && (
-                <p className="text-blue-400 text-[11px]">🕐 Торговое окно: {config.timeFilterFrom}–{config.timeFilterTo}</p>
-              )}
-              {config.rsiThresholdEnabled && (
-                <p className="text-purple-400 text-[11px]">📉 RSI-порог: вход только ≤{config.rsiThresholdOversold} / ≥{config.rsiThresholdOverbought}</p>
-              )}
-              {config.lossStreakPauseEnabled && (
-                <p className="text-orange-400 text-[11px]">⏸️ Пауза {config.lossStreakPauseMin} мин после {config.lossStreakCount} проигрышей подряд</p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
       <Button
         onClick={onGenerate}

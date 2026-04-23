@@ -4027,6 +4027,9 @@ class POClient:
                 payload = json.loads(msg.decode("utf-8"))
                 ev = getattr(self, "_pending_event", None)
                 self._pending_event = None
+                if ev and ("candle" in ev.lower() or "history" in ev.lower()):
+                    _keys = list(payload.keys()) if isinstance(payload, dict) else type(payload).__name__
+                    print(f"[WS-BYTES] event={ev!r} payload_keys={_keys}")
                 if isinstance(payload, dict) and payload.get("requestId") == "buy":
                     oid = str(payload.get("id", ""))
                     if oid:
@@ -4036,6 +4039,8 @@ class POClient:
             if msg.startswith("451-"):
                 inner = json.loads(msg[4:])
                 self._pending_event = inner[0] if inner else ""
+                if self._pending_event and "candle" in self._pending_event.lower() or self._pending_event and "history" in self._pending_event.lower():
+                    print(f"[WS-451-CANDLE] pending event name: {self._pending_event!r}")
                 return
             if msg.startswith("42"):
                 inner = json.loads(msg[2:])

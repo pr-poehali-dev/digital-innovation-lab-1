@@ -1900,14 +1900,14 @@ class POClient:
                 return []
             # точное совпадение
             if asset in self._candles_cache:
-                return _parse_raw(self._candles_cache.pop(asset))
+                return _parse_raw(self._candles_cache[asset])
             # регистронезависимое совпадение (сервер может вернуть другой регистр)
             for key in list(self._candles_cache.keys()):
                 if key.lower() == asset_lower:
-                    return _parse_raw(self._candles_cache.pop(key))
+                    return _parse_raw(self._candles_cache[key])
             # fallback: сервер не вернул asset в payload — берём __last__
             if "__last__" in self._candles_cache:
-                return _parse_raw(self._candles_cache.pop("__last__"))
+                return _parse_raw(self._candles_cache["__last__"])
         print(f"[WS] Таймаут ожидания свечей для {asset} (15 сек) — кэш: {list(self._candles_cache.keys())}")
         return []
 
@@ -2023,37 +2023,47 @@ _LIVE_BUF_MAX_SINGLE = 500
 _last_good_candles_single: list = []
 _last_good_prices_single: list = []
 
+def _ticks_to_candles(ticks, period_sec=60):
+    """Группирует тики [timestamp, price] в OHLC свечи по period_sec секунд"""
+    buckets = {}
+    for t in ticks:
+        if not (isinstance(t, (list, tuple)) and len(t) >= 2):
+            continue
+        try:
+            ts, price = float(t[0]), float(t[1])
+        except Exception:
+            continue
+        if price <= 0:
+            continue
+        bucket = int(ts // period_sec) * period_sec
+        if bucket not in buckets:
+            buckets[bucket] = []
+        buckets[bucket].append(price)
+    candles = []
+    prices = []
+    for bucket in sorted(buckets.keys()):
+        pts = buckets[bucket]
+        o, h, l, cl = pts[0], max(pts), min(pts), pts[-1]
+        candles.append((o, h, l, cl))
+        prices.append(cl)
+    return candles, prices
+
 async def get_candles_data(client):
-    """Получение данных — исторические минутные свечи + live тики"""
+    """Получение данных — группируем тики из updateHistoryNewFast в минутные свечи"""
     global _last_good_candles_single, _last_good_prices_single
-    raw = await client.get_candles(asset=ASSET, timeframe=1, count=50)
-    if raw and len(raw) >= 5:
-        candles = []
-        prices = []
-        for c in raw:
-            if hasattr(c, 'open'):
-                o, h, l, cl = float(c.open), float(c.high), float(c.low), float(c.close)
-            elif isinstance(c, (list, tuple)) and len(c) >= 4:
-                o, h, l, cl = float(c[0]), float(c[1]), float(c[2]), float(c[3])
-            elif isinstance(c, dict):
-                o  = float(c.get('open',  c.get('o', 0)))
-                h  = float(c.get('high',  c.get('h', 0)))
-                l  = float(c.get('low',   c.get('l', 0)))
-                cl = float(c.get('close', c.get('c', 0)))
-            else:
-                continue
-            if cl > 0:
-                candles.append((o, h, l, cl))
-                prices.append(cl)
-        if len(prices) >= 5:
-            live = list(_live_prices_buf_single)
-            if live:
-                prices.append(live[-1])
-                candles.append((live[-1], live[-1], live[-1], live[-1]))
-            print(f"[CANDLES] {len(candles)} свечей | последняя close: {prices[-1]:.5f}")
-            _last_good_candles_single = candles
-            _last_good_prices_single = prices
-            return candles, prices
+    raw_cache = client._candles_cache.get(ASSET) or client._candles_cache.get(ASSET.lower()) or client._candles_cache.get("__last__")
+    if raw_cache and isinstance(raw_cache, list) and len(raw_cache) >= 10:
+        if isinstance(raw_cache[0], (list, tuple)) and len(raw_cache[0]) == 2:
+            candles, prices = _ticks_to_candles(raw_cache, period_sec=60)
+            if len(prices) >= 5:
+                live = list(_live_prices_buf_single)
+                if live:
+                    prices.append(live[-1])
+                    candles.append((live[-1], live[-1], live[-1], live[-1]))
+                print(f"[CANDLES] {len(candles)} свечей из тиков | последняя close: {prices[-1]:.5f}")
+                _last_good_candles_single = candles
+                _last_good_prices_single = prices
+                return candles, prices
     if _last_good_candles_single:
         live = list(_live_prices_buf_single)
         prices = list(_last_good_prices_single)
@@ -2061,7 +2071,7 @@ async def get_candles_data(client):
         if live:
             prices = prices[:-1] + [live[-1]]
             candles = candles[:-1] + [(live[-1], live[-1], live[-1], live[-1])]
-        print(f"[CANDLES] WS недоступен — кэш {len(candles)} свечей | последняя: {prices[-1]:.5f}")
+        print(f"[CANDLES] кэш {len(candles)} свечей | последняя: {prices[-1]:.5f}")
         return candles, prices
     live = list(_live_prices_buf_single)
     if len(live) < 10:

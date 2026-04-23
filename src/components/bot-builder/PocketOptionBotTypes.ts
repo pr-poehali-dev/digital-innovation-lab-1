@@ -592,6 +592,7 @@ def get_signal(prices, candles=None):
     pip = RUFUS_PIP_SIZE
     threshold = RUFUS_PIPS * pip
     lower_level, upper_level = get_rufus_levels(current)
+    print(f"[RUFUS-DEBUG] pip={pip} threshold={threshold:.6f} dist_low_raw={abs(current-lower_level):.6f}")
     signal = None
     for level in [lower_level, upper_level]:
         if abs(current - level) <= threshold:

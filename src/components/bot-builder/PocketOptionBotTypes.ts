@@ -1781,13 +1781,13 @@ class POClient:
                 if uid and not self._uid:
                     self._uid = str(uid)
             elif event == "updateHistoryNewFast":
+                global _global_ticks_cache
                 if isinstance(payload, dict):
                     _asset = payload.get("asset", payload.get("symbol", ""))
                     _hist  = payload.get("history", payload.get("candles", payload.get("data", [])))
                     _period = payload.get("period", 0)
                     print(f"[WS-HISTORY] updateHistoryNewFast asset={_asset!r} period={_period} count={len(_hist) if isinstance(_hist, list) else '?'}")
                     if isinstance(_hist, list) and _hist and (not _asset or _asset.lower() == ASSET.lower()):
-                        global _global_ticks_cache
                         _global_ticks_cache = list(_hist)
                         if _asset:
                             self._candles_cache[_asset] = _global_ticks_cache
@@ -4106,13 +4106,13 @@ class POClient:
                 if uid and not self._uid:
                     self._uid = str(uid)
             elif event == "updateHistoryNewFast":
+                global _global_ticks_cache
                 if isinstance(payload, dict):
                     _asset = payload.get("asset", payload.get("symbol", ""))
                     _hist  = payload.get("history", payload.get("candles", payload.get("data", [])))
                     _period = payload.get("period", 0)
                     print(f"[WS-HISTORY] updateHistoryNewFast asset={_asset!r} period={_period} count={len(_hist) if isinstance(_hist, list) else '?'}")
                     if isinstance(_hist, list) and _hist and (not _asset or _asset.lower() == ASSET.lower()):
-                        global _global_ticks_cache
                         _global_ticks_cache = list(_hist)
                         if _asset:
                             self._candles_cache[_asset] = _global_ticks_cache

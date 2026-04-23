@@ -1982,6 +1982,10 @@ class POClient:
             if cached is not None:
                 return cached
             if not self._connected:
+                await asyncio.sleep(2)
+                cached = _find_in_cache()
+                if cached is not None:
+                    return cached
                 print(f"[GET-DEAL] WS отвалился, результат не найден в кэше id={order_id}")
                 return None
         return None

@@ -1693,9 +1693,16 @@ class POClient:
         try:
             # binary attachment — payload от предыдущего 451- события
             if isinstance(msg, bytes):
-                payload = json.loads(msg.decode("utf-8"))
                 ev = getattr(self, "_pending_event", None)
                 self._pending_event = None
+                print(f"[DEBUG-BYTES] ev={ev!r} len={len(msg)} first50={msg[:50]}")
+                try:
+                    payload = json.loads(msg.decode("utf-8"))
+                except Exception as _je:
+                    print(f"[DEBUG-BYTES] json parse failed: {_je} — raw hex: {msg[:30].hex()}")
+                    return
+                if ev == "updateCharts":
+                    print(f"[DEBUG-BYTES-CHART] payload_type={type(payload).__name__} payload={str(payload)[:300]}")
                 # библиотека ловит ордер по requestId=="buy" в bytes
                 if isinstance(payload, dict) and payload.get("requestId") == "buy":
                     oid = str(payload.get("id", ""))
@@ -3955,12 +3962,16 @@ class POClient:
     async def _handle(self, msg):
         try:
             if isinstance(msg, bytes):
-                payload = json.loads(msg.decode("utf-8"))
                 ev = getattr(self, "_pending_event", None)
                 self._pending_event = None
-                if ev and ("candle" in ev.lower() or "history" in ev.lower()):
-                    _keys = list(payload.keys()) if isinstance(payload, dict) else type(payload).__name__
-                    print(f"[WS-BYTES] event={ev!r} payload_keys={_keys}")
+                print(f"[DEBUG-BYTES] ev={ev!r} len={len(msg)} first50={msg[:50]}")
+                try:
+                    payload = json.loads(msg.decode("utf-8"))
+                except Exception as _je:
+                    print(f"[DEBUG-BYTES] json parse failed: {_je} — raw hex: {msg[:30].hex()}")
+                    return
+                if ev == "updateCharts":
+                    print(f"[DEBUG-BYTES-CHART] payload_type={type(payload).__name__} payload={str(payload)[:300]}")
                 if isinstance(payload, dict) and payload.get("requestId") == "buy":
                     oid = str(payload.get("id", ""))
                     if oid:

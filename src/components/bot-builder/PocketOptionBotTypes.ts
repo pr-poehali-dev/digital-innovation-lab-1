@@ -1726,7 +1726,7 @@ class POClient:
     def _apply_event(self, event, payload):
         try:
             if event == "updateStream":
-                global _live_prices_buf_single
+                global _live_prices_buf_single, _global_ticks_cache
                 rows = payload if isinstance(payload, list) else []
                 for row in rows:
                     if isinstance(row, list) and len(row) >= 3:

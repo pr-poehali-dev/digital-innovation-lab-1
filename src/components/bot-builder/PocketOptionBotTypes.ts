@@ -1728,6 +1728,7 @@ class POClient:
             if event == "updateStream":
                 global _live_prices_buf_single
                 rows = payload if isinstance(payload, list) else []
+                _added = 0
                 for row in rows:
                     if isinstance(row, list) and len(row) >= 3:
                         _sym, _ts, _p = row[0], row[1], row[2]
@@ -1736,10 +1737,13 @@ class POClient:
                                 _pf = float(_p)
                                 if _pf > 0:
                                     _live_prices_buf_single.append(_pf)
+                                    _added += 1
                                     if len(_live_prices_buf_single) > _LIVE_BUF_MAX_SINGLE:
                                         _live_prices_buf_single = _live_prices_buf_single[-_LIVE_BUF_MAX_SINGLE:]
                             except Exception:
                                 pass
+                if _added > 0:
+                    print(f"[STREAM] +{_added} цен, буфер={len(_live_prices_buf_single)}, последняя={_live_prices_buf_single[-1]:.5f}")
                 return
             if event == "updateCharts":
                 charts = payload if isinstance(payload, list) else [payload] if isinstance(payload, dict) else []

@@ -1739,10 +1739,9 @@ class POClient:
                                     _live_prices_buf_single.append(_pf)
                                     if len(_live_prices_buf_single) > _LIVE_BUF_MAX_SINGLE:
                                         _live_prices_buf_single = _live_prices_buf_single[-_LIVE_BUF_MAX_SINGLE:]
-                                    _tick = [_tsf, _pf]
-                                    for _ck in (ASSET, ASSET.lower(), "__last__"):
-                                        if _ck in self._candles_cache and isinstance(self._candles_cache[_ck], list):
-                                            self._candles_cache[_ck].append(_tick)
+                                    _global_ticks_cache.append([_tsf, _pf])
+                                    if len(_global_ticks_cache) > _GLOBAL_TICKS_MAX:
+                                        del _global_ticks_cache[:len(_global_ticks_cache) - _GLOBAL_TICKS_MAX]
                             except Exception:
                                 pass
                 return
@@ -1786,12 +1785,14 @@ class POClient:
                     _asset = payload.get("asset", payload.get("symbol", ""))
                     _hist  = payload.get("history", payload.get("candles", payload.get("data", [])))
                     _period = payload.get("period", 0)
-                    print(f"[WS-HISTORY] updateHistoryNewFast asset={_asset!r} period={_period} count={len(_hist) if isinstance(_hist, list) else '?'} sample={str(_hist[:1])[:100] if isinstance(_hist, list) else '?'}")
-                    if isinstance(_hist, list) and _hist:
+                    print(f"[WS-HISTORY] updateHistoryNewFast asset={_asset!r} period={_period} count={len(_hist) if isinstance(_hist, list) else '?'}")
+                    if isinstance(_hist, list) and _hist and (not _asset or _asset.lower() == ASSET.lower()):
+                        global _global_ticks_cache
+                        _global_ticks_cache = list(_hist)
                         if _asset:
-                            self._candles_cache[_asset] = _hist
-                            self._candles_cache[_asset.lower()] = _hist
-                        self._candles_cache["__last__"] = _hist
+                            self._candles_cache[_asset] = _global_ticks_cache
+                            self._candles_cache[_asset.lower()] = _global_ticks_cache
+                        self._candles_cache["__last__"] = _global_ticks_cache
             elif event in ("candles", "successgetCandles", "history", "loadHistory", "successLoadHistory", "successCandles", "successloadHistoryV2", "loadHistoryV2", "successHistoryV2", "historyV2"):
                 asset = payload.get("asset", payload.get("symbol", "")) if isinstance(payload, dict) else ""
                 candles = payload.get("candles", payload.get("data", payload.get("history", payload))) if isinstance(payload, dict) else payload
@@ -2024,6 +2025,8 @@ async def try_get_candles(client, asset_name):
     return None
 
 _live_prices_buf_single: list = []
+_global_ticks_cache: list = []
+_GLOBAL_TICKS_MAX = 20000
 _LIVE_BUF_MAX_SINGLE = 500
 _last_good_candles_single: list = []
 _last_good_prices_single: list = []
@@ -2056,7 +2059,7 @@ def _ticks_to_candles(ticks, period_sec=60):
 async def get_candles_data(client):
     """Получение данных — группируем тики из updateHistoryNewFast в минутные свечи"""
     global _last_good_candles_single, _last_good_prices_single
-    raw_cache = client._candles_cache.get(ASSET) or client._candles_cache.get(ASSET.lower()) or client._candles_cache.get("__last__")
+    raw_cache = _global_ticks_cache or client._candles_cache.get(ASSET) or client._candles_cache.get(ASSET.lower()) or client._candles_cache.get("__last__")
     if raw_cache and isinstance(raw_cache, list) and len(raw_cache) >= 10:
         if isinstance(raw_cache[0], (list, tuple)) and len(raw_cache[0]) == 2:
             candles, prices = _ticks_to_candles(raw_cache, period_sec=60)
@@ -4107,12 +4110,14 @@ class POClient:
                     _asset = payload.get("asset", payload.get("symbol", ""))
                     _hist  = payload.get("history", payload.get("candles", payload.get("data", [])))
                     _period = payload.get("period", 0)
-                    print(f"[WS-HISTORY] updateHistoryNewFast asset={_asset!r} period={_period} count={len(_hist) if isinstance(_hist, list) else '?'} sample={str(_hist[:1])[:100] if isinstance(_hist, list) else '?'}")
-                    if isinstance(_hist, list) and _hist:
+                    print(f"[WS-HISTORY] updateHistoryNewFast asset={_asset!r} period={_period} count={len(_hist) if isinstance(_hist, list) else '?'}")
+                    if isinstance(_hist, list) and _hist and (not _asset or _asset.lower() == ASSET.lower()):
+                        global _global_ticks_cache
+                        _global_ticks_cache = list(_hist)
                         if _asset:
-                            self._candles_cache[_asset] = _hist
-                            self._candles_cache[_asset.lower()] = _hist
-                        self._candles_cache["__last__"] = _hist
+                            self._candles_cache[_asset] = _global_ticks_cache
+                            self._candles_cache[_asset.lower()] = _global_ticks_cache
+                        self._candles_cache["__last__"] = _global_ticks_cache
             elif event in ("candles", "successgetCandles", "history", "loadHistory", "successLoadHistory", "successCandles", "successloadHistoryV2", "loadHistoryV2", "successHistoryV2", "historyV2"):
                 asset = payload.get("asset", payload.get("symbol", "")) if isinstance(payload, dict) else ""
                 candles = payload.get("candles", payload.get("data", payload.get("history", payload))) if isinstance(payload, dict) else payload

@@ -2058,6 +2058,7 @@ def _ticks_to_candles(ticks, period_sec=60):
 async def get_candles_data(client):
     """Получение данных — группируем тики из updateHistoryNewFast в минутные свечи"""
     global _last_good_candles_single, _last_good_prices_single
+    print(f"[DEBUG] ticks_cache={len(_global_ticks_cache)} live_buf={len(_live_prices_buf_single)}")
     raw_cache = _global_ticks_cache or client._candles_cache.get(ASSET) or client._candles_cache.get(ASSET.lower()) or client._candles_cache.get("__last__")
     if raw_cache and isinstance(raw_cache, list) and len(raw_cache) >= 10:
         if isinstance(raw_cache[0], (list, tuple)) and len(raw_cache[0]) == 2:

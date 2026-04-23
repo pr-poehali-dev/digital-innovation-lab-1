@@ -1780,8 +1780,9 @@ class POClient:
                 if isinstance(payload, dict):
                     _asset = payload.get("asset", payload.get("symbol", ""))
                     _hist  = payload.get("history", payload.get("candles", payload.get("data", [])))
+                    _period = payload.get("period", 0)
+                    print(f"[WS-HISTORY] updateHistoryNewFast asset={_asset!r} period={_period} count={len(_hist) if isinstance(_hist, list) else '?'} sample={str(_hist[:1])[:100] if isinstance(_hist, list) else '?'}")
                     if isinstance(_hist, list) and _hist:
-                        print(f"[WS-CANDLES] updateHistoryNewFast asset={_asset!r} count={len(_hist)}")
                         if _asset:
                             self._candles_cache[_asset] = _hist
                             self._candles_cache[_asset.lower()] = _hist
@@ -4090,8 +4091,9 @@ class POClient:
                 if isinstance(payload, dict):
                     _asset = payload.get("asset", payload.get("symbol", ""))
                     _hist  = payload.get("history", payload.get("candles", payload.get("data", [])))
+                    _period = payload.get("period", 0)
+                    print(f"[WS-HISTORY] updateHistoryNewFast asset={_asset!r} period={_period} count={len(_hist) if isinstance(_hist, list) else '?'} sample={str(_hist[:1])[:100] if isinstance(_hist, list) else '?'}")
                     if isinstance(_hist, list) and _hist:
-                        print(f"[WS-CANDLES] updateHistoryNewFast asset={_asset!r} count={len(_hist)}")
                         if _asset:
                             self._candles_cache[_asset] = _hist
                             self._candles_cache[_asset.lower()] = _hist

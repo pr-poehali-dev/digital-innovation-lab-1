@@ -2442,19 +2442,6 @@ async def main():
                 await asyncio.sleep(CHECK_INTERVAL)
                 continue
 
-            try:
-                import datetime as _dt
-                _tick_raw = await client.get_candles(asset=ASSET, timeframe=1, count=1)
-                if _tick_raw:
-                    _tc = _tick_raw[-1]
-                    _tick_val = float(_tc.close) if hasattr(_tc, 'close') else float(_tc[3])
-                    if _tick_val > 0:
-                        prices = prices[:-1] + [_tick_val]
-                        _tick_ts = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        print(f"[PRICE] Текущая цена (1s тик): {_tick_val:.5f} (ts={_tick_ts})")
-            except Exception as _e:
-                print(f"[PRICE_ERR] Тик не получен: {_e}")
-
             _reconnect_attempts = 0
 
             new_trend, old_trend = check_trend_change(candles)

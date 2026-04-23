@@ -1695,14 +1695,10 @@ class POClient:
             if isinstance(msg, bytes):
                 ev = getattr(self, "_pending_event", None)
                 self._pending_event = None
-                print(f"[DEBUG-BYTES] ev={ev!r} len={len(msg)} first50={msg[:50]}")
                 try:
                     payload = json.loads(msg.decode("utf-8"))
-                except Exception as _je:
-                    print(f"[DEBUG-BYTES] json parse failed: {_je} — raw hex: {msg[:30].hex()}")
+                except Exception:
                     return
-                if ev == "updateCharts":
-                    print(f"[DEBUG-BYTES-CHART] payload_type={type(payload).__name__} payload={str(payload)[:300]}")
                 # библиотека ловит ордер по requestId=="buy" в bytes
                 if isinstance(payload, dict) and payload.get("requestId") == "buy":
                     oid = str(payload.get("id", ""))
@@ -3976,14 +3972,10 @@ class POClient:
             if isinstance(msg, bytes):
                 ev = getattr(self, "_pending_event", None)
                 self._pending_event = None
-                print(f"[DEBUG-BYTES] ev={ev!r} len={len(msg)} first50={msg[:50]}")
                 try:
                     payload = json.loads(msg.decode("utf-8"))
-                except Exception as _je:
-                    print(f"[DEBUG-BYTES] json parse failed: {_je} — raw hex: {msg[:30].hex()}")
+                except Exception:
                     return
-                if ev == "updateCharts":
-                    print(f"[DEBUG-BYTES-CHART] payload_type={type(payload).__name__} payload={str(payload)[:300]}")
                 if isinstance(payload, dict) and payload.get("requestId") == "buy":
                     oid = str(payload.get("id", ""))
                     if oid:

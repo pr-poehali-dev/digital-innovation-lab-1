@@ -170,6 +170,22 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
         )}
       </div>
 
+      {/* Подсказки под кнопками — только если нет результатов */}
+      {!results && !loading && !loadingStability && (
+        <div className="flex gap-2">
+          <div className="flex-1 rounded-lg px-3 py-2 bg-zinc-900 border border-yellow-500/15">
+            <p className="font-space-mono text-[10px] text-yellow-500/60 leading-relaxed">
+              <span className="text-yellow-400/80 font-bold">⚡ Сильный тренд</span> — пары с мощным движением в одну сторону. Подходит для торговли по тренду.
+            </p>
+          </div>
+          <div className="flex-1 rounded-lg px-3 py-2 bg-zinc-900 border border-blue-500/15">
+            <p className="font-space-mono text-[10px] text-blue-500/60 leading-relaxed">
+              <span className="text-blue-400/80 font-bold">— Ровная линия</span> — пары без резких скачков. Подходит для стратегий на отбой от уровней.
+            </p>
+          </div>
+        </div>
+      )}
+
       {error && <p className="text-red-400 font-space-mono text-xs">{error}</p>}
 
       {results && !collapsed && (

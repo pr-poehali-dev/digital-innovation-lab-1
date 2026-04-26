@@ -31,16 +31,19 @@ interface TrendResult {
   direction: "UP" | "DOWN"
   volume_usd?: number
   position_in_range: number | null
+  stability_score?: number
+  std_pct?: number
+  slope_pct?: number
 }
 
 function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
   const [loading, setLoading] = useState(false)
+  const [loadingStability, setLoadingStability] = useState(false)
   const [results, setResults] = useState<TrendResult[] | null>(null)
+  const [mode, setMode] = useState<"trend" | "stability">("trend")
   const [error, setError] = useState<string | null>(null)
   const [collapsed, setCollapsed] = useState(false)
-  // payouts[asset] — выплата введённая вручную для каждого актива
   const [payouts, setPayouts] = useState<Record<string, string>>({})
-  // минимальная выплата для фильтра
   const [minPayout, setMinPayout] = useState<string>("80")
 
   function setPayout(asset: string, val: string) {
@@ -59,12 +62,17 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
     })
   }, [results, payouts, minPct])
 
-  async function scan() {
-    setLoading(true)
+  async function scan(scanMode: "trend" | "stability") {
+    if (scanMode === "trend") setLoading(true)
+    else setLoadingStability(true)
     setError(null)
     setResults(null)
+    setMode(scanMode)
     try {
-      const resp = await fetch(TREND_SCANNER_URL)
+      const url = scanMode === "stability"
+        ? `${TREND_SCANNER_URL}?mode=stability`
+        : TREND_SCANNER_URL
+      const resp = await fetch(url)
       const raw = await resp.json()
       const data = typeof raw === "string" ? JSON.parse(raw) : raw
       setResults(data.top)
@@ -74,25 +82,39 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
       setError("Не удалось получить данные")
     } finally {
       setLoading(false)
+      setLoadingStability(false)
     }
   }
 
   const maxStrength = visible && visible.length > 0 ? Math.max(...visible.map((r) => r.trend_strength)) : 1
+  const maxStability = visible && visible.length > 0 ? Math.max(...visible.map((r) => r.stability_score ?? 0)) : 1
 
   return (
     <div className="space-y-2">
-      {/* Кнопка сканирования + закрытие */}
+      {/* Две кнопки сканирования */}
       <div className="flex gap-2">
         <Button
           type="button"
-          onClick={scan}
-          disabled={loading}
+          onClick={() => scan("trend")}
+          disabled={loading || loadingStability}
           className="flex-1 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 font-space-mono text-xs h-8"
           variant="outline"
         >
           {loading
-            ? <><Icon name="Loader2" size={13} className="mr-1.5 animate-spin" />Сканирую рынок...</>
-            : <><Icon name="Zap" size={13} className="mr-1.5" />Найти сильный тренд (Binance)</>
+            ? <><Icon name="Loader2" size={13} className="mr-1.5 animate-spin" />Сканирую...</>
+            : <><Icon name="Zap" size={13} className="mr-1.5" />Сильный тренд</>
+          }
+        </Button>
+        <Button
+          type="button"
+          onClick={() => scan("stability")}
+          disabled={loading || loadingStability}
+          className="flex-1 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 font-space-mono text-xs h-8"
+          variant="outline"
+        >
+          {loadingStability
+            ? <><Icon name="Loader2" size={13} className="mr-1.5 animate-spin" />Анализирую...</>
+            : <><Icon name="Minus" size={13} className="mr-1.5" />Ровная линия</>
           }
         </Button>
         {results && (
@@ -121,6 +143,17 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
 
       {results && !collapsed && (
         <>
+          {/* Заголовок режима */}
+          <div className={`rounded-lg px-3 py-2 flex items-start gap-2 ${mode === "stability" ? "bg-zinc-900 border border-blue-500/20" : "bg-zinc-900 border border-yellow-500/20"}`}>
+            <Icon name={mode === "stability" ? "Minus" : "Zap"} size={12} className={`mt-0.5 shrink-0 ${mode === "stability" ? "text-blue-400/70" : "text-yellow-500/70"}`} />
+            <p className={`font-space-mono text-xs leading-relaxed ${mode === "stability" ? "text-blue-400/70" : "text-yellow-500/70"}`}>
+              {mode === "stability"
+                ? "Топ пар с самой ровной ценой — минимальное отклонение + горизонтальная линия. Лучше для флэта."
+                : "Топ пар с сильным движением. OTC-версии доступны 24/7."
+              }
+            </p>
+          </div>
+
           {/* Фильтр по минимальной выплате */}
           <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2">
             <Icon name="Filter" size={12} className="text-zinc-400 shrink-0" />
@@ -136,21 +169,12 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
             <span className="text-zinc-400 font-space-mono text-xs">%</span>
           </div>
 
-          {/* Подсказка OTC */}
-          <div className="bg-zinc-900 border border-yellow-500/20 rounded-lg px-3 py-2 flex items-start gap-2">
-            <Icon name="Info" size={12} className="text-yellow-500/70 mt-0.5 shrink-0" />
-            <p className="text-yellow-500/70 font-space-mono text-xs leading-relaxed">
-              OTC-версии доступны 24/7 — поэтому брокер всегда принимает сделку. Введи выплату с PO рядом с каждым активом.
-            </p>
-          </div>
-
           {/* Список активов */}
           <div className="space-y-1.5">
             {visible && visible.length === 0 && (
               <p className="text-zinc-500 font-space-mono text-xs text-center py-2">Все активы скрыты фильтром — снизь минимум</p>
             )}
-            {visible && visible.map((r, i) => {
-              const barPct = (r.trend_strength / maxStrength) * 100
+            {visible && visible.map((r) => {
               const isUp = r.direction === "UP"
               const topForexAsset = visible.find(x => x.category === "forex")?.asset
               const isTop = r.asset === topForexAsset
@@ -158,19 +182,25 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
               const payoutNum = Number(payoutVal)
               const payoutColor = payoutNum >= 85 ? "text-green-400" : payoutNum >= 75 ? "text-yellow-400" : payoutNum > 0 ? "text-red-400" : "text-zinc-500"
 
+              const barPct = mode === "stability"
+                ? ((r.stability_score ?? 0) / (maxStability || 1)) * 100
+                : (r.trend_strength / maxStrength) * 100
+
+              const barColor = mode === "stability" ? "bg-blue-500" : (isUp ? "bg-green-500" : "bg-red-500")
+
               return (
                 <div
                   key={r.asset}
-                  className={`rounded border ${isTop ? "bg-yellow-500/5 border-yellow-500/30" : "bg-zinc-800 border-zinc-700"}`}
+                  className={`rounded border ${isTop ? (mode === "stability" ? "bg-blue-500/5 border-blue-500/30" : "bg-yellow-500/5 border-yellow-500/30") : "bg-zinc-800 border-zinc-700"}`}
                 >
-                  {/* Верхняя строка: актив + выплата + кнопка выбрать */}
                   <div className="flex items-center gap-2 px-2.5 pt-1.5 pb-1">
-                    <span className={`text-xs font-bold shrink-0 ${isUp ? "text-green-400" : "text-red-400"}`}>
-                      {isUp ? "▲" : "▼"}
-                    </span>
-                    <span className="text-xs shrink-0">{r.category === "crypto" ? "₿" : "💱"}</span>
-                    <span className={`font-space-mono text-xs flex-1 ${isTop ? "text-yellow-300 font-bold" : "text-white"}`}>
-                      {r.asset}{isTop && " 🔥"}
+                    {mode === "stability"
+                      ? <Icon name="Minus" size={12} className="text-blue-400 shrink-0" />
+                      : <span className={`text-xs font-bold shrink-0 ${isUp ? "text-green-400" : "text-red-400"}`}>{isUp ? "▲" : "▼"}</span>
+                    }
+                    <span className="text-xs shrink-0">💱</span>
+                    <span className={`font-space-mono text-xs flex-1 ${isTop ? (mode === "stability" ? "text-blue-300 font-bold" : "text-yellow-300 font-bold") : "text-white"}`}>
+                      {r.asset}{isTop && (mode === "stability" ? " 📐" : " 🔥")}
                     </span>
 
                     {/* Поле ввода выплаты */}
@@ -188,9 +218,10 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
                       <span className="text-zinc-500 font-space-mono text-xs">%</span>
                     </div>
 
-                    <span className={`font-space-mono text-xs font-bold shrink-0 ${isUp ? "text-green-400" : "text-red-400"}`}>
-                      {r.change_pct > 0 ? "+" : ""}{r.change_pct}%
-                    </span>
+                    {mode === "stability"
+                      ? <span className="font-space-mono text-xs font-bold shrink-0 text-blue-400">{r.stability_score ?? 0}</span>
+                      : <span className={`font-space-mono text-xs font-bold shrink-0 ${isUp ? "text-green-400" : "text-red-400"}`}>{r.change_pct > 0 ? "+" : ""}{r.change_pct}%</span>
+                    }
 
                     <button
                       type="button"
@@ -201,10 +232,10 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
                     </button>
                   </div>
 
-                  {/* Полоска силы тренда */}
+                  {/* Полоска */}
                   <div className="w-full bg-zinc-700 rounded-b h-1">
                     <div
-                      className={`h-1 rounded-b transition-all ${isUp ? "bg-green-500" : "bg-red-500"}`}
+                      className={`h-1 rounded-b transition-all ${barColor}`}
                       style={{ width: `${barPct}%` }}
                     />
                   </div>

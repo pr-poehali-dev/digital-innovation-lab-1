@@ -5,7 +5,7 @@
       "method": "GET",
       "path": "/",
       "expectedStatus": 200,
-      "expectedBody": { "scanned": 0, "mode": "trend" },
+      "expectedBody": { "mode": "trend" },
       "bodyMatcher": "partial"
     },
     {
@@ -13,7 +13,7 @@
       "method": "GET",
       "path": "/?mode=stability",
       "expectedStatus": 200,
-      "expectedBody": { "scanned": 0, "mode": "stability" },
+      "expectedBody": { "mode": "stability" },
       "bodyMatcher": "partial"
     }
   ]

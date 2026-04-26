@@ -80,7 +80,7 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
       const url = `${TREND_SCANNER_URL}?${params.toString()}`
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), 25000)
-      const resp = await fetch(url, { signal: controller.signal })
+      const resp = await fetch(url, { signal: controller.signal, mode: "cors", credentials: "omit" })
       clearTimeout(timer)
       const raw = await resp.json()
       // платформа может обернуть body в строку или вернуть напрямую

@@ -1082,10 +1082,16 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
           </div>
 
           <div>
-            <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Интервал проверки: {config.checkInterval} сек</Label>
+            <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+              Проверять сигнал каждые <span className="text-white font-bold">{config.checkInterval} сек</span>
+            </Label>
             <Slider min={10} max={120} step={5} value={[config.checkInterval]} onValueChange={([v]) => set({ checkInterval: v })} />
             <p className="text-zinc-600 font-space-mono text-xs mt-1.5">
-              {config.checkInterval <= 15 ? "⚡ Быстро — больше сигналов, больше шума" : config.checkInterval >= 60 ? "🐢 Медленно — меньше шума, реже проверка" : "⚖️ Баланс — оптимально для большинства стратегий"}
+              {config.checkInterval <= 15
+                ? "⚡ Каждые " + config.checkInterval + " сек бот смотрит: пора входить? Быстро, но нагружает API"
+                : config.checkInterval >= 60
+                ? "🐢 Раз в " + config.checkInterval + " сек — бот неспешный, пропускает краткосрочные движения"
+                : "⚖️ Раз в " + config.checkInterval + " сек — хороший баланс скорости и нагрузки"}
             </p>
           </div>
 

@@ -148,7 +148,7 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
             <Icon name={mode === "stability" ? "Minus" : "Zap"} size={12} className={`mt-0.5 shrink-0 ${mode === "stability" ? "text-blue-400/70" : "text-yellow-500/70"}`} />
             <p className={`font-space-mono text-xs leading-relaxed ${mode === "stability" ? "text-blue-400/70" : "text-yellow-500/70"}`}>
               {mode === "stability"
-                ? "Топ пар с самой ровной ценой — минимальное отклонение + горизонтальная линия. Лучше для флэта."
+                ? <>Топ пар с самой ровной ценой. Оценка <span className="text-blue-300 font-bold">100</span> = идеально прямая линия, <span className="text-blue-300 font-bold">0</span> = хаос. Чем выше — тем предсказуемее пара.</>
                 : "Топ пар с сильным движением. OTC-версии доступны 24/7."
               }
             </p>

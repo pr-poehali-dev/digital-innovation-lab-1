@@ -22,48 +22,68 @@ CORS = {
     "Access-Control-Allow-Headers": "Content-Type",
 }
 
+# Маппинг временного промежутка (минуты) в binance interval + yahoo range
+TIMEFRAME_MAP = {
+    5:    {"binance": "5m",  "yahoo_interval": "5m",  "yahoo_range": "1d"},
+    30:   {"binance": "30m", "yahoo_interval": "30m", "yahoo_range": "5d"},
+    60:   {"binance": "1h",  "yahoo_interval": "1h",  "yahoo_range": "5d"},
+    180:  {"binance": "3h",  "yahoo_interval": "60m", "yahoo_range": "5d"},
+    360:  {"binance": "6h",  "yahoo_interval": "60m", "yahoo_range": "1mo"},
+    720:  {"binance": "12h", "yahoo_interval": "60m", "yahoo_range": "1mo"},
+    1440: {"binance": "1d",  "yahoo_interval": "1d",  "yahoo_range": "3mo"},
+}
 
-def fetch_url(url, timeout=6):
+
+def fetch_url(url, timeout=8):
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read())
 
 
-def calc_stability_score(prices):
-    n = len(prices)
-    if n < 2:
-        return {"std_pct": 0, "slope_pct": 0, "stability_score": 0}
-    mean = sum(prices) / n
-    if mean == 0:
-        return {"std_pct": 0, "slope_pct": 0, "stability_score": 0}
-    variance = sum((p - mean) ** 2 for p in prices) / n
-    std = math.sqrt(variance)
-    std_pct = (std / mean) * 100
-    xs = list(range(n))
-    x_mean = (n - 1) / 2
-    xy_sum = sum((xs[i] - x_mean) * (prices[i] - mean) for i in range(n))
-    x2_sum = sum((xs[i] - x_mean) ** 2 for i in range(n))
-    slope = xy_sum / x2_sum if x2_sum != 0 else 0
-    slope_pct = abs(slope / mean) * 100
+def candle_ratio(prices: list) -> dict:
+    """
+    Считает кол-во зелёных и красных свечей.
+    Зелёная: close > open (рост), Красная: close <= open (падение).
+    trend_score = green/red если зелёных больше, иначе red/green.
+    """
+    if len(prices) < 2:
+        return {"green": 0, "red": 0, "trend_score": 0, "direction": "UP"}
+    green = 0
+    red = 0
+    for i in range(1, len(prices)):
+        if prices[i] > prices[i - 1]:
+            green += 1
+        else:
+            red += 1
+    total = green + red
+    if total == 0:
+        return {"green": 0, "red": 0, "trend_score": 0, "direction": "UP"}
+    if green >= red:
+        score = green / max(red, 1)
+        direction = "UP"
+    else:
+        score = red / max(green, 1)
+        direction = "DOWN"
     return {
-        "std_pct": round(std_pct, 4),
-        "slope_pct": round(slope_pct, 4),
-        "stability_score": round((math.exp(-std_pct * 20) * 0.5 + math.exp(-slope_pct * 30) * 0.5) * 100, 1),
+        "green": green,
+        "red": red,
+        "trend_score": round(score, 4),
+        "direction": direction,
     }
 
 
-def fetch_yahoo_prices(base, quote, yahoo_interval):
+def fetch_yahoo_prices(base, quote, yahoo_interval, yahoo_range, limit):
     sym = f"{base}{quote}=X"
-    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}?interval={yahoo_interval}&range=1d"
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}?interval={yahoo_interval}&range={yahoo_range}"
     req = urllib.request.Request(url, headers={
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "Accept": "application/json",
     })
-    with urllib.request.urlopen(req, timeout=6) as resp:
+    with urllib.request.urlopen(req, timeout=8) as resp:
         ydata = json.loads(resp.read())
     closes = ydata["chart"]["result"][0]["indicators"]["quote"][0]["close"]
     prices = [float(c) for c in closes if c is not None]
-    return prices if len(prices) >= 2 else []
+    return prices[-limit:] if len(prices) >= 2 else []
 
 
 def fetch_day_rates(dt_str):
@@ -71,14 +91,15 @@ def fetch_day_rates(dt_str):
     return fetch_url(url, timeout=5).get("usd", {})
 
 
-def process_forex_pair(base, quote, mode, yahoo_interval, daily_rates):
+def process_forex_pair(base, quote, tf_cfg, limit, daily_rates):
     pair = f"{base}/{quote}"
     try:
         prices = []
         try:
-            prices = fetch_yahoo_prices(base, quote, yahoo_interval)
+            prices = fetch_yahoo_prices(base, quote, tf_cfg["yahoo_interval"], tf_cfg["yahoo_range"], limit)
         except Exception:
             pass
+
         if not prices:
             b, q = base.lower(), quote.lower()
             hist = []
@@ -94,75 +115,100 @@ def process_forex_pair(base, quote, mode, yahoo_interval, daily_rates):
                     pass
             if len(hist) < 2:
                 return None
-            prices = hist
-        if mode == "stability" and len(prices) < 5:
+            prices = hist[-limit:]
+
+        if len(prices) < 2:
             return None
+
+        ratio = candle_ratio(prices)
         change_pct = ((prices[-1] - prices[0]) / prices[0]) * 100
-        stability = calc_stability_score(prices) if mode == "stability" else {"std_pct": 0, "slope_pct": 0, "stability_score": 0}
+
         return {
-            "asset": pair, "asset_otc": pair + " (OTC)", "category": "forex",
-            "change_pct": round(change_pct, 4), "trend_strength": round(abs(change_pct), 4),
-            "direction": "UP" if change_pct > 0 else "DOWN", "position_in_range": None,
-            **stability,
+            "asset": pair,
+            "asset_otc": pair + " (OTC)",
+            "category": "forex",
+            "change_pct": round(change_pct, 4),
+            "trend_score": ratio["trend_score"],
+            "trend_strength": ratio["trend_score"],
+            "direction": ratio["direction"],
+            "green": ratio["green"],
+            "red": ratio["red"],
+            "candles": len(prices),
+            "position_in_range": None,
         }
     except Exception:
         return None
 
 
 def handler(event: dict, context) -> dict:
-    """Сканер трендов OTC пар Pocket Option с параллельными запросами."""
+    """Сканер трендов OTC пар: расчёт по зелёным/красным свечам с настройкой параметров."""
 
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": {**CORS, "Access-Control-Max-Age": "86400"}, "body": ""}
 
     params = event.get("queryStringParameters") or {}
-    mode = params.get("mode", "trend")
-    interval = params.get("interval", "5min")
-    if interval not in ("1min", "5min", "15min"):
-        interval = "5min"
-    yahoo_interval = {"1min": "1m", "5min": "5m", "15min": "15m"}.get(interval, "5m")
+
+    # Параметры
+    try:
+        candles = max(5, min(100, int(params.get("candles", 20))))
+    except Exception:
+        candles = 20
+
+    try:
+        timeframe = int(params.get("timeframe", 5))
+        if timeframe not in TIMEFRAME_MAP:
+            timeframe = 5
+    except Exception:
+        timeframe = 5
+
+    tf_cfg = TIMEFRAME_MAP[timeframe]
 
     results = []
 
     # КРИПТА
     try:
         symbols = ",".join([f'"{s}"' for s in CRYPTO_PAIRS])
-        crypto_data = fetch_url(f"https://api.binance.com/api/v3/ticker/24hr?symbols=[{symbols}]")
+        binance_interval = tf_cfg["binance"]
+        crypto_url = f"https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval={binance_interval}&limit=1"
+
+        def fetch_crypto_klines(symbol):
+            url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={binance_interval}&limit={candles}"
+            return symbol, fetch_url(url)
+
         klines_map = {}
-        if mode == "stability":
-            def fetch_klines(symbol):
-                return symbol, fetch_url(f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=5m&limit=20")
-            with ThreadPoolExecutor(max_workers=5) as ex:
-                for f in as_completed({ex.submit(fetch_klines, s): s for s in CRYPTO_PAIRS}, timeout=8):
-                    try:
-                        sym, klines = f.result()
-                        klines_map[sym] = klines
-                    except Exception:
-                        pass
-        for ticker in crypto_data:
-            symbol = ticker["symbol"]
-            if symbol not in CRYPTO_MAP:
+        with ThreadPoolExecutor(max_workers=5) as ex:
+            for f in as_completed({ex.submit(fetch_crypto_klines, s): s for s in CRYPTO_PAIRS}, timeout=10):
+                try:
+                    sym, klines = f.result()
+                    klines_map[sym] = klines
+                except Exception:
+                    pass
+
+        for symbol, name in CRYPTO_MAP.items():
+            klines = klines_map.get(symbol, [])
+            if len(klines) < 2:
                 continue
-            change_pct = float(ticker["priceChangePercent"])
-            high, low, last = float(ticker["highPrice"]), float(ticker["lowPrice"]), float(ticker["lastPrice"])
-            price_range = high - low
-            stability = {"std_pct": 0, "slope_pct": 0, "stability_score": 0}
-            if mode == "stability":
-                closes = [float(k[4]) for k in klines_map.get(symbol, [])]
-                if len(closes) < 20:
-                    continue
-                stability = calc_stability_score(closes)
+            closes = [float(k[4]) for k in klines]
+            ratio = candle_ratio(closes)
+            change_pct = ((closes[-1] - closes[0]) / closes[0]) * 100
             results.append({
-                "asset": CRYPTO_MAP[symbol], "asset_otc": CRYPTO_MAP[symbol] + " (OTC)", "category": "crypto",
-                "change_pct": round(change_pct, 2), "trend_strength": round(abs(change_pct), 2),
-                "direction": "UP" if change_pct > 0 else "DOWN",
-                "position_in_range": round(((last - low) / price_range * 100) if price_range > 0 else 50, 1),
-                "source": "binance", **stability,
+                "asset": name,
+                "asset_otc": name + " (OTC)",
+                "category": "crypto",
+                "change_pct": round(change_pct, 2),
+                "trend_score": ratio["trend_score"],
+                "trend_strength": ratio["trend_score"],
+                "direction": ratio["direction"],
+                "green": ratio["green"],
+                "red": ratio["red"],
+                "candles": len(closes),
+                "position_in_range": None,
+                "source": "binance",
             })
     except Exception:
         pass
 
-    # КУРСЫ параллельно
+    # КУРСЫ параллельно (для запаса)
     today = datetime.now(timezone.utc)
     dates = [(today - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(6, -1, -1)]
     date_results = {}
@@ -178,7 +224,10 @@ def handler(event: dict, context) -> dict:
 
     # ФОРЕКС параллельно
     with ThreadPoolExecutor(max_workers=10) as ex:
-        for f in as_completed([ex.submit(process_forex_pair, b, q, mode, yahoo_interval, daily_rates) for b, q in FOREX_TUPLE], timeout=10):
+        for f in as_completed(
+            [ex.submit(process_forex_pair, b, q, tf_cfg, candles, daily_rates) for b, q in FOREX_TUPLE],
+            timeout=12
+        ):
             try:
                 r = f.result()
                 if r:
@@ -186,11 +235,17 @@ def handler(event: dict, context) -> dict:
             except Exception:
                 pass
 
-    results.sort(key=lambda x: x.get("stability_score", 0) if mode == "stability" else x["trend_strength"], reverse=True)
-    print(f"[scanner-proxy] mode={mode} scanned={len(results)}")
+    results.sort(key=lambda x: x["trend_score"], reverse=True)
+    print(f"[scanner-proxy] candles={candles} timeframe={timeframe} scanned={len(results)}")
 
     return {
         "statusCode": 200,
         "headers": {**CORS, "Content-Type": "application/json"},
-        "body": json.dumps({"top": results, "best": results[0] if results else None, "scanned": len(results), "mode": mode}),
+        "body": json.dumps({
+            "top": results,
+            "best": results[0] if results else None,
+            "scanned": len(results),
+            "candles": candles,
+            "timeframe": timeframe,
+        }),
     }

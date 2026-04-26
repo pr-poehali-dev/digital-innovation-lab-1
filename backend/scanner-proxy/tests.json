@@ -3,7 +3,7 @@
     {
       "name": "Proxy trend scan",
       "method": "GET",
-      "path": "/?mode=trend&interval=5min",
+      "path": "/?candles=10&timeframe=5",
       "expectedStatus": 200,
       "expectedBody": {"top": []},
       "bodyMatcher": "partial"

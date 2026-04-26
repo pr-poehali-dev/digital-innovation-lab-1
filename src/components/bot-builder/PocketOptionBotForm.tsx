@@ -36,18 +36,23 @@ interface TrendResult {
   slope_pct?: number
 }
 
-const INTERVAL_OPTIONS = [
-  { value: "1min",  label: "1 мин",  hint: "для 1-2 мин экспирации" },
-  { value: "5min",  label: "5 мин",  hint: "для 3-5 мин экспирации" },
-  { value: "15min", label: "15 мин", hint: "для 15+ мин экспирации" },
+const EXPIRY_OPTIONS = [
+  { value: 1, label: "1 мин" }, { value: 2, label: "2 мин" }, { value: 3, label: "3 мин" },
+  { value: 5, label: "5 мин" }, { value: 15, label: "15 мин" }, { value: 30, label: "30 мин" },
+  { value: 60, label: "1 час" },
+]
+const TIMEFRAME_OPTIONS = [
+  { value: 5, label: "5 мин" }, { value: 30, label: "30 мин" }, { value: 60, label: "1 час" },
+  { value: 180, label: "3 часа" }, { value: 360, label: "6 часов" }, { value: 720, label: "12 часов" },
+  { value: 1440, label: "1 день" },
 ]
 
 function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
   const [loading, setLoading] = useState(false)
-  const [loadingStability, setLoadingStability] = useState(false)
   const [results, setResults] = useState<TrendResult[] | null>(null)
-  const [mode, setMode] = useState<"trend" | "stability">("trend")
-  const [interval, setInterval] = useState<string>("5min")
+  const [candles, setCandles] = useState(20)
+  const [expiry, setExpiry] = useState(5)
+  const [timeframe, setTimeframe] = useState(5)
   const [error, setError] = useState<string | null>(null)
   const [collapsed, setCollapsed] = useState(false)
   const [payouts, setPayouts] = useState<Record<string, string>>({})
@@ -59,270 +64,217 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
 
   const minPct = Number(minPayout) || 0
 
-  const visible = useMemo(() => {
-    if (!results) return null
-    return results.filter((r) => {
+  const { upList, downList } = useMemo(() => {
+    if (!results) return { upList: [], downList: [] }
+    const filtered = results.filter((r) => {
       if (r.category === "crypto") return false
       const pct = Number(payouts[r.asset])
       if (!pct) return true
       return pct >= minPct
     })
+    return {
+      upList: filtered.filter(r => r.direction === "UP").sort((a, b) => b.trend_strength - a.trend_strength),
+      downList: filtered.filter(r => r.direction === "DOWN").sort((a, b) => b.trend_strength - a.trend_strength),
+    }
   }, [results, payouts, minPct])
 
-  async function scan(scanMode: "trend" | "stability") {
-    if (scanMode === "trend") setLoading(true)
-    else setLoadingStability(true)
+  async function scan() {
+    setLoading(true)
     setError(null)
     setResults(null)
-    setMode(scanMode)
     try {
-      const params = new URLSearchParams({ mode: scanMode, interval })
+      const params = new URLSearchParams({ candles: String(candles), timeframe: String(timeframe) })
       const url = `${TREND_SCANNER_URL}?${params.toString()}`
       const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 25000)
+      const timer = setTimeout(() => controller.abort(), 30000)
       const resp = await fetch(url, { signal: controller.signal, mode: "cors", credentials: "omit" })
       clearTimeout(timer)
       const text = await resp.text()
-      console.log("[scanner] raw text:", text.slice(0, 300))
-      let data: { top?: TrendResult[]; body?: unknown }
+      let data: { top?: TrendResult[] }
       try {
         const raw = JSON.parse(text)
-        data = (raw.body ? (typeof raw.body === "string" ? JSON.parse(raw.body) : raw.body) : raw)
+        data = raw.body ? (typeof raw.body === "string" ? JSON.parse(raw.body) : raw.body) : raw
       } catch {
         setError(`Ошибка парсинга: ${text.slice(0, 100)}`)
         return
       }
-      console.log("[scanner] data:", data)
       if (!data.top || data.top.length === 0) {
         setError("Нет данных — попробуй ещё раз")
         return
       }
       setResults(data.top)
-      const topForex = data.top?.find((r: TrendResult) => r.category === "forex")
-      if (topForex) onSelect(topForex.asset_otc)
+      const topUp = data.top.find((r: TrendResult) => r.category === "forex" && r.direction === "UP")
+      if (topUp) onSelect(topUp.asset_otc)
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
-      console.error("[scanner] error:", msg)
       if (msg.includes("abort") || msg.includes("Abort")) {
-        setError("Превышено время ожидания (>25 сек) — попробуй ещё раз")
+        setError("Превышено время ожидания — попробуй ещё раз")
       } else if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
-        setError("Сетевая ошибка — проверь интернет и попробуй ещё раз")
+        setError("Сетевая ошибка — проверь интернет")
       } else {
         setError(`Ошибка: ${msg}`)
       }
     } finally {
       setLoading(false)
-      setLoadingStability(false)
     }
   }
 
-  const maxStrength = visible && visible.length > 0 ? Math.max(...visible.map((r) => r.trend_strength)) : 1
-  const maxStability = visible && visible.length > 0 ? Math.max(...visible.map((r) => r.stability_score ?? 0)) : 1
+  const maxScore = results ? Math.max(...results.map(r => r.trend_strength), 1) : 1
+
+  function AssetRow({ r, isTop }: { r: TrendResult; isTop: boolean }) {
+    const isUp = r.direction === "UP"
+    const payoutVal = payouts[r.asset] ?? ""
+    const payoutNum = Number(payoutVal)
+    const payoutColor = payoutNum >= 85 ? "text-green-400" : payoutNum >= 75 ? "text-yellow-400" : payoutNum > 0 ? "text-red-400" : "text-zinc-500"
+    const barPct = (r.trend_strength / maxScore) * 100
+    return (
+      <div className={`rounded border ${isTop ? (isUp ? "bg-green-500/5 border-green-500/30" : "bg-red-500/5 border-red-500/30") : "bg-zinc-800 border-zinc-700"}`}>
+        <div className="flex items-center gap-1.5 px-2 pt-1.5 pb-1">
+          <span className={`text-xs font-bold shrink-0 ${isUp ? "text-green-400" : "text-red-400"}`}>{isUp ? "▲" : "▼"}</span>
+          <span className={`font-space-mono text-xs flex-1 truncate ${isTop ? (isUp ? "text-green-300 font-bold" : "text-red-300 font-bold") : "text-white"}`}>
+            {r.asset}{isTop ? (isUp ? " 🔥" : " 🔻") : ""}
+          </span>
+          <span className={`font-space-mono text-[10px] shrink-0 ${isUp ? "text-green-500/70" : "text-red-500/70"}`}>
+            {r.green}🟢/{r.red}🔴
+          </span>
+          <div className="flex items-center gap-0.5 shrink-0">
+            <input
+              type="number" min={0} max={99} placeholder="—" value={payoutVal}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => setPayout(r.asset, e.target.value)}
+              className={`w-9 bg-zinc-900 border border-zinc-600 rounded px-1 text-center font-space-mono text-xs outline-none ${payoutColor}`}
+            />
+            <span className="text-zinc-600 font-space-mono text-xs">%</span>
+          </div>
+          <button type="button" onClick={() => onSelect(r.asset_otc)}
+            className="shrink-0 text-zinc-500 hover:text-yellow-400 font-space-mono text-xs transition-colors">
+            OTC→
+          </button>
+        </div>
+        <div className="w-full bg-zinc-700 rounded-b h-0.5">
+          <div className={`h-0.5 rounded-b transition-all ${isUp ? "bg-green-500" : "bg-red-500"}`} style={{ width: `${barPct}%` }} />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-2">
-      {/* Выбор интервала свечи */}
-      <div className="flex items-center gap-2">
-        <span className="text-zinc-500 font-space-mono text-xs shrink-0">Свеча:</span>
-        <div className="flex gap-1 flex-1">
-          {INTERVAL_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setInterval(opt.value)}
-              title={opt.hint}
-              className={`flex-1 h-7 rounded font-space-mono text-xs transition-colors border ${
-                interval === opt.value
-                  ? "bg-zinc-600 border-zinc-400 text-white"
-                  : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+      {/* Настройки */}
+      <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-2.5 space-y-2">
+        {/* Кол-во свечей */}
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-zinc-400 font-space-mono text-xs">Свечей для анализа</span>
+            <span className="text-white font-space-mono text-xs font-bold">{candles} шт.</span>
+          </div>
+          <input
+            type="range" min={5} max={100} step={1} value={candles}
+            onChange={(e) => setCandles(Number(e.target.value))}
+            className="w-full h-1 accent-yellow-400"
+          />
+          <div className="flex justify-between">
+            <span className="text-zinc-600 font-space-mono text-[10px]">5</span>
+            <span className="text-zinc-600 font-space-mono text-[10px]">100</span>
+          </div>
         </div>
-        <span className="text-zinc-600 font-space-mono text-xs shrink-0">
-          {INTERVAL_OPTIONS.find(o => o.value === interval)?.hint}
-        </span>
+
+        {/* Время экспирации */}
+        <div>
+          <span className="text-zinc-400 font-space-mono text-xs block mb-1">Экспирация</span>
+          <div className="flex flex-wrap gap-1">
+            {EXPIRY_OPTIONS.map((o) => (
+              <button key={o.value} type="button" onClick={() => setExpiry(o.value)}
+                className={`px-2 h-6 rounded font-space-mono text-xs border transition-colors ${expiry === o.value ? "bg-yellow-500/20 border-yellow-500/50 text-yellow-300" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white"}`}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Временной промежуток */}
+        <div>
+          <span className="text-zinc-400 font-space-mono text-xs block mb-1">Промежуток свечей</span>
+          <div className="flex flex-wrap gap-1">
+            {TIMEFRAME_OPTIONS.map((o) => (
+              <button key={o.value} type="button" onClick={() => setTimeframe(o.value)}
+                className={`px-2 h-6 rounded font-space-mono text-xs border transition-colors ${timeframe === o.value ? "bg-zinc-600 border-zinc-400 text-white" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white"}`}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Две кнопки сканирования */}
+      {/* Кнопка сканирования */}
       <div className="flex gap-2">
-        <Button
-          type="button"
-          onClick={() => scan("trend")}
-          disabled={loading || loadingStability}
+        <Button type="button" onClick={scan} disabled={loading}
           className="flex-1 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 font-space-mono text-xs h-8"
-          variant="outline"
-        >
+          variant="outline">
           {loading
             ? <><Icon name="Loader2" size={13} className="mr-1.5 animate-spin" />Сканирую...</>
-            : <><Icon name="Zap" size={13} className="mr-1.5" />Сильный тренд</>
-          }
-        </Button>
-        <Button
-          type="button"
-          onClick={() => scan("stability")}
-          disabled={loading || loadingStability}
-          className="flex-1 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 font-space-mono text-xs h-8"
-          variant="outline"
-        >
-          {loadingStability
-            ? <><Icon name="Loader2" size={13} className="mr-1.5 animate-spin" />Анализирую...</>
-            : <><Icon name="Minus" size={13} className="mr-1.5" />Ровная линия</>
+            : <><Icon name="Zap" size={13} className="mr-1.5" />Найти тренд</>
           }
         </Button>
         {results && (
-          <Button
-            type="button"
-            onClick={() => setCollapsed((v) => !v)}
-            variant="outline"
-            className="border-zinc-700 bg-zinc-800 text-zinc-400 hover:text-white h-8 px-2.5"
-          >
+          <Button type="button" onClick={() => setCollapsed(v => !v)} variant="outline"
+            className="border-zinc-700 bg-zinc-800 text-zinc-400 hover:text-white h-8 px-2.5">
             <Icon name={collapsed ? "ChevronDown" : "ChevronUp"} size={14} />
           </Button>
         )}
         {results && (
-          <Button
-            type="button"
-            onClick={() => { setResults(null); setCollapsed(false) }}
-            variant="outline"
-            className="border-zinc-700 bg-zinc-800 text-zinc-400 hover:text-red-400 h-8 px-2.5"
-          >
+          <Button type="button" onClick={() => { setResults(null); setCollapsed(false) }} variant="outline"
+            className="border-zinc-700 bg-zinc-800 text-zinc-400 hover:text-red-400 h-8 px-2.5">
             <Icon name="X" size={14} />
           </Button>
         )}
       </div>
 
-      {/* Подсказки под кнопками — только если нет результатов */}
-      {!results && !loading && !loadingStability && (
-        <div className="flex gap-2">
-          <div className="flex-1 rounded-lg px-3 py-2 bg-zinc-900 border border-yellow-500/15">
-            <p className="font-space-mono text-[10px] text-yellow-500/60 leading-relaxed">
-              <span className="text-yellow-400/80 font-bold">⚡ Сильный тренд</span> — пары с мощным движением в одну сторону. Подходит для торговли по тренду.<br/>
-              <span className="text-zinc-600">Данные: Yahoo Finance · реальное время</span>
-            </p>
-          </div>
-          <div className="flex-1 rounded-lg px-3 py-2 bg-zinc-900 border border-blue-500/15">
-            <p className="font-space-mono text-[10px] text-blue-500/60 leading-relaxed">
-              <span className="text-blue-400/80 font-bold">— Ровная линия</span> — пары без резких скачков. Подходит для стратегий на отбой от уровней.<br/>
-              <span className="text-zinc-600">Данные: Yahoo Finance · реальное время</span>
-            </p>
-          </div>
-        </div>
-      )}
-
       {error && <p className="text-red-400 font-space-mono text-xs">{error}</p>}
 
       {results && !collapsed && (
         <>
-          {/* Заголовок режима */}
-          <div className={`rounded-lg px-3 py-2 flex items-start gap-2 ${mode === "stability" ? "bg-zinc-900 border border-blue-500/20" : "bg-zinc-900 border border-yellow-500/20"}`}>
-            <Icon name={mode === "stability" ? "Minus" : "Zap"} size={12} className={`mt-0.5 shrink-0 ${mode === "stability" ? "text-blue-400/70" : "text-yellow-500/70"}`} />
-            <p className={`font-space-mono text-xs leading-relaxed ${mode === "stability" ? "text-blue-400/70" : "text-yellow-500/70"}`}>
-              {mode === "stability"
-                ? <>
-                    <span className="text-blue-300 font-bold">Ровная линия</span> — ищет пары, где цена движется плавно без резких скачков. Данные: реальные 5-минутные свечи с Yahoo Finance за последние 24 часа. Алгоритм считает стандартное отклонение цены — чем меньше скачки, тем выше оценка. <span className="text-blue-300 font-bold">100</span> = идеально прямая линия, <span className="text-blue-300 font-bold">0</span> = хаос. Подходит для стратегий на отбой от уровней.
-                  </>
-                : <>
-                    <span className="text-yellow-300 font-bold">Сильный тренд</span> — ищет пары с мощным направленным движением. Данные: реальные 5-минутные свечи с Yahoo Finance за последние 24 часа. Алгоритм сравнивает первую и последнюю свечу в серии — чем больше изменение в одну сторону, тем выше оценка. OTC-версии доступны 24/7.
-                  </>
-              }
-            </p>
-          </div>
-
-          {/* Фильтр по минимальной выплате */}
+          {/* Фильтр выплаты */}
           <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2">
             <Icon name="Filter" size={12} className="text-zinc-400 shrink-0" />
             <span className="text-zinc-400 font-space-mono text-xs">Скрыть если выплата менее</span>
-            <input
-              type="number"
-              min={0}
-              max={99}
-              value={minPayout}
+            <input type="number" min={0} max={99} value={minPayout}
               onChange={(e) => setMinPayout(e.target.value)}
-              className="w-12 bg-zinc-800 border border-zinc-600 rounded px-1.5 text-white font-space-mono text-xs outline-none text-center"
-            />
+              className="w-12 bg-zinc-800 border border-zinc-600 rounded px-1.5 text-white font-space-mono text-xs outline-none text-center" />
             <span className="text-zinc-400 font-space-mono text-xs">%</span>
           </div>
 
-          {/* Список активов */}
-          <div className="space-y-1.5">
-            {visible && visible.length === 0 && (
-              <p className="text-zinc-500 font-space-mono text-xs text-center py-2">Все активы скрыты фильтром — снизь минимум</p>
-            )}
-            {visible && visible.map((r) => {
-              const isUp = r.direction === "UP"
-              const topForexAsset = visible.find(x => x.category === "forex")?.asset
-              const isTop = r.asset === topForexAsset
-              const payoutVal = payouts[r.asset] ?? ""
-              const payoutNum = Number(payoutVal)
-              const payoutColor = payoutNum >= 85 ? "text-green-400" : payoutNum >= 75 ? "text-yellow-400" : payoutNum > 0 ? "text-red-400" : "text-zinc-500"
-
-              const barPct = mode === "stability"
-                ? ((r.stability_score ?? 0) / (maxStability || 1)) * 100
-                : (r.trend_strength / maxStrength) * 100
-
-              const barColor = mode === "stability" ? "bg-blue-500" : (isUp ? "bg-green-500" : "bg-red-500")
-
-              return (
-                <div
-                  key={r.asset}
-                  className={`rounded border ${isTop ? (mode === "stability" ? "bg-blue-500/5 border-blue-500/30" : "bg-yellow-500/5 border-yellow-500/30") : "bg-zinc-800 border-zinc-700"}`}
-                >
-                  <div className="flex items-center gap-2 px-2.5 pt-1.5 pb-1">
-                    {mode === "stability"
-                      ? <Icon name="Minus" size={12} className="text-blue-400 shrink-0" />
-                      : <span className={`text-xs font-bold shrink-0 ${isUp ? "text-green-400" : "text-red-400"}`}>{isUp ? "▲" : "▼"}</span>
-                    }
-                    <span className="text-xs shrink-0">💱</span>
-                    <span className={`font-space-mono text-xs flex-1 ${isTop ? (mode === "stability" ? "text-blue-300 font-bold" : "text-yellow-300 font-bold") : "text-white"}`}>
-                      {r.asset}{isTop && (mode === "stability" ? " 📐" : " 🔥")}
-                    </span>
-
-                    {/* Поле ввода выплаты */}
-                    <div className="flex items-center gap-1 shrink-0">
-                      <input
-                        type="number"
-                        min={0}
-                        max={99}
-                        placeholder="—"
-                        value={payoutVal}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => setPayout(r.asset, e.target.value)}
-                        className={`w-10 bg-zinc-900 border border-zinc-600 rounded px-1 text-center font-space-mono text-xs outline-none ${payoutColor}`}
-                      />
-                      <span className="text-zinc-500 font-space-mono text-xs">%</span>
-                    </div>
-
-                    {mode === "stability"
-                      ? <span className={`font-space-mono text-xs font-bold shrink-0 ${(r.stability_score ?? 0) >= 70 ? "text-green-400" : (r.stability_score ?? 0) >= 40 ? "text-yellow-400" : "text-red-400"}`}>{r.stability_score ?? 0}</span>
-                      : <span className={`font-space-mono text-xs font-bold shrink-0 ${isUp ? "text-green-400" : "text-red-400"}`}>{r.change_pct > 0 ? "+" : ""}{r.change_pct}%</span>
-                    }
-
-                    <button
-                      type="button"
-                      onClick={() => onSelect(r.asset_otc)}
-                      className="shrink-0 text-zinc-500 hover:text-yellow-400 font-space-mono text-xs transition-colors"
-                    >
-                      OTC →
-                    </button>
-                  </div>
-
-                  {/* Полоска */}
-                  <div className="w-full bg-zinc-700 rounded-b h-1">
-                    <div
-                      className={`h-1 rounded-b transition-all ${barColor}`}
-                      style={{ width: `${barPct}%` }}
-                    />
-                  </div>
-                </div>
-              )
-            })}
-            {visible && visible.length > 0 && (
-              <p className="text-zinc-600 font-space-mono text-xs text-center pt-0.5">Нажми "OTC →" — актив выберется автоматически</p>
-            )}
+          {/* 2 колонки */}
+          <div className="grid grid-cols-2 gap-2">
+            {/* Восходящий */}
+            <div>
+              <div className="flex items-center gap-1 mb-1.5">
+                <span className="text-green-400 text-xs font-bold">▲</span>
+                <span className="text-green-400 font-space-mono text-xs font-bold">Восходящий</span>
+                <span className="text-zinc-500 font-space-mono text-xs">({upList.length})</span>
+              </div>
+              <div className="space-y-1">
+                {upList.length === 0 && <p className="text-zinc-600 font-space-mono text-[10px] text-center py-2">нет пар</p>}
+                {upList.map((r, i) => <AssetRow key={r.asset} r={r} isTop={i === 0} />)}
+              </div>
+            </div>
+            {/* Нисходящий */}
+            <div>
+              <div className="flex items-center gap-1 mb-1.5">
+                <span className="text-red-400 text-xs font-bold">▼</span>
+                <span className="text-red-400 font-space-mono text-xs font-bold">Нисходящий</span>
+                <span className="text-zinc-500 font-space-mono text-xs">({downList.length})</span>
+              </div>
+              <div className="space-y-1">
+                {downList.length === 0 && <p className="text-zinc-600 font-space-mono text-[10px] text-center py-2">нет пар</p>}
+                {downList.map((r, i) => <AssetRow key={r.asset} r={r} isTop={i === 0} />)}
+              </div>
+            </div>
           </div>
+
+          <p className="text-zinc-600 font-space-mono text-xs text-center">
+            Экспирация: {expiry} мин · {candles} свечей · {TIMEFRAME_OPTIONS.find(o => o.value === timeframe)?.label}
+          </p>
         </>
       )}
     </div>

@@ -28,7 +28,8 @@ export function useAccess() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key }),
       });
-      const data = await res.json();
+      const raw = await res.json();
+      const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
       return data?.valid === true;
     } catch {
       return false;

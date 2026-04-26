@@ -1,3 +1,7 @@
 {
-  "validate-key": "https://functions.poehali.dev/a78d7eb2-c109-46f0-9b0b-3039256610ff"
+  "validate-key": "https://functions.poehali.dev/a78d7eb2-c109-46f0-9b0b-3039256610ff",
+  "tg-send": "https://functions.poehali.dev/fb70e0a6-b6c1-49e2-b148-c37dab50f024",
+  "bot-trades": "https://functions.poehali.dev/317c9913-52da-4683-920f-963c978a3202",
+  "trend-scanner": "https://functions.poehali.dev/d55c380e-7fd5-4871-aca7-c8670be08cde",
+  "admin-keys": "https://functions.poehali.dev/edd2b917-45c0-406b-877f-0e7f96206cac"
 }

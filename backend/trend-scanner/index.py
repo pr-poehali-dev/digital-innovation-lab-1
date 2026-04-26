@@ -83,7 +83,11 @@ def handler(event: dict, context) -> dict:
             "body": "",
         }
 
-    mode = (event.get("queryStringParameters") or {}).get("mode", "trend")
+    params = event.get("queryStringParameters") or {}
+    mode = params.get("mode", "trend")
+    interval = params.get("interval", "5min")
+    if interval not in ("1min", "5min", "15min"):
+        interval = "5min"
     api_key = os.environ.get("TWELVE_DATA_API_KEY", "")
 
     results = []
@@ -128,7 +132,7 @@ def handler(event: dict, context) -> dict:
     # --- ФОРЕКС OTC (Twelve Data — реальные свечи) ---
     for pair in FOREX_PAIRS:
         try:
-            prices = fetch_twelve_candles(pair, api_key, interval="5min", count=20)
+            prices = fetch_twelve_candles(pair, api_key, interval=interval, count=20)
             if len(prices) < 2:
                 continue
 

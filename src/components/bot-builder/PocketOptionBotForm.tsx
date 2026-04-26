@@ -36,11 +36,18 @@ interface TrendResult {
   slope_pct?: number
 }
 
+const INTERVAL_OPTIONS = [
+  { value: "1min",  label: "1 мин",  hint: "для 1-2 мин экспирации" },
+  { value: "5min",  label: "5 мин",  hint: "для 3-5 мин экспирации" },
+  { value: "15min", label: "15 мин", hint: "для 15+ мин экспирации" },
+]
+
 function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
   const [loading, setLoading] = useState(false)
   const [loadingStability, setLoadingStability] = useState(false)
   const [results, setResults] = useState<TrendResult[] | null>(null)
   const [mode, setMode] = useState<"trend" | "stability">("trend")
+  const [interval, setInterval] = useState<string>("5min")
   const [error, setError] = useState<string | null>(null)
   const [collapsed, setCollapsed] = useState(false)
   const [payouts, setPayouts] = useState<Record<string, string>>({})
@@ -69,9 +76,8 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
     setResults(null)
     setMode(scanMode)
     try {
-      const url = scanMode === "stability"
-        ? `${TREND_SCANNER_URL}?mode=stability`
-        : TREND_SCANNER_URL
+      const params = new URLSearchParams({ mode: scanMode, interval })
+      const url = `${TREND_SCANNER_URL}?${params.toString()}`
       const resp = await fetch(url)
       const raw = await resp.json()
       const data = typeof raw === "string" ? JSON.parse(raw) : raw
@@ -91,6 +97,31 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
 
   return (
     <div className="space-y-2">
+      {/* Выбор интервала свечи */}
+      <div className="flex items-center gap-2">
+        <span className="text-zinc-500 font-space-mono text-xs shrink-0">Свеча:</span>
+        <div className="flex gap-1 flex-1">
+          {INTERVAL_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setInterval(opt.value)}
+              title={opt.hint}
+              className={`flex-1 h-7 rounded font-space-mono text-xs transition-colors border ${
+                interval === opt.value
+                  ? "bg-zinc-600 border-zinc-400 text-white"
+                  : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <span className="text-zinc-600 font-space-mono text-xs shrink-0">
+          {INTERVAL_OPTIONS.find(o => o.value === interval)?.hint}
+        </span>
+      </div>
+
       {/* Две кнопки сканирования */}
       <div className="flex gap-2">
         <Button

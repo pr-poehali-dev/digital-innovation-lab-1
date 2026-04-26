@@ -2,16 +2,8 @@ import json
 import math
 import os
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
-
-# OTC пары Pocket Option — реальные символы
-FOREX_PAIRS = [
-    "EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD",
-    "USD/CAD", "USD/CHF", "NZD/USD",
-    "EUR/GBP", "EUR/JPY", "EUR/CHF", "EUR/AUD", "EUR/CAD",
-    "GBP/JPY", "GBP/CHF", "GBP/AUD", "GBP/CAD",
-    "AUD/JPY", "AUD/CAD", "CAD/JPY",
-]
 
 CRYPTO_PAIRS = [
     "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "DOGEUSDT",
@@ -25,10 +17,18 @@ CRYPTO_MAP = {
     "DOGEUSDT": "DOGE/USD",
 }
 
+FOREX_TUPLE = [
+    ("EUR", "USD"), ("GBP", "USD"), ("USD", "JPY"), ("AUD", "USD"),
+    ("USD", "CAD"), ("USD", "CHF"), ("NZD", "USD"),
+    ("EUR", "GBP"), ("EUR", "JPY"), ("EUR", "CHF"), ("EUR", "AUD"), ("EUR", "CAD"),
+    ("GBP", "JPY"), ("GBP", "CHF"), ("GBP", "AUD"), ("GBP", "CAD"),
+    ("AUD", "JPY"), ("AUD", "CAD"), ("CAD", "JPY"),
+]
 
-def fetch_url(url):
+
+def fetch_url(url, timeout=6):
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=10) as resp:
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read())
 
 
@@ -58,18 +58,83 @@ def calc_stability_score(prices: list) -> dict:
     }
 
 
-def fetch_twelve_candles(symbol: str, api_key: str, interval="5min", count=20) -> list:
-    """Получает последние N свечей с Twelve Data для форекс пары."""
-    sym = symbol.replace("/", "")
-    url = f"https://api.twelvedata.com/time_series?symbol={sym}&interval={interval}&outputsize={count}&apikey={api_key}"
-    data = fetch_url(url)
-    if data.get("status") == "error" or "values" not in data:
-        return []
-    return [float(v["close"]) for v in reversed(data["values"])]
+def fetch_yahoo_prices(base, quote, yahoo_interval):
+    sym = f"{base}{quote}=X"
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}?interval={yahoo_interval}&range=1d"
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "application/json",
+    })
+    with urllib.request.urlopen(req, timeout=6) as resp:
+        ydata = json.loads(resp.read())
+    closes = ydata["chart"]["result"][0]["indicators"]["quote"][0]["close"]
+    prices = [float(c) for c in closes if c is not None]
+    return prices if len(prices) >= 2 else []
+
+
+def fetch_day_rates(dt_str):
+    url = f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{dt_str}/v1/currencies/usd.min.json"
+    data = fetch_url(url, timeout=5)
+    return data.get("usd", {})
+
+
+def process_forex_pair(base, quote, mode, yahoo_interval, daily_rates):
+    pair = f"{base}/{quote}"
+    try:
+        prices = []
+        source = "yahoo"
+
+        try:
+            prices = fetch_yahoo_prices(base, quote, yahoo_interval)
+        except Exception:
+            pass
+
+        if not prices:
+            b, q = base.lower(), quote.lower()
+            hist = []
+            for rates in daily_rates:
+                try:
+                    if base == "USD":
+                        hist.append(rates[q])
+                    elif quote == "USD":
+                        hist.append(1 / rates[b])
+                    else:
+                        hist.append(rates[q] / rates[b])
+                except Exception:
+                    pass
+            if len(hist) < 2:
+                return None
+            prices = hist
+            source = "fx_daily"
+
+        if mode == "stability" and len(prices) < 5:
+            return None
+
+        last_price = prices[-1]
+        first_price = prices[0]
+        change_pct = ((last_price - first_price) / first_price) * 100
+
+        stability = {"std_pct": 0, "slope_pct": 0, "stability_score": 0}
+        if mode == "stability":
+            stability = calc_stability_score(prices)
+
+        return {
+            "asset": pair,
+            "asset_otc": pair + " (OTC)",
+            "category": "forex",
+            "change_pct": round(change_pct, 4),
+            "trend_strength": round(abs(change_pct), 4),
+            "direction": "UP" if change_pct > 0 else "DOWN",
+            "position_in_range": None,
+            "source": source,
+            **stability,
+        }
+    except Exception:
+        return None
 
 
 def handler(event: dict, context) -> dict:
-    """Сканирует OTC пары Pocket Option через Twelve Data и Binance. Возвращает топ по тренду или стабильности."""
+    """Сканирует OTC пары Pocket Option параллельно. Возвращает топ по тренду или стабильности."""
 
     if event.get("httpMethod") == "OPTIONS":
         return {
@@ -88,14 +153,31 @@ def handler(event: dict, context) -> dict:
     interval = params.get("interval", "5min")
     if interval not in ("1min", "5min", "15min"):
         interval = "5min"
-    api_key = os.environ.get("TWELVE_DATA_API_KEY", "")
+
+    interval_yahoo = {"1min": "1m", "5min": "5m", "15min": "15m"}
+    yahoo_interval = interval_yahoo.get(interval, "5m")
 
     results = []
 
-    # --- КРИПТА (Binance 24h ticker + klines) ---
+    # --- КРИПТА параллельно ---
     try:
         symbols = ",".join([f'"{s}"' for s in CRYPTO_PAIRS])
         crypto_data = fetch_url(f"https://api.binance.com/api/v3/ticker/24hr?symbols=[{symbols}]")
+
+        if mode == "stability":
+            def fetch_klines(symbol):
+                return symbol, fetch_url(f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=5m&limit=20")
+
+            klines_map = {}
+            with ThreadPoolExecutor(max_workers=5) as ex:
+                futs = {ex.submit(fetch_klines, s): s for s in CRYPTO_PAIRS}
+                for f in as_completed(futs, timeout=8):
+                    try:
+                        sym, klines = f.result()
+                        klines_map[sym] = klines
+                    except Exception:
+                        pass
+
         for ticker in crypto_data:
             symbol = ticker["symbol"]
             if symbol not in CRYPTO_MAP:
@@ -107,19 +189,12 @@ def handler(event: dict, context) -> dict:
             price_range = high - low
 
             stability = {"std_pct": 0, "slope_pct": 0, "stability_score": 0}
-            skip = False
             if mode == "stability":
-                try:
-                    klines = fetch_url(f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=5m&limit=20")
-                    closes = [float(k[4]) for k in klines]
-                    if len(closes) < 20:
-                        skip = True
-                    else:
-                        stability = calc_stability_score(closes)
-                except Exception:
-                    skip = True
-            if skip:
-                continue
+                klines = klines_map.get(symbol, [])
+                closes = [float(k[4]) for k in klines]
+                if len(closes) < 20:
+                    continue
+                stability = calc_stability_score(closes)
 
             results.append({
                 "asset": CRYPTO_MAP[symbol],
@@ -135,106 +210,38 @@ def handler(event: dict, context) -> dict:
     except Exception:
         pass
 
-    # --- ФОРЕКС OTC ---
+    # --- Загружаем историю курсов параллельно ---
     today = datetime.now(timezone.utc)
-    yesterday = today - timedelta(days=1)
-    today_str = today.strftime("%Y-%m-%d")
-    yesterday_str = yesterday.strftime("%Y-%m-%d")
+    dates = [(today - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(6, -1, -1)]
 
-    # Собираем историю курсов за 7 дней (для stability — 7 точек)
-    daily_rates = []  # список словарей rates по дням (старый → новый)
-    for days_ago in range(6, -1, -1):
-        dt_str = (today - timedelta(days=days_ago)).strftime("%Y-%m-%d")
-        try:
-            d = fetch_url(f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{dt_str}/v1/currencies/usd.min.json")
-            daily_rates.append(d.get("usd", {}))
-        except Exception:
-            pass
-
-    current_rates = daily_rates[-1] if daily_rates else {}
-    prev_rates = daily_rates[-2] if len(daily_rates) >= 2 else {}
-
-    FOREX_TUPLE = [
-        ("EUR", "USD"), ("GBP", "USD"), ("USD", "JPY"), ("AUD", "USD"),
-        ("USD", "CAD"), ("USD", "CHF"), ("NZD", "USD"),
-        ("EUR", "GBP"), ("EUR", "JPY"), ("EUR", "CHF"), ("EUR", "AUD"), ("EUR", "CAD"),
-        ("GBP", "JPY"), ("GBP", "CHF"), ("GBP", "AUD"), ("GBP", "CAD"),
-        ("AUD", "JPY"), ("AUD", "CAD"), ("CAD", "JPY"),
-    ]
-
-    interval_yahoo = {"1min": "1m", "5min": "5m", "15min": "15m"}
-    yahoo_interval = interval_yahoo.get(interval, "5m")
-    yahoo_range = "1d"  # последние сутки
-
-    for base, quote in FOREX_TUPLE:
-        pair = f"{base}/{quote}"
-        try:
-            prices = None
-            source = "yahoo"
-
-            # Yahoo Finance — реальные минутные свечи без ключа
+    daily_rates = []
+    with ThreadPoolExecutor(max_workers=7) as ex:
+        futs = {ex.submit(fetch_day_rates, d): d for d in dates}
+        date_results = {}
+        for f in as_completed(futs, timeout=8):
+            d = futs[f]
             try:
-                sym = f"{base}{quote}=X"
-                yahoo_url = f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}?interval={yahoo_interval}&range={yahoo_range}"
-                req = urllib.request.Request(yahoo_url, headers={
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                    "Accept": "application/json",
-                })
-                with urllib.request.urlopen(req, timeout=10) as resp:
-                    ydata = json.loads(resp.read())
-                closes = ydata["chart"]["result"][0]["indicators"]["quote"][0]["close"]
-                prices = [float(c) for c in closes if c is not None]
+                date_results[d] = f.result()
+            except Exception:
+                date_results[d] = {}
+    for d in dates:
+        r = date_results.get(d, {})
+        if r:
+            daily_rates.append(r)
+
+    # --- ФОРЕКС параллельно ---
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        futs = [
+            ex.submit(process_forex_pair, base, quote, mode, yahoo_interval, daily_rates)
+            for base, quote in FOREX_TUPLE
+        ]
+        for f in as_completed(futs, timeout=10):
+            try:
+                r = f.result()
+                if r:
+                    results.append(r)
             except Exception:
                 pass
-
-            if not prices or len(prices) < 2:
-                # Fallback — многодневная история курсов
-                b, q = base.lower(), quote.lower()
-                hist = []
-                for rates in daily_rates:
-                    try:
-                        if base == "USD":
-                            hist.append(rates[q])
-                        elif quote == "USD":
-                            hist.append(1 / rates[b])
-                        else:
-                            hist.append(rates[q] / rates[b])
-                    except Exception:
-                        pass
-                if len(hist) < 2:
-                    continue
-                prices = hist
-                source = "fx_daily"
-
-            last_price = prices[-1]
-            first_price = prices[0]
-            change_pct = ((last_price - first_price) / first_price) * 100
-
-            # В режиме stability — минимум 5 точек (fx_daily даёт 7 дней)
-            if mode == "stability" and len(prices) < 5:
-                continue
-
-            last_price = prices[-1]
-            first_price = prices[0]
-            change_pct = ((last_price - first_price) / first_price) * 100
-
-            stability = {"std_pct": 0, "slope_pct": 0, "stability_score": 0}
-            if mode == "stability":
-                stability = calc_stability_score(prices)
-
-            results.append({
-                "asset": pair,
-                "asset_otc": pair + " (OTC)",
-                "category": "forex",
-                "change_pct": round(change_pct, 4),
-                "trend_strength": round(abs(change_pct), 4),
-                "direction": "UP" if change_pct > 0 else "DOWN",
-                "position_in_range": None,
-                "source": source,
-                **stability,
-            })
-        except Exception:
-            continue
 
     if mode == "stability":
         results.sort(key=lambda x: x.get("stability_score", 0), reverse=True)
@@ -251,6 +258,5 @@ def handler(event: dict, context) -> dict:
             "best": results[0] if results else None,
             "scanned": len(results),
             "mode": mode,
-            "source": "twelve_data+binance",
         }),
     }

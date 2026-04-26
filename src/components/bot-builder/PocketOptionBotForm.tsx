@@ -80,11 +80,20 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
       const url = `${TREND_SCANNER_URL}?${params.toString()}`
       const resp = await fetch(url)
       const raw = await resp.json()
-      const data = typeof raw === "string" ? JSON.parse(raw) : raw
+      // платформа может обернуть body в строку или вернуть напрямую
+      let data = typeof raw === "string" ? JSON.parse(raw) : raw
+      // если body вложен (statusCode + body)
+      if (data.body) data = typeof data.body === "string" ? JSON.parse(data.body) : data.body
+      console.log("[scanner] data:", data)
+      if (!data.top || data.top.length === 0) {
+        setError("Нет данных — попробуй ещё раз")
+        return
+      }
       setResults(data.top)
       const topForex = data.top?.find((r: TrendResult) => r.category === "forex")
       if (topForex) onSelect(topForex.asset_otc)
-    } catch {
+    } catch (e) {
+      console.error("[scanner] error:", e)
       setError("Не удалось получить данные")
     } finally {
       setLoading(false)

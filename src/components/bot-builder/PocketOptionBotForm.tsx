@@ -179,8 +179,12 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
             <Icon name={mode === "stability" ? "Minus" : "Zap"} size={12} className={`mt-0.5 shrink-0 ${mode === "stability" ? "text-blue-400/70" : "text-yellow-500/70"}`} />
             <p className={`font-space-mono text-xs leading-relaxed ${mode === "stability" ? "text-blue-400/70" : "text-yellow-500/70"}`}>
               {mode === "stability"
-                ? <>Топ пар с самой ровной ценой. Оценка <span className="text-blue-300 font-bold">100</span> = идеально прямая линия, <span className="text-blue-300 font-bold">0</span> = хаос. Чем выше — тем предсказуемее пара.</>
-                : "Топ пар с сильным движением. OTC-версии доступны 24/7."
+                ? <>
+                    <span className="text-blue-300 font-bold">Ровная линия</span> — ищет пары, где цена движется плавно без резких скачков. Данные: реальные 5-минутные свечи с Yahoo Finance за последние 24 часа. Алгоритм считает стандартное отклонение цены — чем меньше скачки, тем выше оценка. <span className="text-blue-300 font-bold">100</span> = идеально прямая линия, <span className="text-blue-300 font-bold">0</span> = хаос. Подходит для стратегий на отбой от уровней.
+                  </>
+                : <>
+                    <span className="text-yellow-300 font-bold">Сильный тренд</span> — ищет пары с мощным направленным движением. Данные: реальные 5-минутные свечи с Yahoo Finance за последние 24 часа. Алгоритм сравнивает первую и последнюю свечу в серии — чем больше изменение в одну сторону, тем выше оценка. OTC-версии доступны 24/7.
+                  </>
               }
             </p>
           </div>

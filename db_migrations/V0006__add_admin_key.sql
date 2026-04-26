@@ -1,0 +1,1 @@
+INSERT INTO access_keys (key, email, is_active, created_at) VALUES ('ADMIN-2026', 'admin@admin.com', true, NOW());

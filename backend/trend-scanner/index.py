@@ -107,13 +107,19 @@ def handler(event: dict, context) -> dict:
             price_range = high - low
 
             stability = {"std_pct": 0, "slope_pct": 0, "stability_score": 0}
+            skip = False
             if mode == "stability":
                 try:
-                    klines = fetch_url(f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=5m&limit=20")
+                    klines = fetch_url(f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=5m&limit=100")
                     closes = [float(k[4]) for k in klines]
-                    stability = calc_stability_score(closes)
+                    if len(closes) < 100:
+                        skip = True
+                    else:
+                        stability = calc_stability_score(closes)
                 except Exception:
-                    pass
+                    skip = True
+            if skip:
+                continue
 
             results.append({
                 "asset": CRYPTO_MAP[symbol],
@@ -140,7 +146,8 @@ def handler(event: dict, context) -> dict:
     if api_key:
         try:
             symbols_str = ",".join(p.replace("/", "") for p in FOREX_PAIRS)
-            url_batch = f"https://api.twelvedata.com/time_series?symbol={symbols_str}&interval={interval}&outputsize=20&apikey={api_key}"
+            outputsize = 100 if mode == "stability" else 20
+            url_batch = f"https://api.twelvedata.com/time_series?symbol={symbols_str}&interval={interval}&outputsize={outputsize}&apikey={api_key}"
             batch = fetch_url(url_batch)
             # Если один символ — оборачиваем
             if batch.get("meta"):
@@ -197,6 +204,14 @@ def handler(event: dict, context) -> dict:
                     continue
                 prices = [rate_prev, rate_now]
                 source = "fx_daily"
+
+            last_price = prices[-1]
+            first_price = prices[0]
+            change_pct = ((last_price - first_price) / first_price) * 100
+
+            # В режиме stability — только реальные свечи (минимум 100 точек)
+            if mode == "stability" and (source == "fx_daily" or len(prices) < 100):
+                continue
 
             last_price = prices[-1]
             first_price = prices[0]

@@ -78,7 +78,10 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
     try {
       const params = new URLSearchParams({ mode: scanMode, interval })
       const url = `${TREND_SCANNER_URL}?${params.toString()}`
-      const resp = await fetch(url)
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 25000)
+      const resp = await fetch(url, { signal: controller.signal })
+      clearTimeout(timer)
       const raw = await resp.json()
       // платформа может обернуть body в строку или вернуть напрямую
       let data = typeof raw === "string" ? JSON.parse(raw) : raw

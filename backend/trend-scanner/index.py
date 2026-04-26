@@ -241,14 +241,16 @@ def handler(event: dict, context) -> dict:
     else:
         results.sort(key=lambda x: x["trend_strength"], reverse=True)
 
+    print(f"[scanner] mode={mode} scanned={len(results)} results")
+
     return {
         "statusCode": 200,
         "headers": {"Access-Control-Allow-Origin": "*", "Content-Type": "application/json"},
-        "body": {
+        "body": json.dumps({
             "top": results,
             "best": results[0] if results else None,
             "scanned": len(results),
             "mode": mode,
             "source": "twelve_data+binance",
-        },
+        }),
     }

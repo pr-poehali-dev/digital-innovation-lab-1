@@ -162,40 +162,30 @@ def handler(event: dict, context) -> dict:
         ("AUD", "JPY"), ("AUD", "CAD"), ("CAD", "JPY"),
     ]
 
+    interval_yahoo = {"1min": "1m", "5min": "5m", "15min": "15m"}
+    yahoo_interval = interval_yahoo.get(interval, "5m")
+    yahoo_range = "1d"  # последние сутки
+
     for base, quote in FOREX_TUPLE:
         pair = f"{base}/{quote}"
         try:
             prices = None
-            source = "twelve_data"
+            source = "yahoo"
 
-            # Пробуем Polygon.io
-            polygon_key = os.environ.get("POLYGON_API_KEY", "")
-            if polygon_key:
-                try:
-                    sym = pair.replace("/", "")
-                    interval_map = {"1min": "minute", "5min": "minute", "15min": "minute"}
-                    multiplier_map = {"1min": 1, "5min": 5, "15min": 15}
-                    timespan = interval_map.get(interval, "minute")
-                    mult = multiplier_map.get(interval, 5)
-                    from_dt = (today - timedelta(days=3)).strftime("%Y-%m-%d")
-                    to_dt = today.strftime("%Y-%m-%d")
-                    poly_url = f"https://api.polygon.io/v2/aggs/ticker/C:{sym}/range/{mult}/{timespan}/{from_dt}/{to_dt}?adjusted=true&sort=asc&limit=20&apiKey={polygon_key}"
-                    poly_data = fetch_url(poly_url)
-                    if poly_data.get("resultsCount", 0) > 0:
-                        prices = [float(r["c"]) for r in poly_data["results"]]
-                except Exception:
-                    pass
-
-            # Fallback Twelve Data
-            if not prices and api_key:
-                try:
-                    sym = pair.replace("/", "")
-                    td_url = f"https://api.twelvedata.com/time_series?symbol={sym}&interval={interval}&outputsize=20&apikey={api_key}"
-                    td_data = fetch_url(td_url)
-                    if td_data.get("status") != "error" and "values" in td_data:
-                        prices = [float(v["close"]) for v in reversed(td_data["values"])]
-                except Exception:
-                    pass
+            # Yahoo Finance — реальные минутные свечи без ключа
+            try:
+                sym = f"{base}{quote}=X"
+                yahoo_url = f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}?interval={yahoo_interval}&range={yahoo_range}"
+                req = urllib.request.Request(yahoo_url, headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                    "Accept": "application/json",
+                })
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    ydata = json.loads(resp.read())
+                closes = ydata["chart"]["result"][0]["indicators"]["quote"][0]["close"]
+                prices = [float(c) for c in closes if c is not None]
+            except Exception:
+                pass
 
             if not prices or len(prices) < 2:
                 # Fallback — многодневная история курсов

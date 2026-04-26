@@ -20,7 +20,7 @@ import {
   PO_EXPIRY_LABELS,
 } from "./PocketOptionBotTypes"
 
-const TREND_SCANNER_URL = "https://functions.poehali.dev/d55c380e-7fd5-4871-aca7-c8670be08cde"
+const TREND_SCANNER_URL = "https://functions.poehali.dev/371ca5f1-ae59-4842-a669-eef3d16a149e"
 
 interface TrendResult {
   asset: string

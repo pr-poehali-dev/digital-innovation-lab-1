@@ -1,0 +1,12 @@
+{
+  "tests": [
+    {
+      "name": "Proxy trend scan",
+      "method": "GET",
+      "path": "/?mode=trend&interval=5min",
+      "expectedStatus": 200,
+      "expectedBody": {"top": []},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

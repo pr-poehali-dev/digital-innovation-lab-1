@@ -95,9 +95,16 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
       setResults(data.top)
       const topForex = data.top?.find((r: TrendResult) => r.category === "forex")
       if (topForex) onSelect(topForex.asset_otc)
-    } catch (e) {
-      console.error("[scanner] error:", e)
-      setError("Не удалось получить данные")
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      console.error("[scanner] error:", msg)
+      if (msg.includes("abort") || msg.includes("Abort")) {
+        setError("Превышено время ожидания (>25 сек) — попробуй ещё раз")
+      } else if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
+        setError("Сетевая ошибка — проверь интернет и попробуй ещё раз")
+      } else {
+        setError(`Ошибка: ${msg}`)
+      }
     } finally {
       setLoading(false)
       setLoadingStability(false)

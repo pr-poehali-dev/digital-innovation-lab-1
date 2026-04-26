@@ -219,7 +219,7 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
                     </div>
 
                     {mode === "stability"
-                      ? <span className="font-space-mono text-xs font-bold shrink-0 text-blue-400">{r.stability_score ?? 0}</span>
+                      ? <span className={`font-space-mono text-xs font-bold shrink-0 ${(r.stability_score ?? 0) >= 70 ? "text-green-400" : (r.stability_score ?? 0) >= 40 ? "text-yellow-400" : "text-red-400"}`}>{r.stability_score ?? 0}</span>
                       : <span className={`font-space-mono text-xs font-bold shrink-0 ${isUp ? "text-green-400" : "text-red-400"}`}>{r.change_pct > 0 ? "+" : ""}{r.change_pct}%</span>
                     }
 

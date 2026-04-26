@@ -110,9 +110,9 @@ def handler(event: dict, context) -> dict:
             skip = False
             if mode == "stability":
                 try:
-                    klines = fetch_url(f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=5m&limit=100")
+                    klines = fetch_url(f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=5m&limit=20")
                     closes = [float(k[4]) for k in klines]
-                    if len(closes) < 100:
+                    if len(closes) < 20:
                         skip = True
                     else:
                         stability = calc_stability_score(closes)
@@ -135,43 +135,24 @@ def handler(event: dict, context) -> dict:
     except Exception:
         pass
 
-    # --- ФОРЕКС OTC (Twelve Data свечи + fallback на курсы дня) ---
+    # --- ФОРЕКС OTC ---
     today = datetime.now(timezone.utc)
     yesterday = today - timedelta(days=1)
     today_str = today.strftime("%Y-%m-%d")
     yesterday_str = yesterday.strftime("%Y-%m-%d")
 
-    # Пробуем получить курсы через Twelve Data батчем
-    twelve_prices = {}
-    if api_key:
+    # Собираем историю курсов за 7 дней (для stability — 7 точек)
+    daily_rates = []  # список словарей rates по дням (старый → новый)
+    for days_ago in range(6, -1, -1):
+        dt_str = (today - timedelta(days=days_ago)).strftime("%Y-%m-%d")
         try:
-            symbols_str = ",".join(p.replace("/", "") for p in FOREX_PAIRS)
-            outputsize = 100 if mode == "stability" else 20
-            url_batch = f"https://api.twelvedata.com/time_series?symbol={symbols_str}&interval={interval}&outputsize={outputsize}&apikey={api_key}"
-            batch = fetch_url(url_batch)
-            # Если один символ — оборачиваем
-            if batch.get("meta"):
-                sym = batch["meta"]["symbol"]
-                pair = sym[:3] + "/" + sym[3:]
-                if "values" in batch:
-                    twelve_prices[pair] = [float(v["close"]) for v in reversed(batch["values"])]
-            else:
-                for sym, data in batch.items():
-                    if isinstance(data, dict) and "values" in data:
-                        pair_key = sym[:3] + "/" + sym[3:]
-                        twelve_prices[pair_key] = [float(v["close"]) for v in reversed(data["values"])]
+            d = fetch_url(f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{dt_str}/v1/currencies/usd.min.json")
+            daily_rates.append(d.get("usd", {}))
         except Exception:
             pass
 
-    # Fallback — курсы за сегодня/вчера через cdn.jsdelivr.net
-    current_rates, prev_rates = {}, {}
-    try:
-        current_data = fetch_url(f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{today_str}/v1/currencies/usd.min.json")
-        prev_data = fetch_url(f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{yesterday_str}/v1/currencies/usd.min.json")
-        current_rates = current_data.get("usd", {})
-        prev_rates = prev_data.get("usd", {})
-    except Exception:
-        pass
+    current_rates = daily_rates[-1] if daily_rates else {}
+    prev_rates = daily_rates[-2] if len(daily_rates) >= 2 else {}
 
     FOREX_TUPLE = [
         ("EUR", "USD"), ("GBP", "USD"), ("USD", "JPY"), ("AUD", "USD"),
@@ -184,33 +165,63 @@ def handler(event: dict, context) -> dict:
     for base, quote in FOREX_TUPLE:
         pair = f"{base}/{quote}"
         try:
-            prices = twelve_prices.get(pair)
+            prices = None
             source = "twelve_data"
 
-            if not prices or len(prices) < 2:
-                # Fallback на курсы дня
-                b, q = base.lower(), quote.lower()
-                if base == "USD":
-                    rate_now = current_rates.get(q)
-                    rate_prev = prev_rates.get(q)
-                elif quote == "USD":
-                    rate_now = 1 / current_rates[b] if current_rates.get(b) else None
-                    rate_prev = 1 / prev_rates[b] if prev_rates.get(b) else None
-                else:
-                    rate_now = current_rates.get(q) / current_rates.get(b, 1) if current_rates.get(q) and current_rates.get(b) else None
-                    rate_prev = prev_rates.get(q) / prev_rates.get(b, 1) if prev_rates.get(q) and prev_rates.get(b) else None
+            # Пробуем Polygon.io
+            polygon_key = os.environ.get("POLYGON_API_KEY", "")
+            if polygon_key:
+                try:
+                    sym = pair.replace("/", "")
+                    interval_map = {"1min": "minute", "5min": "minute", "15min": "minute"}
+                    multiplier_map = {"1min": 1, "5min": 5, "15min": 15}
+                    timespan = interval_map.get(interval, "minute")
+                    mult = multiplier_map.get(interval, 5)
+                    from_dt = (today - timedelta(days=3)).strftime("%Y-%m-%d")
+                    to_dt = today.strftime("%Y-%m-%d")
+                    poly_url = f"https://api.polygon.io/v2/aggs/ticker/C:{sym}/range/{mult}/{timespan}/{from_dt}/{to_dt}?adjusted=true&sort=asc&limit=20&apiKey={polygon_key}"
+                    poly_data = fetch_url(poly_url)
+                    if poly_data.get("resultsCount", 0) > 0:
+                        prices = [float(r["c"]) for r in poly_data["results"]]
+                except Exception:
+                    pass
 
-                if not rate_now or not rate_prev:
+            # Fallback Twelve Data
+            if not prices and api_key:
+                try:
+                    sym = pair.replace("/", "")
+                    td_url = f"https://api.twelvedata.com/time_series?symbol={sym}&interval={interval}&outputsize=20&apikey={api_key}"
+                    td_data = fetch_url(td_url)
+                    if td_data.get("status") != "error" and "values" in td_data:
+                        prices = [float(v["close"]) for v in reversed(td_data["values"])]
+                except Exception:
+                    pass
+
+            if not prices or len(prices) < 2:
+                # Fallback — многодневная история курсов
+                b, q = base.lower(), quote.lower()
+                hist = []
+                for rates in daily_rates:
+                    try:
+                        if base == "USD":
+                            hist.append(rates[q])
+                        elif quote == "USD":
+                            hist.append(1 / rates[b])
+                        else:
+                            hist.append(rates[q] / rates[b])
+                    except Exception:
+                        pass
+                if len(hist) < 2:
                     continue
-                prices = [rate_prev, rate_now]
+                prices = hist
                 source = "fx_daily"
 
             last_price = prices[-1]
             first_price = prices[0]
             change_pct = ((last_price - first_price) / first_price) * 100
 
-            # В режиме stability — только реальные свечи (минимум 100 точек)
-            if mode == "stability" and (source == "fx_daily" or len(prices) < 100):
+            # В режиме stability — минимум 5 точек (fx_daily даёт 7 дней)
+            if mode == "stability" and len(prices) < 5:
                 continue
 
             last_price = prices[-1]

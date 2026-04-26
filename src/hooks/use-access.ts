@@ -3,6 +3,10 @@ import { useState, useEffect } from 'react';
 const ACCESS_KEY_STORAGE = 'synapse_access_key';
 const VALIDATE_URL = 'https://functions.poehali.dev/a78d7eb2-c109-46f0-9b0b-3039256610ff';
 
+export function clearAccess() {
+  localStorage.removeItem(ACCESS_KEY_STORAGE);
+}
+
 export function useAccess() {
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);

@@ -15,6 +15,7 @@ import BotLanding from "./pages/BotLanding";
 import Payment from "./pages/Payment";
 import ThankYou from "./pages/ThankYou";
 import Admin from "./pages/Admin";
+import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import AccessGate from "./components/AccessGate";
 import PromoPopup from "./components/PromoPopup";
@@ -36,6 +37,7 @@ const App = () => (
           <Route path="/payment" element={<Payment />} />
           <Route path="/thank-you" element={<ThankYou />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/login" element={<Login />} />
           <Route path="/trading-basics" element={<TradingBasics />} />
           <Route path="/practice" element={<AccessGate><PracticeCase /></AccessGate>} />
           <Route path="/bot-builder" element={<AccessGate><BotBuilder /></AccessGate>} />

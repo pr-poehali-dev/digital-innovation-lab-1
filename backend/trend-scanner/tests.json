@@ -1,11 +1,19 @@
 {
   "tests": [
     {
-      "name": "Scan trends",
+      "name": "Scan trends (default mode)",
       "method": "GET",
       "path": "/",
       "expectedStatus": 200,
-      "expectedBody": { "scanned": 0 },
+      "expectedBody": { "scanned": 0, "mode": "trend" },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Scan stability mode",
+      "method": "GET",
+      "path": "/?mode=stability",
+      "expectedStatus": 200,
+      "expectedBody": { "scanned": 0, "mode": "stability" },
       "bodyMatcher": "partial"
     }
   ]

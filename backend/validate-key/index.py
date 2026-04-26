@@ -39,11 +39,11 @@ def handler(event: dict, context) -> dict:
         return {
             "statusCode": 200,
             "headers": {"Access-Control-Allow-Origin": "*"},
-            "body": json.dumps({"valid": True}),
+            "body": {"valid": True},
         }
 
     return {
         "statusCode": 200,
         "headers": {"Access-Control-Allow-Origin": "*"},
-        "body": json.dumps({"valid": False}),
+        "body": {"valid": False},
     }

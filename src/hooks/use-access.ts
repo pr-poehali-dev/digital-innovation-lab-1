@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 const ACCESS_KEY_STORAGE = 'synapse_access_key';
-const VALIDATE_URL = 'https://functions.poehali.dev/cc94a441-3b9a-471c-94ce-7ac22db0a8f9';
+const VALIDATE_URL = 'https://functions.poehali.dev/a78d7eb2-c109-46f0-9b0b-3039256610ff';
 
 export function useAccess() {
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);

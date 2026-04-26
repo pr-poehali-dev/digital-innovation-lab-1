@@ -129,12 +129,74 @@ def handler(event: dict, context) -> dict:
     except Exception:
         pass
 
-    # --- ФОРЕКС OTC (Twelve Data — реальные свечи) ---
-    for pair in FOREX_PAIRS:
+    # --- ФОРЕКС OTC (Twelve Data свечи + fallback на курсы дня) ---
+    today = datetime.now(timezone.utc)
+    yesterday = today - timedelta(days=1)
+    today_str = today.strftime("%Y-%m-%d")
+    yesterday_str = yesterday.strftime("%Y-%m-%d")
+
+    # Пробуем получить курсы через Twelve Data батчем
+    twelve_prices = {}
+    if api_key:
         try:
-            prices = fetch_twelve_candles(pair, api_key, interval=interval, count=20)
-            if len(prices) < 2:
-                continue
+            symbols_str = ",".join(p.replace("/", "") for p in FOREX_PAIRS)
+            url_batch = f"https://api.twelvedata.com/time_series?symbol={symbols_str}&interval={interval}&outputsize=20&apikey={api_key}"
+            batch = fetch_url(url_batch)
+            # Если один символ — оборачиваем
+            if batch.get("meta"):
+                sym = batch["meta"]["symbol"]
+                pair = sym[:3] + "/" + sym[3:]
+                if "values" in batch:
+                    twelve_prices[pair] = [float(v["close"]) for v in reversed(batch["values"])]
+            else:
+                for sym, data in batch.items():
+                    if isinstance(data, dict) and "values" in data:
+                        pair_key = sym[:3] + "/" + sym[3:]
+                        twelve_prices[pair_key] = [float(v["close"]) for v in reversed(data["values"])]
+        except Exception:
+            pass
+
+    # Fallback — курсы за сегодня/вчера через cdn.jsdelivr.net
+    current_rates, prev_rates = {}, {}
+    try:
+        current_data = fetch_url(f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{today_str}/v1/currencies/usd.min.json")
+        prev_data = fetch_url(f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{yesterday_str}/v1/currencies/usd.min.json")
+        current_rates = current_data.get("usd", {})
+        prev_rates = prev_data.get("usd", {})
+    except Exception:
+        pass
+
+    FOREX_TUPLE = [
+        ("EUR", "USD"), ("GBP", "USD"), ("USD", "JPY"), ("AUD", "USD"),
+        ("USD", "CAD"), ("USD", "CHF"), ("NZD", "USD"),
+        ("EUR", "GBP"), ("EUR", "JPY"), ("EUR", "CHF"), ("EUR", "AUD"), ("EUR", "CAD"),
+        ("GBP", "JPY"), ("GBP", "CHF"), ("GBP", "AUD"), ("GBP", "CAD"),
+        ("AUD", "JPY"), ("AUD", "CAD"), ("CAD", "JPY"),
+    ]
+
+    for base, quote in FOREX_TUPLE:
+        pair = f"{base}/{quote}"
+        try:
+            prices = twelve_prices.get(pair)
+            source = "twelve_data"
+
+            if not prices or len(prices) < 2:
+                # Fallback на курсы дня
+                b, q = base.lower(), quote.lower()
+                if base == "USD":
+                    rate_now = current_rates.get(q)
+                    rate_prev = prev_rates.get(q)
+                elif quote == "USD":
+                    rate_now = 1 / current_rates[b] if current_rates.get(b) else None
+                    rate_prev = 1 / prev_rates[b] if prev_rates.get(b) else None
+                else:
+                    rate_now = current_rates.get(q) / current_rates.get(b, 1) if current_rates.get(q) and current_rates.get(b) else None
+                    rate_prev = prev_rates.get(q) / prev_rates.get(b, 1) if prev_rates.get(q) and prev_rates.get(b) else None
+
+                if not rate_now or not rate_prev:
+                    continue
+                prices = [rate_prev, rate_now]
+                source = "fx_daily"
 
             last_price = prices[-1]
             first_price = prices[0]
@@ -152,7 +214,7 @@ def handler(event: dict, context) -> dict:
                 "trend_strength": round(abs(change_pct), 4),
                 "direction": "UP" if change_pct > 0 else "DOWN",
                 "position_in_range": None,
-                "source": "twelve_data",
+                "source": source,
                 **stability,
             })
         except Exception:

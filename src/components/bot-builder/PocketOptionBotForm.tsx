@@ -82,11 +82,16 @@ function TrendScanner({ onSelect }: { onSelect: (asset: string) => void }) {
       const timer = setTimeout(() => controller.abort(), 25000)
       const resp = await fetch(url, { signal: controller.signal, mode: "cors", credentials: "omit" })
       clearTimeout(timer)
-      const raw = await resp.json()
-      // платформа может обернуть body в строку или вернуть напрямую
-      let data = typeof raw === "string" ? JSON.parse(raw) : raw
-      // если body вложен (statusCode + body)
-      if (data.body) data = typeof data.body === "string" ? JSON.parse(data.body) : data.body
+      const text = await resp.text()
+      console.log("[scanner] raw text:", text.slice(0, 300))
+      let data: { top?: TrendResult[]; body?: unknown }
+      try {
+        const raw = JSON.parse(text)
+        data = (raw.body ? (typeof raw.body === "string" ? JSON.parse(raw.body) : raw.body) : raw)
+      } catch {
+        setError(`Ошибка парсинга: ${text.slice(0, 100)}`)
+        return
+      }
       console.log("[scanner] data:", data)
       if (!data.top || data.top.length === 0) {
         setError("Нет данных — попробуй ещё раз")

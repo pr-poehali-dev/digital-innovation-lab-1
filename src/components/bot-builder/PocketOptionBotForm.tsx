@@ -769,6 +769,12 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                 onToggleDetail={() => toggleDetail(key)}
               />
             ))}
+            {config.strategy === "support_resistance" && (
+              <div className="flex items-center gap-2 bg-purple-950/40 border border-purple-500/30 rounded-lg px-3 py-2 mt-1">
+                <Icon name="ArrowDown" size={13} className="text-purple-400 shrink-0 animate-bounce" />
+                <span className="text-purple-300 font-space-mono text-xs">Настройки уровней — прокрути вниз до раздела <b>"Настройки уровней"</b></span>
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : (

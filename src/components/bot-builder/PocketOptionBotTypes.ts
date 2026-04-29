@@ -178,11 +178,12 @@ export const PO_ASSETS = [
   "CAD/CHF (OTC)", "CAD/JPY (OTC)", "CHF/JPY (OTC)",
   "NZD/CAD (OTC)", "NZD/CHF (OTC)", "NZD/JPY (OTC)",
   // Криптовалюты
-  "BTC/USD", "ETH/USD",
+  "BTC/USD", "ETH/USD", "DASH/USD", "DOT/USD", "LINK/USD",
+  "BTC/GBP", "BTC/JPY", "BCH/EUR", "BCH/GBP", "BCH/JPY",
   // Криптовалюты OTC
   "BTC/USD (OTC)", "ETH/USD (OTC)", "LTC/USD (OTC)", "DOT/USD (OTC)", "LINK/USD (OTC)",
   // Товары (реальный рынок)
-  "Gold", "Silver", "Brent Oil", "WTI Oil", "Natural Gas",
+  "Gold", "Silver", "Brent Oil", "WTI Oil", "Natural Gas", "Platinum", "Palladium",
   // Товары OTC
   "Gold (OTC)", "Silver (OTC)", "Brent Oil (OTC)", "WTI Oil (OTC)", "Natural Gas (OTC)", "Platinum (OTC)", "Palladium (OTC)",
   // Акции OTC
@@ -190,10 +191,12 @@ export const PO_ASSETS = [
   "Google (OTC)", "Meta (OTC)", "Netflix (OTC)", "VISA (OTC)", "GameStop (OTC)",
   "ExxonMobil (OTC)", "McDonald's (OTC)", "Intel (OTC)", "Boeing (OTC)",
   // Индексы (реальный рынок)
-  "S&P 500", "NASDAQ", "Dow Jones",
+  "S&P 500", "NASDAQ", "Dow Jones", "Nikkei 225", "DAX", "EURO STOXX 50",
+  "CAC 40", "IBEX 35", "FTSE 100", "AUS 200", "CAC 40", "AEX 25", "SMI 20", "Hang Seng",
   // Индексы OTC
   "S&P 500 (OTC)", "NASDAQ (OTC)", "Dow Jones (OTC)", "AUS 200 (OTC)",
   "FTSE 100 (OTC)", "DAX (OTC)", "CAC 40 (OTC)", "Nikkei 225 (OTC)",
+  "EURO STOXX 50 (OTC)", "IBEX 35 (OTC)",
 ]
 
 export const PO_ASSETS_GROUPS = [
@@ -217,11 +220,19 @@ export const PO_ASSETS_GROUPS = [
   },
   {
     label: "₿ Крипто",
-    assets: ["BTC/USD", "ETH/USD", "BTC/USD (OTC)", "ETH/USD (OTC)", "LTC/USD (OTC)", "DOT/USD (OTC)", "LINK/USD (OTC)"],
+    assets: ["BTC/USD", "ETH/USD", "DASH/USD", "DOT/USD", "LINK/USD", "BTC/GBP", "BTC/JPY", "BCH/EUR", "BCH/GBP", "BCH/JPY"],
+  },
+  {
+    label: "₿ Крипто OTC",
+    assets: ["BTC/USD (OTC)", "ETH/USD (OTC)", "LTC/USD (OTC)", "DOT/USD (OTC)", "LINK/USD (OTC)"],
   },
   {
     label: "🏅 Товары",
-    assets: ["Gold", "Silver", "Brent Oil", "WTI Oil", "Natural Gas", "Gold (OTC)", "Silver (OTC)", "Brent Oil (OTC)", "WTI Oil (OTC)", "Natural Gas (OTC)", "Platinum (OTC)", "Palladium (OTC)"],
+    assets: ["Gold", "Silver", "Brent Oil", "WTI Oil", "Natural Gas", "Platinum", "Palladium"],
+  },
+  {
+    label: "🏅 Товары OTC",
+    assets: ["Gold (OTC)", "Silver (OTC)", "Brent Oil (OTC)", "WTI Oil (OTC)", "Natural Gas (OTC)", "Platinum (OTC)", "Palladium (OTC)"],
   },
   {
     label: "📈 Акции OTC",
@@ -233,7 +244,11 @@ export const PO_ASSETS_GROUPS = [
   },
   {
     label: "📊 Индексы",
-    assets: ["S&P 500", "NASDAQ", "Dow Jones", "S&P 500 (OTC)", "NASDAQ (OTC)", "Dow Jones (OTC)", "AUS 200 (OTC)", "FTSE 100 (OTC)", "DAX (OTC)", "CAC 40 (OTC)", "Nikkei 225 (OTC)"],
+    assets: ["S&P 500", "NASDAQ", "Dow Jones", "Nikkei 225", "DAX", "EURO STOXX 50", "IBEX 35", "FTSE 100", "AUS 200", "AEX 25", "SMI 20", "Hang Seng"],
+  },
+  {
+    label: "📊 Индексы OTC",
+    assets: ["S&P 500 (OTC)", "NASDAQ (OTC)", "Dow Jones (OTC)", "AUS 200 (OTC)", "FTSE 100 (OTC)", "DAX (OTC)", "CAC 40 (OTC)", "Nikkei 225 (OTC)", "EURO STOXX 50 (OTC)", "IBEX 35 (OTC)"],
   },
 ]
 
@@ -484,6 +499,14 @@ def adjust_bet(won):
     // Криптовалюты
     "BTC/USD":          "BTCUSD",
     "ETH/USD":          "ETHUSD",
+    "DASH/USD":         "DASH_USD",
+    "DOT/USD":          "DOTUSD",
+    "LINK/USD":         "LNKUSD",
+    "BTC/GBP":          "BTCGBP",
+    "BTC/JPY":          "BTCJPY",
+    "BCH/EUR":          "BCHEUR",
+    "BCH/GBP":          "BCHGBP",
+    "BCH/JPY":          "BCHJPY",
     // Криптовалюты OTC
     "BTC/USD (OTC)":    "BTCUSD_otc",
     "ETH/USD (OTC)":    "ETHUSD_otc",
@@ -496,6 +519,8 @@ def adjust_bet(won):
     "Brent Oil":        "UKBrent",
     "WTI Oil":          "USCrude",
     "Natural Gas":      "XNGUSD",
+    "Platinum":         "XPTUSD",
+    "Palladium":        "XPDUSD",
     // Товары OTC
     "Gold (OTC)":       "XAUUSD_otc",
     "Silver (OTC)":     "XAGUSD_otc",
@@ -523,15 +548,27 @@ def adjust_bet(won):
     "S&P 500":          "SP500",
     "NASDAQ":           "NASUSD",
     "Dow Jones":        "DJI30",
+    "Nikkei 225":       "JPN225",
+    "DAX":              "D30EUR",
+    "EURO STOXX 50":    "E50EUR",
+    "IBEX 35":          "E35EUR",
+    "FTSE 100":         "100GBP",
+    "AUS 200":          "AUS200",
+    "CAC 40":           "CAC40",
+    "AEX 25":           "AEX25",
+    "SMI 20":           "SMI20",
+    "Hang Seng":        "H33HKD",
     // Индексы OTC
     "S&P 500 (OTC)":    "SP500_otc",
     "NASDAQ (OTC)":     "NASUSD_otc",
     "Dow Jones (OTC)":  "DJI30_otc",
-    "AUS 200 (OTC)":    "AUS200_otc",
-    "FTSE 100 (OTC)":   "100GBP_otc",
-    "DAX (OTC)":        "D30EUR_otc",
-    "CAC 40 (OTC)":     "F40EUR_otc",
-    "Nikkei 225 (OTC)": "JPN225_otc",
+    "AUS 200 (OTC)":        "AUS200_otc",
+    "FTSE 100 (OTC)":       "100GBP_otc",
+    "DAX (OTC)":            "D30EUR_otc",
+    "CAC 40 (OTC)":         "F40EUR_otc",
+    "Nikkei 225 (OTC)":     "JPN225_otc",
+    "EURO STOXX 50 (OTC)":  "E50EUR_otc",
+    "IBEX 35 (OTC)":        "E35EUR_otc",
   }
   const assetSymbol = assetMap[cfg.asset] ?? cfg.asset.replace("/", "").replace(" (OTC)", "_otc").replace(/\s/g, "")
 

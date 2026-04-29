@@ -13,6 +13,7 @@ import PracticeCase from "./pages/PracticeCase";
 import BotBuilder from "./pages/BotBuilder";
 import BotLanding from "./pages/BotLanding";
 import Admin from "./pages/Admin";
+import Strategies from "./pages/Strategies";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/practice" element={<PracticeCase />} />
           <Route path="/bot-builder" element={<BotBuilder />} />
           <Route path="/bot-landing" element={<BotLanding />} />
+          <Route path="/strategies" element={<Strategies />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

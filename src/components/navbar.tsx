@@ -46,6 +46,9 @@ export function Navbar() {
               <a href="/bots-guide" className="font-geist text-white hover:text-red-500 transition-colors duration-200">
                 Боты
               </a>
+              <a href="/strategies" className="font-geist text-white hover:text-red-500 transition-colors duration-200">
+                Стратегии
+              </a>
               <a href="/practice" className="font-geist text-white hover:text-red-500 transition-colors duration-200">
                 Практика
               </a>
@@ -103,6 +106,13 @@ export function Navbar() {
                 onClick={() => setIsOpen(false)}
               >
                 Боты
+              </a>
+              <a
+                href="/strategies"
+                className="block px-3 py-2 font-geist text-white hover:text-red-500 transition-colors duration-200"
+                onClick={() => setIsOpen(false)}
+              >
+                Стратегии
               </a>
               <a
                 href="/practice"

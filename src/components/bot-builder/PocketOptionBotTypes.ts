@@ -1,4 +1,4 @@
-export type POStrategy = "rsi_reversal" | "ema_cross" | "martingale" | "candle_pattern" | "support_resistance"
+export type POStrategy = "rsi_reversal" | "ema_cross" | "ema_trend" | "martingale" | "candle_pattern" | "support_resistance"
 export type POExpiry = "1" | "2" | "3" | "5" | "15" | "30" | "45" | "60"
 export type POComboLogic = "AND" | "OR"
 export type POEmaTrendMode = "ema9_21" | "ema20_50" | "ema50_200" | "custom"
@@ -176,6 +176,27 @@ export const PO_STRATEGIES: Record<POStrategy, StrategyMeta> = {
       "Требует минимум 30 свечей для расчёта",
     ],
     combosWith: ["candle_pattern", "rsi_reversal"],
+  },
+  ema_trend: {
+    label: "EMA Тренд",
+    description: "CALL пока быстрая EMA выше медленной, PUT пока ниже — без ожидания пересечения",
+    color: "bg-emerald-500/20 border-emerald-500/40 text-emerald-400",
+    risk: "Низкий",
+    icon: "📉",
+    winrateEst: "54–63%",
+    signalsPerDay: "15–40",
+    bestExpiry: "1–5 мин",
+    bestAssets: "EUR/USD OTC, USD/JPY OTC, BTC/USD",
+    pros: [
+      "Даёт сигналы постоянно пока идёт тренд",
+      "Не пропускает движение после пересечения",
+      "Идеален для трендовых активов",
+    ],
+    cons: [
+      "Много сигналов в боковике — нужен фильтр тренда",
+      "Не определяет точку входа — только направление",
+    ],
+    combosWith: ["rsi_reversal", "candle_pattern"],
   },
 }
 
@@ -386,6 +407,29 @@ def get_signal(prices, candles=None):
     if cross_down:
         return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", f"{info} (пересечение вниз ↓)"
     return None, info`,
+
+    ema_trend: `
+def calculate_ema(prices, period):
+    """EMA индикатор"""
+    k = 2 / (period + 1)
+    ema = [prices[0]]
+    for price in prices[1:]:
+        ema.append(price * k + ema[-1] * (1 - k))
+    return ema
+
+def get_signal(prices, candles=None):
+    """EMA Тренд: CALL пока EMA${cfg.emaFast} выше EMA${cfg.emaSlow}, PUT пока ниже${cfg.trendFollow === "follow" ? " (по тренду)" : cfg.trendFollow === "reverse" ? " (против тренда)" : " (комбо)"}"""
+    prices = prices[:-1]
+    if len(prices) < ${cfg.emaSlow} + 1:
+        return None, ""
+    ema_fast = calculate_ema(prices, ${cfg.emaFast})
+    ema_slow = calculate_ema(prices, ${cfg.emaSlow})
+    above = ema_fast[-1] > ema_slow[-1]
+    info = f"EMA${cfg.emaFast}={ema_fast[-1]:.5f} / EMA${cfg.emaSlow}={ema_slow[-1]:.5f}"
+    if above:
+        return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", f"{info} (EMA${cfg.emaFast} > EMA${cfg.emaSlow} ↑)"
+    else:
+        return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", f"{info} (EMA${cfg.emaFast} < EMA${cfg.emaSlow} ↓)"`,
 
     martingale: `
 def get_signal(prices, candles=None):

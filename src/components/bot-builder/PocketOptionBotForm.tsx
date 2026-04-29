@@ -486,7 +486,7 @@ function assetExpiryComment(asset: string, expiry: POExpiry, strategy: POStrateg
   const expNum = Number(expiry)
   const hasCandle = strats.includes("candle_pattern")
   const hasSR = strats.includes("support_resistance")
-  const hasEMA = strats.includes("ema_cross")
+  const hasEMA = strats.includes("ema_cross") || strats.includes("ema_trend")
   const hasRSI = strats.includes("rsi_reversal")
 
   if (expNum === 1 && (hasCandle || hasSR)) {

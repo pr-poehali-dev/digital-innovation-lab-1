@@ -597,13 +597,13 @@ TG_CHAT_ID = "${cfg.tgChatId}"
 TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 
-def _tg_send(text, retries=3, delay=5):
+def _tg_send(text, retries=5, delay=5):
     import urllib.request, urllib.parse, time
     url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
     data = urllib.parse.urlencode({"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
     for attempt in range(1, retries + 1):
         try:
-            urllib.request.urlopen(url, data, timeout=8)
+            urllib.request.urlopen(url, data, timeout=20)
             return
         except Exception as e:
             if attempt < retries:
@@ -1527,13 +1527,13 @@ TG_CHAT_ID = "${cfg.tgChatId}"
 TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 
-def _tg_send(text, retries=3, delay=5):
+def _tg_send(text, retries=5, delay=5):
     import urllib.request, urllib.parse, time
     url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
     data = urllib.parse.urlencode({"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
     for attempt in range(1, retries + 1):
         try:
-            urllib.request.urlopen(url, data, timeout=8)
+            urllib.request.urlopen(url, data, timeout=20)
             return
         except Exception as e:
             if attempt < retries:

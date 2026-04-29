@@ -945,9 +945,9 @@ def trend_to_signal(trend):
         if trend in ("DOWN_DOWN", "UP_DOWN"):
             return "PUT"
     elif TREND_MODE == "same":
-        if trend == "UP_UP":
+        if trend in ("UP_UP", "DOWN_UP"):
             return "CALL"
-        if trend == "DOWN_DOWN":
+        if trend in ("DOWN_DOWN", "UP_DOWN"):
             return "PUT"
     else:
         if trend == "DOWN_UP":
@@ -2082,9 +2082,9 @@ def trend_to_signal(trend):
         if trend in ("DOWN_DOWN", "UP_DOWN"):
             return "PUT"
     elif TREND_MODE == "same":
-        if trend == "UP_UP":
+        if trend in ("UP_UP", "DOWN_UP"):
             return "CALL"
-        if trend == "DOWN_DOWN":
+        if trend in ("DOWN_DOWN", "UP_DOWN"):
             return "PUT"
     else:
         if trend == "DOWN_UP":

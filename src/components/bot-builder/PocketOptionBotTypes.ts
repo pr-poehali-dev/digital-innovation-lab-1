@@ -1512,6 +1512,11 @@ async def main():
             trend_sig = trend_to_signal(trend)
             signal, signal_info = get_signal(prices, candles)
 
+            # Если стратегия молчит но тренд чёткий — торгуем по тренду
+            if not signal and trend_sig and TREND_FOLLOW == "follow":
+                signal = trend_sig
+                signal_info = f"[TREND] {trend} → {trend_sig}"
+
             if signal:
                 labels = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "DOWN_UP": "🔴🟢", "UP_DOWN": "🟢🔴"}
                 ts = datetime.now().strftime("%H:%M:%S")
@@ -2365,6 +2370,11 @@ async def main():
         trend = get_trend(candles)
         trend_sig = trend_to_signal(trend)
         signal, signal_info = get_combined_signal(prices, candles)
+
+        # Если комбо молчит но тренд чёткий — торгуем по тренду
+        if not signal and trend_sig and TREND_FOLLOW == "follow":
+            signal = trend_sig
+            signal_info = f"[TREND] {trend} → {trend_sig}"
 
         if signal:
             if TRADE_DIRECTION == "call_only" and signal != "CALL":

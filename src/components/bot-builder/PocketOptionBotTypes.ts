@@ -44,6 +44,7 @@ export interface POBotConfig {
   hedgePipThreshold: number
   hedgePowerMultiplier: number
   hedgeCheckInterval: number
+  pipSize: number
   profitExtEnabled: boolean
   profitExtPips: number
   profitExtMode: "trend" | "rebound" | "both"
@@ -315,6 +316,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   hedgePipThreshold: 8,
   hedgePowerMultiplier: 1.5,
   hedgeCheckInterval: 5,
+  pipSize: 0.0001,
   profitExtEnabled: false,
   profitExtPips: 12,
   profitExtMode: "both",

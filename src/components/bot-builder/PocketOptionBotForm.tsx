@@ -1232,6 +1232,31 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
 
             {config.hedgeEnabled && (
               <div className="space-y-4">
+                {/* Размер пипса */}
+                <div>
+                  <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Размер пипса</Label>
+                  <div className="flex gap-2">
+                    {[0.0001, 0.001, 0.01].map((v) => (
+                      <button key={v} type="button" onClick={() => set({ pipSize: v })}
+                        className={`flex-1 py-1.5 rounded-lg border text-xs font-space-mono transition-all ${config.pipSize === v ? "bg-purple-600/20 border-purple-500/50 text-purple-300" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}>
+                        {v}
+                      </button>
+                    ))}
+                    <input
+                      type="number"
+                      step="0.00001"
+                      min="0.00001"
+                      max="1"
+                      value={config.pipSize}
+                      onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v) && v > 0) set({ pipSize: v }); }}
+                      className="w-24 bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs font-space-mono text-white text-center focus:border-purple-500 focus:outline-none"
+                    />
+                  </div>
+                  <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
+                    USD/JPY, EUR/JPY → 0.01 · AUD/USD, EUR/USD → 0.0001
+                  </p>
+                </div>
+
                 {/* Порог в пипсах */}
                 <div>
                   <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
@@ -1307,6 +1332,31 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
 
             {config.profitExtEnabled && (
               <div className="space-y-4">
+                {/* Размер пипса */}
+                <div>
+                  <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Размер пипса</Label>
+                  <div className="flex gap-2">
+                    {[0.0001, 0.001, 0.01].map((v) => (
+                      <button key={v} type="button" onClick={() => set({ pipSize: v })}
+                        className={`flex-1 py-1.5 rounded-lg border text-xs font-space-mono transition-all ${config.pipSize === v ? "bg-emerald-600/20 border-emerald-500/50 text-emerald-300" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}>
+                        {v}
+                      </button>
+                    ))}
+                    <input
+                      type="number"
+                      step="0.00001"
+                      min="0.00001"
+                      max="1"
+                      value={config.pipSize}
+                      onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v) && v > 0) set({ pipSize: v }); }}
+                      className="w-24 bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs font-space-mono text-white text-center focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                  <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
+                    USD/JPY, EUR/JPY → 0.01 · AUD/USD, EUR/USD → 0.0001
+                  </p>
+                </div>
+
                 {/* Порог пипсов */}
                 <div>
                   <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">

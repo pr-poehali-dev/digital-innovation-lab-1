@@ -2161,12 +2161,15 @@ async def main():
         if TG_ENABLED and (_time.time() - _last_report_time) >= 3600:
             _wins_r = sum(1 for t in trade_log if t["won"])
             _wr_r   = round(_wins_r / trades_today * 100, 1) if trades_today > 0 else 0
+            _hedge_str_r = f"\\n  🛡 Хеджей: {hedge_count} (✅ {hedge_wins} / ❌ {hedge_count - hedge_wins})" if hedge_count > 0 else ""
+            _ext_str_r   = f"\\n  📈 Расширений: {ext_count} (✅ {ext_wins} / ❌ {ext_count - ext_wins})" if ext_count > 0 else ""
             tg(
                 f"⏰ <b>Авто-отчёт [{BOT_NAME}]</b>\\n"
                 f"━━━━━━━━━━━━━━━━━━━━\\n"
                 f"💰 Профит: <b>{total_profit:+.2f} {CURRENCY}</b>\\n"
                 f"📈 Сделок: {trades_today} (✅ {_wins_r} / ❌ {trades_today - _wins_r})\\n"
-                f"🎯 Винрейт: <b>{_wr_r}%</b>\\n"
+                f"🎯 Винрейт: <b>{_wr_r}%</b>"
+                f"{_hedge_str_r}{_ext_str_r}\\n"
                 f"━━━━━━━━━━━━━━━━━━━━"
             )
             _last_report_time = _time.time()

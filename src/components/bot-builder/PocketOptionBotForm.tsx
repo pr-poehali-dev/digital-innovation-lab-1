@@ -21,6 +21,7 @@ import {
 } from "./PocketOptionBotTypes"
 
 const TREND_SCANNER_URL = "https://functions.poehali.dev/371ca5f1-ae59-4842-a669-eef3d16a149e"
+const TG_SEND_URL = "https://functions.poehali.dev/fb70e0a6-b6c1-49e2-b148-c37dab50f024"
 
 interface TrendResult {
   asset: string
@@ -612,6 +613,23 @@ function indicatorComment(cfg: POBotConfig): { level: CommentLevel; text: string
 export default function PocketOptionBotForm({ config, onChange, onGenerate, botIndex = 1 }: Props) {
   const set = (patch: Partial<POBotConfig>) => onChange({ ...config, ...patch })
   const [detailOpen, setDetailOpen] = useState<Record<string, boolean>>({})
+  const [tgTestState, setTgTestState] = useState<"idle" | "loading" | "ok" | "error">("idle")
+
+  const testTgConnection = async () => {
+    setTgTestState("loading")
+    try {
+      const res = await fetch(TG_SEND_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: config.tgToken, chat_id: config.tgChatId, text: "✅ <b>Проверка связи</b>\nПодключение к боту работает!" }),
+      })
+      const data = await res.json()
+      setTgTestState(data.ok ? "ok" : "error")
+    } catch {
+      setTgTestState("error")
+    }
+    setTimeout(() => setTgTestState("idle"), 4000)
+  }
 
   const toggleDetail = (key: string) =>
     setDetailOpen((prev) => ({ ...prev, [key]: !prev[key] }))
@@ -1689,17 +1707,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
               />
               <p className="text-zinc-600 font-space-mono text-xs mt-1">Узнай у @userinfobot</p>
             </div>
-            <div>
-              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">SOCKS5 прокси (если Telegram заблокирован)</Label>
-              <Input
-                type="text"
-                value={config.tgProxy}
-                onChange={(e) => set({ tgProxy: e.target.value })}
-                placeholder="socks5://user:pass@host:1080"
-                className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-sm"
-              />
-              <p className="text-zinc-600 font-space-mono text-xs mt-1">Оставь пустым если Telegram работает</p>
-            </div>
+
             <div>
               <Label className="text-zinc-400 font-space-mono text-xs mb-2 block">Какие уведомления получать</Label>
               <div className="grid grid-cols-2 gap-2">
@@ -1722,9 +1730,28 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
               </div>
             </div>
             {config.tgToken && config.tgChatId && (
-              <div className="flex items-center gap-2 bg-green-950/40 border border-green-500/30 rounded-lg px-2.5 py-2">
-                <Icon name="CheckCircle" size={14} className="text-green-400" />
-                <span className="text-green-400 text-xs font-space-mono">Уведомления настроены</span>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={testTgConnection}
+                  disabled={tgTestState === "loading"}
+                  className="w-full flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-space-mono border transition-all bg-zinc-800 border-zinc-600 text-zinc-300 hover:border-blue-500/50 hover:text-blue-300 disabled:opacity-50"
+                >
+                  <Icon name={tgTestState === "loading" ? "Loader" : "Send"} size={13} className={tgTestState === "loading" ? "animate-spin" : ""} />
+                  {tgTestState === "loading" ? "Отправляю..." : "Проверить подключение к TG"}
+                </button>
+                {tgTestState === "ok" && (
+                  <div className="flex items-center gap-2 bg-green-950/40 border border-green-500/30 rounded-lg px-2.5 py-2">
+                    <Icon name="CheckCircle" size={14} className="text-green-400" />
+                    <span className="text-green-400 text-xs font-space-mono">Сообщение отправлено — проверь Telegram!</span>
+                  </div>
+                )}
+                {tgTestState === "error" && (
+                  <div className="flex items-center gap-2 bg-red-950/40 border border-red-500/30 rounded-lg px-2.5 py-2">
+                    <Icon name="XCircle" size={14} className="text-red-400" />
+                    <span className="text-red-400 text-xs font-space-mono">Ошибка — проверь токен и Chat ID</span>
+                  </div>
+                )}
               </div>
             )}
             {config.tgEnabled && (!config.tgToken || !config.tgChatId) && (

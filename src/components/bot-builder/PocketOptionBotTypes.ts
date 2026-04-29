@@ -595,19 +595,12 @@ BOT_NAME        = "${cfg.botName || "Бот"}"
 TG_TOKEN   = "${cfg.tgToken}"
 TG_CHAT_ID = "${cfg.tgChatId}"
 TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
-TG_PROXY        = "${cfg.tgProxy}"
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 
 def _tg_send(text, retries=3, delay=5):
     import urllib.request, urllib.parse, time
     url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
     data = urllib.parse.urlencode({"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
-    if TG_PROXY:
-        import socks, socket
-        from urllib.parse import urlparse
-        p = urlparse(TG_PROXY)
-        socks.set_default_proxy(socks.SOCKS5, p.hostname, p.port, username=p.username, password=p.password)
-        socket.socket = socks.socksocket
     for attempt in range(1, retries + 1):
         try:
             urllib.request.urlopen(url, data, timeout=8)
@@ -1532,19 +1525,12 @@ BOT_NAME        = "${cfg.botName || "Бот"}"
 TG_TOKEN   = "${cfg.tgToken}"
 TG_CHAT_ID = "${cfg.tgChatId}"
 TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
-TG_PROXY        = "${cfg.tgProxy}"
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 
 def _tg_send(text, retries=3, delay=5):
     import urllib.request, urllib.parse, time
     url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
     data = urllib.parse.urlencode({"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
-    if TG_PROXY:
-        import socks, socket
-        from urllib.parse import urlparse
-        p = urlparse(TG_PROXY)
-        socks.set_default_proxy(socks.SOCKS5, p.hostname, p.port, username=p.username, password=p.password)
-        socket.socket = socks.socksocket
     for attempt in range(1, retries + 1):
         try:
             urllib.request.urlopen(url, data, timeout=8)

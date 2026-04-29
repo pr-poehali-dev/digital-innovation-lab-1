@@ -1058,7 +1058,7 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
     HEDGE_PIP_THRESHOLD = _pip_map.get(_asset_key, ${cfg.hedgePipThreshold})
     HEDGE_POWER_MULT    = ${cfg.hedgePowerMultiplier}
     PIP_SIZE            = ${cfg.pipSize}
-    check_interval = max(10, expiry_sec // 5)
+    check_interval = ${cfg.hedgeCheckInterval}
     opposite = "PUT" if original_direction == "CALL" else "CALL"
     start_time = asyncio.get_event_loop().time()
     while True:
@@ -1128,7 +1128,7 @@ async def profit_extension_monitor(client, original_direction, original_bet, ent
     EXT_MULT  = ${cfg.profitExtMultiplier}
     EXT_MODE  = "${cfg.profitExtMode}"
     PIP_SIZE  = ${cfg.pipSize}
-    check_interval = max(10, expiry_sec // 5)
+    check_interval = ${cfg.profitExtCheckInterval}
     opposite  = "PUT" if original_direction == "CALL" else "CALL"
     start_time = asyncio.get_event_loop().time()
     triggered = False

@@ -992,6 +992,12 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                 </button>
               </div>
             </div>
+            {config.comboStrategies.includes("support_resistance") && (
+              <div className="flex items-center gap-2 bg-purple-950/40 border border-purple-500/30 rounded-lg px-3 py-2">
+                <Icon name="ArrowDown" size={13} className="text-purple-400 shrink-0 animate-bounce" />
+                <span className="text-purple-300 font-space-mono text-xs">Настройки уровней — прокрути вниз до раздела <b>"Настройки уровней"</b></span>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -1475,7 +1481,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
       )}
 
       {/* Support/Resistance settings */}
-      {!config.comboMode && config.strategy === "support_resistance" && (
+      {((!config.comboMode && config.strategy === "support_resistance") || (config.comboMode && config.comboStrategies.includes("support_resistance"))) && (
         <Card className="bg-zinc-900 border-purple-500/20">
           <CardHeader className="pb-3"><CardTitle className="font-orbitron text-white text-base">Настройки уровней</CardTitle></CardHeader>
           <CardContent className="space-y-4">

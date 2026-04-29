@@ -40,7 +40,7 @@ interface TrendResult {
 const EXPIRY_OPTIONS = [
   { value: 1, label: "1 мин" }, { value: 2, label: "2 мин" }, { value: 3, label: "3 мин" },
   { value: 5, label: "5 мин" }, { value: 15, label: "15 мин" }, { value: 30, label: "30 мин" },
-  { value: 60, label: "1 час" },
+  { value: 45, label: "45 мин" }, { value: 60, label: "1 час" },
 ]
 const TIMEFRAME_OPTIONS = [
   { value: 5, label: "5 мин" }, { value: 30, label: "30 мин" }, { value: 60, label: "1 час" },
@@ -1001,8 +1001,8 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
 
           <div>
             <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Экспирация опциона</Label>
-            <div className="grid grid-cols-5 gap-1.5">
-              {(["1", "2", "3", "5", "15"] as POExpiry[]).map((exp) => (
+            <div className="grid grid-cols-4 gap-1.5">
+              {(["1", "2", "3", "5", "15", "30", "45", "60"] as POExpiry[]).map((exp) => (
                 <button
                   key={exp}
                   onClick={() => set({ expiry: exp })}
@@ -1012,7 +1012,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                       : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"
                     }`}
                 >
-                  {exp}м
+                  {exp === "60" ? "1ч" : `${exp}м`}
                 </button>
               ))}
             </div>

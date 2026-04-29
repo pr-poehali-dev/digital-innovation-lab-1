@@ -1057,6 +1057,7 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
     _asset_key = (_resolved_asset or ASSET)
     HEDGE_PIP_THRESHOLD = _pip_map.get(_asset_key, ${cfg.hedgePipThreshold})
     HEDGE_POWER_MULT    = ${cfg.hedgePowerMultiplier}
+    PIP_SIZE            = ${cfg.pipSize}
     check_interval = max(10, expiry_sec // 5)
     opposite = "PUT" if original_direction == "CALL" else "CALL"
     start_time = asyncio.get_event_loop().time()
@@ -1070,7 +1071,7 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
             if not candles:
                 continue
             current_price = float(candles[-1].close)
-            pips = round(abs(current_price - entry_price) * 10000, 1)
+            pips = round(abs(current_price - entry_price) / PIP_SIZE, 1)
             went_against = (original_direction == "CALL" and current_price < entry_price) or \
                            (original_direction == "PUT"  and current_price > entry_price)
             if not went_against:
@@ -1126,6 +1127,7 @@ async def profit_extension_monitor(client, original_direction, original_bet, ent
     EXT_PIPS  = _pip_map_ext.get(_asset_key_ext, ${cfg.profitExtPips})
     EXT_MULT  = ${cfg.profitExtMultiplier}
     EXT_MODE  = "${cfg.profitExtMode}"
+    PIP_SIZE  = ${cfg.pipSize}
     check_interval = max(10, expiry_sec // 5)
     opposite  = "PUT" if original_direction == "CALL" else "CALL"
     start_time = asyncio.get_event_loop().time()
@@ -1141,7 +1143,7 @@ async def profit_extension_monitor(client, original_direction, original_bet, ent
             if not candles:
                 continue
             current_price = float(candles[-1].close)
-            pips = round(abs(current_price - entry_price) * 10000, 1)
+            pips = round(abs(current_price - entry_price) / PIP_SIZE, 1)
             in_profit = (original_direction == "CALL" and current_price > entry_price) or \
                         (original_direction == "PUT"  and current_price < entry_price)
             if not in_profit or pips < EXT_PIPS:

@@ -1525,7 +1525,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
               <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
                 Шаг сетки уровней: <span className="text-white font-bold">{config.srStep === 0 ? "авто (по свечам)" : config.srStep}</span>
               </Label>
-              <Slider min={0} max={0.01} step={0.0001} value={[config.srStep]} onValueChange={([v]) => set({ srStep: Math.round(v * 10000) / 10000 })} />
+              <Slider min={0} max={0.1} step={0.001} value={[config.srStep]} onValueChange={([v]) => set({ srStep: Math.round(v * 1000) / 1000 })} />
               <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
                 {config.srStep === 0 ? "0 = только автоуровни из свечей" : `Сетка уровней через каждые ${config.srStep} пункта`}
               </p>

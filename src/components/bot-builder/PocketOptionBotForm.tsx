@@ -327,7 +327,7 @@ function AssetSelector({ value, onChange }: { value: string; onChange: (v: strin
                   <SelectLabel className="text-zinc-500 font-space-mono text-xs px-2 py-1">{group.label}</SelectLabel>
                   {group.assets.map((a) => (
                     <SelectItem key={a} value={a} className="text-white font-space-mono text-xs hover:bg-zinc-700">
-                      {a}
+                      {a === "AUD/CAD (OTC)" ? <span>{a} <span className="text-zinc-500 text-[10px]">только OTC</span></span> : a}
                     </SelectItem>
                   ))}
                 </SelectGroup>

@@ -1196,6 +1196,70 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
         )}
       </Card>
 
+      {/* Хеджирование */}
+      <Card className="bg-zinc-900 border-zinc-700">
+        <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleDetail("hedge")}>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-space-mono text-zinc-300 flex items-center gap-2">
+              <Icon name="Shield" size={14} className="text-purple-400" />
+              Хеджирование
+              {config.hedgeEnabled && <span className="text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded px-1.5 py-0.5">вкл</span>}
+            </CardTitle>
+            <Icon name={detailOpen["hedge"] ? "ChevronUp" : "ChevronDown"} size={14} className="text-zinc-500" />
+          </div>
+        </CardHeader>
+        {detailOpen["hedge"] && (
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-zinc-300 font-space-mono text-xs">Включить хеджирование</Label>
+                <p className="text-zinc-500 font-space-mono text-[10px] mt-0.5">Открывает встречную ставку если цена идёт против</p>
+              </div>
+              <Switch checked={config.hedgeEnabled} onCheckedChange={(v) => set({ hedgeEnabled: v })} />
+            </div>
+
+            {config.hedgeEnabled && (
+              <div className="space-y-4">
+                {/* Порог в пипсах */}
+                <div>
+                  <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                    Порог для Power хеджа: <span className="text-white font-bold">{config.hedgePipThreshold} пипсов</span>
+                  </Label>
+                  <Slider min={2} max={50} step={1} value={[config.hedgePipThreshold]} onValueChange={([v]) => set({ hedgePipThreshold: v })} />
+                  <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
+                    {config.hedgePipThreshold <= 5
+                      ? "⚡ Очень чувствительно — хедж почти всегда Power"
+                      : config.hedgePipThreshold >= 30
+                      ? "🐢 Редко срабатывает — только при сильном уходе цены"
+                      : "⚖️ Баланс — Simple хедж при малом уходе, Power при большом"}
+                  </p>
+                </div>
+
+                {/* Коэффициент Power */}
+                <div>
+                  <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                    Коэффициент Power хеджа: <span className="text-white font-bold">×{config.hedgePowerMultiplier}</span>
+                  </Label>
+                  <Slider min={1.1} max={3.0} step={0.1} value={[config.hedgePowerMultiplier]} onValueChange={([v]) => set({ hedgePowerMultiplier: Math.round(v * 10) / 10 })} />
+                  <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
+                    Сумма встречной ставки = основная ставка × {config.hedgePowerMultiplier}
+                  </p>
+                </div>
+
+                {/* Описание логики */}
+                <div className="bg-zinc-800/50 rounded-lg p-3 space-y-2 font-space-mono text-[10px]">
+                  <p className="text-zinc-300 font-bold mb-1">Логика хеджирования:</p>
+                  <p className="text-zinc-400">⏱ Проверка каждые <span className="text-white">expiry ÷ 5 сек</span></p>
+                  <p className="text-zinc-400">🟡 <span className="text-yellow-300">Simple:</span> цена ушла против, пипсов &lt; {config.hedgePipThreshold} → встречная ставка той же суммой</p>
+                  <p className="text-zinc-400">🔴 <span className="text-orange-300">Power:</span> цена ушла против, пипсов ≥ {config.hedgePipThreshold} → ставка × {config.hedgePowerMultiplier}</p>
+                  <p className="text-zinc-400">⚡ <span className="text-red-300">Complex:</span> прошло &gt; половины экспирации И пипсов ≥ {config.hedgePipThreshold} → Power ставка немедленно</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
+
       {/* RSI settings */}
       {!config.comboMode && config.strategy === "rsi_reversal" && (
         <Card className="bg-zinc-900 border-blue-500/20">

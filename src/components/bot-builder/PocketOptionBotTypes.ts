@@ -40,6 +40,9 @@ export interface POBotConfig {
   checkInterval: number
   payoutRate: number
   tradeDirection: "all" | "call_only" | "put_only"
+  hedgeEnabled: boolean
+  hedgePipThreshold: number
+  hedgePowerMultiplier: number
 }
 
 export interface StrategyMeta {
@@ -296,6 +299,9 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   checkInterval: 30,
   payoutRate: 92,
   tradeDirection: "all",
+  hedgeEnabled: false,
+  hedgePipThreshold: 10,
+  hedgePowerMultiplier: 1.5,
 }
 
 // Helper to avoid TS template literal conflicts with Python f-strings
@@ -923,6 +929,58 @@ async def place_trade(client, direction, amount):
         print(f"[ERROR] Сделка: {e}")
         return None
 
+async def hedge_monitor(client, original_direction, original_bet, entry_price, expiry_sec):
+    """
+    Мониторинг цены во время экспирации и хеджирование при уходе против позиции.
+    Проверяет каждые expiry/5 секунд.
+    Simple:  цена ушла против, пипсов < порога  → та же сумма
+    Power:   цена ушла против, пипсов >= порога → сумма * коэф
+    Complex: прошло > 50% времени И пипсов >= порога → Power немедленно
+    """
+    if not ${cfg.hedgeEnabled ? "True" : "False"}:
+        return None, 0.0
+    HEDGE_PIP_THRESHOLD = ${cfg.hedgePipThreshold}
+    HEDGE_POWER_MULT    = ${cfg.hedgePowerMultiplier}
+    check_interval = max(10, expiry_sec // 5)
+    opposite = "PUT" if original_direction == "CALL" else "CALL"
+    start_time = asyncio.get_event_loop().time()
+    while True:
+        await asyncio.sleep(check_interval)
+        elapsed = asyncio.get_event_loop().time() - start_time
+        if elapsed >= expiry_sec - check_interval:
+            break
+        try:
+            candles = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=1)
+            if not candles:
+                continue
+            current_price = float(candles[-1].close)
+            pips = round(abs(current_price - entry_price) * 10000, 1)
+            went_against = (original_direction == "CALL" and current_price < entry_price) or \
+                           (original_direction == "PUT"  and current_price > entry_price)
+            if not went_against:
+                print(f"[HEDGE] Цена держится, хедж не нужен ({pips} пип)")
+                continue
+            time_ratio = elapsed / expiry_sec
+            if time_ratio >= 0.5 and pips >= HEDGE_PIP_THRESHOLD:
+                hedge_bet = round(original_bet * HEDGE_POWER_MULT, 2)
+                mode = "COMPLEX"
+            elif pips >= HEDGE_PIP_THRESHOLD:
+                hedge_bet = round(original_bet * HEDGE_POWER_MULT, 2)
+                mode = "POWER"
+            else:
+                hedge_bet = round(original_bet, 2)
+                mode = "SIMPLE"
+            remaining = max(30, int(expiry_sec - elapsed))
+            print(f"[HEDGE] {mode} | {pips} пип | {hedge_bet} | {opposite} | осталось {remaining}с")
+            tg(f"🛡 <b>[HEDGE {mode}]</b> {opposite} | {hedge_bet} | {pips} пип | осталось {remaining}с")
+            dir_val = OrderDirection.CALL if opposite == "CALL" else OrderDirection.PUT
+            order = await client.place_order(asset=(_resolved_asset or ASSET), amount=hedge_bet, direction=dir_val, duration=remaining)
+            print(f"[HEDGE] Открыт ID: {order.order_id}")
+            return order.order_id, hedge_bet
+        except Exception as e:
+            print(f"[HEDGE] Ошибка: {e}")
+    return None, 0.0
+
 async def check_result(client, order_id, balance_before, bet):
     """Ожидание результата по конкретной сделке через get_deal (точно, не зависит от других ботов)."""
     PAYOUT = ${cfg.payoutRate} / 100
@@ -1262,9 +1320,30 @@ async def main():
                 tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")
                 tg("\\n".join(tg_parts))
                 balance_before, _ = await get_balance(client)
+                # Получаем цену входа для хеджирования
+                entry_price = 0.0
+                try:
+                    _ec = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=1)
+                    if _ec:
+                        entry_price = float(_ec[-1].close)
+                except Exception:
+                    pass
                 order_id = await place_trade(client, signal, bet)
                 if order_id:
+                    # Запускаем хедж-монитор параллельно с ожиданием результата
+                    hedge_task = asyncio.create_task(
+                        hedge_monitor(client, signal, bet, entry_price, EXPIRY_SEC)
+                    ) if entry_price > 0 else None
                     won, profit, loss_amount = await check_result(client, order_id, balance_before, bet)
+                    # Ждём результат хедж-ставки если была открыта
+                    if hedge_task:
+                        hedge_order_id, hedge_bet = await hedge_task
+                        if hedge_order_id:
+                            h_won, h_profit, h_loss = await check_result(client, hedge_order_id, balance_before, hedge_bet)
+                            hedge_result = f"✅ +{h_profit:.2f}" if h_won else f"❌ -{h_loss:.2f}"
+                            tg(f"🛡 <b>Хедж результат:</b> {hedge_result} {currency}")
+                            profit      += h_profit
+                            loss_amount += h_loss
                     total_profit += profit - loss_amount
                     trades_today += 1
                     current_bet   = adjust_bet(won)

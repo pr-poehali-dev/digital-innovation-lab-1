@@ -782,6 +782,12 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                 <span className="text-purple-300 font-space-mono text-xs">Настройки уровней — прокрути вниз до раздела <b>"Настройки уровней"</b></span>
               </div>
             )}
+            {config.strategy === "ema_trend" && (
+              <div className="flex items-center gap-2 bg-emerald-950/40 border border-emerald-500/30 rounded-lg px-3 py-2 mt-1">
+                <Icon name="TrendingUp" size={13} className="text-emerald-400 shrink-0" />
+                <span className="text-emerald-300 font-space-mono text-xs">Рекомендуется для трендовых активов: <b>EUR/USD OTC, USD/JPY OTC, BTC/USD</b>. Сигналы идут постоянно пока тренд активен — включи фильтр тренда "По тренду ↗"</span>
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : (

@@ -682,12 +682,14 @@ TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_C
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 
 def _tg_send(text, retries=5, delay=5):
-    import urllib.request, urllib.parse, time
-    url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
-    data = urllib.parse.urlencode({"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
+    """Отправка через промежуточный сервер — не требует VPN на машине юзера"""
+    import urllib.request, json, time
+    url = "https://functions.poehali.dev/fb70e0a6-b6c1-49e2-b148-c37dab50f024"
+    payload = json.dumps({"token": TG_TOKEN, "chat_id": TG_CHAT_ID, "text": text}).encode()
+    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
     for attempt in range(1, retries + 1):
         try:
-            urllib.request.urlopen(url, data, timeout=20)
+            urllib.request.urlopen(req, timeout=20)
             return
         except Exception as e:
             if attempt < retries:
@@ -1767,12 +1769,14 @@ TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_C
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 
 def _tg_send(text, retries=5, delay=5):
-    import urllib.request, urllib.parse, time
-    url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
-    data = urllib.parse.urlencode({"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}).encode()
+    """Отправка через промежуточный сервер — не требует VPN на машине юзера"""
+    import urllib.request, json, time
+    url = "https://functions.poehali.dev/fb70e0a6-b6c1-49e2-b148-c37dab50f024"
+    payload = json.dumps({"token": TG_TOKEN, "chat_id": TG_CHAT_ID, "text": text}).encode()
+    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
     for attempt in range(1, retries + 1):
         try:
-            urllib.request.urlopen(url, data, timeout=20)
+            urllib.request.urlopen(req, timeout=20)
             return
         except Exception as e:
             if attempt < retries:
@@ -2163,6 +2167,11 @@ async def main():
             _wr_r   = round(_wins_r / trades_today * 100, 1) if trades_today > 0 else 0
             _hedge_str_r = f"\\n  🛡 Хеджей: {hedge_count} (✅ {hedge_wins} / ❌ {hedge_count - hedge_wins})" if hedge_count > 0 else ""
             _ext_str_r   = f"\\n  📈 Расширений: {ext_count} (✅ {ext_wins} / ❌ {ext_count - ext_wins})" if ext_count > 0 else ""
+            _tp_left  = round(TAKE_PROFIT - total_profit, 2)
+            _sl_left  = round(STOP_LOSS + total_profit, 2)
+            _tp_pct   = round(total_profit / TAKE_PROFIT * 100, 1) if TAKE_PROFIT > 0 else 0
+            _sl_pct   = round((STOP_LOSS - abs(min(total_profit, 0))) / STOP_LOSS * 100, 1) if STOP_LOSS > 0 else 100
+            _tp_bar   = "█" * int(_tp_pct / 10) + "░" * (10 - int(_tp_pct / 10))
             tg(
                 f"⏰ <b>Авто-отчёт [{BOT_NAME}]</b>\\n"
                 f"━━━━━━━━━━━━━━━━━━━━\\n"
@@ -2170,6 +2179,10 @@ async def main():
                 f"📈 Сделок: {trades_today} (✅ {_wins_r} / ❌ {trades_today - _wins_r})\\n"
                 f"🎯 Винрейт: <b>{_wr_r}%</b>"
                 f"{_hedge_str_r}{_ext_str_r}\\n"
+                f"━━━━━━━━━━━━━━━━━━━━\\n"
+                f"🎯 До TP: <b>{_tp_left:+.2f} {CURRENCY}</b> ({_tp_pct}%)\\n"
+                f"{_tp_bar} {_tp_pct}%\\n"
+                f"🛑 До SL: <b>{_sl_left:.2f} {CURRENCY}</b> ({_sl_pct}% запаса)\\n"
                 f"━━━━━━━━━━━━━━━━━━━━"
             )
             _last_report_time = _time.time()

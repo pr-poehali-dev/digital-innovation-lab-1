@@ -610,6 +610,13 @@ function indicatorComment(cfg: POBotConfig): { level: CommentLevel; text: string
   return null
 }
 
+function getAutoPipSize(asset: string): number {
+  const a = asset.toUpperCase()
+  if (a.includes("JPY") || a.includes("BTC") || a.includes("ETH") || a.includes("XAU") || a.includes("GOLD") || a.includes("S&P") || a.includes("NASDAQ") || a.includes("DOW") || a.includes("NIKKEI") || a.includes("DAX") || a.includes("BRENT") || a.includes("WTI") || a.includes("OIL")) return 0.01
+  if (a.includes("LTC") || a.includes("DOT") || a.includes("LINK") || a.includes("BCH") || a.includes("DASH") || a.includes("SILVER") || a.includes("XAG")) return 0.001
+  return 0.0001
+}
+
 export default function PocketOptionBotForm({ config, onChange, onGenerate, botIndex = 1 }: Props) {
   const set = (patch: Partial<POBotConfig>) => onChange({ ...config, ...patch })
   const [detailOpen, setDetailOpen] = useState<Record<string, boolean>>({})
@@ -1009,7 +1016,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
         </CardHeader>
         <CardContent className="space-y-4">
           <TrendScanner onSelect={(v) => set({ asset: v })} />
-          <AssetSelector value={config.asset} onChange={(v) => set({ asset: v })} />
+          <AssetSelector value={config.asset} onChange={(v) => set({ asset: v, pipSize: getAutoPipSize(v) })} />
 
           <div>
             <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Экспирация опциона</Label>

@@ -167,30 +167,40 @@ export const PO_STRATEGIES: Record<POStrategy, StrategyMeta> = {
 }
 
 export const PO_ASSETS = [
-  // Валютные пары Forex OTC (работают через API)
+  // Forex — основные (реальный рынок)
+  "EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF", "USD/CAD", "AUD/USD", "NZD/USD",
+  // Forex OTC — основные
   "EUR/USD (OTC)", "GBP/USD (OTC)", "USD/JPY (OTC)", "AUD/USD (OTC)", "USD/CAD (OTC)", "USD/CHF (OTC)", "NZD/USD (OTC)",
-  "EUR/GBP (OTC)", "EUR/JPY (OTC)", "EUR/CHF (OTC)", "EUR/AUD (OTC)", "EUR/CAD (OTC)",
-  "GBP/JPY (OTC)", "GBP/CHF (OTC)", "GBP/AUD (OTC)", "GBP/CAD (OTC)",
-  "AUD/JPY (OTC)", "AUD/CAD (OTC)", "CAD/JPY (OTC)",
+  // Forex OTC — кросс-пары (AUD/CAD только в OTC — нет на реальном рынке PO)
+  "EUR/GBP (OTC)", "EUR/JPY (OTC)", "EUR/CHF (OTC)", "EUR/NZD (OTC)",
+  "GBP/JPY (OTC)", "GBP/CHF (OTC)", "GBP/AUD (OTC)", "GBP/CAD (OTC)", "GBP/NZD (OTC)",
+  "AUD/JPY (OTC)", "AUD/CAD (OTC)", "AUD/CHF (OTC)", "AUD/NZD (OTC)",
+  "CAD/CHF (OTC)", "CAD/JPY (OTC)", "CHF/JPY (OTC)",
   "NZD/CAD (OTC)", "NZD/CHF (OTC)", "NZD/JPY (OTC)",
-  "CHF/JPY (OTC)", "GBP/NZD (OTC)", "EUR/NZD (OTC)",
+  // Криптовалюты
+  "BTC/USD", "ETH/USD",
   // Криптовалюты OTC
-  "BTC/USD (OTC)", "ETH/USD (OTC)", "LTC/USD (OTC)", "XRP/USD (OTC)", "SOL/USD (OTC)",
-  "BNB/USD (OTC)", "DOGE/USD (OTC)", "ADA/USD (OTC)", "DOT/USD (OTC)", "LINK/USD (OTC)",
+  "BTC/USD (OTC)", "ETH/USD (OTC)", "LTC/USD (OTC)", "DOT/USD (OTC)", "LINK/USD (OTC)",
+  // Товары (реальный рынок)
+  "Gold", "Silver", "Brent Oil", "WTI Oil", "Natural Gas",
+  // Товары OTC
+  "Gold (OTC)", "Silver (OTC)", "Brent Oil (OTC)", "WTI Oil (OTC)", "Natural Gas (OTC)", "Platinum (OTC)", "Palladium (OTC)",
   // Акции OTC
   "Apple (OTC)", "Tesla (OTC)", "Nvidia (OTC)", "Amazon (OTC)", "Microsoft (OTC)",
-  "Google (OTC)", "Meta (OTC)", "Netflix (OTC)", "VISA (OTC)", "Palantir (OTC)",
-  "GameStop (OTC)", "ExxonMobil (OTC)", "McDonald's (OTC)", "Intel (OTC)",
-  "Boeing (OTC)", "Alibaba (OTC)", "Twitter (OTC)", "Uber (OTC)", "Zoom (OTC)",
-  // Товары OTC
-  "Gold (OTC)", "Silver (OTC)", "Brent Oil (OTC)", "WTI Oil (OTC)",
-  "Natural Gas (OTC)", "Platinum (OTC)", "Palladium (OTC)", "Copper (OTC)",
+  "Google (OTC)", "Meta (OTC)", "Netflix (OTC)", "VISA (OTC)", "GameStop (OTC)",
+  "ExxonMobil (OTC)", "McDonald's (OTC)", "Intel (OTC)", "Boeing (OTC)",
+  // Индексы (реальный рынок)
+  "S&P 500", "NASDAQ", "Dow Jones",
   // Индексы OTC
-  "S&P 500 (OTC)", "Dow Jones (OTC)", "NASDAQ (OTC)", "AUS 200 (OTC)", "VIX (OTC)",
+  "S&P 500 (OTC)", "NASDAQ (OTC)", "Dow Jones (OTC)", "AUS 200 (OTC)",
   "FTSE 100 (OTC)", "DAX (OTC)", "CAC 40 (OTC)", "Nikkei 225 (OTC)",
 ]
 
 export const PO_ASSETS_GROUPS = [
+  {
+    label: "💱 Forex — основные",
+    assets: ["EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF", "USD/CAD", "AUD/USD", "NZD/USD"],
+  },
   {
     label: "💱 Forex OTC — основные",
     assets: ["EUR/USD (OTC)", "GBP/USD (OTC)", "USD/JPY (OTC)", "AUD/USD (OTC)", "USD/CAD (OTC)", "USD/CHF (OTC)", "NZD/USD (OTC)"],
@@ -198,32 +208,32 @@ export const PO_ASSETS_GROUPS = [
   {
     label: "💱 Forex OTC — кросс-пары",
     assets: [
-      "EUR/GBP (OTC)", "EUR/JPY (OTC)", "EUR/CHF (OTC)", "EUR/AUD (OTC)", "EUR/CAD (OTC)", "EUR/NZD (OTC)",
+      "EUR/GBP (OTC)", "EUR/JPY (OTC)", "EUR/CHF (OTC)", "EUR/NZD (OTC)",
       "GBP/JPY (OTC)", "GBP/CHF (OTC)", "GBP/AUD (OTC)", "GBP/CAD (OTC)", "GBP/NZD (OTC)",
-      "AUD/JPY (OTC)", "AUD/CAD (OTC)", "CAD/JPY (OTC)",
-      "NZD/CAD (OTC)", "NZD/CHF (OTC)", "NZD/JPY (OTC)", "CHF/JPY (OTC)",
+      "AUD/JPY (OTC)", "AUD/CAD (OTC)", "AUD/CHF (OTC)", "AUD/NZD (OTC)",
+      "CAD/CHF (OTC)", "CAD/JPY (OTC)", "CHF/JPY (OTC)",
+      "NZD/CAD (OTC)", "NZD/CHF (OTC)", "NZD/JPY (OTC)",
     ],
   },
   {
-    label: "₿ Крипто OTC",
-    assets: ["BTC/USD (OTC)", "ETH/USD (OTC)", "LTC/USD (OTC)", "XRP/USD (OTC)", "SOL/USD (OTC)", "BNB/USD (OTC)", "DOGE/USD (OTC)", "ADA/USD (OTC)", "DOT/USD (OTC)", "LINK/USD (OTC)"],
+    label: "₿ Крипто",
+    assets: ["BTC/USD", "ETH/USD", "BTC/USD (OTC)", "ETH/USD (OTC)", "LTC/USD (OTC)", "DOT/USD (OTC)", "LINK/USD (OTC)"],
+  },
+  {
+    label: "🏅 Товары",
+    assets: ["Gold", "Silver", "Brent Oil", "WTI Oil", "Natural Gas", "Gold (OTC)", "Silver (OTC)", "Brent Oil (OTC)", "WTI Oil (OTC)", "Natural Gas (OTC)", "Platinum (OTC)", "Palladium (OTC)"],
   },
   {
     label: "📈 Акции OTC",
     assets: [
       "Apple (OTC)", "Tesla (OTC)", "Nvidia (OTC)", "Amazon (OTC)", "Microsoft (OTC)",
-      "Google (OTC)", "Meta (OTC)", "Netflix (OTC)", "VISA (OTC)", "Palantir (OTC)",
-      "GameStop (OTC)", "ExxonMobil (OTC)", "McDonald's (OTC)", "Intel (OTC)",
-      "Boeing (OTC)", "Alibaba (OTC)", "Twitter (OTC)", "Uber (OTC)", "Zoom (OTC)",
+      "Google (OTC)", "Meta (OTC)", "Netflix (OTC)", "VISA (OTC)", "GameStop (OTC)",
+      "ExxonMobil (OTC)", "McDonald's (OTC)", "Intel (OTC)", "Boeing (OTC)",
     ],
   },
   {
-    label: "🏅 Товары OTC",
-    assets: ["Gold (OTC)", "Silver (OTC)", "Brent Oil (OTC)", "WTI Oil (OTC)", "Natural Gas (OTC)", "Platinum (OTC)", "Palladium (OTC)", "Copper (OTC)"],
-  },
-  {
-    label: "📊 Индексы OTC",
-    assets: ["S&P 500 (OTC)", "Dow Jones (OTC)", "NASDAQ (OTC)", "AUS 200 (OTC)", "VIX (OTC)", "FTSE 100 (OTC)", "DAX (OTC)", "CAC 40 (OTC)", "Nikkei 225 (OTC)"],
+    label: "📊 Индексы",
+    assets: ["S&P 500", "NASDAQ", "Dow Jones", "S&P 500 (OTC)", "NASDAQ (OTC)", "Dow Jones (OTC)", "AUS 200 (OTC)", "FTSE 100 (OTC)", "DAX (OTC)", "CAC 40 (OTC)", "Nikkei 225 (OTC)"],
   },
 ]
 
@@ -435,6 +445,14 @@ def adjust_bet(won):
 `
 
   const assetMap: Record<string, string> = {
+    // Forex — основные (реальный рынок)
+    "EUR/USD":          "EURUSD",
+    "GBP/USD":          "GBPUSD",
+    "USD/JPY":          "USDJPY",
+    "USD/CHF":          "USDCHF",
+    "USD/CAD":          "USDCAD",
+    "AUD/USD":          "AUDUSD",
+    "NZD/USD":          "NZDUSD",
     // Forex OTC — основные
     "EUR/USD (OTC)":    "EURUSD_otc",
     "GBP/USD (OTC)":    "GBPUSD_otc",
@@ -447,8 +465,6 @@ def adjust_bet(won):
     "EUR/GBP (OTC)":    "EURGBP_otc",
     "EUR/JPY (OTC)":    "EURJPY_otc",
     "EUR/CHF (OTC)":    "EURCHF_otc",
-    "EUR/AUD (OTC)":    "EURAUD_otc",
-    "EUR/CAD (OTC)":    "EURCAD_otc",
     "EUR/NZD (OTC)":    "EURNZD_otc",
     "GBP/JPY (OTC)":    "GBPJPY_otc",
     "GBP/CHF (OTC)":    "GBPCHF_otc",
@@ -457,22 +473,37 @@ def adjust_bet(won):
     "GBP/NZD (OTC)":    "GBPNZD_otc",
     "AUD/JPY (OTC)":    "AUDJPY_otc",
     "AUD/CAD (OTC)":    "AUDCAD_otc",
+    "AUD/CHF (OTC)":    "AUDCHF_otc",
+    "AUD/NZD (OTC)":    "AUDNZD_otc",
+    "CAD/CHF (OTC)":    "CADCHF_otc",
     "CAD/JPY (OTC)":    "CADJPY_otc",
+    "CHF/JPY (OTC)":    "CHFJPY_otc",
     "NZD/CAD (OTC)":    "NZDCAD_otc",
     "NZD/CHF (OTC)":    "NZDCHF_otc",
     "NZD/JPY (OTC)":    "NZDJPY_otc",
-    "CHF/JPY (OTC)":    "CHFJPY_otc",
+    // Криптовалюты
+    "BTC/USD":          "BTCUSD",
+    "ETH/USD":          "ETHUSD",
     // Криптовалюты OTC
     "BTC/USD (OTC)":    "BTCUSD_otc",
     "ETH/USD (OTC)":    "ETHUSD_otc",
     "LTC/USD (OTC)":    "LTCUSD_otc",
-    "XRP/USD (OTC)":    "XRPUSD_otc",
-    "SOL/USD (OTC)":    "SOLUSD_otc",
-    "BNB/USD (OTC)":    "BNBUSD_otc",
-    "DOGE/USD (OTC)":   "DOGEUSD_otc",
-    "ADA/USD (OTC)":    "ADAUSD_otc",
-    "DOT/USD (OTC)":    "DOTUSD_otc",
-    "LINK/USD (OTC)":   "LINKUSD_otc",
+    "DOT/USD (OTC)":    "DOTUSD",
+    "LINK/USD (OTC)":   "LNKUSD",
+    // Товары (реальный рынок)
+    "Gold":             "XAUUSD",
+    "Silver":           "XAGUSD",
+    "Brent Oil":        "UKBrent",
+    "WTI Oil":          "USCrude",
+    "Natural Gas":      "XNGUSD",
+    // Товары OTC
+    "Gold (OTC)":       "XAUUSD_otc",
+    "Silver (OTC)":     "XAGUSD_otc",
+    "Brent Oil (OTC)":  "UKBrent_otc",
+    "WTI Oil (OTC)":    "USCrude_otc",
+    "Natural Gas (OTC)":"XNGUSD_otc",
+    "Platinum (OTC)":   "XPTUSD_otc",
+    "Palladium (OTC)":  "XPDUSD_otc",
     // Акции OTC
     "Apple (OTC)":      "#AAPL_otc",
     "Tesla (OTC)":      "#TSLA_otc",
@@ -483,35 +514,24 @@ def adjust_bet(won):
     "Meta (OTC)":       "#META_otc",
     "Netflix (OTC)":    "#NFLX_otc",
     "VISA (OTC)":       "#V_otc",
-    "Palantir (OTC)":   "#PLTR_otc",
     "GameStop (OTC)":   "#GME_otc",
     "ExxonMobil (OTC)": "#XOM_otc",
     "McDonald's (OTC)": "#MCD_otc",
     "Intel (OTC)":      "#INTC_otc",
     "Boeing (OTC)":     "#BA_otc",
-    "Alibaba (OTC)":    "#BABA_otc",
-    "Twitter (OTC)":    "#TWTR_otc",
-    "Uber (OTC)":       "#UBER_otc",
-    "Zoom (OTC)":       "#ZM_otc",
-    // Товары OTC
-    "Gold (OTC)":         "XAUUSD_otc",
-    "Silver (OTC)":       "XAGUSD_otc",
-    "Brent Oil (OTC)":    "BRENTUSD_otc",
-    "WTI Oil (OTC)":      "USOIL_otc",
-    "Natural Gas (OTC)":  "NGAS_otc",
-    "Platinum (OTC)":     "XPTUSD_otc",
-    "Palladium (OTC)":    "XPDUSD_otc",
-    "Copper (OTC)":       "COPPER_otc",
+    // Индексы (реальный рынок)
+    "S&P 500":          "SP500",
+    "NASDAQ":           "NASUSD",
+    "Dow Jones":        "DJI30",
     // Индексы OTC
-    "S&P 500 (OTC)":      "SP500_otc",
-    "Dow Jones (OTC)":    "DJ30_otc",
-    "NASDAQ (OTC)":       "NASDAQ_otc",
-    "AUS 200 (OTC)":      "AUS200_otc",
-    "VIX (OTC)":          "VIX_otc",
-    "FTSE 100 (OTC)":     "FTSE100_otc",
-    "DAX (OTC)":          "DAX_otc",
-    "CAC 40 (OTC)":       "CAC40_otc",
-    "Nikkei 225 (OTC)":   "NKY_otc",
+    "S&P 500 (OTC)":    "SP500_otc",
+    "NASDAQ (OTC)":     "NASUSD_otc",
+    "Dow Jones (OTC)":  "DJI30_otc",
+    "AUS 200 (OTC)":    "AUS200_otc",
+    "FTSE 100 (OTC)":   "100GBP_otc",
+    "DAX (OTC)":        "D30EUR_otc",
+    "CAC 40 (OTC)":     "F40EUR_otc",
+    "Nikkei 225 (OTC)": "JPN225_otc",
   }
   const assetSymbol = assetMap[cfg.asset] ?? cfg.asset.replace("/", "").replace(" (OTC)", "_otc").replace(/\s/g, "")
 

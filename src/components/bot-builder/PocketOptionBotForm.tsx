@@ -1258,10 +1258,21 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                   </p>
                 </div>
 
+                {/* Интервал проверки */}
+                <div>
+                  <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                    Интервал проверки цены: <span className="text-white font-bold">{config.hedgeCheckInterval} сек</span>
+                  </Label>
+                  <Slider min={1} max={60} step={1} value={[config.hedgeCheckInterval]} onValueChange={([v]) => set({ hedgeCheckInterval: v })} />
+                  <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
+                    {config.hedgeCheckInterval <= 3 ? "⚡ Очень часто — высокая точность, больше нагрузки" : config.hedgeCheckInterval <= 10 ? "⚖️ Оптимально — баланс точности и нагрузки" : "🐢 Редко — меньше нагрузки, возможна задержка реакции"}
+                  </p>
+                </div>
+
                 {/* Описание логики */}
                 <div className="bg-zinc-800/50 rounded-lg p-3 space-y-2 font-space-mono text-[10px]">
                   <p className="text-zinc-300 font-bold mb-1">Логика хеджирования:</p>
-                  <p className="text-zinc-400">⏱ Проверка каждые <span className="text-white">expiry ÷ 5 сек</span></p>
+                  <p className="text-zinc-400">⏱ Проверка каждые <span className="text-white">{config.hedgeCheckInterval} сек</span></p>
                   <p className="text-zinc-400">🟡 <span className="text-yellow-300">Simple:</span> цена ушла против, пипсов &lt; {config.hedgePipThreshold} → встречная ставка той же суммой</p>
                   <p className="text-zinc-400">🔴 <span className="text-orange-300">Power:</span> цена ушла против, пипсов ≥ {config.hedgePipThreshold} → ставка × {config.hedgePowerMultiplier}</p>
                   <p className="text-zinc-400">⚡ <span className="text-red-300">Complex:</span> прошло &gt; половины экспирации И пипсов ≥ {config.hedgePipThreshold} → Power ставка немедленно</p>
@@ -1329,6 +1340,17 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                   <Slider min={0.5} max={2.0} step={0.1} value={[config.profitExtMultiplier]} onValueChange={([v]) => set({ profitExtMultiplier: Math.round(v * 10) / 10 })} />
                   <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
                     {config.profitExtMultiplier < 1 ? "Доп. ставка меньше основной — осторожный режим" : config.profitExtMultiplier === 1 ? "Доп. ставка равна основной" : `Доп. ставка увеличена в ${config.profitExtMultiplier}x`}
+                  </p>
+                </div>
+
+                {/* Интервал проверки */}
+                <div>
+                  <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                    Интервал проверки цены: <span className="text-white font-bold">{config.profitExtCheckInterval} сек</span>
+                  </Label>
+                  <Slider min={1} max={60} step={1} value={[config.profitExtCheckInterval]} onValueChange={([v]) => set({ profitExtCheckInterval: v })} />
+                  <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
+                    {config.profitExtCheckInterval <= 3 ? "⚡ Очень часто — не пропустит момент, больше нагрузки" : config.profitExtCheckInterval <= 10 ? "⚖️ Оптимально — баланс точности и нагрузки" : "🐢 Редко — меньше нагрузки, возможна задержка входа"}
                   </p>
                 </div>
 

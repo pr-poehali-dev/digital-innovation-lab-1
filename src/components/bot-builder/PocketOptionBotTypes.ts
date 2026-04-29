@@ -1,5 +1,5 @@
 export type POStrategy = "rsi_reversal" | "ema_cross" | "martingale" | "candle_pattern" | "support_resistance"
-export type POExpiry = "1" | "2" | "3" | "5" | "15"
+export type POExpiry = "1" | "2" | "3" | "5" | "15" | "30" | "45" | "60"
 export type POComboLogic = "AND" | "OR"
 export type POEmaTrendMode = "ema9_21" | "ema20_50" | "ema50_200" | "custom"
 
@@ -265,6 +265,9 @@ export const PO_EXPIRY_LABELS: Record<POExpiry, string> = {
   "3": "3 минуты",
   "5": "5 минут",
   "15": "15 минут",
+  "30": "30 минут",
+  "45": "45 минут",
+  "60": "1 час",
 }
 
 export const PO_DEFAULT_CONFIG: POBotConfig = {
@@ -304,10 +307,10 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   payoutRate: 92,
   tradeDirection: "all",
   hedgeEnabled: false,
-  hedgePipThreshold: 10,
+  hedgePipThreshold: 8,
   hedgePowerMultiplier: 1.5,
   profitExtEnabled: false,
-  profitExtPips: 15,
+  profitExtPips: 12,
   profitExtMode: "both",
   profitExtMultiplier: 1.0,
 }
@@ -1222,6 +1225,8 @@ async def main():
                 wins_count = sum(1 for t in trade_log if t["won"])
                 loss_count = trades_today - wins_count
                 winrate = round(wins_count / trades_today * 100, 1) if trades_today > 0 else 0
+                _hedge_str = f"\\n  🛡 Хеджей: {hedge_count} (✅ {hedge_wins} / ❌ {hedge_count - hedge_wins})" if hedge_count > 0 else ""
+                _ext_str   = f"\\n  📈 Расширений: {ext_count} (✅ {ext_wins} / ❌ {ext_count - ext_wins})" if ext_count > 0 else ""
                 tg(
                     f"✅ <b>Take Profit достигнут!</b>\\n"
                     f"━━━━━━━━━━━━━━━━━━━━\\n"
@@ -1232,7 +1237,8 @@ async def main():
                     f"📊 <b>Статистика</b>\\n"
                     f"  Сделок: {trades_today} (✅ {wins_count} / ❌ {loss_count})\\n"
                     f"  Винрейт: <b>{winrate}%</b>\\n"
-                    f"  Отклонено сигналов: {rejected_signals}\\n"
+                    f"  Отклонено сигналов: {rejected_signals}"
+                    f"{_hedge_str}{_ext_str}\\n"
                     f"━━━━━━━━━━━━━━━━━━━━"
                 )
                 if AUTO_RESTART:
@@ -1252,6 +1258,8 @@ async def main():
                 wins_count_sl = sum(1 for t in trade_log if t["won"])
                 loss_count_sl = trades_today - wins_count_sl
                 winrate_sl = round(wins_count_sl / trades_today * 100, 1) if trades_today > 0 else 0
+                _hedge_str_sl = f"\\n  🛡 Хеджей: {hedge_count} (✅ {hedge_wins} / ❌ {hedge_count - hedge_wins})" if hedge_count > 0 else ""
+                _ext_str_sl   = f"\\n  📈 Расширений: {ext_count} (✅ {ext_wins} / ❌ {ext_count - ext_wins})" if ext_count > 0 else ""
                 tg(
                     f"🛑 <b>Stop Loss достигнут!</b>\\n"
                     f"━━━━━━━━━━━━━━━━━━━━\\n"
@@ -1262,7 +1270,8 @@ async def main():
                     f"📊 <b>Статистика</b>\\n"
                     f"  Сделок: {trades_today} (✅ {wins_count_sl} / ❌ {loss_count_sl})\\n"
                     f"  Винрейт: <b>{winrate_sl}%</b>\\n"
-                    f"  Отклонено сигналов: {rejected_signals}\\n"
+                    f"  Отклонено сигналов: {rejected_signals}"
+                    f"{_hedge_str_sl}{_ext_str_sl}\\n"
                     f"━━━━━━━━━━━━━━━━━━━━"
                 )
                 if AUTO_RESTART:

@@ -43,6 +43,10 @@ export interface POBotConfig {
   hedgeEnabled: boolean
   hedgePipThreshold: number
   hedgePowerMultiplier: number
+  profitExtEnabled: boolean
+  profitExtPips: number
+  profitExtMode: "trend" | "rebound" | "both"
+  profitExtMultiplier: number
 }
 
 export interface StrategyMeta {
@@ -302,6 +306,10 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   hedgeEnabled: false,
   hedgePipThreshold: 10,
   hedgePowerMultiplier: 1.5,
+  profitExtEnabled: false,
+  profitExtPips: 15,
+  profitExtMode: "both",
+  profitExtMultiplier: 1.0,
 }
 
 // Helper to avoid TS template literal conflicts with Python f-strings
@@ -773,6 +781,10 @@ rejected_signals  = 0
 rejected_no_trend = 0
 rejected_conflict = 0
 _last_report_time = 0
+hedge_count   = 0
+hedge_wins    = 0
+ext_count     = 0
+ext_wins      = 0
 ${martingaleBlock}
 # ===== ТРЕНД ПО 2 ПОСЛЕДНИМ СВЕЧАМ =====
 _last_trend = None
@@ -980,6 +992,59 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
         except Exception as e:
             print(f"[HEDGE] Ошибка: {e}")
     return None, 0.0
+
+async def profit_extension_monitor(client, original_direction, original_bet, entry_price, expiry_sec):
+    """
+    Мониторинг прибыльной позиции для расширения прибыли.
+    Trend:   цена ушла в нашу сторону на EXT_PIPS → доп. ставка в том же направлении
+    Rebound: цена ушла в нашу сторону на EXT_PIPS → ставка на откат (обратное направление)
+    Both:    оба ордера одновременно
+    Срабатывает только один раз за экспирацию.
+    """
+    if not ${cfg.profitExtEnabled ? "True" : "False"}:
+        return []
+    EXT_PIPS  = ${cfg.profitExtPips}
+    EXT_MULT  = ${cfg.profitExtMultiplier}
+    EXT_MODE  = "${cfg.profitExtMode}"
+    check_interval = max(10, expiry_sec // 5)
+    opposite  = "PUT" if original_direction == "CALL" else "CALL"
+    start_time = asyncio.get_event_loop().time()
+    triggered = False
+    orders = []
+    while not triggered:
+        await asyncio.sleep(check_interval)
+        elapsed = asyncio.get_event_loop().time() - start_time
+        if elapsed >= expiry_sec - check_interval:
+            break
+        try:
+            candles = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=1)
+            if not candles:
+                continue
+            current_price = float(candles[-1].close)
+            pips = round(abs(current_price - entry_price) * 10000, 1)
+            in_profit = (original_direction == "CALL" and current_price > entry_price) or \
+                        (original_direction == "PUT"  and current_price < entry_price)
+            if not in_profit or pips < EXT_PIPS:
+                print(f"[EXT] Ждём {EXT_PIPS} пип в нашу сторону (сейчас {pips} пип, {'✅' if in_profit else '❌'})")
+                continue
+            remaining = max(30, int(expiry_sec - elapsed))
+            ext_bet = round(original_bet * EXT_MULT, 2)
+            triggered = True
+            if EXT_MODE in ("trend", "both"):
+                dir_t = OrderDirection.CALL if original_direction == "CALL" else OrderDirection.PUT
+                order_t = await client.place_order(asset=(_resolved_asset or ASSET), amount=ext_bet, direction=dir_t, duration=remaining)
+                orders.append((order_t.order_id, ext_bet, "TREND"))
+                print(f"[EXT] TREND {original_direction} | {ext_bet} | {pips} пип | осталось {remaining}с")
+                tg(f"📈 <b>[EXT TREND]</b> {original_direction} | {ext_bet} | {pips} пип | осталось {remaining}с")
+            if EXT_MODE in ("rebound", "both"):
+                dir_r = OrderDirection.CALL if opposite == "CALL" else OrderDirection.PUT
+                order_r = await client.place_order(asset=(_resolved_asset or ASSET), amount=ext_bet, direction=dir_r, duration=remaining)
+                orders.append((order_r.order_id, ext_bet, "REBOUND"))
+                print(f"[EXT] REBOUND {opposite} | {ext_bet} | {pips} пип | осталось {remaining}с")
+                tg(f"🔄 <b>[EXT REBOUND]</b> {opposite} | {ext_bet} | {pips} пип | осталось {remaining}с")
+        except Exception as e:
+            print(f"[EXT] Ошибка: {e}")
+    return orders
 
 async def check_result(client, order_id, balance_before, bet):
     """Ожидание результата по конкретной сделке через get_deal (точно, не зависит от других ботов)."""
@@ -1335,15 +1400,32 @@ async def main():
                         hedge_monitor(client, signal, bet, entry_price, EXPIRY_SEC)
                     ) if entry_price > 0 else None
                     won, profit, loss_amount = await check_result(client, order_id, balance_before, bet)
-                    # Ждём результат хедж-ставки если была открыта
+                    # Ждём хедж и расширение прибыли параллельно
+                    ext_task = asyncio.create_task(
+                        profit_extension_monitor(client, signal, bet, entry_price, EXPIRY_SEC)
+                    ) if entry_price > 0 else None
                     if hedge_task:
                         hedge_order_id, hedge_bet = await hedge_task
                         if hedge_order_id:
+                            hedge_count += 1
                             h_won, h_profit, h_loss = await check_result(client, hedge_order_id, balance_before, hedge_bet)
+                            if h_won:
+                                hedge_wins += 1
                             hedge_result = f"✅ +{h_profit:.2f}" if h_won else f"❌ -{h_loss:.2f}"
                             tg(f"🛡 <b>Хедж результат:</b> {hedge_result} {currency}")
                             profit      += h_profit
                             loss_amount += h_loss
+                    if ext_task:
+                        ext_orders = await ext_task
+                        for ext_id, ext_bet, ext_type in ext_orders:
+                            ext_count += 1
+                            e_won, e_profit, e_loss = await check_result(client, ext_id, balance_before, ext_bet)
+                            if e_won:
+                                ext_wins += 1
+                            ext_result = f"✅ +{e_profit:.2f}" if e_won else f"❌ -{e_loss:.2f}"
+                            tg(f"{'📈' if ext_type == 'TREND' else '🔄'} <b>Расширение {ext_type}:</b> {ext_result} {currency}")
+                            profit      += e_profit
+                            loss_amount += e_loss
                     total_profit += profit - loss_amount
                     trades_today += 1
                     current_bet   = adjust_bet(won)
@@ -1357,7 +1439,9 @@ async def main():
                     wins  = sum(1 for t in trade_log if t["won"])
                     wr    = wins / len(trade_log) * 100
                     res_emoji = "✅" if won else "❌"
-                    tg(f"{res_emoji} <b>[{BOT_NAME}] {'Выигрыш' if won else 'Проигрыш'}</b>\\n{signal} | {bet} {currency} | {ASSET}\\nПрофит: {profit:+.2f} {currency}\\nСессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
+                    hedge_stat = f" | 🛡 {hedge_wins}/{hedge_count}" if hedge_count > 0 else ""
+                    ext_stat   = f" | 📈 {ext_wins}/{ext_count}" if ext_count > 0 else ""
+                    tg(f"{res_emoji} <b>[{BOT_NAME}] {'Выигрыш' if won else 'Проигрыш'}</b>\\n{signal} | {bet} {currency} | {ASSET}\\nПрофит: {profit:+.2f} {currency}\\nСессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)}){hedge_stat}{ext_stat}")
                     print_stats()
             else:
                 ts = datetime.now().strftime("%H:%M:%S")
@@ -1776,6 +1860,10 @@ rejected_signals  = 0
 rejected_no_trend = 0
 rejected_conflict = 0
 _last_report_time = 0
+hedge_count   = 0
+hedge_wins    = 0
+ext_count     = 0
+ext_wins      = 0
 ${martingaleBlock}
 # ===== ТРЕНД ПО 2 ПОСЛЕДНИМ СВЕЧАМ =====
 _last_trend = None

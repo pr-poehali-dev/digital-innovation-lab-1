@@ -47,6 +47,9 @@ export interface POBotConfig {
   profitExtPips: number
   profitExtMode: "trend" | "rebound" | "both"
   profitExtMultiplier: number
+  srManualLevels: string
+  srStep: number
+  srWindow: number
 }
 
 export interface StrategyMeta {
@@ -313,6 +316,9 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   profitExtPips: 12,
   profitExtMode: "both",
   profitExtMultiplier: 1.0,
+  srManualLevels: "",
+  srStep: 0,
+  srWindow: 10,
 }
 
 // Helper to avoid TS template literal conflicts with Python f-strings
@@ -422,31 +428,86 @@ def get_signal(prices, candles=None):
     return None, ""`,
 
     support_resistance: `
-def find_levels(prices, window=10):
-    """Поиск уровней поддержки и сопротивления"""
+# ===== УРОВНИ ПОДДЕРЖКИ / СОПРОТИВЛЕНИЯ =====
+SR_WINDOW       = ${cfg.srWindow || 10}       # Окно поиска локальных экстремумов
+SR_STEP         = ${cfg.srStep || 0}          # Шаг сетки (0 = авто по свечам)
+SR_MANUAL_RAW   = "${cfg.srManualLevels || ""}"  # Ручные уровни через запятую (напр. "1.0850,1.0900,1.0950")
+
+# Типичные уровни для пары (подсказка, используются если нет ручных и мало свечей)
+_SR_PRESET: dict = {
+    "EURUSD": [1.0500,1.0600,1.0700,1.0800,1.0900,1.1000],
+    "EURUSD_otc": [1.0500,1.0600,1.0700,1.0800,1.0900,1.1000],
+    "GBPUSD": [1.2200,1.2400,1.2600,1.2800,1.3000,1.3200],
+    "GBPUSD_otc": [1.2200,1.2400,1.2600,1.2800,1.3000,1.3200],
+    "USDJPY": [145.0,147.0,149.0,150.0,151.0,153.0],
+    "USDJPY_otc": [145.0,147.0,149.0,150.0,151.0,153.0],
+    "USDCHF": [0.8800,0.8900,0.9000,0.9100,0.9200],
+    "USDCAD": [1.3300,1.3500,1.3700,1.3900],
+    "AUDUSD": [0.6200,0.6400,0.6500,0.6600,0.6800],
+    "NZDUSD": [0.5800,0.6000,0.6100,0.6200],
+    "XAUUSD": [1900,1950,2000,2050,2100,2150,2200,2300,2400],
+    "XAUUSD_otc": [1900,1950,2000,2050,2100,2150,2200,2300,2400],
+    "XAGUSD": [22.0,24.0,25.0,26.0,28.0,30.0],
+    "BTCUSD": [60000,65000,70000,75000,80000,90000,100000],
+    "ETHUSD": [2500,3000,3500,4000,4500],
+    "SP500": [4500,4700,5000,5200,5500],
+    "NASUSD": [17000,18000,19000,20000,21000],
+    "DJI30": [38000,39000,40000,41000,42000],
+}
+
+def _parse_manual_levels(raw):
+    if not raw.strip():
+        return []
+    try:
+        return [float(x.strip()) for x in raw.split(",") if x.strip()]
+    except Exception:
+        return []
+
+def _build_step_levels(center, step, count=10):
+    """Строит сетку уровней с заданным шагом вокруг текущей цены"""
+    base = round(center / step) * step
+    return [round(base + step * i, 8) for i in range(-count//2, count//2 + 1)]
+
+def find_levels(prices, window=None):
+    """Поиск уровней поддержки и сопротивления из свечей"""
+    if window is None:
+        window = SR_WINDOW
     supports, resistances = [], []
     for i in range(window, len(prices) - window):
         if prices[i] == min(prices[i-window:i+window]):
             supports.append(prices[i])
         if prices[i] == max(prices[i-window:i+window]):
             resistances.append(prices[i])
-    return supports[-3:], resistances[-3:]
+    return supports[-5:], resistances[-5:]
 
 def get_signal(prices, candles=None):
-    """Вход от уровней поддержки/сопротивления"""
+    """Вход от уровней поддержки/сопротивления (авто + ручные + сетка)"""
     prices = prices[:-1]
-    if len(prices) < 30:
+    if len(prices) < 2:
         return None, ""
-    supports, resistances = find_levels(prices)
     current = prices[-1]
-    threshold = current * 0.001
-    for sup in supports:
-        if abs(current - sup) < threshold:
-            return "CALL", f"Цена {current:.5f} у поддержки {sup:.5f} (отскок вверх)"
-    for res in resistances:
-        if abs(current - res) < threshold:
-            return "PUT", f"Цена {current:.5f} у сопротивления {res:.5f} (отскок вниз)"
-    return None, f"Цена {current:.5f} | sup={[round(s,5) for s in supports]} res={[round(r,5) for r in resistances]}"`,
+    # 1. Ручные уровни (наивысший приоритет)
+    manual = _parse_manual_levels(SR_MANUAL_RAW)
+    # 2. Автоуровни из свечей
+    auto_sup, auto_res = (find_levels(prices) if len(prices) >= 30 else ([], []))
+    # 3. Сетка по шагу
+    step_levels = _build_step_levels(current, SR_STEP) if SR_STEP > 0 else []
+    # 4. Пресет для пары (если мало свечей и нет ручных)
+    preset = _SR_PRESET.get((_resolved_asset or ASSET), []) if not manual and len(prices) < 30 else []
+    all_supports    = sorted(set([l for l in (manual + auto_sup + step_levels + preset) if l < current]))
+    all_resistances = sorted(set([l for l in (manual + auto_res + step_levels + preset) if l > current]))
+    nearest_sup = max(all_supports) if all_supports else None
+    nearest_res = min(all_resistances) if all_resistances else None
+    threshold = max(current * 0.0008, 0.00005)
+    if nearest_sup and abs(current - nearest_sup) < threshold:
+        src = "ручной" if nearest_sup in manual else ("сетка" if SR_STEP > 0 and nearest_sup in step_levels else "авто")
+        return "CALL", f"Цена {current:.5f} у поддержки {nearest_sup:.5f} [{src}] → отскок вверх"
+    if nearest_res and abs(current - nearest_res) < threshold:
+        src = "ручной" if nearest_res in manual else ("сетка" if SR_STEP > 0 and nearest_res in step_levels else "авто")
+        return "PUT", f"Цена {current:.5f} у сопротивления {nearest_res:.5f} [{src}] → отскок вниз"
+    sup_info = f"{nearest_sup:.5f}" if nearest_sup else "нет"
+    res_info = f"{nearest_res:.5f}" if nearest_res else "нет"
+    return None, f"Цена {current:.5f} | ближ.sup={sup_info} res={res_info}"`,
   }
 
   const martingaleBlock = cfg.martingaleEnabled
@@ -956,7 +1017,39 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
     """
     if not ${cfg.hedgeEnabled ? "True" : "False"}:
         return None, 0.0
-    HEDGE_PIP_THRESHOLD = ${cfg.hedgePipThreshold}
+    _pip_map = {
+        # Forex мажоры
+        "EURUSD": 8, "GBPUSD": 10, "USDJPY": 9, "USDCHF": 9, "USDCAD": 9, "AUDUSD": 9, "NZDUSD": 9,
+        "EURUSD_otc": 8, "GBPUSD_otc": 10, "USDJPY_otc": 9, "USDCHF_otc": 9, "USDCAD_otc": 9, "AUDUSD_otc": 9, "NZDUSD_otc": 9,
+        # Forex кросс-пары
+        "GBPJPY": 20, "GBPJPY_otc": 20, "EURJPY": 15, "EURJPY_otc": 15, "EURGBP": 10, "EURGBP_otc": 10,
+        "GBPAUD": 18, "GBPAUD_otc": 18, "GBPCAD": 16, "GBPCAD_otc": 16, "GBPCHF": 14, "GBPCHF_otc": 14,
+        "AUDCAD_otc": 12, "AUDCHF_otc": 11, "AUDJPY_otc": 14, "AUDNZD_otc": 13,
+        "CADJPY_otc": 13, "CADCHF_otc": 10, "CHFJPY_otc": 14,
+        "NZDJPY_otc": 14, "NZDCAD_otc": 12, "NZDCHF_otc": 11, "EURNZD_otc": 14,
+        "GBPNZD_otc": 22, "EURCAD_otc": 13, "EURCHF_otc": 11,
+        # Крипто
+        "BTCUSD": 150, "BTCUSD_otc": 150, "ETHUSD": 60, "ETHUSD_otc": 60,
+        "LTCUSD_otc": 30, "DOTUSD": 20, "LNKUSD": 15,
+        "BTCGBP": 150, "BTCJPY": 150, "BCHEUR": 40, "DASH_USD": 30,
+        # Товары
+        "XAUUSD": 25, "XAUUSD_otc": 25, "XAGUSD": 15, "XAGUSD_otc": 15,
+        "UKBrent": 12, "UKBrent_otc": 12, "USCrude": 12, "USCrude_otc": 12,
+        "XNGUSD": 10, "XNGUSD_otc": 10, "XPTUSD": 20, "XPTUSD_otc": 20, "XPDUSD": 25,
+        # Индексы
+        "SP500": 8, "SP500_otc": 8, "NASUSD": 15, "NASUSD_otc": 15,
+        "DJI30": 10, "DJI30_otc": 10, "JPN225": 25, "JPN225_otc": 25,
+        "D30EUR": 15, "D30EUR_otc": 15, "F40EUR": 12, "F40EUR_otc": 12,
+        "E50EUR": 12, "E50EUR_otc": 12, "E35EUR": 12, "100GBP": 12, "100GBP_otc": 12,
+        "AUS200": 12, "AUS200_otc": 12, "CAC40": 12,
+        # Акции OTC
+        "#AAPL_otc": 20, "#TSLA_otc": 40, "#NVDA_otc": 35, "#AMZN_otc": 25,
+        "#MSFT_otc": 20, "#GOOG_otc": 25, "#META_otc": 30, "#NFLX_otc": 40,
+        "#GME_otc": 50, "#V_otc": 15, "#XOM_otc": 15, "#MCD_otc": 15,
+        "#INTC_otc": 15, "#BA_otc": 25,
+    }
+    _asset_key = (_resolved_asset or ASSET)
+    HEDGE_PIP_THRESHOLD = _pip_map.get(_asset_key, ${cfg.hedgePipThreshold})
     HEDGE_POWER_MULT    = ${cfg.hedgePowerMultiplier}
     check_interval = max(10, expiry_sec // 5)
     opposite = "PUT" if original_direction == "CALL" else "CALL"
@@ -1008,7 +1101,23 @@ async def profit_extension_monitor(client, original_direction, original_bet, ent
     """
     if not ${cfg.profitExtEnabled ? "True" : "False"}:
         return []
-    EXT_PIPS  = ${cfg.profitExtPips}
+    _pip_map_ext = {
+        "EURUSD": 8, "GBPUSD": 10, "USDJPY": 9, "USDCHF": 9, "USDCAD": 9, "AUDUSD": 9, "NZDUSD": 9,
+        "EURUSD_otc": 8, "GBPUSD_otc": 10, "USDJPY_otc": 9, "USDCHF_otc": 9, "USDCAD_otc": 9, "AUDUSD_otc": 9, "NZDUSD_otc": 9,
+        "GBPJPY": 20, "GBPJPY_otc": 20, "EURJPY": 15, "EURJPY_otc": 15, "EURGBP": 10, "EURGBP_otc": 10,
+        "GBPAUD": 18, "GBPAUD_otc": 18, "GBPCAD": 16, "GBPCAD_otc": 16, "AUDCAD_otc": 12, "AUDJPY_otc": 14,
+        "CADJPY_otc": 13, "CHFJPY_otc": 14, "NZDJPY_otc": 14, "GBPNZD_otc": 22,
+        "BTCUSD": 150, "BTCUSD_otc": 150, "ETHUSD": 60, "ETHUSD_otc": 60,
+        "LTCUSD_otc": 30, "DOTUSD": 20, "LNKUSD": 15, "BTCGBP": 150, "DASH_USD": 30,
+        "XAUUSD": 25, "XAUUSD_otc": 25, "XAGUSD": 15, "XAGUSD_otc": 15,
+        "UKBrent": 12, "UKBrent_otc": 12, "USCrude": 12, "XNGUSD": 10, "XPTUSD": 20,
+        "SP500": 8, "SP500_otc": 8, "NASUSD": 15, "NASUSD_otc": 15, "DJI30": 10, "DJI30_otc": 10,
+        "JPN225": 25, "JPN225_otc": 25, "D30EUR": 15, "AUS200": 12, "AUS200_otc": 12,
+        "#AAPL_otc": 20, "#TSLA_otc": 40, "#NVDA_otc": 35, "#AMZN_otc": 25, "#MSFT_otc": 20,
+        "#GOOG_otc": 25, "#META_otc": 30, "#NFLX_otc": 40, "#GME_otc": 50,
+    }
+    _asset_key_ext = (_resolved_asset or ASSET)
+    EXT_PIPS  = _pip_map_ext.get(_asset_key_ext, ${cfg.profitExtPips})
     EXT_MULT  = ${cfg.profitExtMultiplier}
     EXT_MODE  = "${cfg.profitExtMode}"
     check_interval = max(10, expiry_sec // 5)

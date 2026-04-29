@@ -1476,6 +1476,78 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
             <p className="text-zinc-500 text-xs font-space-mono leading-relaxed">
               Бот торгует от уровней поддержки и сопротивления. Вход при отбое от уровня.
             </p>
+
+            {/* Окно автопоиска */}
+            <div>
+              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                Окно автопоиска уровней: <span className="text-white font-bold">{config.srWindow} свечей</span>
+              </Label>
+              <Slider min={5} max={30} step={1} value={[config.srWindow]} onValueChange={([v]) => set({ srWindow: v })} />
+              <p className="text-zinc-600 font-space-mono text-[10px] mt-1">Бот ищет локальные минимумы/максимумы в окне из {config.srWindow} свечей</p>
+            </div>
+
+            {/* Шаг сетки */}
+            <div>
+              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                Шаг сетки уровней: <span className="text-white font-bold">{config.srStep === 0 ? "авто (по свечам)" : config.srStep}</span>
+              </Label>
+              <Slider min={0} max={0.01} step={0.0001} value={[config.srStep]} onValueChange={([v]) => set({ srStep: Math.round(v * 10000) / 10000 })} />
+              <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
+                {config.srStep === 0 ? "0 = только автоуровни из свечей" : `Сетка уровней через каждые ${config.srStep} пункта`}
+              </p>
+            </div>
+
+            {/* Ручные уровни */}
+            <div>
+              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Ручные уровни (через запятую)</Label>
+              <input
+                type="text"
+                value={config.srManualLevels}
+                onChange={(e) => set({ srManualLevels: e.target.value })}
+                placeholder="1.0850, 1.0900, 1.0950"
+                className="w-full bg-zinc-800 border border-zinc-700 text-white font-space-mono text-xs rounded-md px-3 py-2 focus:outline-none focus:border-purple-500/50"
+              />
+              <p className="text-zinc-600 font-space-mono text-[10px] mt-1">Имеют наивысший приоритет. Оставь пустым для автоопределения.</p>
+            </div>
+
+            {/* Пресеты по паре */}
+            {(() => {
+              const presets: Record<string, number[]> = {
+                "EUR/USD (OTC)": [1.0500,1.0700,1.0800,1.0900,1.1000],
+                "EUR/USD": [1.0500,1.0700,1.0800,1.0900,1.1000],
+                "GBP/USD (OTC)": [1.2200,1.2600,1.2800,1.3000,1.3200],
+                "USD/JPY (OTC)": [145.0,147.0,149.0,151.0,153.0],
+                "AUD/USD (OTC)": [0.6200,0.6400,0.6600,0.6800],
+                "Gold (OTC)": [1950,2000,2050,2100,2200,2300,2400],
+                "Gold": [1950,2000,2050,2100,2200,2300,2400],
+                "BTC/USD (OTC)": [60000,65000,70000,75000,80000,90000],
+                "BTC/USD": [60000,65000,70000,75000,80000,90000],
+                "ETH/USD (OTC)": [2500,3000,3500,4000,4500],
+                "S&P 500 (OTC)": [4500,4700,5000,5200,5500],
+              }
+              const levels = presets[config.asset]
+              if (!levels) return null
+              return (
+                <div className="bg-zinc-800/50 rounded-lg p-3">
+                  <p className="text-zinc-400 font-space-mono text-[10px] mb-2">📌 Типичные уровни для {config.asset}:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {levels.map(l => (
+                      <button key={l} type="button"
+                        onClick={() => set({ srManualLevels: config.srManualLevels ? `${config.srManualLevels}, ${l}` : String(l) })}
+                        className="text-[10px] font-space-mono bg-zinc-700 hover:bg-purple-600/30 hover:border-purple-500/50 border border-zinc-600 text-zinc-300 rounded px-2 py-0.5 transition-all">
+                        +{l}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button"
+                    onClick={() => set({ srManualLevels: levels.join(", ") })}
+                    className="mt-2 text-[10px] font-space-mono text-purple-400 hover:text-purple-300 transition-colors">
+                    Добавить все →
+                  </button>
+                </div>
+              )
+            })()}
+
             <div className="space-y-2">
               <Label className="text-zinc-300 text-sm">Направление входа</Label>
               <div className="grid grid-cols-3 gap-1.5">

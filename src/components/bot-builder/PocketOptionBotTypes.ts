@@ -756,6 +756,7 @@ Pocket Option Bot — ${strategyLabel}
   Режим      : ${cfg.isDemo ? "ДЕМО-СЧЁТ" : "РЕАЛЬНЫЙ СЧЁТ"}
   Направление: ${cfg.trendFollow === "follow" ? "По тренду ↗" : cfg.trendFollow === "reverse" ? "Против тренда ↙" : "Комбо ↗↙"}
   Режим свечей: ${(cfg.trendMode ?? "same") === "same" ? "Одинаковые (2 зелёных=CALL / 2 красных=PUT)" : (cfg.trendMode === "reverse") ? "Разворот (красн+зел=PUT / зел+красн=CALL)" : "Любой паттерн (UP=CALL, DOWN=PUT)"}
+  Таймфрейм  : ${(cfg.candleTimeframe ?? 60) === 60 ? "1 мин  (60 свечей = 1 час истории)" : (cfg.candleTimeframe ?? 60) === 300 ? "5 мин  (60 свечей = 5 часов истории)" : (cfg.candleTimeframe ?? 60) === 900 ? "15 мин (60 свечей = 15 часов истории)" : "1 час  (60 свечей = 2.5 дня истории)"}
   Take Profit: ${cfg.takeProfitRub} ${cfg.currency}
   Stop Loss  : ${cfg.stopLossRub} ${cfg.currency}
   Лимит/день : ${cfg.dailyLimit} сделок
@@ -1991,6 +1992,7 @@ Pocket Option КОМБО-Бот
   Режим      : ${cfg.isDemo ? "ДЕМО-СЧЁТ" : "РЕАЛЬНЫЙ СЧЁТ"}
   Направление: ${cfg.trendFollow === "follow" ? "По тренду ↗" : cfg.trendFollow === "reverse" ? "Против тренда ↙" : "Комбо ↗↙"}
   Режим свечей: ${(cfg.trendMode ?? "same") === "same" ? "Одинаковые (2 зелёных=CALL / 2 красных=PUT)" : (cfg.trendMode === "reverse") ? "Разворот (красн+зел=PUT / зел+красн=CALL)" : "Любой паттерн (UP=CALL, DOWN=PUT)"}
+  Таймфрейм  : ${(cfg.candleTimeframe ?? 60) === 60 ? "1 мин  (60 свечей = 1 час истории)" : (cfg.candleTimeframe ?? 60) === 300 ? "5 мин  (60 свечей = 5 часов истории)" : (cfg.candleTimeframe ?? 60) === 900 ? "15 мин (60 свечей = 15 часов истории)" : "1 час  (60 свечей = 2.5 дня истории)"}
   Take Profit: ${cfg.takeProfitRub} ${cfg.currency}
   Stop Loss  : ${cfg.stopLossRub} ${cfg.currency}
   Лимит/день : ${cfg.dailyLimit} сделок

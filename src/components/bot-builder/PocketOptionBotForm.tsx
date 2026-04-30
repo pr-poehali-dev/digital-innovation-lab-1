@@ -1533,19 +1533,25 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
             </p>
             <div className="space-y-2">
               <Label className="text-zinc-300 text-sm">Направление входа</Label>
+              <p className="text-zinc-500 text-xs font-space-mono">Как сигнал стратегии соотносится с определённым трендом</p>
               <div className="grid grid-cols-3 gap-1.5">
                 <button onClick={() => set({ trendFollow: "follow" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "follow" ? "border-green-500/60 bg-green-500/10 text-green-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗ По тренду</button>
                 <button onClick={() => set({ trendFollow: "reverse" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "reverse" ? "border-orange-500/60 bg-orange-500/10 text-orange-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↙ Против</button>
                 <button onClick={() => set({ trendFollow: "combo" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "combo" ? "border-blue-500/60 bg-blue-500/10 text-blue-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗↙ Комбо</button>
               </div>
+              {config.trendFollow === "follow" && (
+                <div className="bg-green-950/30 border border-green-500/20 rounded-lg px-3 py-2 text-xs font-space-mono text-green-300/80">
+                  ↗ Бот входит <b>только когда сигнал совпадает с трендом</b>. Тренд вверх → только CALL. Самый надёжный режим — меньше сделок, выше точность.
+                </div>
+              )}
               {config.trendFollow === "reverse" && (
-                <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-3 py-2">
-                  <span className="text-orange-400 text-xs font-space-mono leading-relaxed">⚠️ Только для флета. На сильном тренде увеличивает убытки.</span>
+                <div className="bg-orange-950/30 border border-orange-500/20 rounded-lg px-3 py-2 text-xs font-space-mono text-orange-300/80">
+                  ↙ Бот входит <b>против тренда</b> — сигналы инвертируются: CALL→PUT, PUT→CALL. Работает на флете и откатах. ⚠️ На сильном тренде увеличивает убытки.
                 </div>
               )}
               {config.trendFollow === "combo" && (
-                <div className="flex items-start gap-2 bg-blue-950/40 border border-blue-500/30 rounded-lg px-3 py-2">
-                  <span className="text-blue-400 text-xs font-space-mono leading-relaxed">Комбо: бот ставит по любому сигналу стратегии без фильтра тренда.</span>
+                <div className="bg-blue-950/30 border border-blue-500/20 rounded-lg px-3 py-2 text-xs font-space-mono text-blue-300/80">
+                  ↗↙ Бот торгует <b>любой сигнал стратегии</b> без фильтра по тренду. Максимум сделок, но ниже точность — подходит только с очень сильной стратегией.
                 </div>
               )}
             </div>

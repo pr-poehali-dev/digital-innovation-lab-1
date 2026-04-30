@@ -53,6 +53,7 @@ export interface POBotConfig {
   srManualLevels: string
   srStep: number
   srWindow: number
+  candleTimeframe: 60 | 300 | 900 | 3600
 }
 
 export interface StrategyMeta {
@@ -346,6 +347,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   srManualLevels: "",
   srStep: 0,
   srWindow: 10,
+  candleTimeframe: 60,
 }
 
 // Helper to avoid TS template literal conflicts with Python f-strings
@@ -1027,7 +1029,7 @@ async def try_get_candles(client, asset_name):
     """Попытка получить свечи, с авто-переподключением при обрыве"""
     for attempt in range(3):
         try:
-            raw = await client.get_candles(asset=asset_name, timeframe=60, count=60)
+            raw = await client.get_candles(asset=asset_name, timeframe=${cfg.candleTimeframe ?? 60}, count=60)
             if raw:
                 return raw
             return None  # пустой ответ — актив не найден, не повторяем
@@ -1195,7 +1197,7 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
         if elapsed >= expiry_sec - check_interval:
             break
         try:
-            candles = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=1)
+            candles = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=${cfg.candleTimeframe ?? 60}, count=1)
             if not candles:
                 continue
             current_price = float(candles[-1].close)
@@ -1283,7 +1285,7 @@ async def profit_extension_monitor(client, original_direction, original_bet, ent
         if elapsed >= expiry_sec - check_interval:
             break
         try:
-            candles = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=1)
+            candles = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=${cfg.candleTimeframe ?? 60}, count=1)
             if not candles:
                 continue
             current_price = float(candles[-1].close)

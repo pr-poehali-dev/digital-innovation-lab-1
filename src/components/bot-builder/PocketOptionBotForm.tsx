@@ -1766,6 +1766,31 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                 </button>
               </div>
             </div>
+
+            <div className="space-y-2 pt-1">
+              <Label className="text-zinc-300 text-sm">Таймфрейм свечей</Label>
+              <p className="text-zinc-500 text-xs font-space-mono">Размер одной свечи для анализа сигнала</p>
+              <div className="grid grid-cols-4 gap-2">
+                {([
+                  { value: 60,   label: "1 мин",  sub: "60 свечей = 1ч" },
+                  { value: 300,  label: "5 мин",  sub: "60 свечей = 5ч" },
+                  { value: 900,  label: "15 мин", sub: "60 свечей = 15ч" },
+                  { value: 3600, label: "1 час",  sub: "60 свечей = 2.5д" },
+                ] as const).map(({ value, label, sub }) => {
+                  const active = (config.candleTimeframe ?? 60) === value
+                  return (
+                    <button
+                      key={value}
+                      onClick={() => set({ candleTimeframe: value })}
+                      className={`flex flex-col items-start gap-0.5 rounded-xl border px-3 py-2.5 text-left transition-all ${active ? "border-orange-500/60 bg-orange-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                    >
+                      <span className={`text-sm font-medium ${active ? "text-orange-300" : "text-zinc-200"}`}>{label}</span>
+                      <span className="text-xs font-space-mono text-zinc-500">{sub}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}

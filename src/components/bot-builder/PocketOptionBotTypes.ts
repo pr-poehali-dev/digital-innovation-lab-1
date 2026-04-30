@@ -1153,11 +1153,40 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
         "#GME_otc": 50, "#V_otc": 15, "#XOM_otc": 15, "#MCD_otc": 15,
         "#INTC_otc": 15, "#BA_otc": 25,
     }
+    # Размер одного пипса — зависит от пары
+    _pip_size_map = {
+        # JPY-пары: 1 пипс = 0.01
+        "USDJPY": 0.01, "USDJPY_otc": 0.01,
+        "GBPJPY": 0.01, "GBPJPY_otc": 0.01, "EURJPY": 0.01, "EURJPY_otc": 0.01,
+        "AUDJPY_otc": 0.01, "CADJPY_otc": 0.01, "CHFJPY_otc": 0.01,
+        "NZDJPY_otc": 0.01, "JPN225": 1.0, "JPN225_otc": 1.0,
+        # Крипто: 1 пипс = 1.0
+        "BTCUSD": 1.0, "BTCUSD_otc": 1.0, "ETHUSD": 1.0, "ETHUSD_otc": 1.0,
+        "LTCUSD_otc": 0.1, "DOTUSD": 0.01, "LNKUSD": 0.01,
+        "BTCGBP": 1.0, "BTCJPY": 1.0, "BCHEUR": 0.1, "DASH_USD": 0.1,
+        # Индексы: 1 пипс = 1.0
+        "SP500": 0.1, "SP500_otc": 0.1, "NASUSD": 0.1, "NASUSD_otc": 0.1,
+        "DJI30": 1.0, "DJI30_otc": 1.0, "D30EUR": 1.0, "D30EUR_otc": 1.0,
+        "F40EUR": 1.0, "F40EUR_otc": 1.0, "E50EUR": 1.0, "AUS200": 0.1, "AUS200_otc": 0.1,
+        "100GBP": 0.1, "100GBP_otc": 0.1, "CAC40": 0.1,
+        # Золото/серебро
+        "XAUUSD": 0.1, "XAUUSD_otc": 0.1, "XAGUSD": 0.01, "XAGUSD_otc": 0.01,
+        "XPTUSD": 0.1, "XPTUSD_otc": 0.1, "XPDUSD": 0.1,
+        # Нефть/газ
+        "UKBrent": 0.01, "UKBrent_otc": 0.01, "USCrude": 0.01, "USCrude_otc": 0.01,
+        "XNGUSD": 0.001,
+        # Акции OTC
+        "#AAPL_otc": 0.01, "#TSLA_otc": 0.01, "#NVDA_otc": 0.01, "#AMZN_otc": 0.01,
+        "#MSFT_otc": 0.01, "#GOOG_otc": 0.01, "#META_otc": 0.01, "#NFLX_otc": 0.01,
+        "#GME_otc": 0.01, "#V_otc": 0.01, "#XOM_otc": 0.01, "#MCD_otc": 0.01,
+        "#INTC_otc": 0.01, "#BA_otc": 0.01,
+    }
     _asset_key = (_resolved_asset or ASSET)
     HEDGE_PIP_THRESHOLD = _pip_map.get(_asset_key, ${cfg.hedgePipThreshold})
     HEDGE_POWER_MULT    = ${cfg.hedgePowerMultiplier}
-    PIP_SIZE            = ${cfg.pipSize}
+    PIP_SIZE            = _pip_size_map.get(_asset_key, 0.0001)  # дефолт для Forex
     check_interval = ${cfg.hedgeCheckInterval}
+    print(f"[HEDGE] Инициализация | актив={_asset_key} | pip_size={PIP_SIZE} | порог={HEDGE_PIP_THRESHOLD} пип | цена входа={entry_price}")
     opposite = "PUT" if original_direction == "CALL" else "CALL"
     start_time = asyncio.get_event_loop().time()
     while True:
@@ -1223,11 +1252,27 @@ async def profit_extension_monitor(client, original_direction, original_bet, ent
         "#GOOG_otc": 25, "#META_otc": 30, "#NFLX_otc": 40, "#GME_otc": 50,
     }
     _asset_key_ext = (_resolved_asset or ASSET)
+    _pip_size_map_ext = {
+        "USDJPY": 0.01, "USDJPY_otc": 0.01,
+        "GBPJPY": 0.01, "GBPJPY_otc": 0.01, "EURJPY": 0.01, "EURJPY_otc": 0.01,
+        "AUDJPY_otc": 0.01, "CADJPY_otc": 0.01, "CHFJPY_otc": 0.01, "NZDJPY_otc": 0.01,
+        "JPN225": 1.0, "JPN225_otc": 1.0,
+        "BTCUSD": 1.0, "BTCUSD_otc": 1.0, "ETHUSD": 1.0, "ETHUSD_otc": 1.0,
+        "LTCUSD_otc": 0.1, "DOTUSD": 0.01, "LNKUSD": 0.01, "BTCGBP": 1.0, "DASH_USD": 0.1,
+        "SP500": 0.1, "SP500_otc": 0.1, "NASUSD": 0.1, "NASUSD_otc": 0.1,
+        "DJI30": 1.0, "DJI30_otc": 1.0, "D30EUR": 1.0, "AUS200": 0.1, "AUS200_otc": 0.1,
+        "XAUUSD": 0.1, "XAUUSD_otc": 0.1, "XAGUSD": 0.01, "XAGUSD_otc": 0.01,
+        "UKBrent": 0.01, "UKBrent_otc": 0.01, "USCrude": 0.01, "XNGUSD": 0.001,
+        "#AAPL_otc": 0.01, "#TSLA_otc": 0.01, "#NVDA_otc": 0.01, "#AMZN_otc": 0.01,
+        "#MSFT_otc": 0.01, "#GOOG_otc": 0.01, "#META_otc": 0.01, "#NFLX_otc": 0.01,
+        "#GME_otc": 0.01, "#V_otc": 0.01, "#XOM_otc": 0.01, "#MCD_otc": 0.01,
+    }
     EXT_PIPS  = _pip_map_ext.get(_asset_key_ext, ${cfg.profitExtPips})
     EXT_MULT  = ${cfg.profitExtMultiplier}
     EXT_MODE  = "${cfg.profitExtMode}"
-    PIP_SIZE  = ${cfg.pipSize}
+    PIP_SIZE  = _pip_size_map_ext.get(_asset_key_ext, 0.0001)
     check_interval = ${cfg.profitExtCheckInterval}
+    print(f"[EXT] Инициализация | актив={_asset_key_ext} | pip_size={PIP_SIZE} | порог={EXT_PIPS} пип | режим={EXT_MODE} | цена входа={entry_price}")
     opposite  = "PUT" if original_direction == "CALL" else "CALL"
     start_time = asyncio.get_event_loop().time()
     triggered = False

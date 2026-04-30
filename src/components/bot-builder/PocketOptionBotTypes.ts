@@ -1636,25 +1636,23 @@ async def main():
                 tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")
                 tg("\\n".join(tg_parts))
                 balance_before, _ = await get_balance(client)
-                # Получаем цену входа для хеджирования
+                # Получаем цену входа для хеджирования (берём из уже полученных свечей)
                 entry_price = 0.0
                 try:
-                    _ec = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=1)
-                    if _ec:
-                        entry_price = float(_ec[-1].close)
+                    if candles:
+                        entry_price = float(candles[-1][3])  # close текущей свечи
                 except Exception:
                     pass
                 order_id = await place_trade(client, signal, bet)
                 if order_id:
-                    # Запускаем хедж-монитор параллельно с ожиданием результата
+                    # Запускаем хедж и расширение прибыли параллельно ДО ожидания результата
                     hedge_task = asyncio.create_task(
                         hedge_monitor(client, signal, bet, entry_price, EXPIRY_SEC)
                     ) if entry_price > 0 else None
-                    won, profit, loss_amount = await check_result(client, order_id, balance_before, bet)
-                    # Ждём хедж и расширение прибыли параллельно
                     ext_task = asyncio.create_task(
                         profit_extension_monitor(client, signal, bet, entry_price, EXPIRY_SEC)
                     ) if entry_price > 0 else None
+                    won, profit, loss_amount = await check_result(client, order_id, balance_before, bet)
                     if hedge_task:
                         hedge_order_id, hedge_bet = await hedge_task
                         if hedge_order_id:

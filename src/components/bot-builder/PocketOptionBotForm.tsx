@@ -980,14 +980,14 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
             {/* Trend mode */}
             <div className="space-y-2 pt-1">
               <Label className="text-zinc-300 text-sm">Режим анализа свечей</Label>
-              <p className="text-zinc-500 text-xs font-space-mono">Как бот читает 2 последних свечи перед входом</p>
+              <p className="text-zinc-500 text-xs font-space-mono">Бот смотрит на 3 последних закрытых свечи</p>
               <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={() => set({ trendMode: "same" })}
                   className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.trendMode ?? "same") === "same" ? "border-green-500/60 bg-green-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
                 >
-                  <span className="text-sm font-medium text-zinc-200">🟢🟢 / 🔴🔴</span>
-                  <span className="text-xs font-space-mono text-zinc-500">Одинаковые</span>
+                  <span className="text-sm font-medium text-zinc-200">🟢🟢🟢 / 🔴🔴🔴</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Тренд</span>
                 </button>
                 <button
                   onClick={() => set({ trendMode: "reverse" })}
@@ -1004,6 +1004,22 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                   <span className="text-xs font-space-mono text-zinc-500">Все паттерны</span>
                 </button>
               </div>
+              {/* Подсказка по выбранному режиму */}
+              {(config.trendMode ?? "same") === "same" && (
+                <div className="bg-green-950/30 border border-green-500/20 rounded-lg px-3 py-2 text-xs font-space-mono text-green-300/80">
+                  ✅ Вход только когда <b>все 3 последних свечи</b> одного цвета — чёткий тренд подтверждён. Меньше сигналов, но точнее.
+                </div>
+              )}
+              {(config.trendMode ?? "same") === "reverse" && (
+                <div className="bg-blue-950/30 border border-blue-500/20 rounded-lg px-3 py-2 text-xs font-space-mono text-blue-300/80">
+                  🔄 Вход на <b>смене направления</b>: предпоследняя и последняя свечи — разного цвета. Работает на флете и после сильного движения.
+                </div>
+              )}
+              {(config.trendMode ?? "same") === "any" && (
+                <div className="bg-purple-950/30 border border-purple-500/20 rounded-lg px-3 py-2 text-xs font-space-mono text-purple-300/80">
+                  ⚡ Бот входит при <b>любом паттерне</b> — и по тренду, и на разворотах. Больше сделок, но ниже точность. Лучше использовать с сильной стратегией.
+                </div>
+              )}
             </div>
             {config.comboStrategies.includes("support_resistance") && (
               <div className="flex items-center gap-2 bg-purple-950/40 border border-purple-500/30 rounded-lg px-3 py-2">

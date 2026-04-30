@@ -916,25 +916,27 @@ def candle_color(c):
 
 def get_trend(candles):
     closed = candles[:-1]
-    if len(closed) < 2:
+    if len(closed) < 3:
         return None
-    window = closed[-5:] if len(closed) >= 5 else closed
-    colors = [candle_color(c) for c in window]
-    ups   = colors.count("UP")
-    downs = colors.count("DOWN")
-    last  = candle_color(closed[-1])
-    prev  = candle_color(closed[-2])
+    window3 = closed[-3:]
+    c1, c2, c3 = [candle_color(c) for c in window3]
     cur   = candles[-1]
-    bar   = "".join("🟢" if col == "UP" else "🔴" for col in colors)
+    window5 = closed[-5:] if len(closed) >= 5 else closed
+    colors5 = [candle_color(c) for c in window5]
+    ups5   = colors5.count("UP")
+    downs5 = colors5.count("DOWN")
+    bar   = "".join("🟢" if col == "UP" else "🔴" for col in colors5)
     cur_emoji = "🟢" if cur[3] >= cur[0] else "🔴"
-    print(f"[СВЕЧИ] таймфрейм={EXPIRY_SEC}с ({EXPIRY_SEC//60}мин) | последние {len(window)} свечей: {bar} (▲{ups}/▼{downs}) | текущая: {cur_emoji}")
-    if ups >= 3:
-        return "UP_UP" if last == "UP" else "DOWN_UP"
-    if downs >= 3:
-        return "DOWN_DOWN" if last == "DOWN" else "UP_DOWN"
-    if prev == "DOWN" and last == "UP":
+    print(f"[СВЕЧИ] таймфрейм={EXPIRY_SEC}с ({EXPIRY_SEC//60}мин) | последние {len(window5)} свечей: {bar} (▲{ups5}/▼{downs5}) | текущая: {cur_emoji}")
+    # Тренд: все 3 последних свечи одного цвета
+    if c1 == "UP" and c2 == "UP" and c3 == "UP":
+        return "UP_UP"
+    if c1 == "DOWN" and c2 == "DOWN" and c3 == "DOWN":
+        return "DOWN_DOWN"
+    # Разворот: предпоследняя и последняя разного цвета
+    if c2 == "DOWN" and c3 == "UP":
         return "DOWN_UP"
-    if prev == "UP" and last == "DOWN":
+    if c2 == "UP" and c3 == "DOWN":
         return "UP_DOWN"
     return None
 
@@ -2058,25 +2060,27 @@ def candle_color(c):
 
 def get_trend(candles):
     closed = candles[:-1]
-    if len(closed) < 2:
+    if len(closed) < 3:
         return None
-    window = closed[-5:] if len(closed) >= 5 else closed
-    colors = [candle_color(c) for c in window]
-    ups   = colors.count("UP")
-    downs = colors.count("DOWN")
-    last  = candle_color(closed[-1])
-    prev  = candle_color(closed[-2])
+    window3 = closed[-3:]
+    c1, c2, c3 = [candle_color(c) for c in window3]
     cur   = candles[-1]
-    bar   = "".join("🟢" if col == "UP" else "🔴" for col in colors)
+    window5 = closed[-5:] if len(closed) >= 5 else closed
+    colors5 = [candle_color(c) for c in window5]
+    ups5   = colors5.count("UP")
+    downs5 = colors5.count("DOWN")
+    bar   = "".join("🟢" if col == "UP" else "🔴" for col in colors5)
     cur_emoji = "🟢" if cur[3] >= cur[0] else "🔴"
-    print(f"[СВЕЧИ] таймфрейм={EXPIRY_SEC}с ({EXPIRY_SEC//60}мин) | последние {len(window)} свечей: {bar} (▲{ups}/▼{downs}) | текущая: {cur_emoji}")
-    if ups >= 3:
-        return "UP_UP" if last == "UP" else "DOWN_UP"
-    if downs >= 3:
-        return "DOWN_DOWN" if last == "DOWN" else "UP_DOWN"
-    if prev == "DOWN" and last == "UP":
+    print(f"[СВЕЧИ] таймфрейм={EXPIRY_SEC}с ({EXPIRY_SEC//60}мин) | последние {len(window5)} свечей: {bar} (▲{ups5}/▼{downs5}) | текущая: {cur_emoji}")
+    # Тренд: все 3 последних свечи одного цвета
+    if c1 == "UP" and c2 == "UP" and c3 == "UP":
+        return "UP_UP"
+    if c1 == "DOWN" and c2 == "DOWN" and c3 == "DOWN":
+        return "DOWN_DOWN"
+    # Разворот: предпоследняя и последняя разного цвета
+    if c2 == "DOWN" and c3 == "UP":
         return "DOWN_UP"
-    if prev == "UP" and last == "DOWN":
+    if c2 == "UP" and c3 == "DOWN":
         return "UP_DOWN"
     return None
 

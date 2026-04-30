@@ -1075,7 +1075,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
           <div className="flex items-center justify-between">
             <div>
               <Label className="text-zinc-300 text-sm">Ставка в % от баланса</Label>
-              <p className="text-zinc-500 text-xs font-space-mono">Иначе — фиксированная сумма в USD</p>
+              <p className="text-zinc-500 text-xs font-space-mono">Иначе — фиксированная сумма в валюте счёта</p>
             </div>
             <Switch checked={config.betPercent} onCheckedChange={(v) => set({ betPercent: v })} />
           </div>
@@ -1103,7 +1103,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
             <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Валюта счёта</Label>
             <Select value={config.currency} onValueChange={(v) => {
               const defaults: Record<string, { betAmount: number; takeProfitRub: number; stopLossRub: number }> = {
-                RUB: { betAmount: 500, takeProfitRub: 3000, stopLossRub: 1500 },
+                RUB: { betAmount: 100, takeProfitRub: 3000, stopLossRub: 1500 },
                 USD: { betAmount: 5,   takeProfitRub: 30,   stopLossRub: 15   },
                 EUR: { betAmount: 5,   takeProfitRub: 30,   stopLossRub: 15   },
                 BRL: { betAmount: 25,  takeProfitRub: 150,  stopLossRub: 75   },

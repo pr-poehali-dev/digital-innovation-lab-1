@@ -939,6 +939,7 @@ hedge_count   = 0
 hedge_wins    = 0
 ext_count     = 0
 ext_wins      = 0
+cur_streak    = 0   # >0 = серия побед, <0 = серия поражений
 ${martingaleBlock}
 # ===== ТРЕНД ПО 2 ПОСЛЕДНИМ СВЕЧАМ =====
 _last_trend = None
@@ -1577,8 +1578,13 @@ async def main():
             trend_str = _tlbls.get(trend, "— нет паттерна")
             sig_str = signal if signal else "нет"
             sig_emoji = "📈" if signal == "CALL" else ("📉" if signal == "PUT" else "⏸")
+            _bal_now, _cur_now = await get_balance(client)
+            _wins_now = sum(1 for t in trade_log if t["won"])
+            _wr_now = f"{_wins_now/len(trade_log)*100:.0f}%" if trade_log else "—"
+            _streak_now = (f"🔥{cur_streak}п" if cur_streak > 1 else (f"❄️{abs(cur_streak)}п" if cur_streak < -1 else ("✅1" if cur_streak == 1 else ("❌1" if cur_streak == -1 else "—"))))
             print(f"{'='*55}")
-            print(f"[ИТОГ {ts}] Тренд: {trend_str} | Сигнал стратегии: {sig_emoji} {sig_str}")
+            print(f"[ИТОГ {ts}] Тренд: {trend_str} | Сигнал: {sig_emoji} {sig_str}")
+            print(f"[СЧЁТ]     Баланс: {_bal_now:.2f} {_cur_now} | WR: {_wr_now} ({_wins_now}/{len(trade_log)}) | Серия: {_streak_now} | Профит сессии: {total_profit:+.2f}")
 
             if signal:
                 labels = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "DOWN_UP": "🔴🟢", "UP_DOWN": "🟢🔴"}
@@ -1683,9 +1689,21 @@ async def main():
                     })
                     wins  = sum(1 for t in trade_log if t["won"])
                     wr    = wins / len(trade_log) * 100
+                    # Обновляем серию
+                    if won:
+                        cur_streak = cur_streak + 1 if cur_streak > 0 else 1
+                    else:
+                        cur_streak = cur_streak - 1 if cur_streak < 0 else -1
+                    streak_str = (f"🔥 {cur_streak} подряд" if cur_streak > 1 else (f"❄️ {abs(cur_streak)} подряд" if cur_streak < -1 else ""))
                     res_emoji = "✅" if won else "❌"
                     hedge_stat = f" | 🛡 {hedge_wins}/{hedge_count}" if hedge_count > 0 else ""
                     ext_stat   = f" | 📈 {ext_wins}/{ext_count}" if ext_count > 0 else ""
+                    streak_log = f" | {streak_str}" if streak_str else ""
+                    balance_after, _ = await get_balance(client)
+                    print(f"{'='*55}")
+                    print(f"[РЕЗУЛЬТАТ] {res_emoji} {'ПОБЕДА' if won else 'ПОРАЖЕНИЕ'} | {profit:+.2f} {currency} | баланс: {balance_after:.2f} {currency}{streak_log}")
+                    print(f"[СЕССИЯ]   Сделок: {len(trade_log)} | WR: {wr:.0f}% ({wins}/{len(trade_log)}) | Профит: {total_profit:+.2f} {currency}")
+                    print(f"{'='*55}")
                     tg(f"{res_emoji} <b>[{BOT_NAME}] {'Выигрыш' if won else 'Проигрыш'}</b>\\n{signal} | {bet} {currency} | {ASSET}\\nПрофит: {profit:+.2f} {currency}\\nСессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)}){hedge_stat}{ext_stat}")
                     print_stats()
             else:
@@ -2111,6 +2129,7 @@ hedge_count   = 0
 hedge_wins    = 0
 ext_count     = 0
 ext_wins      = 0
+cur_streak    = 0   # >0 = серия побед, <0 = серия поражений
 ${martingaleBlock}
 # ===== ТРЕНД ПО 2 ПОСЛЕДНИМ СВЕЧАМ =====
 _last_trend = None
@@ -2476,8 +2495,13 @@ async def main():
         trend_str2 = _tlbls2.get(trend, "— нет паттерна")
         sig_str2 = signal if signal else "нет"
         sig_emoji2 = "📈" if signal == "CALL" else ("📉" if signal == "PUT" else "⏸")
+        _bal_now2, _cur_now2 = await get_balance(client)
+        _wins_now2 = sum(1 for t in trade_log if t["won"])
+        _wr_now2 = f"{_wins_now2/len(trade_log)*100:.0f}%" if trade_log else "—"
+        _streak_now2 = (f"🔥{cur_streak}п" if cur_streak > 1 else (f"❄️{abs(cur_streak)}п" if cur_streak < -1 else ("✅1" if cur_streak == 1 else ("❌1" if cur_streak == -1 else "—"))))
         print(f"{'='*55}")
         print(f"[ИТОГ {ts}] Тренд: {trend_str2} | Сигнал: {sig_emoji2} {sig_str2}")
+        print(f"[СЧЁТ]     Баланс: {_bal_now2:.2f} {_cur_now2} | WR: {_wr_now2} ({_wins_now2}/{len(trade_log)}) | Серия: {_streak_now2} | Профит сессии: {total_profit:+.2f}")
 
         if signal:
             labels = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "DOWN_UP": "🔴🟢", "UP_DOWN": "🟢🔴"}

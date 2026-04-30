@@ -377,10 +377,16 @@ def get_signal(prices, candles=None):
     oversold  = rsi <= ${cfg.rsiOversold}
     overbought = rsi >= ${cfg.rsiOverbought}
     info = f"RSI(${cfg.rsiPeriod}): {rsi:.1f}"
+    print(f"[СИГНАЛ] RSI({cfg.rsiPeriod}) = {rsi:.2f} | перепроданность ≤{cfg.rsiOversold}: {'✅' if oversold else '❌'} | перекупленность ≥{cfg.rsiOverbought}: {'✅' if overbought else '❌'}")
     if oversold:
-        return ("CALL" if ${cfg.trendFollow !== "reverse" ? "True" : "False"} else "PUT"), f"{info} ≤ ${cfg.rsiOversold} (перепроданность)"
+        sig = ("CALL" if ${cfg.trendFollow !== "reverse" ? "True" : "False"} else "PUT")
+        print(f"[СИГНАЛ] → {sig} (RSI {rsi:.1f} ≤ ${cfg.rsiOversold}, перепроданность)")
+        return sig, f"{info} ≤ ${cfg.rsiOversold} (перепроданность)"
     if overbought:
-        return ("PUT" if ${cfg.trendFollow !== "reverse" ? "True" : "False"} else "CALL"), f"{info} ≥ ${cfg.rsiOverbought} (перекупленность)"
+        sig = ("PUT" if ${cfg.trendFollow !== "reverse" ? "True" : "False"} else "CALL")
+        print(f"[СИГНАЛ] → {sig} (RSI {rsi:.1f} ≥ ${cfg.rsiOverbought}, перекупленность)")
+        return sig, f"{info} ≥ ${cfg.rsiOverbought} (перекупленность)"
+    print(f"[СИГНАЛ] → нет сигнала (RSI {rsi:.1f} в нейтральной зоне {cfg.rsiOversold}–{cfg.rsiOverbought})")
     return None, info`,
 
     ema_cross: `
@@ -402,10 +408,17 @@ def get_signal(prices, candles=None):
     cross_up = ema_fast[-1] > ema_slow[-1] and ema_fast[-2] <= ema_slow[-2]
     cross_down = ema_fast[-1] < ema_slow[-1] and ema_fast[-2] >= ema_slow[-2]
     info = f"EMA${cfg.emaFast}={ema_fast[-1]:.5f} / EMA${cfg.emaSlow}={ema_slow[-1]:.5f}"
+    diff = ema_fast[-1] - ema_slow[-1]
+    print(f"[СИГНАЛ] EMA${cfg.emaFast}={ema_fast[-1]:.5f} | EMA${cfg.emaSlow}={ema_slow[-1]:.5f} | разница={diff:+.5f} | пересечение вверх: {'✅' if cross_up else '❌'} | вниз: {'✅' if cross_down else '❌'}")
     if cross_up:
-        return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", f"{info} (пересечение вверх ↑)"
+        sig = "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}"
+        print(f"[СИГНАЛ] → {sig} (EMA пересечение вверх ↑)")
+        return sig, f"{info} (пересечение вверх ↑)"
     if cross_down:
-        return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", f"{info} (пересечение вниз ↓)"
+        sig = "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}"
+        print(f"[СИГНАЛ] → {sig} (EMA пересечение вниз ↓)")
+        return sig, f"{info} (пересечение вниз ↓)"
+    print(f"[СИГНАЛ] → нет сигнала (пересечения не было, разница {diff:+.5f})")
     return None, info`,
 
     ema_trend: `
@@ -426,10 +439,17 @@ def get_signal(prices, candles=None):
     ema_slow = calculate_ema(prices, ${cfg.emaSlow})
     above = ema_fast[-1] > ema_slow[-1]
     info = f"EMA${cfg.emaFast}={ema_fast[-1]:.5f} / EMA${cfg.emaSlow}={ema_slow[-1]:.5f}"
+    diff = ema_fast[-1] - ema_slow[-1]
+    direction = "выше ↑" if above else "ниже ↓"
+    print(f"[СИГНАЛ] EMA${cfg.emaFast}={ema_fast[-1]:.5f} | EMA${cfg.emaSlow}={ema_slow[-1]:.5f} | разница={diff:+.5f} | EMA${cfg.emaFast} {direction} EMA${cfg.emaSlow}")
     if above:
-        return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", f"{info} (EMA${cfg.emaFast} > EMA${cfg.emaSlow} ↑)"
+        sig = "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}"
+        print(f"[СИГНАЛ] → {sig} (EMA${cfg.emaFast} > EMA${cfg.emaSlow})")
+        return sig, f"{info} (EMA${cfg.emaFast} > EMA${cfg.emaSlow} ↑)"
     else:
-        return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", f"{info} (EMA${cfg.emaFast} < EMA${cfg.emaSlow} ↓)"`,
+        sig = "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}"
+        print(f"[СИГНАЛ] → {sig} (EMA${cfg.emaFast} < EMA${cfg.emaSlow})")
+        return sig, f"{info} (EMA${cfg.emaFast} < EMA${cfg.emaSlow} ↓)"`,
 
     martingale: `
 def get_signal(prices, candles=None):
@@ -446,10 +466,14 @@ def get_signal(prices, candles=None):
     calls = moves.count("CALL")
     puts  = moves.count("PUT")
     info  = f"Свечи: {calls} вверх / {puts} вниз из 3"
+    print(f"[СИГНАЛ] Мартингейл: последние 3 свечи — вверх={calls}, вниз={puts}")
     if calls >= 2:
+        print(f"[СИГНАЛ] → CALL (большинство вверх {calls}/3)")
         return "CALL", f"{info} → большинство вверх"
     if puts >= 2:
+        print(f"[СИГНАЛ] → PUT (большинство вниз {puts}/3)")
         return "PUT", f"{info} → большинство вниз"
+    print(f"[СИГНАЛ] → нет сигнала (ничья {calls}/{puts})")
     return None, info`,
 
     candle_pattern: `
@@ -463,18 +487,26 @@ def get_signal(prices, candles=None):
     body2 = abs(c2 - o2)
     lower_shadow = min(o2, c2) - l2
     upper_shadow = h2 - max(o2, c2)
+    e1 = "🟢" if c1 >= o1 else "🔴"
+    e2 = "🟢" if c2 >= o2 else "🔴"
+    print(f"[СИГНАЛ] Паттерны: свеча-2={e1} o={o1:.5f} c={c1:.5f} | свеча-1={e2} o={o2:.5f} c={c2:.5f} | тело={body2:.5f} нижн.фитиль={lower_shadow:.5f} верхн.фитиль={upper_shadow:.5f}")
     # Молот — разворот вверх
     if lower_shadow > body2 * 2 and upper_shadow < body2 * 0.5 and c1 < o1:
+        print(f"[СИГНАЛ] → CALL (🔨 Молот: нижний фитиль {lower_shadow:.5f} > тело*2 {body2*2:.5f})")
         return "CALL", "Паттерн: 🔨 Молот (разворот вверх)"
     # Падающая звезда — разворот вниз
     if upper_shadow > body2 * 2 and lower_shadow < body2 * 0.5 and c1 > o1:
+        print(f"[СИГНАЛ] → PUT (⭐ Падающая звезда: верхний фитиль {upper_shadow:.5f} > тело*2 {body2*2:.5f})")
         return "PUT", "Паттерн: ⭐ Падающая звезда (разворот вниз)"
     # Бычье поглощение
     if c1 < o1 and c2 > o2 and c2 > o1 and o2 < c1:
+        print(f"[СИГНАЛ] → CALL (🟢 Бычье поглощение: c2={c2:.5f} > o1={o1:.5f})")
         return "CALL", "Паттерн: 🟢 Бычье поглощение"
     # Медвежье поглощение
     if c1 > o1 and c2 < o2 and c2 < o1 and o2 > c1:
+        print(f"[СИГНАЛ] → PUT (🔴 Медвежье поглощение: c2={c2:.5f} < o1={o1:.5f})")
         return "PUT", "Паттерн: 🔴 Медвежье поглощение"
+    print(f"[СИГНАЛ] → нет паттерна")
     return None, ""`,
 
     support_resistance: `
@@ -549,14 +581,20 @@ def get_signal(prices, candles=None):
     nearest_sup = max(all_supports) if all_supports else None
     nearest_res = min(all_resistances) if all_resistances else None
     threshold = max(current * 0.0008, 0.00005)
+    sup_info = f"{nearest_sup:.5f}" if nearest_sup else "нет"
+    res_info = f"{nearest_res:.5f}" if nearest_res else "нет"
+    sup_dist = f"{abs(current-nearest_sup):.5f}" if nearest_sup else "—"
+    res_dist = f"{abs(current-nearest_res):.5f}" if nearest_res else "—"
+    print(f"[СИГНАЛ] S/R: цена={current:.5f} | ближ.поддержка={sup_info} (расст.={sup_dist}) | ближ.сопротивление={res_info} (расст.={res_dist}) | порог={threshold:.5f}")
     if nearest_sup and abs(current - nearest_sup) < threshold:
         src = "ручной" if nearest_sup in manual else ("сетка" if SR_STEP > 0 and nearest_sup in step_levels else "авто")
+        print(f"[СИГНАЛ] → CALL (цена {current:.5f} у поддержки {nearest_sup:.5f} [{src}], расстояние {abs(current-nearest_sup):.5f} < порог {threshold:.5f})")
         return "CALL", f"Цена {current:.5f} у поддержки {nearest_sup:.5f} [{src}] → отскок вверх"
     if nearest_res and abs(current - nearest_res) < threshold:
         src = "ручной" if nearest_res in manual else ("сетка" if SR_STEP > 0 and nearest_res in step_levels else "авто")
+        print(f"[СИГНАЛ] → PUT (цена {current:.5f} у сопротивления {nearest_res:.5f} [{src}], расстояние {abs(current-nearest_res):.5f} < порог {threshold:.5f})")
         return "PUT", f"Цена {current:.5f} у сопротивления {nearest_res:.5f} [{src}] → отскок вниз"
-    sup_info = f"{nearest_sup:.5f}" if nearest_sup else "нет"
-    res_info = f"{nearest_res:.5f}" if nearest_res else "нет"
+    print(f"[СИГНАЛ] → нет сигнала (цена далеко от уровней)")
     return None, f"Цена {current:.5f} | ближ.sup={sup_info} res={res_info}"`,
   }
 

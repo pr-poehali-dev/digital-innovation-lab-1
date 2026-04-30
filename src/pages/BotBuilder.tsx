@@ -70,8 +70,17 @@ export default function BotBuilder() {
   }
 
   // Pocket Option state — Bot 2
-  const [dualMode, setDualMode] = useState(false)
-  const [poConfig2, setPoConfig2] = useState<POBotConfig>({ ...PO_DEFAULT_CONFIG, botName: "Бот 2", strategy: "ema_cross", betAmount: 1, tgToken: savedTg.tgToken || "", tgChatId: savedTg.tgChatId || "" })
+  const [dualMode, setDualMode] = useState(true)
+  const [poConfig2, setPoConfig2] = useState<POBotConfig>({
+    ...PO_DEFAULT_CONFIG,
+    botName: "Бот 2",
+    comboMode: true,
+    comboLogic: "OR",
+    comboStrategies: ["rsi_reversal", "ema_cross", "ema_trend", "support_resistance"],
+    trendMode: "any",
+    tgToken: savedTg.tgToken || "",
+    tgChatId: savedTg.tgChatId || "",
+  })
 
   // Автосохранение TG настроек при изменении + синхронизация валюты и TG с Bot2
   useEffect(() => {

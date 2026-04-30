@@ -300,9 +300,9 @@ export const PO_EXPIRY_LABELS: Record<POExpiry, string> = {
 export const PO_DEFAULT_CONFIG: POBotConfig = {
   botName: "Бот 1",
   strategy: "rsi_reversal",
-  comboMode: false,
-  comboStrategies: ["rsi_reversal", "ema_cross"],
-  comboLogic: "AND",
+  comboMode: true,
+  comboStrategies: ["rsi_reversal", "ema_cross", "ema_trend", "support_resistance"],
+  comboLogic: "OR",
   asset: "EUR/USD (OTC)",
   expiry: "1",
   betAmount: 100,
@@ -319,7 +319,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   emaFast: 9,
   emaSlow: 21,
   emaTrendMode: "ema9_21",
-  trendMode: "same",
+  trendMode: "any",
   trendFollow: "follow",
   useOTC: true,
   autoRestart: false,
@@ -1027,7 +1027,7 @@ async def try_get_candles(client, asset_name):
     """Попытка получить свечи, с авто-переподключением при обрыве"""
     for attempt in range(3):
         try:
-            raw = await client.get_candles(asset=asset_name, timeframe=EXPIRY_SEC, count=100)
+            raw = await client.get_candles(asset=asset_name, timeframe=60, count=60)
             if raw:
                 return raw
             return None  # пустой ответ — актив не найден, не повторяем

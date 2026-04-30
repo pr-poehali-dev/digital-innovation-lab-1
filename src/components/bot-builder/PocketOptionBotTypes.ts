@@ -920,6 +920,12 @@ def get_trend(candles):
         return None
     window3 = closed[-3:]
     c1, c2, c3 = [candle_color(c) for c in window3]
+    e1 = "🟢" if c1 == "UP" else "🔴"
+    e2 = "🟢" if c2 == "UP" else "🔴"
+    e3 = "🟢" if c3 == "UP" else "🔴"
+    w1, w2, w3 = window3
+    def fmt(c, e):
+        return f"{e} o={c[0]:.5f} c={c[3]:.5f} Δ={c[3]-c[0]:+.5f}"
     cur   = candles[-1]
     window5 = closed[-5:] if len(closed) >= 5 else closed
     colors5 = [candle_color(c) for c in window5]
@@ -928,16 +934,24 @@ def get_trend(candles):
     bar   = "".join("🟢" if col == "UP" else "🔴" for col in colors5)
     cur_emoji = "🟢" if cur[3] >= cur[0] else "🔴"
     print(f"[СВЕЧИ] таймфрейм={EXPIRY_SEC}с ({EXPIRY_SEC//60}мин) | последние {len(window5)} свечей: {bar} (▲{ups5}/▼{downs5}) | текущая: {cur_emoji}")
+    print(f"[АНАЛИЗ] Свеча -3: {fmt(w1, e1)}")
+    print(f"[АНАЛИЗ] Свеча -2: {fmt(w2, e2)}")
+    print(f"[АНАЛИЗ] Свеча -1: {fmt(w3, e3)}  ← последняя закрытая")
     # Тренд: все 3 последних свечи одного цвета
     if c1 == "UP" and c2 == "UP" and c3 == "UP":
+        print(f"[ТРЕНД]  {e1}{e2}{e3} → UP_UP (3 зелёных подряд)")
         return "UP_UP"
     if c1 == "DOWN" and c2 == "DOWN" and c3 == "DOWN":
+        print(f"[ТРЕНД]  {e1}{e2}{e3} → DOWN_DOWN (3 красных подряд)")
         return "DOWN_DOWN"
     # Разворот: предпоследняя и последняя разного цвета
     if c2 == "DOWN" and c3 == "UP":
+        print(f"[ТРЕНД]  {e1}{e2}{e3} → DOWN_UP (разворот вверх)")
         return "DOWN_UP"
     if c2 == "UP" and c3 == "DOWN":
+        print(f"[ТРЕНД]  {e1}{e2}{e3} → UP_DOWN (разворот вниз)")
         return "UP_DOWN"
+    print(f"[ТРЕНД]  {e1}{e2}{e3} → нет чёткого паттерна, пропуск")
     return None
 
 def trend_to_signal(trend):
@@ -2064,6 +2078,12 @@ def get_trend(candles):
         return None
     window3 = closed[-3:]
     c1, c2, c3 = [candle_color(c) for c in window3]
+    e1 = "🟢" if c1 == "UP" else "🔴"
+    e2 = "🟢" if c2 == "UP" else "🔴"
+    e3 = "🟢" if c3 == "UP" else "🔴"
+    w1, w2, w3 = window3
+    def fmt(c, e):
+        return f"{e} o={c[0]:.5f} c={c[3]:.5f} Δ={c[3]-c[0]:+.5f}"
     cur   = candles[-1]
     window5 = closed[-5:] if len(closed) >= 5 else closed
     colors5 = [candle_color(c) for c in window5]
@@ -2072,16 +2092,24 @@ def get_trend(candles):
     bar   = "".join("🟢" if col == "UP" else "🔴" for col in colors5)
     cur_emoji = "🟢" if cur[3] >= cur[0] else "🔴"
     print(f"[СВЕЧИ] таймфрейм={EXPIRY_SEC}с ({EXPIRY_SEC//60}мин) | последние {len(window5)} свечей: {bar} (▲{ups5}/▼{downs5}) | текущая: {cur_emoji}")
+    print(f"[АНАЛИЗ] Свеча -3: {fmt(w1, e1)}")
+    print(f"[АНАЛИЗ] Свеча -2: {fmt(w2, e2)}")
+    print(f"[АНАЛИЗ] Свеча -1: {fmt(w3, e3)}  ← последняя закрытая")
     # Тренд: все 3 последних свечи одного цвета
     if c1 == "UP" and c2 == "UP" and c3 == "UP":
+        print(f"[ТРЕНД]  {e1}{e2}{e3} → UP_UP (3 зелёных подряд)")
         return "UP_UP"
     if c1 == "DOWN" and c2 == "DOWN" and c3 == "DOWN":
+        print(f"[ТРЕНД]  {e1}{e2}{e3} → DOWN_DOWN (3 красных подряд)")
         return "DOWN_DOWN"
     # Разворот: предпоследняя и последняя разного цвета
     if c2 == "DOWN" and c3 == "UP":
+        print(f"[ТРЕНД]  {e1}{e2}{e3} → DOWN_UP (разворот вверх)")
         return "DOWN_UP"
     if c2 == "UP" and c3 == "DOWN":
+        print(f"[ТРЕНД]  {e1}{e2}{e3} → UP_DOWN (разворот вниз)")
         return "UP_DOWN"
+    print(f"[ТРЕНД]  {e1}{e2}{e3} → нет чёткого паттерна, пропуск")
     return None
 
 def trend_to_signal(trend):

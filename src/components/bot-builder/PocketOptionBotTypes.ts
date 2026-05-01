@@ -2386,6 +2386,186 @@ async def get_balance(client):
     except:
         return 0.0, CURRENCY
 
+async def hedge_monitor(client, original_direction, original_bet, entry_price, expiry_sec):
+    """Хеджирование при уходе цены против позиции."""
+    if not ${cfg.hedgeEnabled ? "True" : "False"}:
+        return None, 0.0
+    _pip_map = {
+        "EURUSD": 8, "GBPUSD": 10, "USDJPY": 9, "USDCHF": 9, "USDCAD": 9, "AUDUSD": 9, "NZDUSD": 9,
+        "EURUSD_otc": 8, "GBPUSD_otc": 10, "USDJPY_otc": 9, "USDCHF_otc": 9, "USDCAD_otc": 9, "AUDUSD_otc": 9, "NZDUSD_otc": 9,
+        "GBPJPY": 20, "GBPJPY_otc": 20, "EURJPY": 15, "EURJPY_otc": 15, "EURGBP": 10, "EURGBP_otc": 10,
+        "GBPAUD": 18, "GBPAUD_otc": 18, "GBPCAD": 16, "GBPCAD_otc": 16, "GBPCHF": 14, "GBPCHF_otc": 14,
+        "AUDCAD_otc": 12, "AUDCHF_otc": 11, "AUDJPY_otc": 14, "AUDNZD_otc": 13,
+        "CADJPY_otc": 13, "CADCHF_otc": 10, "CHFJPY_otc": 14,
+        "NZDJPY_otc": 14, "NZDCAD_otc": 12, "NZDCHF_otc": 11, "EURNZD_otc": 14,
+        "GBPNZD_otc": 22, "EURCAD_otc": 13, "EURCHF_otc": 11,
+        "BTCUSD": 150, "BTCUSD_otc": 150, "ETHUSD": 60, "ETHUSD_otc": 60,
+        "LTCUSD_otc": 30, "DOTUSD": 20, "LNKUSD": 15, "BTCGBP": 150, "BTCJPY": 150, "BCHEUR": 40, "DASH_USD": 30,
+        "XAUUSD": 25, "XAUUSD_otc": 25, "XAGUSD": 15, "XAGUSD_otc": 15,
+        "UKBrent": 12, "UKBrent_otc": 12, "USCrude": 12, "USCrude_otc": 12,
+        "XNGUSD": 10, "XNGUSD_otc": 10, "XPTUSD": 20, "XPTUSD_otc": 20, "XPDUSD": 25,
+        "SP500": 8, "SP500_otc": 8, "NASUSD": 15, "NASUSD_otc": 15,
+        "DJI30": 10, "DJI30_otc": 10, "JPN225": 25, "JPN225_otc": 25,
+        "D30EUR": 15, "D30EUR_otc": 15, "F40EUR": 12, "F40EUR_otc": 12,
+        "E50EUR": 12, "E50EUR_otc": 12, "AUS200": 12, "AUS200_otc": 12, "100GBP": 12, "100GBP_otc": 12, "CAC40": 12,
+        "#AAPL_otc": 20, "#TSLA_otc": 40, "#NVDA_otc": 35, "#AMZN_otc": 25,
+        "#MSFT_otc": 20, "#GOOG_otc": 25, "#META_otc": 30, "#NFLX_otc": 40,
+        "#GME_otc": 50, "#V_otc": 15, "#XOM_otc": 15, "#MCD_otc": 15, "#INTC_otc": 15, "#BA_otc": 25,
+    }
+    _pip_size_map = {
+        "USDJPY": 0.01, "USDJPY_otc": 0.01, "GBPJPY": 0.01, "GBPJPY_otc": 0.01,
+        "EURJPY": 0.01, "EURJPY_otc": 0.01, "AUDJPY_otc": 0.01, "CADJPY_otc": 0.01,
+        "CHFJPY_otc": 0.01, "NZDJPY_otc": 0.01, "JPN225": 1.0, "JPN225_otc": 1.0,
+        "BTCUSD": 1.0, "BTCUSD_otc": 1.0, "ETHUSD": 1.0, "ETHUSD_otc": 1.0,
+        "LTCUSD_otc": 0.1, "DOTUSD": 0.01, "LNKUSD": 0.01, "BTCGBP": 1.0, "BTCJPY": 1.0, "BCHEUR": 0.1, "DASH_USD": 0.1,
+        "SP500": 0.1, "SP500_otc": 0.1, "NASUSD": 0.1, "NASUSD_otc": 0.1,
+        "DJI30": 1.0, "DJI30_otc": 1.0, "D30EUR": 1.0, "D30EUR_otc": 1.0,
+        "F40EUR": 1.0, "F40EUR_otc": 1.0, "E50EUR": 1.0, "AUS200": 0.1, "AUS200_otc": 0.1,
+        "100GBP": 0.1, "100GBP_otc": 0.1, "CAC40": 0.1,
+        "XAUUSD": 0.1, "XAUUSD_otc": 0.1, "XAGUSD": 0.01, "XAGUSD_otc": 0.01,
+        "XPTUSD": 0.1, "XPTUSD_otc": 0.1, "XPDUSD": 0.1,
+        "UKBrent": 0.01, "UKBrent_otc": 0.01, "USCrude": 0.01, "USCrude_otc": 0.01, "XNGUSD": 0.001,
+        "#AAPL_otc": 0.01, "#TSLA_otc": 0.01, "#NVDA_otc": 0.01, "#AMZN_otc": 0.01,
+        "#MSFT_otc": 0.01, "#GOOG_otc": 0.01, "#META_otc": 0.01, "#NFLX_otc": 0.01,
+        "#GME_otc": 0.01, "#V_otc": 0.01, "#XOM_otc": 0.01, "#MCD_otc": 0.01, "#INTC_otc": 0.01, "#BA_otc": 0.01,
+    }
+    _asset_key = (_resolved_asset or ASSET)
+    HEDGE_PIP_THRESHOLD = _pip_map.get(_asset_key, ${cfg.hedgePipThreshold})
+    HEDGE_POWER_MULT    = ${cfg.hedgePowerMultiplier}
+    PIP_SIZE            = _pip_size_map.get(_asset_key, 0.0001)
+    check_interval = ${cfg.hedgeCheckInterval}
+    print(f"[HEDGE] Инициализация | актив={_asset_key} | pip_size={PIP_SIZE} | порог={HEDGE_PIP_THRESHOLD} пип | цена входа={entry_price}")
+    opposite = "PUT" if original_direction == "CALL" else "CALL"
+    start_time = asyncio.get_event_loop().time()
+    while True:
+        await asyncio.sleep(check_interval)
+        elapsed = asyncio.get_event_loop().time() - start_time
+        if elapsed >= expiry_sec - check_interval:
+            break
+        try:
+            candles = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=${cfg.candleTimeframe ?? 60}, count=1)
+            if not candles:
+                continue
+            _hc = candles[-1]
+            if hasattr(_hc, 'close'):
+                current_price = float(_hc.close)
+            elif isinstance(_hc, dict):
+                current_price = float(_hc.get('close', _hc.get('c', 0)))
+            else:
+                current_price = float(_hc[3] if len(_hc) > 3 else _hc[1])
+            if current_price == 0.0:
+                continue
+            pips = round(abs(current_price - entry_price) / PIP_SIZE, 1)
+            went_against = (original_direction == "CALL" and current_price < entry_price) or \
+                           (original_direction == "PUT"  and current_price > entry_price)
+            if not went_against:
+                print(f"[HEDGE] Цена держится, хедж не нужен ({pips} пип)")
+                continue
+            time_ratio = elapsed / expiry_sec
+            if time_ratio >= 0.5 and pips >= HEDGE_PIP_THRESHOLD:
+                hedge_bet = round(original_bet * HEDGE_POWER_MULT, 2)
+                mode = "COMPLEX"
+            elif pips >= HEDGE_PIP_THRESHOLD:
+                hedge_bet = round(original_bet * HEDGE_POWER_MULT, 2)
+                mode = "POWER"
+            else:
+                hedge_bet = round(original_bet, 2)
+                mode = "SIMPLE"
+            remaining = max(30, int(expiry_sec - elapsed))
+            print(f"[HEDGE] {mode} | {pips} пип | {hedge_bet} | {opposite} | осталось {remaining}с")
+            tg(f"🛡 <b>[HEDGE {mode}]</b> {opposite} | {hedge_bet} | {pips} пип | осталось {remaining}с")
+            dir_val = OrderDirection.CALL if opposite == "CALL" else OrderDirection.PUT
+            order = await client.place_order(asset=(_resolved_asset or ASSET), amount=hedge_bet, direction=dir_val, duration=remaining)
+            print(f"[HEDGE] Открыт ID: {order.order_id}")
+            return order.order_id, hedge_bet
+        except Exception as e:
+            print(f"[HEDGE] Ошибка: {e}")
+    return None, 0.0
+
+async def profit_extension_monitor(client, original_direction, original_bet, entry_price, expiry_sec):
+    """Расширение прибыли при движении цены в нашу сторону."""
+    if not ${cfg.profitExtEnabled ? "True" : "False"}:
+        return []
+    _pip_map_ext = {
+        "EURUSD": 8, "GBPUSD": 10, "USDJPY": 9, "USDCHF": 9, "USDCAD": 9, "AUDUSD": 9, "NZDUSD": 9,
+        "EURUSD_otc": 8, "GBPUSD_otc": 10, "USDJPY_otc": 9, "USDCHF_otc": 9, "USDCAD_otc": 9, "AUDUSD_otc": 9, "NZDUSD_otc": 9,
+        "GBPJPY": 20, "GBPJPY_otc": 20, "EURJPY": 15, "EURJPY_otc": 15, "EURGBP": 10, "EURGBP_otc": 10,
+        "GBPAUD": 18, "GBPAUD_otc": 18, "GBPCAD": 16, "GBPCAD_otc": 16, "AUDCAD_otc": 12, "AUDJPY_otc": 14,
+        "CADJPY_otc": 13, "CHFJPY_otc": 14, "NZDJPY_otc": 14, "GBPNZD_otc": 22,
+        "BTCUSD": 150, "BTCUSD_otc": 150, "ETHUSD": 60, "ETHUSD_otc": 60,
+        "LTCUSD_otc": 30, "DOTUSD": 20, "LNKUSD": 15, "BTCGBP": 150, "DASH_USD": 30,
+        "XAUUSD": 25, "XAUUSD_otc": 25, "XAGUSD": 15, "XAGUSD_otc": 15,
+        "UKBrent": 12, "UKBrent_otc": 12, "USCrude": 12, "XNGUSD": 10, "XPTUSD": 20,
+        "SP500": 8, "SP500_otc": 8, "NASUSD": 15, "NASUSD_otc": 15, "DJI30": 10, "DJI30_otc": 10,
+        "JPN225": 25, "JPN225_otc": 25, "D30EUR": 15, "AUS200": 12, "AUS200_otc": 12,
+        "#AAPL_otc": 20, "#TSLA_otc": 40, "#NVDA_otc": 35, "#AMZN_otc": 25, "#MSFT_otc": 20,
+        "#GOOG_otc": 25, "#META_otc": 30, "#NFLX_otc": 40, "#GME_otc": 50,
+    }
+    _pip_size_map_ext = {
+        "USDJPY": 0.01, "USDJPY_otc": 0.01, "GBPJPY": 0.01, "GBPJPY_otc": 0.01,
+        "EURJPY": 0.01, "EURJPY_otc": 0.01, "AUDJPY_otc": 0.01, "CADJPY_otc": 0.01,
+        "CHFJPY_otc": 0.01, "NZDJPY_otc": 0.01, "JPN225": 1.0, "JPN225_otc": 1.0,
+        "BTCUSD": 1.0, "BTCUSD_otc": 1.0, "ETHUSD": 1.0, "ETHUSD_otc": 1.0,
+        "LTCUSD_otc": 0.1, "DOTUSD": 0.01, "LNKUSD": 0.01, "BTCGBP": 1.0, "DASH_USD": 0.1,
+        "SP500": 0.1, "SP500_otc": 0.1, "NASUSD": 0.1, "NASUSD_otc": 0.1,
+        "DJI30": 1.0, "DJI30_otc": 1.0, "D30EUR": 1.0, "AUS200": 0.1, "AUS200_otc": 0.1,
+        "XAUUSD": 0.1, "XAUUSD_otc": 0.1, "XAGUSD": 0.01, "XAGUSD_otc": 0.01,
+        "UKBrent": 0.01, "UKBrent_otc": 0.01, "USCrude": 0.01, "XNGUSD": 0.001,
+    }
+    _asset_key_ext = (_resolved_asset or ASSET)
+    EXT_PIPS = _pip_map_ext.get(_asset_key_ext, ${cfg.profitExtPips})
+    EXT_MULT = ${cfg.profitExtMultiplier}
+    EXT_MODE = "${cfg.profitExtMode}"
+    PIP_SIZE = _pip_size_map_ext.get(_asset_key_ext, 0.0001)
+    check_interval = ${cfg.profitExtCheckInterval}
+    opposite = "PUT" if original_direction == "CALL" else "CALL"
+    print(f"[EXT] Инициализация | порог={EXT_PIPS} пип | режим={EXT_MODE} | цена входа={entry_price}")
+    start_time = asyncio.get_event_loop().time()
+    triggered = False
+    orders = []
+    while not triggered:
+        await asyncio.sleep(check_interval)
+        elapsed = asyncio.get_event_loop().time() - start_time
+        if elapsed >= expiry_sec - check_interval:
+            break
+        try:
+            candles = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=${cfg.candleTimeframe ?? 60}, count=1)
+            if not candles:
+                continue
+            _ec = candles[-1]
+            if hasattr(_ec, 'close'):
+                current_price = float(_ec.close)
+            elif isinstance(_ec, dict):
+                current_price = float(_ec.get('close', _ec.get('c', 0)))
+            else:
+                current_price = float(_ec[3] if len(_ec) > 3 else _ec[1])
+            if current_price == 0.0:
+                continue
+            pips = round(abs(current_price - entry_price) / PIP_SIZE, 1)
+            in_profit = (original_direction == "CALL" and current_price > entry_price) or \
+                        (original_direction == "PUT"  and current_price < entry_price)
+            if not in_profit or pips < EXT_PIPS:
+                print(f"[EXT] Ждём {EXT_PIPS} пип в нашу сторону (сейчас {pips} пип, {'✅' if in_profit else '❌'})")
+                continue
+            remaining = max(30, int(expiry_sec - elapsed))
+            ext_bet = round(original_bet * EXT_MULT, 2)
+            triggered = True
+            if EXT_MODE in ("trend", "both"):
+                dir_t = OrderDirection.CALL if original_direction == "CALL" else OrderDirection.PUT
+                order_t = await client.place_order(asset=(_resolved_asset or ASSET), amount=ext_bet, direction=dir_t, duration=remaining)
+                orders.append((order_t.order_id, ext_bet, "TREND"))
+                print(f"[EXT] TREND {original_direction} | {ext_bet} | {pips} пип | осталось {remaining}с")
+                tg(f"📈 <b>[EXT TREND]</b> {original_direction} | {ext_bet} | {pips} пип | осталось {remaining}с")
+            if EXT_MODE in ("rebound", "both"):
+                dir_r = OrderDirection.CALL if opposite == "CALL" else OrderDirection.PUT
+                order_r = await client.place_order(asset=(_resolved_asset or ASSET), amount=ext_bet, direction=dir_r, duration=remaining)
+                orders.append((order_r.order_id, ext_bet, "REBOUND"))
+                print(f"[EXT] REBOUND {opposite} | {ext_bet} | {pips} пип | осталось {remaining}с")
+                tg(f"🔄 <b>[EXT REBOUND]</b> {opposite} | {ext_bet} | {pips} пип | осталось {remaining}с")
+        except Exception as e:
+            print(f"[EXT] Ошибка: {e}")
+    return orders
+
 def print_stats():
     wins  = sum(1 for t in trade_log if t["won"])
     total = len(trade_log)
@@ -2624,9 +2804,64 @@ async def main():
             tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")
             tg("\\n".join(tg_parts))
             balance_before, _ = await get_balance(client)
+            # Получаем цену входа для хеджирования
+            entry_price = 0.0
+            try:
+                if candles:
+                    _ec = candles[-1]
+                    if hasattr(_ec, 'close'):
+                        entry_price = float(_ec.close)
+                    elif isinstance(_ec, dict):
+                        entry_price = float(_ec.get('close', _ec.get('c', 0)))
+                    elif hasattr(_ec, '__getitem__'):
+                        entry_price = float(_ec[3] if len(_ec) > 3 else _ec[1])
+            except Exception as _ep_err:
+                print(f"[ENTRY_PRICE] Ошибка: {_ep_err}")
+            if entry_price == 0.0:
+                try:
+                    _fresh = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=1)
+                    if _fresh:
+                        _ec2 = _fresh[-1]
+                        if hasattr(_ec2, 'close'):
+                            entry_price = float(_ec2.close)
+                        elif isinstance(_ec2, dict):
+                            entry_price = float(_ec2.get('close', _ec2.get('c', 0)))
+                        elif hasattr(_ec2, '__getitem__'):
+                            entry_price = float(_ec2[3] if len(_ec2) > 3 else _ec2[1])
+                except Exception:
+                    pass
+            print(f"[ENTRY_PRICE] entry_price={entry_price}")
             order_id = await place_trade(client, signal, bet)
             if order_id:
+                hedge_task = asyncio.create_task(
+                    hedge_monitor(client, signal, bet, entry_price, EXPIRY_SEC)
+                ) if entry_price > 0 else None
+                ext_task = asyncio.create_task(
+                    profit_extension_monitor(client, signal, bet, entry_price, EXPIRY_SEC)
+                ) if entry_price > 0 else None
+                if entry_price == 0.0:
+                    print("[WARN] entry_price=0 — хедж и расширение прибыли НЕ запущены!")
                 won, profit = await check_result(client, order_id, balance_before, bet)
+                if hedge_task:
+                    hedge_order_id, hedge_bet = await hedge_task
+                    if hedge_order_id:
+                        hedge_count += 1
+                        h_won, h_profit = await check_result(client, hedge_order_id, balance_before, hedge_bet)
+                        if h_won:
+                            hedge_wins += 1
+                        hedge_result = f"✅ +{h_profit:.2f}" if h_won else f"❌ {h_profit:.2f}"
+                        tg(f"🛡 <b>Хедж результат:</b> {hedge_result} {currency}")
+                        profit += h_profit
+                if ext_task:
+                    ext_orders = await ext_task
+                    for ext_id, ext_bet, ext_type in ext_orders:
+                        ext_count += 1
+                        e_won, e_profit = await check_result(client, ext_id, balance_before, ext_bet)
+                        if e_won:
+                            ext_wins += 1
+                        ext_result = f"✅ +{e_profit:.2f}" if e_won else f"❌ {e_profit:.2f}"
+                        tg(f"{'📈' if ext_type == 'TREND' else '🔄'} <b>Расширение {ext_type}:</b> {ext_result} {currency}")
+                        profit += e_profit
                 total_profit += profit
                 trades_today += 1
                 current_bet   = adjust_bet(won)

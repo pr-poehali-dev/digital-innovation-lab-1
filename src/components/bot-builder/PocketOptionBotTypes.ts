@@ -1229,15 +1229,27 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
     print(f"[HEDGE] Пауза 60с перед стартом мониторинга...")
     await asyncio.sleep(60)
     try:
-        _ep_candles = await client.get_candles(asset=_asset_key, timeframe=60, count=2)
-        if _ep_candles and len(_ep_candles) >= 1:
-            _ep_c = _ep_candles[-1]
-            if hasattr(_ep_c, 'close') and float(_ep_c.close) > 0:
-                entry_price = float(_ep_c.close)
-            elif isinstance(_ep_c, dict) and _ep_c.get('close', 0):
-                entry_price = float(_ep_c.get('close'))
-            elif hasattr(_ep_c, '__getitem__') and float(_ep_c[3]) > 0:
-                entry_price = float(_ep_c[3])
+        _ep_candles = await client.get_candles(asset=_asset_key, timeframe=60, count=3)
+        if _ep_candles:
+            def _ep_get_time(c):
+                for _t in ('time', 't', 'timestamp', 'open_time'):
+                    if hasattr(c, _t):
+                        try: return float(getattr(c, _t))
+                        except: pass
+                    if isinstance(c, dict) and c.get(_t):
+                        try: return float(c[_t])
+                        except: pass
+                return 0
+            def _ep_get_close(c):
+                if hasattr(c, 'close'): return float(c.close)
+                if isinstance(c, dict): return float(c.get('close', c.get('c', 0)))
+                if hasattr(c, '__getitem__'): return float(c[3] if len(c) > 3 else c[1])
+                return 0
+            _sorted_h = sorted(_ep_candles, key=_ep_get_time)
+            _ep_c = _sorted_h[-1] if _ep_get_time(_sorted_h[-1]) > 0 else _ep_candles[-1]
+            _new_price = _ep_get_close(_ep_c)
+            if _new_price > 0:
+                entry_price = _new_price
         print(f"[HEDGE] Точная цена входа после 60с: {entry_price}")
     except Exception:
         pass
@@ -1343,15 +1355,27 @@ async def profit_extension_monitor(client, original_direction, original_bet, ent
     print(f"[EXT] Пауза 60с перед стартом мониторинга...")
     await asyncio.sleep(60)
     try:
-        _ep_candles_ext = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=2)
-        if _ep_candles_ext and len(_ep_candles_ext) >= 1:
-            _ep_cx = _ep_candles_ext[-1]
-            if hasattr(_ep_cx, 'close') and float(_ep_cx.close) > 0:
-                entry_price = float(_ep_cx.close)
-            elif isinstance(_ep_cx, dict) and _ep_cx.get('close', 0):
-                entry_price = float(_ep_cx.get('close'))
-            elif hasattr(_ep_cx, '__getitem__') and float(_ep_cx[3]) > 0:
-                entry_price = float(_ep_cx[3])
+        _ep_candles_ext = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=3)
+        if _ep_candles_ext:
+            def _ep_get_time_x(c):
+                for _t in ('time', 't', 'timestamp', 'open_time'):
+                    if hasattr(c, _t):
+                        try: return float(getattr(c, _t))
+                        except: pass
+                    if isinstance(c, dict) and c.get(_t):
+                        try: return float(c[_t])
+                        except: pass
+                return 0
+            def _ep_get_close_x(c):
+                if hasattr(c, 'close'): return float(c.close)
+                if isinstance(c, dict): return float(c.get('close', c.get('c', 0)))
+                if hasattr(c, '__getitem__'): return float(c[3] if len(c) > 3 else c[1])
+                return 0
+            _sorted_e = sorted(_ep_candles_ext, key=_ep_get_time_x)
+            _ep_cx = _sorted_e[-1] if _ep_get_time_x(_sorted_e[-1]) > 0 else _ep_candles_ext[-1]
+            _new_price_x = _ep_get_close_x(_ep_cx)
+            if _new_price_x > 0:
+                entry_price = _new_price_x
         print(f"[EXT] Точная цена входа после 60с: {entry_price}")
     except Exception:
         pass
@@ -2529,15 +2553,27 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
     print(f"[HEDGE] Пауза 60с перед стартом мониторинга...")
     await asyncio.sleep(60)
     try:
-        _ep_candles = await client.get_candles(asset=_asset_key, timeframe=60, count=2)
-        if _ep_candles and len(_ep_candles) >= 1:
-            _ep_c = _ep_candles[-1]
-            if hasattr(_ep_c, 'close') and float(_ep_c.close) > 0:
-                entry_price = float(_ep_c.close)
-            elif isinstance(_ep_c, dict) and _ep_c.get('close', 0):
-                entry_price = float(_ep_c.get('close'))
-            elif hasattr(_ep_c, '__getitem__') and float(_ep_c[3]) > 0:
-                entry_price = float(_ep_c[3])
+        _ep_candles = await client.get_candles(asset=_asset_key, timeframe=60, count=3)
+        if _ep_candles:
+            def _ep_get_time(c):
+                for _t in ('time', 't', 'timestamp', 'open_time'):
+                    if hasattr(c, _t):
+                        try: return float(getattr(c, _t))
+                        except: pass
+                    if isinstance(c, dict) and c.get(_t):
+                        try: return float(c[_t])
+                        except: pass
+                return 0
+            def _ep_get_close(c):
+                if hasattr(c, 'close'): return float(c.close)
+                if isinstance(c, dict): return float(c.get('close', c.get('c', 0)))
+                if hasattr(c, '__getitem__'): return float(c[3] if len(c) > 3 else c[1])
+                return 0
+            _sorted_h = sorted(_ep_candles, key=_ep_get_time)
+            _ep_c = _sorted_h[-1] if _ep_get_time(_sorted_h[-1]) > 0 else _ep_candles[-1]
+            _new_price = _ep_get_close(_ep_c)
+            if _new_price > 0:
+                entry_price = _new_price
         print(f"[HEDGE] Точная цена входа после 60с: {entry_price}")
     except Exception:
         pass
@@ -2633,15 +2669,27 @@ async def profit_extension_monitor(client, original_direction, original_bet, ent
     print(f"[EXT] Пауза 60с перед стартом мониторинга...")
     await asyncio.sleep(60)
     try:
-        _ep_candles_ext = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=2)
-        if _ep_candles_ext and len(_ep_candles_ext) >= 1:
-            _ep_cx = _ep_candles_ext[-1]
-            if hasattr(_ep_cx, 'close') and float(_ep_cx.close) > 0:
-                entry_price = float(_ep_cx.close)
-            elif isinstance(_ep_cx, dict) and _ep_cx.get('close', 0):
-                entry_price = float(_ep_cx.get('close'))
-            elif hasattr(_ep_cx, '__getitem__') and float(_ep_cx[3]) > 0:
-                entry_price = float(_ep_cx[3])
+        _ep_candles_ext = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=3)
+        if _ep_candles_ext:
+            def _ep_get_time_x(c):
+                for _t in ('time', 't', 'timestamp', 'open_time'):
+                    if hasattr(c, _t):
+                        try: return float(getattr(c, _t))
+                        except: pass
+                    if isinstance(c, dict) and c.get(_t):
+                        try: return float(c[_t])
+                        except: pass
+                return 0
+            def _ep_get_close_x(c):
+                if hasattr(c, 'close'): return float(c.close)
+                if isinstance(c, dict): return float(c.get('close', c.get('c', 0)))
+                if hasattr(c, '__getitem__'): return float(c[3] if len(c) > 3 else c[1])
+                return 0
+            _sorted_e = sorted(_ep_candles_ext, key=_ep_get_time_x)
+            _ep_cx = _sorted_e[-1] if _ep_get_time_x(_sorted_e[-1]) > 0 else _ep_candles_ext[-1]
+            _new_price_x = _ep_get_close_x(_ep_cx)
+            if _new_price_x > 0:
+                entry_price = _new_price_x
         print(f"[EXT] Точная цена входа после 60с: {entry_price}")
     except Exception:
         pass

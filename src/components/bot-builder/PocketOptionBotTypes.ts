@@ -1188,7 +1188,7 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
         "#INTC_otc": 0.01, "#BA_otc": 0.01,
     }
     _asset_key = (_resolved_asset or ASSET)
-    HEDGE_PIP_THRESHOLD        = _pip_map.get(_asset_key, ${cfg.hedgePipThreshold})
+    HEDGE_PIP_THRESHOLD        = ${cfg.hedgePipThreshold}
     HEDGE_SIMPLE_PIP_THRESHOLD = ${cfg.hedgeSimplePipThreshold}
     HEDGE_POWER_MULT           = ${cfg.hedgePowerMultiplier}
     HEDGE_SIMPLE_MULT          = 1.5

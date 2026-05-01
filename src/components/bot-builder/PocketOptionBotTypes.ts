@@ -1232,10 +1232,10 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
             dir_val = OrderDirection.CALL if opposite == "CALL" else OrderDirection.PUT
             order = await client.place_order(asset=(_resolved_asset or ASSET), amount=hedge_bet, direction=dir_val, duration=remaining)
             print(f"[HEDGE] Открыт ID: {order.order_id}")
-            return order.order_id, hedge_bet
+            return order.order_id, hedge_bet, remaining
         except Exception as e:
             print(f"[HEDGE] Ошибка: {e}")
-    return None, 0.0
+    return None, 0.0, 0
 
 async def profit_extension_monitor(client, original_direction, original_bet, entry_price, expiry_sec):
     """
@@ -1318,24 +1318,25 @@ async def profit_extension_monitor(client, original_direction, original_bet, ent
             if EXT_MODE in ("trend", "both"):
                 dir_t = OrderDirection.CALL if original_direction == "CALL" else OrderDirection.PUT
                 order_t = await client.place_order(asset=(_resolved_asset or ASSET), amount=ext_bet, direction=dir_t, duration=remaining)
-                orders.append((order_t.order_id, ext_bet, "TREND"))
+                orders.append((order_t.order_id, ext_bet, "TREND", remaining))
                 print(f"[EXT] TREND {original_direction} | {ext_bet} | {pips} пип | осталось {remaining}с")
                 tg(f"📈 <b>[EXT TREND]</b> {original_direction} | {ext_bet} | {pips} пип | осталось {remaining}с")
             if EXT_MODE in ("rebound", "both"):
                 dir_r = OrderDirection.CALL if opposite == "CALL" else OrderDirection.PUT
                 order_r = await client.place_order(asset=(_resolved_asset or ASSET), amount=ext_bet, direction=dir_r, duration=remaining)
-                orders.append((order_r.order_id, ext_bet, "REBOUND"))
+                orders.append((order_r.order_id, ext_bet, "REBOUND", remaining))
                 print(f"[EXT] REBOUND {opposite} | {ext_bet} | {pips} пип | осталось {remaining}с")
                 tg(f"🔄 <b>[EXT REBOUND]</b> {opposite} | {ext_bet} | {pips} пип | осталось {remaining}с")
         except Exception as e:
             print(f"[EXT] Ошибка: {e}")
     return orders
 
-async def check_result(client, order_id, balance_before, bet):
+async def check_result(client, order_id, balance_before, bet, wait_sec=None):
     """Ожидание результата по конкретной сделке через get_deal (точно, не зависит от других ботов)."""
     PAYOUT = ${cfg.payoutRate} / 100
-    print(f"[WAIT] Ожидаем результат {EXPIRY_SEC//60} мин...")
-    await asyncio.sleep(EXPIRY_SEC + 5)
+    _wait = wait_sec if wait_sec is not None else EXPIRY_SEC
+    print(f"[WAIT] Ожидаем результат {round(_wait/60, 1)} мин...")
+    await asyncio.sleep(_wait + 5)
     try:
         for attempt in range(30):
             try:
@@ -1744,10 +1745,10 @@ async def main():
                         print("[WARN] entry_price=0 — хедж и расширение прибыли НЕ запущены!")
                     won, profit, loss_amount = await check_result(client, order_id, balance_before, bet)
                     if hedge_task:
-                        hedge_order_id, hedge_bet = await hedge_task
+                        hedge_order_id, hedge_bet, hedge_remaining = await hedge_task
                         if hedge_order_id:
                             hedge_count += 1
-                            h_won, h_profit, h_loss = await check_result(client, hedge_order_id, balance_before, hedge_bet)
+                            h_won, h_profit, h_loss = await check_result(client, hedge_order_id, balance_before, hedge_bet, wait_sec=hedge_remaining)
                             if h_won:
                                 hedge_wins += 1
                             hedge_result = f"✅ +{h_profit:.2f}" if h_won else f"❌ -{h_loss:.2f}"
@@ -1756,9 +1757,9 @@ async def main():
                             loss_amount += h_loss
                     if ext_task:
                         ext_orders = await ext_task
-                        for ext_id, ext_bet, ext_type in ext_orders:
+                        for ext_id, ext_bet, ext_type, ext_remaining in ext_orders:
                             ext_count += 1
-                            e_won, e_profit, e_loss = await check_result(client, ext_id, balance_before, ext_bet)
+                            e_won, e_profit, e_loss = await check_result(client, ext_id, balance_before, ext_bet, wait_sec=ext_remaining)
                             if e_won:
                                 ext_wins += 1
                             ext_result = f"✅ +{e_profit:.2f}" if e_won else f"❌ -{e_loss:.2f}"
@@ -2330,9 +2331,10 @@ async def place_trade(client, direction, amount):
         print(f"[ERROR] place_trade: {e}")
         return None
 
-async def check_result(client, order_id, balance_before, bet):
-    print(f"[WAIT] Ожидаем результат {EXPIRY_SEC//60} мин...")
-    await asyncio.sleep(EXPIRY_SEC + 5)
+async def check_result(client, order_id, balance_before, bet, wait_sec=None):
+    _wait = wait_sec if wait_sec is not None else EXPIRY_SEC
+    print(f"[WAIT] Ожидаем результат {round(_wait/60, 1)} мин...")
+    await asyncio.sleep(_wait + 5)
     _payout = globals().get("PAYOUT", 0.92)
     try:
         for attempt in range(30):
@@ -2479,10 +2481,10 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
             dir_val = OrderDirection.CALL if opposite == "CALL" else OrderDirection.PUT
             order = await client.place_order(asset=(_resolved_asset or ASSET), amount=hedge_bet, direction=dir_val, duration=remaining)
             print(f"[HEDGE] Открыт ID: {order.order_id}")
-            return order.order_id, hedge_bet
+            return order.order_id, hedge_bet, remaining
         except Exception as e:
             print(f"[HEDGE] Ошибка: {e}")
-    return None, 0.0
+    return None, 0.0, 0
 
 async def profit_extension_monitor(client, original_direction, original_bet, entry_price, expiry_sec):
     """Расширение прибыли при движении цены в нашу сторону."""
@@ -2555,13 +2557,13 @@ async def profit_extension_monitor(client, original_direction, original_bet, ent
             if EXT_MODE in ("trend", "both"):
                 dir_t = OrderDirection.CALL if original_direction == "CALL" else OrderDirection.PUT
                 order_t = await client.place_order(asset=(_resolved_asset or ASSET), amount=ext_bet, direction=dir_t, duration=remaining)
-                orders.append((order_t.order_id, ext_bet, "TREND"))
+                orders.append((order_t.order_id, ext_bet, "TREND", remaining))
                 print(f"[EXT] TREND {original_direction} | {ext_bet} | {pips} пип | осталось {remaining}с")
                 tg(f"📈 <b>[EXT TREND]</b> {original_direction} | {ext_bet} | {pips} пип | осталось {remaining}с")
             if EXT_MODE in ("rebound", "both"):
                 dir_r = OrderDirection.CALL if opposite == "CALL" else OrderDirection.PUT
                 order_r = await client.place_order(asset=(_resolved_asset or ASSET), amount=ext_bet, direction=dir_r, duration=remaining)
-                orders.append((order_r.order_id, ext_bet, "REBOUND"))
+                orders.append((order_r.order_id, ext_bet, "REBOUND", remaining))
                 print(f"[EXT] REBOUND {opposite} | {ext_bet} | {pips} пип | осталось {remaining}с")
                 tg(f"🔄 <b>[EXT REBOUND]</b> {opposite} | {ext_bet} | {pips} пип | осталось {remaining}с")
         except Exception as e:
@@ -2847,10 +2849,10 @@ async def main():
                     print("[WARN] entry_price=0 — хедж и расширение прибыли НЕ запущены!")
                 won, profit = await check_result(client, order_id, balance_before, bet)
                 if hedge_task:
-                    hedge_order_id, hedge_bet = await hedge_task
+                    hedge_order_id, hedge_bet, hedge_remaining = await hedge_task
                     if hedge_order_id:
                         hedge_count += 1
-                        h_won, h_profit = await check_result(client, hedge_order_id, balance_before, hedge_bet)
+                        h_won, h_profit = await check_result(client, hedge_order_id, balance_before, hedge_bet, wait_sec=hedge_remaining)
                         if h_won:
                             hedge_wins += 1
                         hedge_result = f"✅ +{h_profit:.2f}" if h_won else f"❌ {h_profit:.2f}"
@@ -2858,9 +2860,9 @@ async def main():
                         profit += h_profit
                 if ext_task:
                     ext_orders = await ext_task
-                    for ext_id, ext_bet, ext_type in ext_orders:
+                    for ext_id, ext_bet, ext_type, ext_remaining in ext_orders:
                         ext_count += 1
-                        e_won, e_profit = await check_result(client, ext_id, balance_before, ext_bet)
+                        e_won, e_profit = await check_result(client, ext_id, balance_before, ext_bet, wait_sec=ext_remaining)
                         if e_won:
                             ext_wins += 1
                         ext_result = f"✅ +{e_profit:.2f}" if e_won else f"❌ {e_profit:.2f}"

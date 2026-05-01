@@ -1226,33 +1226,7 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
     print(f"[HEDGE] Инициализация | актив={_asset_key} | pip_size={PIP_SIZE} | порог={HEDGE_PIP_THRESHOLD} пип | цена входа={entry_price}")
     opposite = "PUT" if original_direction == "CALL" else "CALL"
     start_time = asyncio.get_event_loop().time()
-    print(f"[HEDGE] Пауза 60с перед стартом мониторинга...")
-    await asyncio.sleep(60)
-    try:
-        _ep_candles = await client.get_candles(asset=_asset_key, timeframe=60, count=3)
-        if _ep_candles:
-            def _ep_get_time(c):
-                for _t in ('time', 't', 'timestamp', 'open_time'):
-                    if hasattr(c, _t):
-                        try: return float(getattr(c, _t))
-                        except: pass
-                    if isinstance(c, dict) and c.get(_t):
-                        try: return float(c[_t])
-                        except: pass
-                return 0
-            def _ep_get_close(c):
-                if hasattr(c, 'close'): return float(c.close)
-                if isinstance(c, dict): return float(c.get('close', c.get('c', 0)))
-                if hasattr(c, '__getitem__'): return float(c[3] if len(c) > 3 else c[1])
-                return 0
-            _sorted_h = sorted(_ep_candles, key=_ep_get_time)
-            _ep_c = _sorted_h[-1] if _ep_get_time(_sorted_h[-1]) > 0 else _ep_candles[-1]
-            _new_price = _ep_get_close(_ep_c)
-            if _new_price > 0:
-                entry_price = _new_price
-        print(f"[HEDGE] Точная цена входа после 60с: {entry_price}")
-    except Exception:
-        pass
+
     while True:
         await asyncio.sleep(check_interval)
         elapsed = asyncio.get_event_loop().time() - start_time
@@ -1352,33 +1326,7 @@ async def profit_extension_monitor(client, original_direction, original_bet, ent
     start_time = asyncio.get_event_loop().time()
     triggered = False
     orders = []
-    print(f"[EXT] Пауза 60с перед стартом мониторинга...")
-    await asyncio.sleep(60)
-    try:
-        _ep_candles_ext = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=3)
-        if _ep_candles_ext:
-            def _ep_get_time_x(c):
-                for _t in ('time', 't', 'timestamp', 'open_time'):
-                    if hasattr(c, _t):
-                        try: return float(getattr(c, _t))
-                        except: pass
-                    if isinstance(c, dict) and c.get(_t):
-                        try: return float(c[_t])
-                        except: pass
-                return 0
-            def _ep_get_close_x(c):
-                if hasattr(c, 'close'): return float(c.close)
-                if isinstance(c, dict): return float(c.get('close', c.get('c', 0)))
-                if hasattr(c, '__getitem__'): return float(c[3] if len(c) > 3 else c[1])
-                return 0
-            _sorted_e = sorted(_ep_candles_ext, key=_ep_get_time_x)
-            _ep_cx = _sorted_e[-1] if _ep_get_time_x(_sorted_e[-1]) > 0 else _ep_candles_ext[-1]
-            _new_price_x = _ep_get_close_x(_ep_cx)
-            if _new_price_x > 0:
-                entry_price = _new_price_x
-        print(f"[EXT] Точная цена входа после 60с: {entry_price}")
-    except Exception:
-        pass
+
     while not triggered:
         await asyncio.sleep(check_interval)
         elapsed = asyncio.get_event_loop().time() - start_time
@@ -1810,6 +1758,34 @@ async def main():
                         print(f"[ENTRY_PRICE] Fallback ошибка: {e2}")
                 print(f"[ENTRY_PRICE] entry_price={entry_price}")
                 if order_id:
+                    # Пауза 60с и обновление цены входа из свежей 1-минутной свечи
+                    print(f"[ENTRY_PRICE] Пауза 60с для точного определения цены...")
+                    await asyncio.sleep(60)
+                    try:
+                        _upd = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=3)
+                        if _upd:
+                            def _gt(c):
+                                for _t in ('time', 't', 'timestamp', 'open_time'):
+                                    if hasattr(c, _t):
+                                        try: return float(getattr(c, _t))
+                                        except: pass
+                                    if isinstance(c, dict) and c.get(_t):
+                                        try: return float(c[_t])
+                                        except: pass
+                                return 0
+                            def _gc(c):
+                                if hasattr(c, 'close'): return float(c.close)
+                                if isinstance(c, dict): return float(c.get('close', c.get('c', 0)))
+                                if hasattr(c, '__getitem__'): return float(c[3] if len(c) > 3 else c[1])
+                                return 0
+                            _su = sorted(_upd, key=_gt)
+                            _ucand = _su[-1] if _gt(_su[-1]) > 0 else _upd[-1]
+                            _np = _gc(_ucand)
+                            if _np > 0:
+                                entry_price = _np
+                        print(f"[ENTRY_PRICE] Точная цена входа после 60с: {entry_price}")
+                    except Exception as _ue:
+                        print(f"[ENTRY_PRICE] Обновление не удалось: {_ue}")
                     # Запускаем хедж и расширение прибыли параллельно ДО ожидания результата
                     hedge_task = asyncio.create_task(
                         hedge_monitor(client, signal, bet, entry_price, EXPIRY_SEC)
@@ -2550,33 +2526,7 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
     print(f"[HEDGE] Инициализация | актив={_asset_key} | pip_size={PIP_SIZE} | порог={HEDGE_PIP_THRESHOLD} пип | цена входа={entry_price}")
     opposite = "PUT" if original_direction == "CALL" else "CALL"
     start_time = asyncio.get_event_loop().time()
-    print(f"[HEDGE] Пауза 60с перед стартом мониторинга...")
-    await asyncio.sleep(60)
-    try:
-        _ep_candles = await client.get_candles(asset=_asset_key, timeframe=60, count=3)
-        if _ep_candles:
-            def _ep_get_time(c):
-                for _t in ('time', 't', 'timestamp', 'open_time'):
-                    if hasattr(c, _t):
-                        try: return float(getattr(c, _t))
-                        except: pass
-                    if isinstance(c, dict) and c.get(_t):
-                        try: return float(c[_t])
-                        except: pass
-                return 0
-            def _ep_get_close(c):
-                if hasattr(c, 'close'): return float(c.close)
-                if isinstance(c, dict): return float(c.get('close', c.get('c', 0)))
-                if hasattr(c, '__getitem__'): return float(c[3] if len(c) > 3 else c[1])
-                return 0
-            _sorted_h = sorted(_ep_candles, key=_ep_get_time)
-            _ep_c = _sorted_h[-1] if _ep_get_time(_sorted_h[-1]) > 0 else _ep_candles[-1]
-            _new_price = _ep_get_close(_ep_c)
-            if _new_price > 0:
-                entry_price = _new_price
-        print(f"[HEDGE] Точная цена входа после 60с: {entry_price}")
-    except Exception:
-        pass
+
     while True:
         await asyncio.sleep(check_interval)
         elapsed = asyncio.get_event_loop().time() - start_time
@@ -2666,33 +2616,7 @@ async def profit_extension_monitor(client, original_direction, original_bet, ent
     start_time = asyncio.get_event_loop().time()
     triggered = False
     orders = []
-    print(f"[EXT] Пауза 60с перед стартом мониторинга...")
-    await asyncio.sleep(60)
-    try:
-        _ep_candles_ext = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=3)
-        if _ep_candles_ext:
-            def _ep_get_time_x(c):
-                for _t in ('time', 't', 'timestamp', 'open_time'):
-                    if hasattr(c, _t):
-                        try: return float(getattr(c, _t))
-                        except: pass
-                    if isinstance(c, dict) and c.get(_t):
-                        try: return float(c[_t])
-                        except: pass
-                return 0
-            def _ep_get_close_x(c):
-                if hasattr(c, 'close'): return float(c.close)
-                if isinstance(c, dict): return float(c.get('close', c.get('c', 0)))
-                if hasattr(c, '__getitem__'): return float(c[3] if len(c) > 3 else c[1])
-                return 0
-            _sorted_e = sorted(_ep_candles_ext, key=_ep_get_time_x)
-            _ep_cx = _sorted_e[-1] if _ep_get_time_x(_sorted_e[-1]) > 0 else _ep_candles_ext[-1]
-            _new_price_x = _ep_get_close_x(_ep_cx)
-            if _new_price_x > 0:
-                entry_price = _new_price_x
-        print(f"[EXT] Точная цена входа после 60с: {entry_price}")
-    except Exception:
-        pass
+
     while not triggered:
         await asyncio.sleep(check_interval)
         elapsed = asyncio.get_event_loop().time() - start_time
@@ -2992,6 +2916,33 @@ async def main():
                     print(f"[ENTRY_PRICE] Fallback ошибка: {_ep_err}")
             print(f"[ENTRY_PRICE] entry_price={entry_price}")
             if order_id:
+                print(f"[ENTRY_PRICE] Пауза 60с для точного определения цены...")
+                await asyncio.sleep(60)
+                try:
+                    _upd2 = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=3)
+                    if _upd2:
+                        def _gt2(c):
+                            for _t in ('time', 't', 'timestamp', 'open_time'):
+                                if hasattr(c, _t):
+                                    try: return float(getattr(c, _t))
+                                    except: pass
+                                if isinstance(c, dict) and c.get(_t):
+                                    try: return float(c[_t])
+                                    except: pass
+                            return 0
+                        def _gc2(c):
+                            if hasattr(c, 'close'): return float(c.close)
+                            if isinstance(c, dict): return float(c.get('close', c.get('c', 0)))
+                            if hasattr(c, '__getitem__'): return float(c[3] if len(c) > 3 else c[1])
+                            return 0
+                        _su2 = sorted(_upd2, key=_gt2)
+                        _ucand2 = _su2[-1] if _gt2(_su2[-1]) > 0 else _upd2[-1]
+                        _np2 = _gc2(_ucand2)
+                        if _np2 > 0:
+                            entry_price = _np2
+                    print(f"[ENTRY_PRICE] Точная цена входа после 60с: {entry_price}")
+                except Exception as _ue2:
+                    print(f"[ENTRY_PRICE] Обновление не удалось: {_ue2}")
                 hedge_task = asyncio.create_task(
                     hedge_monitor(client, signal, bet, entry_price, EXPIRY_SEC)
                 ) if entry_price > 0 else None

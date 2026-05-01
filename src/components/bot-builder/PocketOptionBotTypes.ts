@@ -1112,19 +1112,24 @@ async def place_trade(client, direction, amount):
         trade_asset = _resolved_asset or ASSET
         order = await client.place_order(asset=trade_asset, amount=amount, direction=dir_val, duration=EXPIRY_SEC)
         open_price = 0.0
-        for _attr in ('open_price', 'openPrice', 'open', 'price', 'strike'):
-            if hasattr(order, _attr):
-                _v = getattr(order, _attr)
-                if _v:
-                    open_price = float(_v)
-                    break
-        if isinstance(order, dict) and open_price == 0.0:
-            for _k in ('open_price', 'openPrice', 'open', 'price', 'strike'):
-                if order.get(_k):
-                    open_price = float(order[_k])
-                    break
-        print(f"[TRADE] {direction} | {amount} | {EXPIRY_SEC//60} мин | ID: {order.order_id} | Цена: {open_price}")
-        return order.order_id, open_price
+        if isinstance(order, (list, tuple)):
+            _oid = order[0]
+            open_price = float(order[1]) if len(order) > 1 and order[1] else 0.0
+        else:
+            for _attr in ('open_price', 'openPrice', 'open', 'price', 'strike'):
+                if hasattr(order, _attr):
+                    _v = getattr(order, _attr)
+                    if _v:
+                        open_price = float(_v)
+                        break
+            if isinstance(order, dict) and open_price == 0.0:
+                for _k in ('open_price', 'openPrice', 'open', 'price', 'strike'):
+                    if order.get(_k):
+                        open_price = float(order[_k])
+                        break
+            _oid = getattr(order, 'order_id', None) or (order.get('id') if isinstance(order, dict) else None)
+        print(f"[TRADE] {direction} | {amount} | {EXPIRY_SEC//60} мин | ID: {_oid} | Цена: {open_price}")
+        return _oid, open_price
     except Exception as e:
         print(f"[ERROR] Сделка: {e}")
         return None, 0.0

@@ -1037,7 +1037,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
           <CardTitle className="font-orbitron text-white text-base">Актив и экспирация</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <TrendScanner onSelect={(v) => set({ asset: v })} />
+          <TrendScanner onSelect={(v) => set({ asset: v, pipSize: getAutoPipSize(v) })} />
           <AssetSelector value={config.asset} onChange={(v) => set({ asset: v, pipSize: getAutoPipSize(v) })} />
 
           <div>
@@ -1282,7 +1282,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                     />
                   </div>
                   <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
-                    USD/JPY, EUR/JPY → 0.01 · AUD/USD, EUR/USD → 0.0001
+                    Пары с JPY (USD/JPY, EUR/JPY, GBP/JPY, AUD/JPY, CAD/JPY, CHF/JPY, NZD/JPY) → 0.01 · остальные forex → 0.0001
                   </p>
                 </div>
 
@@ -1382,7 +1382,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                     />
                   </div>
                   <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
-                    USD/JPY, EUR/JPY → 0.01 · AUD/USD, EUR/USD → 0.0001
+                    Пары с JPY (USD/JPY, EUR/JPY, GBP/JPY, AUD/JPY, CAD/JPY, CHF/JPY, NZD/JPY) → 0.01 · остальные forex → 0.0001
                   </p>
                 </div>
 

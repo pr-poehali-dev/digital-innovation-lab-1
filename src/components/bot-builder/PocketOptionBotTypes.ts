@@ -1161,8 +1161,9 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
         # JPY-пары: 1 пипс = 0.01
         "USDJPY": 0.01, "USDJPY_otc": 0.01,
         "GBPJPY": 0.01, "GBPJPY_otc": 0.01, "EURJPY": 0.01, "EURJPY_otc": 0.01,
-        "AUDJPY_otc": 0.01, "CADJPY_otc": 0.01, "CHFJPY_otc": 0.01,
-        "NZDJPY_otc": 0.01, "JPN225": 1.0, "JPN225_otc": 1.0,
+        "AUDJPY": 0.01, "AUDJPY_otc": 0.01, "CADJPY": 0.01, "CADJPY_otc": 0.01,
+        "CHFJPY": 0.01, "CHFJPY_otc": 0.01, "NZDJPY": 0.01, "NZDJPY_otc": 0.01,
+        "JPN225": 1.0, "JPN225_otc": 1.0,
         # Крипто: 1 пипс = 1.0
         "BTCUSD": 1.0, "BTCUSD_otc": 1.0, "ETHUSD": 1.0, "ETHUSD_otc": 1.0,
         "LTCUSD_otc": 0.1, "DOTUSD": 0.01, "LNKUSD": 0.01,

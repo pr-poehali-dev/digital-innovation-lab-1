@@ -1739,7 +1739,9 @@ async def main():
                 tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")
                 tg("\\n".join(tg_parts))
                 balance_before, _ = await get_balance(client)
-                order_id, entry_price = await place_trade(client, signal, bet)
+                _pt_result = await place_trade(client, signal, bet)
+                order_id = _pt_result[0] if isinstance(_pt_result, (list, tuple)) else _pt_result
+                entry_price = float(_pt_result[1]) if isinstance(_pt_result, (list, tuple)) and len(_pt_result) > 1 and _pt_result[1] else 0.0
                 if entry_price == 0.0:
                     try:
                         fresh = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=1)
@@ -2841,7 +2843,9 @@ async def main():
             tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")
             tg("\\n".join(tg_parts))
             balance_before, _ = await get_balance(client)
-            order_id, entry_price = await place_trade(client, signal, bet)
+            _pt_result = await place_trade(client, signal, bet)
+            order_id = _pt_result[0] if isinstance(_pt_result, (list, tuple)) else _pt_result
+            entry_price = float(_pt_result[1]) if isinstance(_pt_result, (list, tuple)) and len(_pt_result) > 1 and _pt_result[1] else 0.0
             if entry_price == 0.0:
                 try:
                     _fresh = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=1)

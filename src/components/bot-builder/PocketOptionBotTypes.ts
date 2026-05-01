@@ -2357,12 +2357,42 @@ async def get_candles_data(client):
 async def place_trade(client, direction, amount):
     try:
         dir_val = OrderDirection.CALL if direction == "CALL" else OrderDirection.PUT
-        order = await client.place_order(asset=ASSET, amount=amount, direction=dir_val, duration=EXPIRY_SEC)
-        print(f"[TRADE] {direction} | {amount} | {EXPIRY_SEC//60} мин | ID: {order.order_id}")
-        return order.order_id
+        _raw = await client.place_order(asset=ASSET, amount=amount, direction=dir_val, duration=EXPIRY_SEC)
+        print(f"[ORDER_RAW] type={type(_raw).__name__} val={str(_raw)[:300]}", flush=True)
+        if hasattr(_raw, '__dict__'):
+            print(f"[ORDER_DICT] {_raw.__dict__}", flush=True)
+        open_price = 0.0
+        if isinstance(_raw, (list, tuple)):
+            _oid = _raw[0]
+            for _item in _raw[1:]:
+                try:
+                    _v = float(_item)
+                    if _v > 1.0:
+                        open_price = _v
+                        break
+                except (TypeError, ValueError):
+                    pass
+        elif isinstance(_raw, dict):
+            _oid = _raw.get('id') or _raw.get('order_id')
+            for _k in ('open_price', 'openPrice', 'open', 'price', 'strike'):
+                if _raw.get(_k):
+                    open_price = float(_raw[_k])
+                    break
+        else:
+            _oid = getattr(_raw, 'order_id', None)
+            for _attr in ('open_price', 'openPrice', 'open', 'price', 'strike'):
+                _v = getattr(_raw, _attr, None)
+                if _v:
+                    try:
+                        open_price = float(_v)
+                        break
+                    except (TypeError, ValueError):
+                        pass
+        print(f"[TRADE] {direction} | {amount} | {EXPIRY_SEC//60} мин | ID: {_oid} | Цена: {open_price}", flush=True)
+        return _oid, open_price
     except Exception as e:
         print(f"[ERROR] place_trade: {e}")
-        return None
+        return None, 0.0
 
 async def check_result(client, order_id, balance_before, bet, wait_sec=None):
     _wait = wait_sec if wait_sec is not None else EXPIRY_SEC

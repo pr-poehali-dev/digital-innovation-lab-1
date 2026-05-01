@@ -336,7 +336,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   tradeDirection: "all",
   hedgeEnabled: true,
   hedgePipThreshold: 8,
-  hedgePowerMultiplier: 1.5,
+  hedgePowerMultiplier: 2.0,
   hedgeCheckInterval: 5,
   pipSize: 0.0001,
   profitExtEnabled: true,
@@ -1188,6 +1188,7 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
     _asset_key = (_resolved_asset or ASSET)
     HEDGE_PIP_THRESHOLD = _pip_map.get(_asset_key, ${cfg.hedgePipThreshold})
     HEDGE_POWER_MULT    = ${cfg.hedgePowerMultiplier}
+    HEDGE_SIMPLE_MULT   = 1.5
     PIP_SIZE            = _pip_size_map.get(_asset_key, 0.0001)  # дефолт для Forex
     check_interval = ${cfg.hedgeCheckInterval}
     print(f"[HEDGE] Инициализация | актив={_asset_key} | pip_size={PIP_SIZE} | порог={HEDGE_PIP_THRESHOLD} пип | цена входа={entry_price}")
@@ -1225,7 +1226,7 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
                 hedge_bet = round(original_bet * HEDGE_POWER_MULT, 2)
                 mode = "POWER"
             else:
-                hedge_bet = round(original_bet, 2)
+                hedge_bet = round(original_bet * HEDGE_SIMPLE_MULT, 2)
                 mode = "SIMPLE"
             remaining = max(30, int(expiry_sec - elapsed))
             print(f"[HEDGE] {mode} | {pips} пип | {hedge_bet} | {opposite} | осталось {remaining}с")
@@ -2479,7 +2480,7 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
                 hedge_bet = round(original_bet * HEDGE_POWER_MULT, 2)
                 mode = "POWER"
             else:
-                hedge_bet = round(original_bet, 2)
+                hedge_bet = round(original_bet * HEDGE_SIMPLE_MULT, 2)
                 mode = "SIMPLE"
             remaining = max(30, int(expiry_sec - elapsed))
             print(f"[HEDGE] {mode} | {pips} пип | {hedge_bet} | {opposite} | осталось {remaining}с")

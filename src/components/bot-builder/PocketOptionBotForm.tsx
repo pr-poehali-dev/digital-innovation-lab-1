@@ -1327,7 +1327,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                 <div className="bg-zinc-800/50 rounded-lg p-3 space-y-2 font-space-mono text-[10px]">
                   <p className="text-zinc-300 font-bold mb-1">Логика хеджирования:</p>
                   <p className="text-zinc-400">⏱ Проверка каждые <span className="text-white">{config.hedgeCheckInterval} сек</span></p>
-                  <p className="text-zinc-400">🟡 <span className="text-yellow-300">Simple:</span> цена ушла против, пипсов &lt; {config.hedgePipThreshold} → встречная ставка той же суммой</p>
+                  <p className="text-zinc-400">🟡 <span className="text-yellow-300">Simple:</span> цена ушла против, пипсов &lt; {config.hedgePipThreshold} → ставка × 1.5</p>
                   <p className="text-zinc-400">🔴 <span className="text-orange-300">Power:</span> цена ушла против, пипсов ≥ {config.hedgePipThreshold} → ставка × {config.hedgePowerMultiplier}</p>
                   <p className="text-zinc-400">⚡ <span className="text-red-300">Complex:</span> прошло &gt; половины экспирации И пипсов ≥ {config.hedgePipThreshold} → Power ставка немедленно</p>
                 </div>

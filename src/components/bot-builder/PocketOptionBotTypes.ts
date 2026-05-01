@@ -1201,7 +1201,15 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
             candles = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=${cfg.candleTimeframe ?? 60}, count=1)
             if not candles:
                 continue
-            current_price = float(candles[-1].close)
+            _c = candles[-1]
+            if hasattr(_c, 'close'):
+                current_price = float(_c.close)
+            elif isinstance(_c, dict):
+                current_price = float(_c.get('close', _c.get('c', 0)))
+            else:
+                current_price = float(_c[3] if len(_c) > 3 else _c[1])
+            if current_price == 0.0:
+                continue
             pips = round(abs(current_price - entry_price) / PIP_SIZE, 1)
             went_against = (original_direction == "CALL" and current_price < entry_price) or \
                            (original_direction == "PUT"  and current_price > entry_price)
@@ -1289,7 +1297,15 @@ async def profit_extension_monitor(client, original_direction, original_bet, ent
             candles = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=${cfg.candleTimeframe ?? 60}, count=1)
             if not candles:
                 continue
-            current_price = float(candles[-1].close)
+            _c2 = candles[-1]
+            if hasattr(_c2, 'close'):
+                current_price = float(_c2.close)
+            elif isinstance(_c2, dict):
+                current_price = float(_c2.get('close', _c2.get('c', 0)))
+            else:
+                current_price = float(_c2[3] if len(_c2) > 3 else _c2[1])
+            if current_price == 0.0:
+                continue
             pips = round(abs(current_price - entry_price) / PIP_SIZE, 1)
             in_profit = (original_direction == "CALL" and current_price > entry_price) or \
                         (original_direction == "PUT"  and current_price < entry_price)
@@ -1684,13 +1700,35 @@ async def main():
                 tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")
                 tg("\\n".join(tg_parts))
                 balance_before, _ = await get_balance(client)
-                # Получаем цену входа для хеджирования (берём из уже полученных свечей)
+                # Получаем цену входа для хеджирования
                 entry_price = 0.0
                 try:
                     if candles:
-                        entry_price = float(candles[-1][3])  # close текущей свечи
-                except Exception:
-                    pass
+                        c = candles[-1]
+                        # Поддержка объектов с атрибутами И списков/словарей
+                        if hasattr(c, 'close'):
+                            entry_price = float(c.close)
+                        elif isinstance(c, dict):
+                            entry_price = float(c.get('close', c.get('c', 0)))
+                        elif hasattr(c, '__getitem__'):
+                            entry_price = float(c[3] if len(c) > 3 else c[1])
+                except Exception as e:
+                    print(f"[ENTRY_PRICE] Не удалось получить: {e}")
+                # Если из свечей не вышло — пробуем отдельный запрос
+                if entry_price == 0.0:
+                    try:
+                        fresh = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=1)
+                        if fresh:
+                            c2 = fresh[-1]
+                            if hasattr(c2, 'close'):
+                                entry_price = float(c2.close)
+                            elif isinstance(c2, dict):
+                                entry_price = float(c2.get('close', c2.get('c', 0)))
+                            elif hasattr(c2, '__getitem__'):
+                                entry_price = float(c2[3] if len(c2) > 3 else c2[1])
+                    except Exception as e2:
+                        print(f"[ENTRY_PRICE] Резервный запрос не удался: {e2}")
+                print(f"[ENTRY_PRICE] entry_price={entry_price}")
                 order_id = await place_trade(client, signal, bet)
                 if order_id:
                     # Запускаем хедж и расширение прибыли параллельно ДО ожидания результата
@@ -1700,6 +1738,8 @@ async def main():
                     ext_task = asyncio.create_task(
                         profit_extension_monitor(client, signal, bet, entry_price, EXPIRY_SEC)
                     ) if entry_price > 0 else None
+                    if entry_price == 0.0:
+                        print("[WARN] entry_price=0 — хедж и расширение прибыли НЕ запущены!")
                     won, profit, loss_amount = await check_result(client, order_id, balance_before, bet)
                     if hedge_task:
                         hedge_order_id, hedge_bet = await hedge_task

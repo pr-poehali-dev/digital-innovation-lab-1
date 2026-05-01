@@ -2443,6 +2443,7 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
     _asset_key = (_resolved_asset or ASSET)
     HEDGE_PIP_THRESHOLD = _pip_map.get(_asset_key, ${cfg.hedgePipThreshold})
     HEDGE_POWER_MULT    = ${cfg.hedgePowerMultiplier}
+    HEDGE_SIMPLE_MULT   = 1.5
     PIP_SIZE            = _pip_size_map.get(_asset_key, 0.0001)
     check_interval = ${cfg.hedgeCheckInterval}
     print(f"[HEDGE] Инициализация | актив={_asset_key} | pip_size={PIP_SIZE} | порог={HEDGE_PIP_THRESHOLD} пип | цена входа={entry_price}")

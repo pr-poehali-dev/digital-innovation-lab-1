@@ -1108,11 +1108,51 @@ async def place_trade(client, direction, amount):
         trade_asset = _resolved_asset or ASSET
         _raw = await client.place_order(asset=trade_asset, amount=amount, direction=dir_val, duration=EXPIRY_SEC)
         import sys; sys.stdout.flush()
-        print(f"[ORDER_RAW] type={type(_raw).__name__} val={str(_raw)[:300]}", flush=True)
+        print(f"[ORDER_RAW] type={type(_raw).__name__} val={str(_raw)[:500]}", flush=True)
         if hasattr(_raw, '__dict__'):
             print(f"[ORDER_DICT] {_raw.__dict__}", flush=True)
         elif hasattr(_raw, '__slots__'):
             print(f"[ORDER_SLOTS] { {s: getattr(_raw,s,None) for s in _raw.__slots__} }", flush=True)
+        # ===== ДИАГНОСТИКА: какие методы есть у клиента и поля у ордера =====
+        try:
+            _client_methods = [m for m in dir(client) if not m.startswith('_')]
+            print(f"[DIAG_CLIENT_METHODS] {_client_methods}", flush=True)
+        except Exception as _de1:
+            print(f"[DIAG_CLIENT_METHODS] err: {_de1}", flush=True)
+        try:
+            _order_attrs = [a for a in dir(_raw) if not a.startswith('_')]
+            print(f"[DIAG_ORDER_ATTRS] {_order_attrs}", flush=True)
+            for _a in _order_attrs:
+                try:
+                    _v = getattr(_raw, _a)
+                    if not callable(_v):
+                        print(f"[DIAG_ORDER_FIELD] {_a} = {_v!r}", flush=True)
+                except Exception:
+                    pass
+        except Exception as _de2:
+            print(f"[DIAG_ORDER_ATTRS] err: {_de2}", flush=True)
+        # ===== Пробуем перезапросить ордер через 2 сек — вдруг там цена =====
+        try:
+            await asyncio.sleep(2)
+            _oid_for_check = None
+            if hasattr(_raw, 'order_id'):
+                _oid_for_check = _raw.order_id
+            elif isinstance(_raw, dict):
+                _oid_for_check = _raw.get('order_id') or _raw.get('id')
+            if _oid_for_check:
+                for _mname in ('get_order', 'check_order', 'order_info', 'get_order_info', 'check_win'):
+                    if hasattr(client, _mname):
+                        try:
+                            _m = getattr(client, _mname)
+                            _info = await _m(_oid_for_check)
+                            print(f"[DIAG_ORDER_CHECK_{_mname}] type={type(_info).__name__} val={str(_info)[:500]}", flush=True)
+                            if hasattr(_info, '__dict__'):
+                                print(f"[DIAG_ORDER_CHECK_{_mname}_DICT] {_info.__dict__}", flush=True)
+                        except Exception as _ce:
+                            print(f"[DIAG_ORDER_CHECK_{_mname}] err: {_ce}", flush=True)
+        except Exception as _de3:
+            print(f"[DIAG_ORDER_RECHECK] err: {_de3}", flush=True)
+        # ===== Конец диагностики =====
         open_price = 0.0
         if isinstance(_raw, (list, tuple)):
             _oid = _raw[0]

@@ -1747,17 +1747,15 @@ async def main():
                 _pt_result = await place_trade(client, signal, bet)
                 order_id = _pt_result[0] if isinstance(_pt_result, (list, tuple)) else _pt_result
                 entry_price = float(_pt_result[1]) if isinstance(_pt_result, (list, tuple)) and len(_pt_result) > 1 and _pt_result[1] else 0.0
-                if entry_price == 0.0:
+                if entry_price == 0.0 and candles:
                     try:
-                        fresh = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=3)
-                        if fresh and len(fresh) >= 2:
-                            c2 = fresh[-2]
-                            if hasattr(c2, 'close'):
-                                entry_price = float(c2.close)
-                            elif isinstance(c2, dict):
-                                entry_price = float(c2.get('close', c2.get('c', 0)))
-                            elif hasattr(c2, '__getitem__'):
-                                entry_price = float(c2[3] if len(c2) > 3 else c2[1])
+                        _lc = candles[-1]
+                        if hasattr(_lc, 'close'):
+                            entry_price = float(_lc.close)
+                        elif isinstance(_lc, dict):
+                            entry_price = float(_lc.get('close', _lc.get('c', 0)))
+                        elif hasattr(_lc, '__getitem__'):
+                            entry_price = float(_lc[3] if len(_lc) > 3 else _lc[1])
                     except Exception as e2:
                         print(f"[ENTRY_PRICE] Fallback ошибка: {e2}")
                 print(f"[ENTRY_PRICE] entry_price={entry_price}")
@@ -2881,17 +2879,15 @@ async def main():
             _pt_result = await place_trade(client, signal, bet)
             order_id = _pt_result[0] if isinstance(_pt_result, (list, tuple)) else _pt_result
             entry_price = float(_pt_result[1]) if isinstance(_pt_result, (list, tuple)) and len(_pt_result) > 1 and _pt_result[1] else 0.0
-            if entry_price == 0.0:
+            if entry_price == 0.0 and candles:
                 try:
-                    _fresh = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=3)
-                    if _fresh and len(_fresh) >= 2:
-                        _ec2 = _fresh[-2]
-                        if hasattr(_ec2, 'close'):
-                            entry_price = float(_ec2.close)
-                        elif isinstance(_ec2, dict):
-                            entry_price = float(_ec2.get('close', _ec2.get('c', 0)))
-                        elif hasattr(_ec2, '__getitem__'):
-                            entry_price = float(_ec2[3] if len(_ec2) > 3 else _ec2[1])
+                    _lc = candles[-1]
+                    if hasattr(_lc, 'close'):
+                        entry_price = float(_lc.close)
+                    elif isinstance(_lc, dict):
+                        entry_price = float(_lc.get('close', _lc.get('c', 0)))
+                    elif hasattr(_lc, '__getitem__'):
+                        entry_price = float(_lc[3] if len(_lc) > 3 else _lc[1])
                 except Exception as _ep_err:
                     print(f"[ENTRY_PRICE] Fallback ошибка: {_ep_err}")
             print(f"[ENTRY_PRICE] entry_price={entry_price}")

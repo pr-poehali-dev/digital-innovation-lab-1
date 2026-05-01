@@ -1233,7 +1233,7 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
     print(f"[HEDGE] Пауза 60с перед стартом мониторинга...")
     await asyncio.sleep(60)
     try:
-        _ep_candles = await client.get_candles(asset=_asset_key, timeframe=expiry_sec, count=2)
+        _ep_candles = await client.get_candles(asset=_asset_key, timeframe=60, count=2)
         if _ep_candles and len(_ep_candles) >= 1:
             _ep_c = _ep_candles[-1]
             if hasattr(_ep_c, 'close') and float(_ep_c.close) > 0:
@@ -1347,7 +1347,7 @@ async def profit_extension_monitor(client, original_direction, original_bet, ent
     print(f"[EXT] Пауза 60с перед стартом мониторинга...")
     await asyncio.sleep(60)
     try:
-        _ep_candles_ext = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=expiry_sec, count=2)
+        _ep_candles_ext = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=2)
         if _ep_candles_ext and len(_ep_candles_ext) >= 1:
             _ep_cx = _ep_candles_ext[-1]
             if hasattr(_ep_cx, 'close') and float(_ep_cx.close) > 0:
@@ -2537,7 +2537,7 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
     print(f"[HEDGE] Пауза 60с перед стартом мониторинга...")
     await asyncio.sleep(60)
     try:
-        _ep_candles = await client.get_candles(asset=_asset_key, timeframe=expiry_sec, count=2)
+        _ep_candles = await client.get_candles(asset=_asset_key, timeframe=60, count=2)
         if _ep_candles and len(_ep_candles) >= 1:
             _ep_c = _ep_candles[-1]
             if hasattr(_ep_c, 'close') and float(_ep_c.close) > 0:
@@ -2641,7 +2641,7 @@ async def profit_extension_monitor(client, original_direction, original_bet, ent
     print(f"[EXT] Пауза 60с перед стартом мониторинга...")
     await asyncio.sleep(60)
     try:
-        _ep_candles_ext = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=expiry_sec, count=2)
+        _ep_candles_ext = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=2)
         if _ep_candles_ext and len(_ep_candles_ext) >= 1:
             _ep_cx = _ep_candles_ext[-1]
             if hasattr(_ep_cx, 'close') and float(_ep_cx.close) > 0:

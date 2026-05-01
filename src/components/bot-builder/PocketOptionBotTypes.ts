@@ -1749,9 +1749,9 @@ async def main():
                 entry_price = float(_pt_result[1]) if isinstance(_pt_result, (list, tuple)) and len(_pt_result) > 1 and _pt_result[1] else 0.0
                 if entry_price == 0.0:
                     try:
-                        fresh = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=2)
-                        if fresh:
-                            c2 = fresh[-1]
+                        fresh = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=3)
+                        if fresh and len(fresh) >= 2:
+                            c2 = fresh[-2]
                             if hasattr(c2, 'close'):
                                 entry_price = float(c2.close)
                             elif isinstance(c2, dict):
@@ -2883,9 +2883,9 @@ async def main():
             entry_price = float(_pt_result[1]) if isinstance(_pt_result, (list, tuple)) and len(_pt_result) > 1 and _pt_result[1] else 0.0
             if entry_price == 0.0:
                 try:
-                    _fresh = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=2)
-                    if _fresh:
-                        _ec2 = _fresh[-1]
+                    _fresh = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=3)
+                    if _fresh and len(_fresh) >= 2:
+                        _ec2 = _fresh[-2]
                         if hasattr(_ec2, 'close'):
                             entry_price = float(_ec2.close)
                         elif isinstance(_ec2, dict):

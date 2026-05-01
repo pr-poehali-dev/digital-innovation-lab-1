@@ -1110,24 +1110,35 @@ async def place_trade(client, direction, amount):
     try:
         dir_val = OrderDirection.CALL if direction == "CALL" else OrderDirection.PUT
         trade_asset = _resolved_asset or ASSET
-        order = await client.place_order(asset=trade_asset, amount=amount, direction=dir_val, duration=EXPIRY_SEC)
+        _raw = await client.place_order(asset=trade_asset, amount=amount, direction=dir_val, duration=EXPIRY_SEC)
+        print(f"[ORDER_RAW] type={type(_raw).__name__} val={str(_raw)[:200]}")
         open_price = 0.0
-        if isinstance(order, (list, tuple)):
-            _oid = order[0]
-            open_price = float(order[1]) if len(order) > 1 and order[1] else 0.0
+        if isinstance(_raw, (list, tuple)):
+            _oid = _raw[0]
+            for _item in _raw[1:]:
+                try:
+                    _v = float(_item)
+                    if _v > 1.0:
+                        open_price = _v
+                        break
+                except (TypeError, ValueError):
+                    pass
+        elif isinstance(_raw, dict):
+            _oid = _raw.get('id') or _raw.get('order_id')
+            for _k in ('open_price', 'openPrice', 'open', 'price', 'strike'):
+                if _raw.get(_k):
+                    open_price = float(_raw[_k])
+                    break
         else:
+            _oid = getattr(_raw, 'order_id', None)
             for _attr in ('open_price', 'openPrice', 'open', 'price', 'strike'):
-                if hasattr(order, _attr):
-                    _v = getattr(order, _attr)
-                    if _v:
+                _v = getattr(_raw, _attr, None)
+                if _v:
+                    try:
                         open_price = float(_v)
                         break
-            if isinstance(order, dict) and open_price == 0.0:
-                for _k in ('open_price', 'openPrice', 'open', 'price', 'strike'):
-                    if order.get(_k):
-                        open_price = float(order[_k])
-                        break
-            _oid = getattr(order, 'order_id', None) or (order.get('id') if isinstance(order, dict) else None)
+                    except (TypeError, ValueError):
+                        pass
         print(f"[TRADE] {direction} | {amount} | {EXPIRY_SEC//60} мин | ID: {_oid} | Цена: {open_price}")
         return _oid, open_price
     except Exception as e:

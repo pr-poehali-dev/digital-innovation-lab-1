@@ -1743,9 +1743,15 @@ async def main():
                     ) if entry_price > 0 else None
                     if entry_price == 0.0:
                         print("[WARN] entry_price=0 — хедж и расширение прибыли НЕ запущены!")
-                    won, profit, loss_amount = await check_result(client, order_id, balance_before, bet)
-                    if hedge_task:
-                        hedge_order_id, hedge_bet, hedge_remaining = await hedge_task
+                    # Ждём основной ордер и мониторы параллельно
+                    main_result_task = asyncio.create_task(check_result(client, order_id, balance_before, bet))
+                    gather_results = await asyncio.gather(main_result_task, hedge_task or asyncio.sleep(0), ext_task or asyncio.sleep(0), return_exceptions=True)
+                    main_res = gather_results[0]
+                    hedge_res = gather_results[1]
+                    ext_res   = gather_results[2]
+                    won, profit, loss_amount = main_res if not isinstance(main_res, Exception) else (False, 0.0, bet)
+                    if hedge_task and not isinstance(hedge_res, Exception) and isinstance(hedge_res, tuple):
+                        hedge_order_id, hedge_bet, hedge_remaining = hedge_res
                         if hedge_order_id:
                             hedge_count += 1
                             h_won, h_profit, h_loss = await check_result(client, hedge_order_id, balance_before, hedge_bet, wait_sec=hedge_remaining)
@@ -1755,9 +1761,8 @@ async def main():
                             tg(f"🛡 <b>Хедж результат:</b> {hedge_result} {currency}")
                             profit      += h_profit
                             loss_amount += h_loss
-                    if ext_task:
-                        ext_orders = await ext_task
-                        for ext_id, ext_bet, ext_type, ext_remaining in ext_orders:
+                    if ext_task and not isinstance(ext_res, Exception) and isinstance(ext_res, list):
+                        for ext_id, ext_bet, ext_type, ext_remaining in ext_res:
                             ext_count += 1
                             e_won, e_profit, e_loss = await check_result(client, ext_id, balance_before, ext_bet, wait_sec=ext_remaining)
                             if e_won:
@@ -2847,9 +2852,15 @@ async def main():
                 ) if entry_price > 0 else None
                 if entry_price == 0.0:
                     print("[WARN] entry_price=0 — хедж и расширение прибыли НЕ запущены!")
-                won, profit = await check_result(client, order_id, balance_before, bet)
-                if hedge_task:
-                    hedge_order_id, hedge_bet, hedge_remaining = await hedge_task
+                # Ждём основной ордер и мониторы параллельно
+                main_result_task = asyncio.create_task(check_result(client, order_id, balance_before, bet))
+                gather_results = await asyncio.gather(main_result_task, hedge_task or asyncio.sleep(0), ext_task or asyncio.sleep(0), return_exceptions=True)
+                main_res  = gather_results[0]
+                hedge_res = gather_results[1]
+                ext_res   = gather_results[2]
+                won, profit = main_res if not isinstance(main_res, Exception) else (False, round(-bet, 2))
+                if hedge_task and not isinstance(hedge_res, Exception) and isinstance(hedge_res, tuple):
+                    hedge_order_id, hedge_bet, hedge_remaining = hedge_res
                     if hedge_order_id:
                         hedge_count += 1
                         h_won, h_profit = await check_result(client, hedge_order_id, balance_before, hedge_bet, wait_sec=hedge_remaining)
@@ -2858,9 +2869,8 @@ async def main():
                         hedge_result = f"✅ +{h_profit:.2f}" if h_won else f"❌ {h_profit:.2f}"
                         tg(f"🛡 <b>Хедж результат:</b> {hedge_result} {currency}")
                         profit += h_profit
-                if ext_task:
-                    ext_orders = await ext_task
-                    for ext_id, ext_bet, ext_type, ext_remaining in ext_orders:
+                if ext_task and not isinstance(ext_res, Exception) and isinstance(ext_res, list):
+                    for ext_id, ext_bet, ext_type, ext_remaining in ext_res:
                         ext_count += 1
                         e_won, e_profit = await check_result(client, ext_id, balance_before, ext_bet, wait_sec=ext_remaining)
                         if e_won:

@@ -2447,10 +2447,11 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
         "#GME_otc": 0.01, "#V_otc": 0.01, "#XOM_otc": 0.01, "#MCD_otc": 0.01, "#INTC_otc": 0.01, "#BA_otc": 0.01,
     }
     _asset_key = (_resolved_asset or ASSET)
-    HEDGE_PIP_THRESHOLD = _pip_map.get(_asset_key, ${cfg.hedgePipThreshold})
-    HEDGE_POWER_MULT    = ${cfg.hedgePowerMultiplier}
-    HEDGE_SIMPLE_MULT   = 1.5
-    PIP_SIZE            = _pip_size_map.get(_asset_key, 0.0001)
+    HEDGE_PIP_THRESHOLD        = ${cfg.hedgePipThreshold}
+    HEDGE_SIMPLE_PIP_THRESHOLD = ${cfg.hedgeSimplePipThreshold}
+    HEDGE_POWER_MULT           = ${cfg.hedgePowerMultiplier}
+    HEDGE_SIMPLE_MULT          = 1.5
+    PIP_SIZE                   = _pip_size_map.get(_asset_key, 0.0001)
     check_interval = ${cfg.hedgeCheckInterval}
     print(f"[HEDGE] Инициализация | актив={_asset_key} | pip_size={PIP_SIZE} | порог={HEDGE_PIP_THRESHOLD} пип | цена входа={entry_price}")
     opposite = "PUT" if original_direction == "CALL" else "CALL"

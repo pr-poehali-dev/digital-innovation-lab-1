@@ -337,7 +337,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   tradeDirection: "all",
   hedgeEnabled: true,
   hedgePipThreshold: 8,
-  hedgeSimplePipThreshold: 5,
+  hedgeSimplePipThreshold: 1,
   hedgePowerMultiplier: 2.0,
   hedgeCheckInterval: 5,
   pipSize: 0.0001,

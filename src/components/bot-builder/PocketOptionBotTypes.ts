@@ -1411,6 +1411,8 @@ async def main():
     global total_profit, trades_today, current_bet, rejected_signals, rejected_no_trend, rejected_conflict
     global _candle_cache, _candle_asset, _last_candle_time, _last_trend
     global calls_follow, calls_reverse
+    global hedge_count, hedge_wins, ext_count, ext_wins
+    hedge_count = 0; hedge_wins = 0; ext_count = 0; ext_wins = 0
     rejected_signals = 0
     rejected_no_trend = 0
     rejected_conflict = 0
@@ -2575,8 +2577,10 @@ def print_stats():
 
 async def main():
     global total_profit, trades_today, current_bet, calls_follow, calls_reverse
+    global hedge_count, hedge_wins, ext_count, ext_wins
     calls_follow  = 0
     calls_reverse = 0
+    hedge_count = 0; hedge_wins = 0; ext_count = 0; ext_wins = 0
 
     client = AsyncPocketOptionClient(SESSION_ID, is_demo=IS_DEMO, enable_logging=False)
     await client.connect()

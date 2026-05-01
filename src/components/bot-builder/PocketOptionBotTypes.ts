@@ -1232,6 +1232,19 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
     start_time = asyncio.get_event_loop().time()
     print(f"[HEDGE] Пауза 60с перед стартом мониторинга...")
     await asyncio.sleep(60)
+    try:
+        _ep_candles = await client.get_candles(asset=_asset_key, timeframe=expiry_sec, count=2)
+        if _ep_candles and len(_ep_candles) >= 1:
+            _ep_c = _ep_candles[-1]
+            if hasattr(_ep_c, 'close') and float(_ep_c.close) > 0:
+                entry_price = float(_ep_c.close)
+            elif isinstance(_ep_c, dict) and _ep_c.get('close', 0):
+                entry_price = float(_ep_c.get('close'))
+            elif hasattr(_ep_c, '__getitem__') and float(_ep_c[3]) > 0:
+                entry_price = float(_ep_c[3])
+        print(f"[HEDGE] Точная цена входа после 60с: {entry_price}")
+    except Exception:
+        pass
     while True:
         await asyncio.sleep(check_interval)
         elapsed = asyncio.get_event_loop().time() - start_time
@@ -1333,6 +1346,19 @@ async def profit_extension_monitor(client, original_direction, original_bet, ent
     orders = []
     print(f"[EXT] Пауза 60с перед стартом мониторинга...")
     await asyncio.sleep(60)
+    try:
+        _ep_candles_ext = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=expiry_sec, count=2)
+        if _ep_candles_ext and len(_ep_candles_ext) >= 1:
+            _ep_cx = _ep_candles_ext[-1]
+            if hasattr(_ep_cx, 'close') and float(_ep_cx.close) > 0:
+                entry_price = float(_ep_cx.close)
+            elif isinstance(_ep_cx, dict) and _ep_cx.get('close', 0):
+                entry_price = float(_ep_cx.get('close'))
+            elif hasattr(_ep_cx, '__getitem__') and float(_ep_cx[3]) > 0:
+                entry_price = float(_ep_cx[3])
+        print(f"[EXT] Точная цена входа после 60с: {entry_price}")
+    except Exception:
+        pass
     while not triggered:
         await asyncio.sleep(check_interval)
         elapsed = asyncio.get_event_loop().time() - start_time
@@ -2510,6 +2536,19 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
     start_time = asyncio.get_event_loop().time()
     print(f"[HEDGE] Пауза 60с перед стартом мониторинга...")
     await asyncio.sleep(60)
+    try:
+        _ep_candles = await client.get_candles(asset=_asset_key, timeframe=expiry_sec, count=2)
+        if _ep_candles and len(_ep_candles) >= 1:
+            _ep_c = _ep_candles[-1]
+            if hasattr(_ep_c, 'close') and float(_ep_c.close) > 0:
+                entry_price = float(_ep_c.close)
+            elif isinstance(_ep_c, dict) and _ep_c.get('close', 0):
+                entry_price = float(_ep_c.get('close'))
+            elif hasattr(_ep_c, '__getitem__') and float(_ep_c[3]) > 0:
+                entry_price = float(_ep_c[3])
+        print(f"[HEDGE] Точная цена входа после 60с: {entry_price}")
+    except Exception:
+        pass
     while True:
         await asyncio.sleep(check_interval)
         elapsed = asyncio.get_event_loop().time() - start_time
@@ -2601,6 +2640,19 @@ async def profit_extension_monitor(client, original_direction, original_bet, ent
     orders = []
     print(f"[EXT] Пауза 60с перед стартом мониторинга...")
     await asyncio.sleep(60)
+    try:
+        _ep_candles_ext = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=expiry_sec, count=2)
+        if _ep_candles_ext and len(_ep_candles_ext) >= 1:
+            _ep_cx = _ep_candles_ext[-1]
+            if hasattr(_ep_cx, 'close') and float(_ep_cx.close) > 0:
+                entry_price = float(_ep_cx.close)
+            elif isinstance(_ep_cx, dict) and _ep_cx.get('close', 0):
+                entry_price = float(_ep_cx.get('close'))
+            elif hasattr(_ep_cx, '__getitem__') and float(_ep_cx[3]) > 0:
+                entry_price = float(_ep_cx[3])
+        print(f"[EXT] Точная цена входа после 60с: {entry_price}")
+    except Exception:
+        pass
     while not triggered:
         await asyncio.sleep(check_interval)
         elapsed = asyncio.get_event_loop().time() - start_time

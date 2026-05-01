@@ -1752,12 +1752,12 @@ async def main():
                         fresh = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=2)
                         if fresh:
                             c2 = fresh[-1]
-                            if hasattr(c2, 'open'):
-                                entry_price = float(c2.open)
+                            if hasattr(c2, 'close'):
+                                entry_price = float(c2.close)
                             elif isinstance(c2, dict):
-                                entry_price = float(c2.get('open', c2.get('o', 0)))
+                                entry_price = float(c2.get('close', c2.get('c', 0)))
                             elif hasattr(c2, '__getitem__'):
-                                entry_price = float(c2[0] if len(c2) > 0 else 0)
+                                entry_price = float(c2[3] if len(c2) > 3 else c2[1])
                     except Exception as e2:
                         print(f"[ENTRY_PRICE] Fallback ошибка: {e2}")
                 print(f"[ENTRY_PRICE] entry_price={entry_price}")
@@ -2886,12 +2886,12 @@ async def main():
                     _fresh = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=2)
                     if _fresh:
                         _ec2 = _fresh[-1]
-                        if hasattr(_ec2, 'open'):
-                            entry_price = float(_ec2.open)
+                        if hasattr(_ec2, 'close'):
+                            entry_price = float(_ec2.close)
                         elif isinstance(_ec2, dict):
-                            entry_price = float(_ec2.get('open', _ec2.get('o', 0)))
+                            entry_price = float(_ec2.get('close', _ec2.get('c', 0)))
                         elif hasattr(_ec2, '__getitem__'):
-                            entry_price = float(_ec2[0] if len(_ec2) > 0 else 0)
+                            entry_price = float(_ec2[3] if len(_ec2) > 3 else _ec2[1])
                 except Exception as _ep_err:
                     print(f"[ENTRY_PRICE] Fallback ошибка: {_ep_err}")
             print(f"[ENTRY_PRICE] entry_price={entry_price}")

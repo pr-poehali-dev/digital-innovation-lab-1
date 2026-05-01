@@ -42,6 +42,7 @@ export interface POBotConfig {
   tradeDirection: "all" | "call_only" | "put_only"
   hedgeEnabled: boolean
   hedgePipThreshold: number
+  hedgeSimplePipThreshold: number
   hedgePowerMultiplier: number
   hedgeCheckInterval: number
   pipSize: number
@@ -336,6 +337,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   tradeDirection: "all",
   hedgeEnabled: true,
   hedgePipThreshold: 8,
+  hedgeSimplePipThreshold: 5,
   hedgePowerMultiplier: 2.0,
   hedgeCheckInterval: 5,
   pipSize: 0.0001,
@@ -1186,10 +1188,11 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
         "#INTC_otc": 0.01, "#BA_otc": 0.01,
     }
     _asset_key = (_resolved_asset or ASSET)
-    HEDGE_PIP_THRESHOLD = _pip_map.get(_asset_key, ${cfg.hedgePipThreshold})
-    HEDGE_POWER_MULT    = ${cfg.hedgePowerMultiplier}
-    HEDGE_SIMPLE_MULT   = 1.5
-    PIP_SIZE            = _pip_size_map.get(_asset_key, 0.0001)  # дефолт для Forex
+    HEDGE_PIP_THRESHOLD        = _pip_map.get(_asset_key, ${cfg.hedgePipThreshold})
+    HEDGE_SIMPLE_PIP_THRESHOLD = ${cfg.hedgeSimplePipThreshold}
+    HEDGE_POWER_MULT           = ${cfg.hedgePowerMultiplier}
+    HEDGE_SIMPLE_MULT          = 1.5
+    PIP_SIZE                   = _pip_size_map.get(_asset_key, 0.0001)  # дефолт для Forex
     check_interval = ${cfg.hedgeCheckInterval}
     print(f"[HEDGE] Инициализация | актив={_asset_key} | pip_size={PIP_SIZE} | порог={HEDGE_PIP_THRESHOLD} пип | цена входа={entry_price}")
     opposite = "PUT" if original_direction == "CALL" else "CALL"
@@ -1225,9 +1228,12 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
             elif pips >= HEDGE_PIP_THRESHOLD:
                 hedge_bet = round(original_bet * HEDGE_POWER_MULT, 2)
                 mode = "POWER"
-            else:
+            elif pips >= HEDGE_SIMPLE_PIP_THRESHOLD:
                 hedge_bet = round(original_bet * HEDGE_SIMPLE_MULT, 2)
                 mode = "SIMPLE"
+            else:
+                print(f"[HEDGE] Цена ушла {pips} пип — меньше порога Simple ({HEDGE_SIMPLE_PIP_THRESHOLD}), ждём")
+                continue
             remaining = max(30, int(expiry_sec - elapsed))
             print(f"[HEDGE] {mode} | {pips} пип | {hedge_bet} | {opposite} | осталось {remaining}с")
             tg(f"🛡 <b>[HEDGE {mode}]</b> {opposite} | {hedge_bet} | {pips} пип | осталось {remaining}с")
@@ -2480,9 +2486,12 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
             elif pips >= HEDGE_PIP_THRESHOLD:
                 hedge_bet = round(original_bet * HEDGE_POWER_MULT, 2)
                 mode = "POWER"
-            else:
+            elif pips >= HEDGE_SIMPLE_PIP_THRESHOLD:
                 hedge_bet = round(original_bet * HEDGE_SIMPLE_MULT, 2)
                 mode = "SIMPLE"
+            else:
+                print(f"[HEDGE] Цена ушла {pips} пип — меньше порога Simple ({HEDGE_SIMPLE_PIP_THRESHOLD}), ждём")
+                continue
             remaining = max(30, int(expiry_sec - elapsed))
             print(f"[HEDGE] {mode} | {pips} пип | {hedge_bet} | {opposite} | осталось {remaining}с")
             tg(f"🛡 <b>[HEDGE {mode}]</b> {opposite} | {hedge_bet} | {pips} пип | осталось {remaining}с")

@@ -1711,36 +1711,22 @@ async def main():
                 tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")
                 tg("\\n".join(tg_parts))
                 balance_before, _ = await get_balance(client)
-                # Получаем цену входа для хеджирования
+                order_id = await place_trade(client, signal, bet)
+                # Получаем реальную цену входа сразу после открытия ордера
                 entry_price = 0.0
                 try:
-                    if candles:
-                        c = candles[-1]
-                        # Поддержка объектов с атрибутами И списков/словарей
-                        if hasattr(c, 'close'):
-                            entry_price = float(c.close)
-                        elif isinstance(c, dict):
-                            entry_price = float(c.get('close', c.get('c', 0)))
-                        elif hasattr(c, '__getitem__'):
-                            entry_price = float(c[3] if len(c) > 3 else c[1])
-                except Exception as e:
-                    print(f"[ENTRY_PRICE] Не удалось получить: {e}")
-                # Если из свечей не вышло — пробуем отдельный запрос
-                if entry_price == 0.0:
-                    try:
-                        fresh = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=1)
-                        if fresh:
-                            c2 = fresh[-1]
-                            if hasattr(c2, 'close'):
-                                entry_price = float(c2.close)
-                            elif isinstance(c2, dict):
-                                entry_price = float(c2.get('close', c2.get('c', 0)))
-                            elif hasattr(c2, '__getitem__'):
-                                entry_price = float(c2[3] if len(c2) > 3 else c2[1])
-                    except Exception as e2:
-                        print(f"[ENTRY_PRICE] Резервный запрос не удался: {e2}")
+                    fresh = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=1)
+                    if fresh:
+                        c2 = fresh[-1]
+                        if hasattr(c2, 'close'):
+                            entry_price = float(c2.close)
+                        elif isinstance(c2, dict):
+                            entry_price = float(c2.get('close', c2.get('c', 0)))
+                        elif hasattr(c2, '__getitem__'):
+                            entry_price = float(c2[3] if len(c2) > 3 else c2[1])
+                except Exception as e2:
+                    print(f"[ENTRY_PRICE] Ошибка: {e2}")
                 print(f"[ENTRY_PRICE] entry_price={entry_price}")
-                order_id = await place_trade(client, signal, bet)
                 if order_id:
                     # Запускаем хедж и расширение прибыли параллельно ДО ожидания результата
                     hedge_task = asyncio.create_task(
@@ -2828,34 +2814,22 @@ async def main():
             tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")
             tg("\\n".join(tg_parts))
             balance_before, _ = await get_balance(client)
-            # Получаем цену входа для хеджирования
+            order_id = await place_trade(client, signal, bet)
+            # Получаем реальную цену входа сразу после открытия ордера
             entry_price = 0.0
             try:
-                if candles:
-                    _ec = candles[-1]
-                    if hasattr(_ec, 'close'):
-                        entry_price = float(_ec.close)
-                    elif isinstance(_ec, dict):
-                        entry_price = float(_ec.get('close', _ec.get('c', 0)))
-                    elif hasattr(_ec, '__getitem__'):
-                        entry_price = float(_ec[3] if len(_ec) > 3 else _ec[1])
+                _fresh = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=1)
+                if _fresh:
+                    _ec2 = _fresh[-1]
+                    if hasattr(_ec2, 'close'):
+                        entry_price = float(_ec2.close)
+                    elif isinstance(_ec2, dict):
+                        entry_price = float(_ec2.get('close', _ec2.get('c', 0)))
+                    elif hasattr(_ec2, '__getitem__'):
+                        entry_price = float(_ec2[3] if len(_ec2) > 3 else _ec2[1])
             except Exception as _ep_err:
                 print(f"[ENTRY_PRICE] Ошибка: {_ep_err}")
-            if entry_price == 0.0:
-                try:
-                    _fresh = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=1)
-                    if _fresh:
-                        _ec2 = _fresh[-1]
-                        if hasattr(_ec2, 'close'):
-                            entry_price = float(_ec2.close)
-                        elif isinstance(_ec2, dict):
-                            entry_price = float(_ec2.get('close', _ec2.get('c', 0)))
-                        elif hasattr(_ec2, '__getitem__'):
-                            entry_price = float(_ec2[3] if len(_ec2) > 3 else _ec2[1])
-                except Exception:
-                    pass
             print(f"[ENTRY_PRICE] entry_price={entry_price}")
-            order_id = await place_trade(client, signal, bet)
             if order_id:
                 hedge_task = asyncio.create_task(
                     hedge_monitor(client, signal, bet, entry_price, EXPIRY_SEC)

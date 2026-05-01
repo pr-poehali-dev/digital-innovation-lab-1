@@ -1127,14 +1127,14 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
         return None, 0.0
     _pip_map = {
         # Forex мажоры
-        "EURUSD": 8, "GBPUSD": 10, "USDJPY": 9, "USDCHF": 9, "USDCAD": 9, "AUDUSD": 9, "NZDUSD": 9,
-        "EURUSD_otc": 8, "GBPUSD_otc": 10, "USDJPY_otc": 9, "USDCHF_otc": 9, "USDCAD_otc": 9, "AUDUSD_otc": 9, "NZDUSD_otc": 9,
-        # Forex кросс-пары
-        "GBPJPY": 20, "GBPJPY_otc": 20, "EURJPY": 15, "EURJPY_otc": 15, "EURGBP": 10, "EURGBP_otc": 10,
+        "EURUSD": 8, "GBPUSD": 10, "USDJPY": 150, "USDCHF": 9, "USDCAD": 9, "AUDUSD": 9, "NZDUSD": 9,
+        "EURUSD_otc": 8, "GBPUSD_otc": 10, "USDJPY_otc": 150, "USDCHF_otc": 9, "USDCAD_otc": 9, "AUDUSD_otc": 9, "NZDUSD_otc": 9,
+        # Forex кросс-пары (JPY — порог 150, остальные стандарт)
+        "GBPJPY": 200, "GBPJPY_otc": 200, "EURJPY": 150, "EURJPY_otc": 150, "EURGBP": 10, "EURGBP_otc": 10,
         "GBPAUD": 18, "GBPAUD_otc": 18, "GBPCAD": 16, "GBPCAD_otc": 16, "GBPCHF": 14, "GBPCHF_otc": 14,
-        "AUDCAD_otc": 12, "AUDCHF_otc": 11, "AUDJPY_otc": 14, "AUDNZD_otc": 13,
-        "CADJPY_otc": 13, "CADCHF_otc": 10, "CHFJPY_otc": 14,
-        "NZDJPY_otc": 14, "NZDCAD_otc": 12, "NZDCHF_otc": 11, "EURNZD_otc": 14,
+        "AUDCAD_otc": 12, "AUDCHF_otc": 11, "AUDJPY_otc": 140, "AUDNZD_otc": 13,
+        "CADJPY_otc": 130, "CADCHF_otc": 10, "CHFJPY_otc": 140,
+        "NZDJPY_otc": 140, "NZDCAD_otc": 12, "NZDCHF_otc": 11, "EURNZD_otc": 14,
         "GBPNZD_otc": 22, "EURCAD_otc": 13, "EURCHF_otc": 11,
         # Крипто
         "BTCUSD": 150, "BTCUSD_otc": 150, "ETHUSD": 60, "ETHUSD_otc": 60,
@@ -1248,11 +1248,11 @@ async def profit_extension_monitor(client, original_direction, original_bet, ent
     if not ${cfg.profitExtEnabled ? "True" : "False"}:
         return []
     _pip_map_ext = {
-        "EURUSD": 8, "GBPUSD": 10, "USDJPY": 9, "USDCHF": 9, "USDCAD": 9, "AUDUSD": 9, "NZDUSD": 9,
-        "EURUSD_otc": 8, "GBPUSD_otc": 10, "USDJPY_otc": 9, "USDCHF_otc": 9, "USDCAD_otc": 9, "AUDUSD_otc": 9, "NZDUSD_otc": 9,
-        "GBPJPY": 20, "GBPJPY_otc": 20, "EURJPY": 15, "EURJPY_otc": 15, "EURGBP": 10, "EURGBP_otc": 10,
-        "GBPAUD": 18, "GBPAUD_otc": 18, "GBPCAD": 16, "GBPCAD_otc": 16, "AUDCAD_otc": 12, "AUDJPY_otc": 14,
-        "CADJPY_otc": 13, "CHFJPY_otc": 14, "NZDJPY_otc": 14, "GBPNZD_otc": 22,
+        "EURUSD": 8, "GBPUSD": 10, "USDJPY": 150, "USDCHF": 9, "USDCAD": 9, "AUDUSD": 9, "NZDUSD": 9,
+        "EURUSD_otc": 8, "GBPUSD_otc": 10, "USDJPY_otc": 150, "USDCHF_otc": 9, "USDCAD_otc": 9, "AUDUSD_otc": 9, "NZDUSD_otc": 9,
+        "GBPJPY": 200, "GBPJPY_otc": 200, "EURJPY": 150, "EURJPY_otc": 150, "EURGBP": 10, "EURGBP_otc": 10,
+        "GBPAUD": 18, "GBPAUD_otc": 18, "GBPCAD": 16, "GBPCAD_otc": 16, "AUDCAD_otc": 12, "AUDJPY_otc": 140,
+        "CADJPY_otc": 130, "CHFJPY_otc": 140, "NZDJPY_otc": 140, "GBPNZD_otc": 22,
         "BTCUSD": 150, "BTCUSD_otc": 150, "ETHUSD": 60, "ETHUSD_otc": 60,
         "LTCUSD_otc": 30, "DOTUSD": 20, "LNKUSD": 15, "BTCGBP": 150, "DASH_USD": 30,
         "XAUUSD": 25, "XAUUSD_otc": 25, "XAGUSD": 15, "XAGUSD_otc": 15,
@@ -2400,13 +2400,13 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
     if not ${cfg.hedgeEnabled ? "True" : "False"}:
         return None, 0.0
     _pip_map = {
-        "EURUSD": 8, "GBPUSD": 10, "USDJPY": 9, "USDCHF": 9, "USDCAD": 9, "AUDUSD": 9, "NZDUSD": 9,
-        "EURUSD_otc": 8, "GBPUSD_otc": 10, "USDJPY_otc": 9, "USDCHF_otc": 9, "USDCAD_otc": 9, "AUDUSD_otc": 9, "NZDUSD_otc": 9,
-        "GBPJPY": 20, "GBPJPY_otc": 20, "EURJPY": 15, "EURJPY_otc": 15, "EURGBP": 10, "EURGBP_otc": 10,
+        "EURUSD": 8, "GBPUSD": 10, "USDJPY": 150, "USDCHF": 9, "USDCAD": 9, "AUDUSD": 9, "NZDUSD": 9,
+        "EURUSD_otc": 8, "GBPUSD_otc": 10, "USDJPY_otc": 150, "USDCHF_otc": 9, "USDCAD_otc": 9, "AUDUSD_otc": 9, "NZDUSD_otc": 9,
+        "GBPJPY": 200, "GBPJPY_otc": 200, "EURJPY": 150, "EURJPY_otc": 150, "EURGBP": 10, "EURGBP_otc": 10,
         "GBPAUD": 18, "GBPAUD_otc": 18, "GBPCAD": 16, "GBPCAD_otc": 16, "GBPCHF": 14, "GBPCHF_otc": 14,
-        "AUDCAD_otc": 12, "AUDCHF_otc": 11, "AUDJPY_otc": 14, "AUDNZD_otc": 13,
-        "CADJPY_otc": 13, "CADCHF_otc": 10, "CHFJPY_otc": 14,
-        "NZDJPY_otc": 14, "NZDCAD_otc": 12, "NZDCHF_otc": 11, "EURNZD_otc": 14,
+        "AUDCAD_otc": 12, "AUDCHF_otc": 11, "AUDJPY_otc": 140, "AUDNZD_otc": 13,
+        "CADJPY_otc": 130, "CADCHF_otc": 10, "CHFJPY_otc": 140,
+        "NZDJPY_otc": 140, "NZDCAD_otc": 12, "NZDCHF_otc": 11, "EURNZD_otc": 14,
         "GBPNZD_otc": 22, "EURCAD_otc": 13, "EURCHF_otc": 11,
         "BTCUSD": 150, "BTCUSD_otc": 150, "ETHUSD": 60, "ETHUSD_otc": 60,
         "LTCUSD_otc": 30, "DOTUSD": 20, "LNKUSD": 15, "BTCGBP": 150, "BTCJPY": 150, "BCHEUR": 40, "DASH_USD": 30,
@@ -2496,11 +2496,11 @@ async def profit_extension_monitor(client, original_direction, original_bet, ent
     if not ${cfg.profitExtEnabled ? "True" : "False"}:
         return []
     _pip_map_ext = {
-        "EURUSD": 8, "GBPUSD": 10, "USDJPY": 9, "USDCHF": 9, "USDCAD": 9, "AUDUSD": 9, "NZDUSD": 9,
-        "EURUSD_otc": 8, "GBPUSD_otc": 10, "USDJPY_otc": 9, "USDCHF_otc": 9, "USDCAD_otc": 9, "AUDUSD_otc": 9, "NZDUSD_otc": 9,
-        "GBPJPY": 20, "GBPJPY_otc": 20, "EURJPY": 15, "EURJPY_otc": 15, "EURGBP": 10, "EURGBP_otc": 10,
-        "GBPAUD": 18, "GBPAUD_otc": 18, "GBPCAD": 16, "GBPCAD_otc": 16, "AUDCAD_otc": 12, "AUDJPY_otc": 14,
-        "CADJPY_otc": 13, "CHFJPY_otc": 14, "NZDJPY_otc": 14, "GBPNZD_otc": 22,
+        "EURUSD": 8, "GBPUSD": 10, "USDJPY": 150, "USDCHF": 9, "USDCAD": 9, "AUDUSD": 9, "NZDUSD": 9,
+        "EURUSD_otc": 8, "GBPUSD_otc": 10, "USDJPY_otc": 150, "USDCHF_otc": 9, "USDCAD_otc": 9, "AUDUSD_otc": 9, "NZDUSD_otc": 9,
+        "GBPJPY": 200, "GBPJPY_otc": 200, "EURJPY": 150, "EURJPY_otc": 150, "EURGBP": 10, "EURGBP_otc": 10,
+        "GBPAUD": 18, "GBPAUD_otc": 18, "GBPCAD": 16, "GBPCAD_otc": 16, "AUDCAD_otc": 12, "AUDJPY_otc": 140,
+        "CADJPY_otc": 130, "CHFJPY_otc": 140, "NZDJPY_otc": 140, "GBPNZD_otc": 22,
         "BTCUSD": 150, "BTCUSD_otc": 150, "ETHUSD": 60, "ETHUSD_otc": 60,
         "LTCUSD_otc": 30, "DOTUSD": 20, "LNKUSD": 15, "BTCGBP": 150, "DASH_USD": 30,
         "XAUUSD": 25, "XAUUSD_otc": 25, "XAGUSD": 15, "XAGUSD_otc": 15,

@@ -1111,7 +1111,12 @@ async def place_trade(client, direction, amount):
         dir_val = OrderDirection.CALL if direction == "CALL" else OrderDirection.PUT
         trade_asset = _resolved_asset or ASSET
         _raw = await client.place_order(asset=trade_asset, amount=amount, direction=dir_val, duration=EXPIRY_SEC)
-        print(f"[ORDER_RAW] type={type(_raw).__name__} val={str(_raw)[:200]}")
+        import sys; sys.stdout.flush()
+        print(f"[ORDER_RAW] type={type(_raw).__name__} val={str(_raw)[:300]}", flush=True)
+        if hasattr(_raw, '__dict__'):
+            print(f"[ORDER_DICT] {_raw.__dict__}", flush=True)
+        elif hasattr(_raw, '__slots__'):
+            print(f"[ORDER_SLOTS] { {s: getattr(_raw,s,None) for s in _raw.__slots__} }", flush=True)
         open_price = 0.0
         if isinstance(_raw, (list, tuple)):
             _oid = _raw[0]

@@ -1409,11 +1409,18 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
             else:
                 print(f"[HEDGE]    Резерв:     ОТКЛ (0%)")
             print(f"[HEDGE]    Итог:       {_smart_hedge:.2f} ✅")
-            if _smart_hedge < 1.0:
-                print(f"[HEDGE] ⛔ ОТМЕНА — итог {_smart_hedge:.2f} < $1, мало денег для хеджа")
-                tg(f"⛔ <b>[HEDGE отменён]</b>\\nДенег мало: итог {_smart_hedge:.2f}\\nБаланс: {_bal_now:.2f}\\nСохраняю остаток для следующих сделок")
-                return None, 0.0, 0, 0.0
-            if _smart_hedge < _wanted_hedge:
+            if _smart_hedge < BASE_BET:
+                # Лимит меньше базовой → пробуем поставить базовой ставкой
+                if BASE_BET <= _bal_now:
+                    print(f"[HEDGE] 🔄 СБРОС ДО БАЗОВОЙ: лимит {_smart_hedge:.2f} < базовая {BASE_BET:.2f}")
+                    print(f"[HEDGE]    Ставим хедж базовой суммой: {BASE_BET:.2f}")
+                    tg(f"🔄 <b>[HEDGE сброшен к базовой]</b>\\nЛимит: {_smart_hedge:.2f}\\nСтавим: <b>{BASE_BET:.2f}</b>\\nБаланс: {_bal_now:.2f}")
+                    _smart_hedge = BASE_BET
+                else:
+                    print(f"[HEDGE] ⛔ ОТМЕНА — даже базовая {BASE_BET:.2f} > баланс {_bal_now:.2f}")
+                    tg(f"⛔ <b>[HEDGE отменён]</b>\\nДаже базовая ставка не лезет\\nБаланс: {_bal_now:.2f} | Базовая: {BASE_BET:.2f}")
+                    return None, 0.0, 0, 0.0
+            elif _smart_hedge < _wanted_hedge:
                 print(f"[HEDGE] ⚠️ Хедж урезан: {_wanted_hedge:.2f} → {_smart_hedge:.2f} (защита баланса)")
                 tg(f"⚠️ <b>[HEDGE урезан]</b>\\n{_wanted_hedge:.2f} → <b>{_smart_hedge:.2f}</b>\\nЛимит {SAFETY_MAX_BET_PCT}% или резерв")
             hedge_bet = _smart_hedge
@@ -1996,35 +2003,40 @@ async def main():
                     print(f"[МАРТИНГЕЙЛ]    Итог:       {_smart_bet:.2f} {currency} ✅")
                     print(f"{'='*55}")
 
-                    if _smart_bet < 1.0:
-                        print(f"[МАРТИНГЕЙЛ] ⛔ ОТМЕНА — итог {_smart_bet:.2f} < $1")
-                        print(f"[МАРТИНГЕЙЛ]    Сброс мартингейла к базовой и пропуск сигнала")
+                    if _smart_bet < 1.0 or _smart_bet < BASE_BET:
+                        # Денег мало для безопасной ставки → СБРОС К БАЗОВОЙ И ИДЁМ ТОРГОВАТЬ
+                        print(f"[МАРТИНГЕЙЛ] 🔄 СБРОС К БАЗОВОЙ СТАВКЕ")
+                        print(f"[МАРТИНГЕЙЛ]    Безопасный лимит ({_smart_bet:.2f}) меньше базовой ({BASE_BET:.2f})")
+                        print(f"[МАРТИНГЕЙЛ]    Сбрасываем мартингейл и торгуем базовой: {_wanted_bet:.2f} → {BASE_BET:.2f}")
+                        print(f"[МАРТИНГЕЙЛ]    Серия проигрышей: {loss_streak if 'loss_streak' in dir() else '?'} → 0")
                         tg(
-                            f"⛔ <b>[{BOT_NAME}] Мартингейл отменён</b>\\n"
-                            f"Денег мало для безопасной ставки (итог {_smart_bet:.2f})\\n"
-                            f"Баланс: {balance:.2f} {currency}\\n"
-                            f"⚠️ Сброс к базовой ставке"
+                            f"🔄 <b>[{BOT_NAME}] Сброс к базовой ставке</b>\\n"
+                            f"Хотели: {_wanted_bet:.2f} {currency} (мартингейл)\\n"
+                            f"Безопасный лимит: {_smart_bet:.2f} (меньше базовой)\\n"
+                            f"Ставим: <b>{BASE_BET:.2f} {currency}</b> (базовая)\\n"
+                            f"Серия мартингейла обнулена"
                         )
                         try:
                             current_bet = BASE_BET
                             loss_streak = 0
                         except NameError:
                             pass
-                        await asyncio.sleep(CHECK_INTERVAL)
-                        continue
-
-                    print(f"[МАРТИНГЕЙЛ] ⚠️ Ставка урезана: {_wanted_bet:.2f} → {_smart_bet:.2f} (защита баланса)")
-                    tg(
-                        f"⚠️ <b>[{BOT_NAME}] Мартингейл урезан</b>\\n"
-                        f"Хотели: <b>{_wanted_bet:.2f} {currency}</b>\\n"
-                        f"Ставим: <b>{_smart_bet:.2f} {currency}</b> (лимит {SAFETY_MAX_BET_PCT}% или резерв)\\n"
-                        f"Баланс: {balance:.2f} {currency}"
-                    )
-                    bet = _smart_bet
-                    try:
-                        current_bet = _smart_bet
-                    except NameError:
-                        pass
+                        bet = BASE_BET
+                        # Идём дальше — торгуем базовой ставкой
+                        # (если и она не лезет — поймает защита #1: insufficient_funds_count)
+                    else:
+                        print(f"[МАРТИНГЕЙЛ] ⚠️ Ставка урезана: {_wanted_bet:.2f} → {_smart_bet:.2f} (защита баланса)")
+                        tg(
+                            f"⚠️ <b>[{BOT_NAME}] Мартингейл урезан</b>\\n"
+                            f"Хотели: <b>{_wanted_bet:.2f} {currency}</b>\\n"
+                            f"Ставим: <b>{_smart_bet:.2f} {currency}</b> (лимит {SAFETY_MAX_BET_PCT}% или резерв)\\n"
+                            f"Баланс: {balance:.2f} {currency}"
+                        )
+                        bet = _smart_bet
+                        try:
+                            current_bet = _smart_bet
+                        except NameError:
+                            pass
 
                 # Прошли все защиты — сбрасываем счётчик "недостаточно средств"
                 if insufficient_funds_count > 0:
@@ -3011,11 +3023,18 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
             else:
                 print(f"[HEDGE]    Резерв:     ОТКЛ (0%)")
             print(f"[HEDGE]    Итог:       {_smart_hedge:.2f} ✅")
-            if _smart_hedge < 1.0:
-                print(f"[HEDGE] ⛔ ОТМЕНА — итог {_smart_hedge:.2f} < $1, мало денег для хеджа")
-                tg(f"⛔ <b>[HEDGE отменён]</b>\\nДенег мало: итог {_smart_hedge:.2f}\\nБаланс: {_bal_now:.2f}\\nСохраняю остаток для следующих сделок")
-                return None, 0.0, 0, 0.0
-            if _smart_hedge < _wanted_hedge:
+            if _smart_hedge < BASE_BET:
+                # Лимит меньше базовой → пробуем поставить базовой ставкой
+                if BASE_BET <= _bal_now:
+                    print(f"[HEDGE] 🔄 СБРОС ДО БАЗОВОЙ: лимит {_smart_hedge:.2f} < базовая {BASE_BET:.2f}")
+                    print(f"[HEDGE]    Ставим хедж базовой суммой: {BASE_BET:.2f}")
+                    tg(f"🔄 <b>[HEDGE сброшен к базовой]</b>\\nЛимит: {_smart_hedge:.2f}\\nСтавим: <b>{BASE_BET:.2f}</b>\\nБаланс: {_bal_now:.2f}")
+                    _smart_hedge = BASE_BET
+                else:
+                    print(f"[HEDGE] ⛔ ОТМЕНА — даже базовая {BASE_BET:.2f} > баланс {_bal_now:.2f}")
+                    tg(f"⛔ <b>[HEDGE отменён]</b>\\nДаже базовая ставка не лезет\\nБаланс: {_bal_now:.2f} | Базовая: {BASE_BET:.2f}")
+                    return None, 0.0, 0, 0.0
+            elif _smart_hedge < _wanted_hedge:
                 print(f"[HEDGE] ⚠️ Хедж урезан: {_wanted_hedge:.2f} → {_smart_hedge:.2f} (защита баланса)")
                 tg(f"⚠️ <b>[HEDGE урезан]</b>\\n{_wanted_hedge:.2f} → <b>{_smart_hedge:.2f}</b>\\nЛимит {SAFETY_MAX_BET_PCT}% или резерв")
             hedge_bet = _smart_hedge

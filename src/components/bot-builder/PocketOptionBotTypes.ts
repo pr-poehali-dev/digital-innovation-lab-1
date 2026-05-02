@@ -63,6 +63,7 @@ export interface POBotConfig {
   pauseAfterLossesCount?: number
   pauseAfterLossesMinutes?: number
   safetyMaxBetPercent?: number
+  safetyMinReservePercent?: number
 }
 
 export interface StrategyMeta {
@@ -366,6 +367,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   pauseAfterLossesCount: 3,
   pauseAfterLossesMinutes: 10,
   safetyMaxBetPercent: 30,
+  safetyMinReservePercent: 30,
 }
 
 // Helper to avoid TS template literal conflicts with Python f-strings
@@ -798,6 +800,7 @@ BASE_BET     = ${cfg.betAmount}          # Базовая ставка ₽
 BET_PERCENT  = ${cfg.betPercent ? "True" : "False"}        # True = % от баланса
 IS_DEMO      = ${cfg.isDemo ? "True" : "False"}                   # True = демо, False = реальный счёт
 SAFETY_MAX_BET_PCT = ${cfg.safetyMaxBetPercent ?? 30}      # Защита: макс. % ставки от баланса
+SAFETY_MIN_RESERVE_PCT = ${cfg.safetyMinReservePercent ?? 30}  # Защита: % баланса который ВСЕГДА должен оставаться нетронутым (0 = выкл)
 
 CURRENCY     = "${cfg.currency}"         # Валюта счёта
 TAKE_PROFIT  = ${cfg.takeProfitRub}      # Стоп профит за сессию
@@ -1395,13 +1398,17 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
             _bal_now, _ = await get_balance(client)
             _wanted_hedge = hedge_bet
             _limit_pct = round(_bal_now * (SAFETY_MAX_BET_PCT / 100.0), 2) if _bal_now > 0 else _wanted_hedge
-            _reserve = round(_bal_now - BASE_BET, 2) if _bal_now > BASE_BET else 0.0
-            _smart_hedge = round(min(_wanted_hedge, _limit_pct, _reserve if _reserve > 0 else _wanted_hedge), 2)
+            _reserve_amount = round(_bal_now * (SAFETY_MIN_RESERVE_PCT / 100.0), 2) if SAFETY_MIN_RESERVE_PCT > 0 and _bal_now > 0 else 0.0
+            _max_after_reserve = round(_bal_now - _reserve_amount, 2) if _reserve_amount > 0 else _wanted_hedge
+            _smart_hedge = round(min(_wanted_hedge, _limit_pct, _max_after_reserve if _max_after_reserve > 0 else _wanted_hedge), 2)
             print(f"[HEDGE] 🧠 Умный расчёт:")
-            print(f"[HEDGE]    Хотели:    {_wanted_hedge:.2f} (исходный {mode})")
-            print(f"[HEDGE]    Лимит {SAFETY_MAX_BET_PCT}%: {_limit_pct:.2f} (от баланса {_bal_now:.2f})")
-            print(f"[HEDGE]    Резерв:    {_reserve:.2f} (баланс − базовая ставка {BASE_BET:.2f})")
-            print(f"[HEDGE]    Итог:      {_smart_hedge:.2f} ✅")
+            print(f"[HEDGE]    Хотели:     {_wanted_hedge:.2f} (исходный {mode})")
+            print(f"[HEDGE]    Лимит {SAFETY_MAX_BET_PCT}%:  {_limit_pct:.2f} (от баланса {_bal_now:.2f})")
+            if SAFETY_MIN_RESERVE_PCT > 0:
+                print(f"[HEDGE]    Резерв {SAFETY_MIN_RESERVE_PCT}%: {_reserve_amount:.2f} → можно ставить до {_max_after_reserve:.2f}")
+            else:
+                print(f"[HEDGE]    Резерв:     ОТКЛ (0%)")
+            print(f"[HEDGE]    Итог:       {_smart_hedge:.2f} ✅")
             if _smart_hedge < 1.0:
                 print(f"[HEDGE] ⛔ ОТМЕНА — итог {_smart_hedge:.2f} < $1, мало денег для хеджа")
                 tg(f"⛔ <b>[HEDGE отменён]</b>\\nДенег мало: итог {_smart_hedge:.2f}\\nБаланс: {_bal_now:.2f}\\nСохраняю остаток для следующих сделок")
@@ -1972,15 +1979,21 @@ async def main():
                 if balance > 0 and bet > _max_safe_bet and bet >= BASE_BET:
                     _wanted_bet = bet
                     _limit_pct = _max_safe_bet
-                    _reserve = round(balance - BASE_BET, 2) if balance > BASE_BET else 0.0
-                    _smart_bet = round(min(_wanted_bet, _limit_pct, _reserve if _reserve > 0 else _wanted_bet), 2)
+                    # Резерв: % баланса который должен ОСТАТЬСЯ → max ставка = баланс − резерв
+                    _reserve_amount = round(balance * (SAFETY_MIN_RESERVE_PCT / 100.0), 2) if SAFETY_MIN_RESERVE_PCT > 0 else 0.0
+                    _max_after_reserve = round(balance - _reserve_amount, 2) if _reserve_amount > 0 else _wanted_bet
+                    _smart_bet = round(min(_wanted_bet, _limit_pct, _max_after_reserve if _max_after_reserve > 0 else _wanted_bet), 2)
 
                     print(f"{'='*55}")
                     print(f"[МАРТИНГЕЙЛ] 🧠 УМНЫЙ РАСЧЁТ СТАВКИ")
-                    print(f"[МАРТИНГЕЙЛ]    Хотели:    {_wanted_bet:.2f} {currency} (мартингейл)")
-                    print(f"[МАРТИНГЕЙЛ]    Лимит {SAFETY_MAX_BET_PCT}%: {_limit_pct:.2f} {currency} (от баланса {balance:.2f})")
-                    print(f"[МАРТИНГЕЙЛ]    Резерв:    {_reserve:.2f} {currency} (баланс − базовая {BASE_BET:.2f})")
-                    print(f"[МАРТИНГЕЙЛ]    Итог:      {_smart_bet:.2f} {currency} ✅")
+                    print(f"[МАРТИНГЕЙЛ]    Хотели:     {_wanted_bet:.2f} {currency} (мартингейл)")
+                    print(f"[МАРТИНГЕЙЛ]    Лимит {SAFETY_MAX_BET_PCT}%:  {_limit_pct:.2f} {currency} (макс. % ставки)")
+                    if SAFETY_MIN_RESERVE_PCT > 0:
+                        print(f"[МАРТИНГЕЙЛ]    Резерв {SAFETY_MIN_RESERVE_PCT}%: {_reserve_amount:.2f} {currency} → можно ставить до {_max_after_reserve:.2f}")
+                    else:
+                        print(f"[МАРТИНГЕЙЛ]    Резерв:     ОТКЛ (0%)")
+                    print(f"[МАРТИНГЕЙЛ]    Баланс:     {balance:.2f} {currency}")
+                    print(f"[МАРТИНГЕЙЛ]    Итог:       {_smart_bet:.2f} {currency} ✅")
                     print(f"{'='*55}")
 
                     if _smart_bet < 1.0:
@@ -2987,13 +3000,17 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
             _bal_now, _ = await get_balance(client)
             _wanted_hedge = hedge_bet
             _limit_pct = round(_bal_now * (SAFETY_MAX_BET_PCT / 100.0), 2) if _bal_now > 0 else _wanted_hedge
-            _reserve = round(_bal_now - BASE_BET, 2) if _bal_now > BASE_BET else 0.0
-            _smart_hedge = round(min(_wanted_hedge, _limit_pct, _reserve if _reserve > 0 else _wanted_hedge), 2)
+            _reserve_amount = round(_bal_now * (SAFETY_MIN_RESERVE_PCT / 100.0), 2) if SAFETY_MIN_RESERVE_PCT > 0 and _bal_now > 0 else 0.0
+            _max_after_reserve = round(_bal_now - _reserve_amount, 2) if _reserve_amount > 0 else _wanted_hedge
+            _smart_hedge = round(min(_wanted_hedge, _limit_pct, _max_after_reserve if _max_after_reserve > 0 else _wanted_hedge), 2)
             print(f"[HEDGE] 🧠 Умный расчёт:")
-            print(f"[HEDGE]    Хотели:    {_wanted_hedge:.2f} (исходный {mode})")
-            print(f"[HEDGE]    Лимит {SAFETY_MAX_BET_PCT}%: {_limit_pct:.2f} (от баланса {_bal_now:.2f})")
-            print(f"[HEDGE]    Резерв:    {_reserve:.2f} (баланс − базовая ставка {BASE_BET:.2f})")
-            print(f"[HEDGE]    Итог:      {_smart_hedge:.2f} ✅")
+            print(f"[HEDGE]    Хотели:     {_wanted_hedge:.2f} (исходный {mode})")
+            print(f"[HEDGE]    Лимит {SAFETY_MAX_BET_PCT}%:  {_limit_pct:.2f} (от баланса {_bal_now:.2f})")
+            if SAFETY_MIN_RESERVE_PCT > 0:
+                print(f"[HEDGE]    Резерв {SAFETY_MIN_RESERVE_PCT}%: {_reserve_amount:.2f} → можно ставить до {_max_after_reserve:.2f}")
+            else:
+                print(f"[HEDGE]    Резерв:     ОТКЛ (0%)")
+            print(f"[HEDGE]    Итог:       {_smart_hedge:.2f} ✅")
             if _smart_hedge < 1.0:
                 print(f"[HEDGE] ⛔ ОТМЕНА — итог {_smart_hedge:.2f} < $1, мало денег для хеджа")
                 tg(f"⛔ <b>[HEDGE отменён]</b>\\nДенег мало: итог {_smart_hedge:.2f}\\nБаланс: {_bal_now:.2f}\\nСохраняю остаток для следующих сделок")

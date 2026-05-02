@@ -1365,10 +1365,27 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
               <span>5% (макс. защита)</span><span>95% (мин. защита)</span>
             </div>
           </div>
+          <div>
+            <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+              Мин. резерв на счёте: <span className="text-emerald-400 font-bold">{config.safetyMinReservePercent ?? 30}%</span>
+              {(config.safetyMinReservePercent ?? 30) === 0 && <span className="text-zinc-500 ml-2">(отключено)</span>}
+            </Label>
+            <Slider
+              min={0}
+              max={80}
+              step={5}
+              value={[config.safetyMinReservePercent ?? 30]}
+              onValueChange={([v]) => set({ safetyMinReservePercent: v })}
+            />
+            <div className="flex justify-between text-zinc-600 text-xs font-space-mono mt-1">
+              <span>0% (выкл)</span><span>80% (макс. резерв)</span>
+            </div>
+          </div>
           <div className="bg-zinc-800 rounded-lg p-3 font-space-mono text-xs space-y-1">
-            <p className="text-zinc-400">Пример: при балансе 1000₽ и лимите {config.safetyMaxBetPercent ?? 30}%:</p>
-            <p className="text-emerald-400">✅ Макс. безопасная ставка: {Math.round(1000 * (config.safetyMaxBetPercent ?? 30) / 100)}₽</p>
-            <p className="text-red-400">🚫 Ставки больше — блокируются (если ≥ базовой {config.betAmount}₽)</p>
+            <p className="text-zinc-400">Пример: баланс 1000₽, лимит ставки {config.safetyMaxBetPercent ?? 30}%, резерв {config.safetyMinReservePercent ?? 30}%:</p>
+            <p className="text-emerald-400">✅ Макс. ставка по %: {Math.round(1000 * (config.safetyMaxBetPercent ?? 30) / 100)}₽</p>
+            <p className="text-cyan-400">💰 Резерв (не трогаем): {Math.round(1000 * (config.safetyMinReservePercent ?? 30) / 100)}₽ → доступно: {1000 - Math.round(1000 * (config.safetyMinReservePercent ?? 30) / 100)}₽</p>
+            <p className="text-purple-400">🧠 Итог ставки = МИНИМУМ из всех лимитов</p>
             <p className="text-yellow-400">💡 Ставки меньше базовой ({config.betAmount}₽) — всегда проходят</p>
           </div>
         </CardContent>

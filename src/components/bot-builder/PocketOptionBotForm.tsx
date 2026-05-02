@@ -1440,44 +1440,67 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                   </p>
                 </div>
 
-                {/* Порог Simple хеджа */}
-                <div>
-                  <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
-                    Порог для Simple хеджа: <span className="text-white font-bold">{config.hedgeSimplePipThreshold} пипсов</span>
-                  </Label>
+                {/* Старые поля скрыты — заменены на ATR-логику ниже. Значения сохраняются в конфиге для обратной совместимости. */}
+                <div className="hidden" aria-hidden="true">
                   <Slider min={1} max={100} step={1} value={[config.hedgeSimplePipThreshold]} onValueChange={([v]) => set({ hedgeSimplePipThreshold: v })} />
-                  <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
-                    {config.hedgeSimplePipThreshold <= 5
-                      ? "⚡ Очень чувствительно — Simple хедж почти сразу"
-                      : config.hedgeSimplePipThreshold >= 40
-                      ? "🐢 Поздно — Simple хедж только при сильном уходе"
-                      : "⚖️ Умеренно — Simple хедж при небольшом уходе цены"}
-                  </p>
-                </div>
-
-                {/* Порог Power хеджа */}
-                <div>
-                  <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
-                    Порог для Power хеджа: <span className="text-white font-bold">{config.hedgePipThreshold} пипсов</span>
-                  </Label>
                   <Slider min={2} max={200} step={1} value={[config.hedgePipThreshold]} onValueChange={([v]) => set({ hedgePipThreshold: v })} />
-                  <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
-                    {config.hedgePipThreshold <= 10
-                      ? "⚡ Очень чувствительно — Power хедж почти всегда"
-                      : config.hedgePipThreshold >= 80
-                      ? "🐢 Редко срабатывает — только при сильном уходе цены"
-                      : "⚖️ Баланс — Power хедж при значительном уходе цены"}
+                  <Slider min={1.1} max={3.0} step={0.1} value={[config.hedgePowerMultiplier]} onValueChange={([v]) => set({ hedgePowerMultiplier: Math.round(v * 10) / 10 })} />
+                </div>
+
+                {/* === НОВАЯ ATR-ЛОГИКА ХЕДЖА === */}
+                <div className="bg-emerald-950/20 border border-emerald-800/40 rounded-lg p-3">
+                  <p className="text-emerald-300 font-space-mono text-[11px] font-bold mb-1">🆕 Умный хедж по ATR</p>
+                  <p className="text-zinc-400 font-space-mono text-[10px]">
+                    Бот считает средний размах последних 14 свечей (ATR) и срабатывает только когда цена ушла достаточно далеко
+                    относительно текущей волатильности — не на фикс. пипсы, а адаптивно.
                   </p>
                 </div>
 
-                {/* Коэффициент Power */}
+                {/* Порог ATR */}
                 <div>
                   <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
-                    Коэффициент Power хеджа: <span className="text-white font-bold">×{config.hedgePowerMultiplier}</span>
+                    Порог расстояния (% от ATR): <span className="text-white font-bold">{config.hedgeAtrPercent}%</span>
                   </Label>
-                  <Slider min={1.1} max={3.0} step={0.1} value={[config.hedgePowerMultiplier]} onValueChange={([v]) => set({ hedgePowerMultiplier: Math.round(v * 10) / 10 })} />
+                  <Slider min={50} max={100} step={5} value={[config.hedgeAtrPercent]} onValueChange={([v]) => set({ hedgeAtrPercent: v })} />
                   <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
-                    Сумма встречной ставки = основная ставка × {config.hedgePowerMultiplier}
+                    {config.hedgeAtrPercent <= 60
+                      ? "⚡ Чувствительно — хедж сработает рано"
+                      : config.hedgeAtrPercent >= 90
+                      ? "🐢 Поздно — только при очень сильном уходе"
+                      : "⚖️ Баланс — стандартное поведение (рекомендуется 70%)"}
+                  </p>
+                </div>
+
+                {/* Окно времени MIN */}
+                <div>
+                  <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                    Раньше не открывать (% времени): <span className="text-white font-bold">{config.hedgeTimeMinPercent}%</span>
+                  </Label>
+                  <Slider min={10} max={50} step={5} value={[config.hedgeTimeMinPercent]} onValueChange={([v]) => set({ hedgeTimeMinPercent: v })} />
+                  <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
+                    Хедж не сработает раньше {config.hedgeTimeMinPercent}% времени экспирации (защита от шума в начале)
+                  </p>
+                </div>
+
+                {/* Окно времени MAX */}
+                <div>
+                  <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                    Позже не открывать (% времени): <span className="text-white font-bold">{config.hedgeTimeMaxPercent}%</span>
+                  </Label>
+                  <Slider min={50} max={90} step={5} value={[config.hedgeTimeMaxPercent]} onValueChange={([v]) => set({ hedgeTimeMaxPercent: v })} />
+                  <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
+                    После {config.hedgeTimeMaxPercent}% времени смысла нет — отмена хеджа
+                  </p>
+                </div>
+
+                {/* Подтверждающие тики */}
+                <div>
+                  <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                    Подтверждающих тиков: <span className="text-white font-bold">{config.hedgeConfirmTicks}</span>
+                  </Label>
+                  <Slider min={1} max={5} step={1} value={[config.hedgeConfirmTicks]} onValueChange={([v]) => set({ hedgeConfirmTicks: v })} />
+                  <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
+                    Цена должна {config.hedgeConfirmTicks} раз подряд (×{config.hedgeCheckInterval} сек) идти против — защита от рывков
                   </p>
                 </div>
 
@@ -1492,13 +1515,16 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                   </p>
                 </div>
 
-                {/* Описание логики */}
+                {/* Описание новой логики */}
                 <div className="bg-zinc-800/50 rounded-lg p-3 space-y-2 font-space-mono text-[10px]">
-                  <p className="text-zinc-300 font-bold mb-1">Логика хеджирования:</p>
+                  <p className="text-zinc-300 font-bold mb-1">Логика умного хеджа (ATR):</p>
                   <p className="text-zinc-400">⏱ Проверка каждые <span className="text-white">{config.hedgeCheckInterval} сек</span></p>
-                  <p className="text-zinc-400">🟡 <span className="text-yellow-300">Simple:</span> пипсов ≥ {config.hedgeSimplePipThreshold} но &lt; {config.hedgePipThreshold} → ставка × 1.5</p>
-                  <p className="text-zinc-400">🔴 <span className="text-orange-300">Power:</span> пипсов ≥ {config.hedgePipThreshold} → ставка × {config.hedgePowerMultiplier}</p>
-                  <p className="text-zinc-400">⚡ <span className="text-red-300">Complex:</span> прошло &gt; половины экспирации И пипсов ≥ {config.hedgePipThreshold} → Power ставка немедленно</p>
+                  <p className="text-zinc-400">📏 <span className="text-emerald-300">ATR период:</span> 14 закрытых свечей (фикс.)</p>
+                  <p className="text-zinc-400">🎯 <span className="text-emerald-300">Срабатывает</span> когда цена ушла ≥ {config.hedgeAtrPercent}% от ATR</p>
+                  <p className="text-zinc-400">🪟 <span className="text-emerald-300">Окно времени:</span> {config.hedgeTimeMinPercent}% – {config.hedgeTimeMaxPercent}% от экспирации</p>
+                  <p className="text-zinc-400">✅ <span className="text-emerald-300">Подтверждение:</span> {config.hedgeConfirmTicks} тика(ов) подряд против</p>
+                  <p className="text-zinc-400">💰 <span className="text-emerald-300">Размер:</span> ставка × 1.5 (фикс.)</p>
+                  <p className="text-zinc-400">🔁 <span className="text-emerald-300">Направление:</span> встречное (CALL → PUT, PUT → CALL)</p>
                 </div>
               </div>
             )}

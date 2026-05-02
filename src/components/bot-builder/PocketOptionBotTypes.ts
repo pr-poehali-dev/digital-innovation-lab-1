@@ -45,6 +45,14 @@ export interface POBotConfig {
   hedgeSimplePipThreshold: number
   hedgePowerMultiplier: number
   hedgeCheckInterval: number
+  /** % от ATR(14) — порог "цена ушла далеко" для срабатывания хеджа */
+  hedgeAtrPercent: number
+  /** Мин. % времени экспирации до хеджа (раньше — рано) */
+  hedgeTimeMinPercent: number
+  /** Макс. % времени экспирации до хеджа (позже — поздно) */
+  hedgeTimeMaxPercent: number
+  /** Кол-во подтверждающих тиков подряд (защита от шума) */
+  hedgeConfirmTicks: number
   pipSize: number
   profitExtEnabled: boolean
   profitExtPips: number
@@ -348,7 +356,11 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   hedgePipThreshold: 8,
   hedgeSimplePipThreshold: 1,
   hedgePowerMultiplier: 2.0,
-  hedgeCheckInterval: 5,
+  hedgeCheckInterval: 2,
+  hedgeAtrPercent: 70,
+  hedgeTimeMinPercent: 30,
+  hedgeTimeMaxPercent: 70,
+  hedgeConfirmTicks: 2,
   pipSize: 0.0001,
   profitExtEnabled: true,
   profitExtPips: 5,
@@ -3052,15 +3064,26 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
         "#GME_otc": 0.01, "#V_otc": 0.01, "#XOM_otc": 0.01, "#MCD_otc": 0.01, "#INTC_otc": 0.01, "#BA_otc": 0.01,
     }
     _asset_key = (_resolved_asset or ASSET)
-    HEDGE_PIP_THRESHOLD        = ${cfg.hedgePipThreshold}
-    HEDGE_SIMPLE_PIP_THRESHOLD = ${cfg.hedgeSimplePipThreshold}
-    HEDGE_POWER_MULT           = ${cfg.hedgePowerMultiplier}
-    HEDGE_SIMPLE_MULT          = 1.5
-    PIP_SIZE                   = _pip_size_map.get(_asset_key, 0.0001)
-    check_interval = ${cfg.hedgeCheckInterval}
-    print(f"[HEDGE] Инициализация | актив={_asset_key} | pip_size={PIP_SIZE} | порог={HEDGE_PIP_THRESHOLD} пип | цена входа={entry_price}")
+    # ===== НОВАЯ ATR-ЛОГИКА ХЕДЖА =====
+    # Хедж = встречная (страховая) сделка. Открывается ОДИН РАЗ за исходную сделку.
+    # Условия срабатывания (все должны совпасть):
+    #   1. Прошло 30%-70% времени экспирации
+    #   2. Цена ушла ПРОТИВ исходной позиции
+    #   3. Расстояние от входа > HEDGE_ATR_PERCENT % от ATR(14) последних 14 свечей
+    #   4. CONFIRM_TICKS подряд цена движется против (защита от шума)
+    HEDGE_ATR_PERCENT      = ${cfg.hedgeAtrPercent ?? 70}      # % от ATR — порог "далеко"
+    HEDGE_ATR_PERIOD       = 14                                 # период расчёта ATR (фикс., 14 закрытых свечей)
+    HEDGE_TIME_MIN         = ${cfg.hedgeTimeMinPercent ?? 30}  # % времени мин (раньше — рано)
+    HEDGE_TIME_MAX         = ${cfg.hedgeTimeMaxPercent ?? 70}  # % времени макс (позже — поздно)
+    HEDGE_CONFIRM_TICKS    = ${cfg.hedgeConfirmTicks ?? 2}     # кол-во тиков подряд "против"
+    HEDGE_MULT             = 1.5                                # фикс. множитель ставки хеджа
+    PIP_SIZE               = _pip_size_map.get(_asset_key, 0.0001)
+    check_interval         = ${cfg.hedgeCheckInterval}
+    print(f"[HEDGE] 🆕 ATR-логика | актив={_asset_key} | ATR%={HEDGE_ATR_PERCENT} | время {HEDGE_TIME_MIN}%-{HEDGE_TIME_MAX}% | подтверждений={HEDGE_CONFIRM_TICKS} | вход={entry_price}")
     opposite = "PUT" if original_direction == "CALL" else "CALL"
     start_time = asyncio.get_event_loop().time()
+    _against_streak = 0
+    _last_price_check = entry_price
 
     while True:
         await asyncio.sleep(check_interval)
@@ -3068,10 +3091,11 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
         if elapsed >= expiry_sec - check_interval:
             break
         try:
-            candles = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=${cfg.candleTimeframe ?? 60}, count=1)
-            if not candles:
+            # Берём 15 свечей: 14 закрытых для ATR + 1 текущая для цены
+            _atr_candles = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=${cfg.candleTimeframe ?? 60}, count=HEDGE_ATR_PERIOD + 1)
+            if not _atr_candles or len(_atr_candles) < 2:
                 continue
-            _hc = candles[-1]
+            _hc = _atr_candles[-1]
             if hasattr(_hc, 'close'):
                 current_price = float(_hc.close)
             elif isinstance(_hc, dict):
@@ -3080,25 +3104,62 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
                 current_price = float(_hc[3] if len(_hc) > 3 else _hc[1])
             if current_price == 0.0:
                 continue
-            pips = round(abs(current_price - entry_price) / PIP_SIZE, 1)
+            # ===== РАСЧЁТ ATR(14) по закрытым свечам =====
+            _closed_for_atr = _atr_candles[:-1] if len(_atr_candles) > HEDGE_ATR_PERIOD else _atr_candles
+            _trs = []
+            _prev_close = None
+            for _ac in _closed_for_atr[-HEDGE_ATR_PERIOD:]:
+                if hasattr(_ac, 'high'):
+                    _h, _l, _c = float(_ac.high), float(_ac.low), float(_ac.close)
+                elif isinstance(_ac, dict):
+                    _h = float(_ac.get('high', _ac.get('h', 0)))
+                    _l = float(_ac.get('low', _ac.get('l', 0)))
+                    _c = float(_ac.get('close', _ac.get('c', 0)))
+                else:
+                    _h, _l, _c = float(_ac[1]), float(_ac[2]), float(_ac[3])
+                if _prev_close is None:
+                    _tr = _h - _l
+                else:
+                    _tr = max(_h - _l, abs(_h - _prev_close), abs(_l - _prev_close))
+                _trs.append(_tr)
+                _prev_close = _c
+            atr = sum(_trs) / len(_trs) if _trs else 0.0
+            atr_pips = round(atr / PIP_SIZE, 1) if PIP_SIZE > 0 else 0.0
+            distance_abs = abs(current_price - entry_price)
+            pips = round(distance_abs / PIP_SIZE, 1) if PIP_SIZE > 0 else 0.0
+            atr_threshold = atr * (HEDGE_ATR_PERCENT / 100.0)
+            atr_ratio = (distance_abs / atr * 100.0) if atr > 0 else 0.0
             went_against = (original_direction == "CALL" and current_price < entry_price) or \
                            (original_direction == "PUT"  and current_price > entry_price)
-            if not went_against:
-                print(f"[HEDGE] Цена держится, хедж не нужен ({pips} пип)")
-                continue
-            time_ratio = elapsed / expiry_sec
-            if time_ratio >= 0.5 and pips >= HEDGE_PIP_THRESHOLD:
-                hedge_bet = round(original_bet * HEDGE_POWER_MULT, 2)
-                mode = "COMPLEX"
-            elif pips >= HEDGE_PIP_THRESHOLD:
-                hedge_bet = round(original_bet * HEDGE_POWER_MULT, 2)
-                mode = "POWER"
-            elif pips >= HEDGE_SIMPLE_PIP_THRESHOLD:
-                hedge_bet = round(original_bet * HEDGE_SIMPLE_MULT, 2)
-                mode = "SIMPLE"
+            time_ratio = (elapsed / expiry_sec) * 100.0  # в процентах
+            # Подтверждение тиками — считаем только если цена СТАБИЛЬНО идёт против
+            if went_against:
+                # Текущая цена против И продолжила удаляться от _last_price_check (или равна)
+                _continued = (original_direction == "CALL" and current_price <= _last_price_check) or \
+                             (original_direction == "PUT"  and current_price >= _last_price_check)
+                if _continued:
+                    _against_streak += 1
+                else:
+                    _against_streak = 1  # цена против, но шумит — сбрасываем но не до 0
             else:
-                print(f"[HEDGE] Цена ушла {pips} пип — меньше порога Simple ({HEDGE_SIMPLE_PIP_THRESHOLD}), ждём")
+                _against_streak = 0
+            _last_price_check = current_price
+            print(f"[HEDGE] t={time_ratio:.0f}% | Δ={pips}пип ({atr_ratio:.0f}% ATR) | ATR={atr_pips}пип | против={went_against} | подтв.={_against_streak}/{HEDGE_CONFIRM_TICKS}")
+            # ===== ПРОВЕРКА УСЛОВИЙ =====
+            if not went_against:
                 continue
+            if time_ratio < HEDGE_TIME_MIN:
+                continue  # рано
+            if time_ratio > HEDGE_TIME_MAX:
+                print(f"[HEDGE] ⏰ Время вышло ({time_ratio:.0f}% > {HEDGE_TIME_MAX}%) — хедж отменён")
+                break
+            if atr <= 0 or distance_abs < atr_threshold:
+                continue  # цена не дотянула до порога ATR
+            if _against_streak < HEDGE_CONFIRM_TICKS:
+                continue  # не подтверждено достаточно тиков
+            # Все условия совпали — открываем хедж
+            hedge_bet = round(original_bet * HEDGE_MULT, 2)
+            mode = "ATR-HEDGE"
             remaining = max(30, int(expiry_sec - elapsed))
 
             # ===== УМНЫЙ ХЕДЖ: 3 ЛИМИТА, БЕРЁМ МИНИМУМ =====

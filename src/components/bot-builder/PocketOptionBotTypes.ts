@@ -2080,27 +2080,62 @@ def adjust_bet(won, profit=0.0, bet=0.0):
     ПРОИГРЫШ (profit <= 0) — реальный убыток → УВЕЛИЧИВАЕМ ставку (классический Мартингейл)
     """
     global current_bet, loss_streak
+    _prev_bet = current_bet
+    _prev_streak = loss_streak
     full_win = won and profit >= bet
     if full_win:
         if loss_streak > 0:
-            print(f"[MARTINGALE] ✅ Полная победа! Серия сброшена ({loss_streak} → 0) | Ставка: {current_bet} → {BASE_BET}")
+            print(f"[МАРТИНГЕЙЛ] ━━━━━━━━━━━━━━━━━━━━")
+            print(f"[МАРТИНГЕЙЛ] ✅ ПОЛНАЯ ПОБЕДА — серия проигрышей оборвана!")
+            print(f"[МАРТИНГЕЙЛ]    Серия: {_prev_streak} проигрышей → 0 (сброс)")
+            print(f"[МАРТИНГЕЙЛ]    Ставка: {_prev_bet:.2f} → {BASE_BET:.2f} (возврат к базовой)")
+            print(f"[МАРТИНГЕЙЛ]    Профит сделки: +{profit:.2f}")
+            print(f"[МАРТИНГЕЙЛ] ━━━━━━━━━━━━━━━━━━━━")
+            tg_info(f"✅ <b>[{BOT_NAME}] Серия отыграна!</b>\\nБыло {_prev_streak} проигрышей подряд\\nСтавка: {_prev_bet:.2f} → <b>{BASE_BET:.2f}</b>")
         else:
-            print(f"[MARTINGALE] ✅ Полная победа | Ставка: BASE_BET = {BASE_BET}")
+            print(f"[МАРТИНГЕЙЛ] ✅ Победа | Ставка остаётся базовой: {BASE_BET:.2f} | Профит: +{profit:.2f}")
         current_bet = BASE_BET
         loss_streak = 0
     else:
         loss_streak += 1
-        # Тип события для лога
         if won:
-            event = f"🛡️ Недо-победа (профит {profit:.2f} < ставка {bet:.2f})"
+            event = f"🛡️ Недо-победа (хедж спас, профит {profit:.2f} < ставка {bet:.2f})"
+            event_short = "Недо-победа"
         else:
             event = f"❌ Проигрыш (убыток {profit:.2f})"
+            event_short = "Проигрыш"
         if loss_streak <= ${cfg.martingaleSteps}:
             new_bet = round(current_bet * ${cfg.martingaleMultiplier}, 2)
-            print(f"[MARTINGALE] {event} #{loss_streak} | Ставка x${cfg.martingaleMultiplier}: {current_bet} → {new_bet}")
+            # Прогноз риска: общая сумма серии и потенциальный убыток
+            _step_label = f"{loss_streak}/${cfg.martingaleSteps}"
+            print(f"[МАРТИНГЕЙЛ] ━━━━━━━━━━━━━━━━━━━━")
+            print(f"[МАРТИНГЕЙЛ] {event}")
+            print(f"[МАРТИНГЕЙЛ]    Шаг серии: {_step_label}")
+            print(f"[МАРТИНГЕЙЛ]    Ставка: {_prev_bet:.2f} → {new_bet:.2f} (×${cfg.martingaleMultiplier})")
+            print(f"[МАРТИНГЕЙЛ]    Цель: отыграть {profit:.2f} следующей сделкой")
+            print(f"[МАРТИНГЕЙЛ] ━━━━━━━━━━━━━━━━━━━━")
+            # Telegram только когда серия становится опасной (от 2-го шага)
+            if loss_streak >= 2:
+                tg_info(
+                    f"⚠️ <b>[{BOT_NAME}] {event_short} #{loss_streak}</b>\\n"
+                    f"Шаг серии: <b>{_step_label}</b>\\n"
+                    f"Ставка: {_prev_bet:.2f} → <b>{new_bet:.2f}</b> (×${cfg.martingaleMultiplier})\\n"
+                    f"Убыток сделки: {profit:.2f}"
+                )
             current_bet = new_bet
         else:
-            print(f"[MARTINGALE] ⚠️ Лимит шагов (${cfg.martingaleSteps}) достигнут | Сброс к BASE_BET: {current_bet} → {BASE_BET}")
+            print(f"[МАРТИНГЕЙЛ] ━━━━━━━━━━━━━━━━━━━━")
+            print(f"[МАРТИНГЕЙЛ] 🛑 ЛИМИТ ШАГОВ ИСЧЕРПАН (${cfg.martingaleSteps}/${cfg.martingaleSteps})")
+            print(f"[МАРТИНГЕЙЛ]    Принудительный сброс ставки: {_prev_bet:.2f} → {BASE_BET:.2f}")
+            print(f"[МАРТИНГЕЙЛ]    Серия: {_prev_streak} → 0 (обнулена)")
+            print(f"[МАРТИНГЕЙЛ]    💡 Стратегия: фиксируем убыток и начинаем заново с базы")
+            print(f"[МАРТИНГЕЙЛ] ━━━━━━━━━━━━━━━━━━━━")
+            tg_info(
+                f"🛑 <b>[{BOT_NAME}] Лимит мартингейла!</b>\\n"
+                f"Достигнут максимум шагов (${cfg.martingaleSteps})\\n"
+                f"Сброс ставки: {_prev_bet:.2f} → <b>{BASE_BET:.2f}</b>\\n"
+                f"Начинаем серию заново"
+            )
             current_bet = BASE_BET
             loss_streak = 0
     return current_bet

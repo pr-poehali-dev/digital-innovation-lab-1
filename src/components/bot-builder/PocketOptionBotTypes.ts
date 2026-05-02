@@ -1967,27 +1967,51 @@ async def main():
                     await asyncio.sleep(CHECK_INTERVAL)
                     continue
 
-                # ===== ЗАЩИТА #2: МАКС. % ОТ БАЛАНСА (настраивается в UI) =====
-                # Исключение: если ставка МЕНЬШЕ базовой — пропускаем (она безопасная)
+                # ===== ЗАЩИТА #2: УМНЫЙ МАРТИНГЕЙЛ (3 ЛИМИТА, БЕРЁМ МИНИМУМ) =====
                 _max_safe_bet = round(balance * (SAFETY_MAX_BET_PCT / 100.0), 2)
                 if balance > 0 and bet > _max_safe_bet and bet >= BASE_BET:
+                    _wanted_bet = bet
+                    _limit_pct = _max_safe_bet
+                    _reserve = round(balance - BASE_BET, 2) if balance > BASE_BET else 0.0
+                    _smart_bet = round(min(_wanted_bet, _limit_pct, _reserve if _reserve > 0 else _wanted_bet), 2)
+
                     print(f"{'='*55}")
-                    print(f"[ЗАЩИТА] 🛡️ СТАВКА ЗАБЛОКИРОВАНА (лимит {SAFETY_MAX_BET_PCT}%)")
-                    print(f"[ЗАЩИТА]    Ставка: {bet:.2f} {currency}")
-                    print(f"[ЗАЩИТА]    Баланс: {balance:.2f} {currency}")
-                    print(f"[ЗАЩИТА]    Лимит {SAFETY_MAX_BET_PCT}%: {_max_safe_bet:.2f} {currency}")
-                    print(f"[ЗАЩИТА]    Превышение: +{(bet - _max_safe_bet):.2f} {currency}")
-                    print(f"[ЗАЩИТА]    💡 Жду следующий сигнал, риск слишком высок")
+                    print(f"[МАРТИНГЕЙЛ] 🧠 УМНЫЙ РАСЧЁТ СТАВКИ")
+                    print(f"[МАРТИНГЕЙЛ]    Хотели:    {_wanted_bet:.2f} {currency} (мартингейл)")
+                    print(f"[МАРТИНГЕЙЛ]    Лимит {SAFETY_MAX_BET_PCT}%: {_limit_pct:.2f} {currency} (от баланса {balance:.2f})")
+                    print(f"[МАРТИНГЕЙЛ]    Резерв:    {_reserve:.2f} {currency} (баланс − базовая {BASE_BET:.2f})")
+                    print(f"[МАРТИНГЕЙЛ]    Итог:      {_smart_bet:.2f} {currency} ✅")
                     print(f"{'='*55}")
+
+                    if _smart_bet < 1.0:
+                        print(f"[МАРТИНГЕЙЛ] ⛔ ОТМЕНА — итог {_smart_bet:.2f} < $1")
+                        print(f"[МАРТИНГЕЙЛ]    Сброс мартингейла к базовой и пропуск сигнала")
+                        tg(
+                            f"⛔ <b>[{BOT_NAME}] Мартингейл отменён</b>\\n"
+                            f"Денег мало для безопасной ставки (итог {_smart_bet:.2f})\\n"
+                            f"Баланс: {balance:.2f} {currency}\\n"
+                            f"⚠️ Сброс к базовой ставке"
+                        )
+                        try:
+                            current_bet = BASE_BET
+                            loss_streak = 0
+                        except NameError:
+                            pass
+                        await asyncio.sleep(CHECK_INTERVAL)
+                        continue
+
+                    print(f"[МАРТИНГЕЙЛ] ⚠️ Ставка урезана: {_wanted_bet:.2f} → {_smart_bet:.2f} (защита баланса)")
                     tg(
-                        f"🛡️ <b>[{BOT_NAME}] Ставка заблокирована</b>\\n"
-                        f"Ставка: <b>{bet:.2f} {currency}</b> > {SAFETY_MAX_BET_PCT}% баланса\\n"
-                        f"Баланс: {balance:.2f} {currency}\\n"
-                        f"Лимит: {_max_safe_bet:.2f} {currency}\\n"
-                        f"⏸ Пропускаю сигнал, жду безопасный момент"
+                        f"⚠️ <b>[{BOT_NAME}] Мартингейл урезан</b>\\n"
+                        f"Хотели: <b>{_wanted_bet:.2f} {currency}</b>\\n"
+                        f"Ставим: <b>{_smart_bet:.2f} {currency}</b> (лимит {SAFETY_MAX_BET_PCT}% или резерв)\\n"
+                        f"Баланс: {balance:.2f} {currency}"
                     )
-                    await asyncio.sleep(CHECK_INTERVAL)
-                    continue
+                    bet = _smart_bet
+                    try:
+                        current_bet = _smart_bet
+                    except NameError:
+                        pass
 
                 # Прошли все защиты — сбрасываем счётчик "недостаточно средств"
                 if insufficient_funds_count > 0:

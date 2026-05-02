@@ -1949,23 +1949,33 @@ export function generatePOComboCode(cfg: POBotConfig): string {
 current_bet = BASE_BET
 loss_streak = 0
 
-def adjust_bet(won):
+def adjust_bet(won, profit=0.0, bet=0.0):
     """
     Мартингейл по РЕАЛЬНОМУ итогу сделки (с учётом хеджа и расширения прибыли).
-    won = True если итоговый профит > 0 (даже если основная проиграла, но хедж спас).
-    won = False если итоговый профит <= 0 (реальный убыток).
+    
+    ПОЛНАЯ ПОБЕДА (profit >= bet) — основная сделка реально выиграла, профит покрывает ставку → сброс к BASE_BET
+    НЕДО-ПОБЕДА (0 < profit < bet) — хедж спас от большого убытка, но мы недозаработали → УВЕЛИЧИВАЕМ ставку чтобы отыграть
+    ПРОИГРЫШ (profit <= 0) — реальный убыток → УВЕЛИЧИВАЕМ ставку (классический Мартингейл)
     """
     global current_bet, loss_streak
-    if won:
+    full_win = won and profit >= bet
+    if full_win:
         if loss_streak > 0:
-            print(f"[MARTINGALE] ✅ Серия проигрышей сброшена ({loss_streak} → 0) | Ставка: {current_bet} → {BASE_BET}")
+            print(f"[MARTINGALE] ✅ Полная победа! Серия сброшена ({loss_streak} → 0) | Ставка: {current_bet} → {BASE_BET}")
+        else:
+            print(f"[MARTINGALE] ✅ Полная победа | Ставка: BASE_BET = {BASE_BET}")
         current_bet = BASE_BET
         loss_streak = 0
     else:
         loss_streak += 1
+        # Тип события для лога
+        if won:
+            event = f"🛡️ Недо-победа (профит {profit:.2f} < ставка {bet:.2f})"
+        else:
+            event = f"❌ Проигрыш (убыток {profit:.2f})"
         if loss_streak <= ${cfg.martingaleSteps}:
             new_bet = round(current_bet * ${cfg.martingaleMultiplier}, 2)
-            print(f"[MARTINGALE] ❌ Проигрыш #{loss_streak} | Ставка x${cfg.martingaleMultiplier}: {current_bet} → {new_bet}")
+            print(f"[MARTINGALE] {event} #{loss_streak} | Ставка x${cfg.martingaleMultiplier}: {current_bet} → {new_bet}")
             current_bet = new_bet
         else:
             print(f"[MARTINGALE] ⚠️ Лимит шагов (${cfg.martingaleSteps}) достигнут | Сброс к BASE_BET: {current_bet} → {BASE_BET}")
@@ -3046,8 +3056,10 @@ async def main():
                 trades_today += 1
                 # Реальный результат — по итоговому профиту (с учётом хеджа и ext), а не только основной сделки
                 final_won = profit > 0
-                current_bet   = adjust_bet(final_won)
-                trade_log.append({"won": final_won, "profit": profit, "main_won": won})
+                # "Полная" победа = профит покрывает хотя бы изначальную ставку (иначе — недо-победа, Мартингейл повышает ставку)
+                full_win = profit >= bet
+                current_bet   = adjust_bet(final_won, profit=profit, bet=bet)
+                trade_log.append({"won": final_won, "profit": profit, "main_won": won, "full_win": full_win})
                 wins = sum(1 for t in trade_log if t["won"])
                 wr   = wins / len(trade_log) * 100
                 res_emoji = "✅" if final_won else "❌"

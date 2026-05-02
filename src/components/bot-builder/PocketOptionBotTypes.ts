@@ -1950,15 +1950,25 @@ current_bet = BASE_BET
 loss_streak = 0
 
 def adjust_bet(won):
+    """
+    Мартингейл по РЕАЛЬНОМУ итогу сделки (с учётом хеджа и расширения прибыли).
+    won = True если итоговый профит > 0 (даже если основная проиграла, но хедж спас).
+    won = False если итоговый профит <= 0 (реальный убыток).
+    """
     global current_bet, loss_streak
     if won:
+        if loss_streak > 0:
+            print(f"[MARTINGALE] ✅ Серия проигрышей сброшена ({loss_streak} → 0) | Ставка: {current_bet} → {BASE_BET}")
         current_bet = BASE_BET
         loss_streak = 0
     else:
         loss_streak += 1
         if loss_streak <= ${cfg.martingaleSteps}:
-            current_bet = round(current_bet * ${cfg.martingaleMultiplier}, 2)
+            new_bet = round(current_bet * ${cfg.martingaleMultiplier}, 2)
+            print(f"[MARTINGALE] ❌ Проигрыш #{loss_streak} | Ставка x${cfg.martingaleMultiplier}: {current_bet} → {new_bet}")
+            current_bet = new_bet
         else:
+            print(f"[MARTINGALE] ⚠️ Лимит шагов (${cfg.martingaleSteps}) достигнут | Сброс к BASE_BET: {current_bet} → {BASE_BET}")
             current_bet = BASE_BET
             loss_streak = 0
     return current_bet

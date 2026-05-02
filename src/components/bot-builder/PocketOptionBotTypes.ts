@@ -2738,10 +2738,11 @@ def print_stats():
 
 async def main():
     global total_profit, trades_today, current_bet, calls_follow, calls_reverse
-    global hedge_count, hedge_wins, ext_count, ext_wins
+    global hedge_count, hedge_wins, ext_count, ext_wins, cur_streak
     calls_follow  = 0
     calls_reverse = 0
     hedge_count = 0; hedge_wins = 0; ext_count = 0; ext_wins = 0
+    cur_streak = 0
 
     client = AsyncPocketOptionClient(SESSION_ID, is_demo=IS_DEMO, enable_logging=False)
     await client.connect()
@@ -3062,10 +3063,51 @@ async def main():
                 trade_log.append({"won": final_won, "profit": profit, "main_won": won, "full_win": full_win})
                 wins = sum(1 for t in trade_log if t["won"])
                 wr   = wins / len(trade_log) * 100
-                res_emoji = "✅" if final_won else "❌"
-                # Метка "спасено хеджем" если основная проиграла, но итог в плюсе
-                saved_label = " 🛡️ <i>(спасено хеджем)</i>" if (not won and final_won) else ""
-                tg(f"{res_emoji} <b>[{BOT_NAME}] {'Выигрыш' if final_won else 'Проигрыш'}</b>{saved_label}\\n{signal} | {bet} {currency} | {ASSET}\\nПрофит: {profit:+.2f} {currency}\\nСессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
+                # Серия побед/поражений
+                if final_won:
+                    cur_streak = cur_streak + 1 if cur_streak >= 0 else 1
+                else:
+                    cur_streak = cur_streak - 1 if cur_streak <= 0 else -1
+                # Определяем тип результата для эмодзи и заголовка
+                if full_win:
+                    status_emoji = "🎯"; status_text = "ПОЛНАЯ ПОБЕДА"
+                elif final_won:
+                    status_emoji = "🛡️"; status_text = "СПАСЕНО ХЕДЖЕМ"
+                else:
+                    status_emoji = "❌"; status_text = "ПРОИГРЫШ"
+                # Прогресс-бар до Take Profit / Stop Loss
+                if total_profit >= 0:
+                    progress_pct = min(100, int(total_profit / TAKE_PROFIT * 100)) if TAKE_PROFIT > 0 else 0
+                    progress_bar = "🟩" * (progress_pct // 10) + "⬜" * (10 - progress_pct // 10)
+                    progress_label = f"TP {progress_pct}%"
+                else:
+                    progress_pct = min(100, int(abs(total_profit) / STOP_LOSS * 100)) if STOP_LOSS > 0 else 0
+                    progress_bar = "🟥" * (progress_pct // 10) + "⬜" * (10 - progress_pct // 10)
+                    progress_label = f"SL {progress_pct}%"
+                # Серия для отображения
+                if cur_streak >= 2:
+                    streak_str = f"🔥 {cur_streak} побед подряд"
+                elif cur_streak <= -2:
+                    streak_str = f"❄️ {abs(cur_streak)} поражений подряд"
+                else:
+                    streak_str = "—"
+                # Статистика хеджей за сессию
+                hedge_stat = f"🛡️ Хедж: {hedge_wins}/{hedge_count}" if hedge_count > 0 else ""
+                ext_stat   = f"📈 Расш: {ext_wins}/{ext_count}" if ext_count > 0 else ""
+                extras = " | ".join(s for s in [hedge_stat, ext_stat] if s)
+                extras_line = f"\\n{extras}" if extras else ""
+                # Красивое сообщение
+                tg(
+                    f"{status_emoji} <b>[{BOT_NAME}] {status_text}</b>\\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\\n"
+                    f"🎯 <b>{signal}</b> | {bet} {currency} | <code>{ASSET}</code>\\n"
+                    f"💰 Профит: <b>{profit:+.2f} {currency}</b>\\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\\n"
+                    f"📊 Сессия: <b>{total_profit:+.2f} {currency}</b>\\n"
+                    f"📈 WR: <b>{wr:.0f}%</b> ({wins}/{len(trade_log)}){extras_line}\\n"
+                    f"{streak_str if streak_str != '—' else ''}\\n"
+                    f"{progress_bar} {progress_label}"
+                )
                 print_stats()
         else:
             ts = datetime.now().strftime("%H:%M:%S")

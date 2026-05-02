@@ -1390,6 +1390,27 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
                 print(f"[HEDGE] Цена ушла {pips} пип — меньше порога Simple ({HEDGE_SIMPLE_PIP_THRESHOLD}), ждём")
                 continue
             remaining = max(30, int(expiry_sec - elapsed))
+
+            # ===== УМНЫЙ ХЕДЖ: 3 ЛИМИТА, БЕРЁМ МИНИМУМ =====
+            _bal_now, _ = await get_balance(client)
+            _wanted_hedge = hedge_bet
+            _limit_pct = round(_bal_now * (SAFETY_MAX_BET_PCT / 100.0), 2) if _bal_now > 0 else _wanted_hedge
+            _reserve = round(_bal_now - BASE_BET, 2) if _bal_now > BASE_BET else 0.0
+            _smart_hedge = round(min(_wanted_hedge, _limit_pct, _reserve if _reserve > 0 else _wanted_hedge), 2)
+            print(f"[HEDGE] 🧠 Умный расчёт:")
+            print(f"[HEDGE]    Хотели:    {_wanted_hedge:.2f} (исходный {mode})")
+            print(f"[HEDGE]    Лимит {SAFETY_MAX_BET_PCT}%: {_limit_pct:.2f} (от баланса {_bal_now:.2f})")
+            print(f"[HEDGE]    Резерв:    {_reserve:.2f} (баланс − базовая ставка {BASE_BET:.2f})")
+            print(f"[HEDGE]    Итог:      {_smart_hedge:.2f} ✅")
+            if _smart_hedge < 1.0:
+                print(f"[HEDGE] ⛔ ОТМЕНА — итог {_smart_hedge:.2f} < $1, мало денег для хеджа")
+                tg(f"⛔ <b>[HEDGE отменён]</b>\\nДенег мало: итог {_smart_hedge:.2f}\\nБаланс: {_bal_now:.2f}\\nСохраняю остаток для следующих сделок")
+                return None, 0.0, 0, 0.0
+            if _smart_hedge < _wanted_hedge:
+                print(f"[HEDGE] ⚠️ Хедж урезан: {_wanted_hedge:.2f} → {_smart_hedge:.2f} (защита баланса)")
+                tg(f"⚠️ <b>[HEDGE урезан]</b>\\n{_wanted_hedge:.2f} → <b>{_smart_hedge:.2f}</b>\\nЛимит {SAFETY_MAX_BET_PCT}% или резерв")
+            hedge_bet = _smart_hedge
+
             print(f"[HEDGE] {mode} | {pips} пип | {hedge_bet} | {opposite} | осталось {remaining}с")
             tg(f"🛡 <b>[HEDGE {mode}]</b> {opposite} | {hedge_bet} | {pips} пип | осталось {remaining}с")
             dir_val = OrderDirection.CALL if opposite == "CALL" else OrderDirection.PUT
@@ -2937,6 +2958,27 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
                 print(f"[HEDGE] Цена ушла {pips} пип — меньше порога Simple ({HEDGE_SIMPLE_PIP_THRESHOLD}), ждём")
                 continue
             remaining = max(30, int(expiry_sec - elapsed))
+
+            # ===== УМНЫЙ ХЕДЖ: 3 ЛИМИТА, БЕРЁМ МИНИМУМ =====
+            _bal_now, _ = await get_balance(client)
+            _wanted_hedge = hedge_bet
+            _limit_pct = round(_bal_now * (SAFETY_MAX_BET_PCT / 100.0), 2) if _bal_now > 0 else _wanted_hedge
+            _reserve = round(_bal_now - BASE_BET, 2) if _bal_now > BASE_BET else 0.0
+            _smart_hedge = round(min(_wanted_hedge, _limit_pct, _reserve if _reserve > 0 else _wanted_hedge), 2)
+            print(f"[HEDGE] 🧠 Умный расчёт:")
+            print(f"[HEDGE]    Хотели:    {_wanted_hedge:.2f} (исходный {mode})")
+            print(f"[HEDGE]    Лимит {SAFETY_MAX_BET_PCT}%: {_limit_pct:.2f} (от баланса {_bal_now:.2f})")
+            print(f"[HEDGE]    Резерв:    {_reserve:.2f} (баланс − базовая ставка {BASE_BET:.2f})")
+            print(f"[HEDGE]    Итог:      {_smart_hedge:.2f} ✅")
+            if _smart_hedge < 1.0:
+                print(f"[HEDGE] ⛔ ОТМЕНА — итог {_smart_hedge:.2f} < $1, мало денег для хеджа")
+                tg(f"⛔ <b>[HEDGE отменён]</b>\\nДенег мало: итог {_smart_hedge:.2f}\\nБаланс: {_bal_now:.2f}\\nСохраняю остаток для следующих сделок")
+                return None, 0.0, 0, 0.0
+            if _smart_hedge < _wanted_hedge:
+                print(f"[HEDGE] ⚠️ Хедж урезан: {_wanted_hedge:.2f} → {_smart_hedge:.2f} (защита баланса)")
+                tg(f"⚠️ <b>[HEDGE урезан]</b>\\n{_wanted_hedge:.2f} → <b>{_smart_hedge:.2f}</b>\\nЛимит {SAFETY_MAX_BET_PCT}% или резерв")
+            hedge_bet = _smart_hedge
+
             print(f"[HEDGE] {mode} | {pips} пип | {hedge_bet} | {opposite} | осталось {remaining}с")
             tg(f"🛡 <b>[HEDGE {mode}]</b> {opposite} | {hedge_bet} | {pips} пип | осталось {remaining}с")
             dir_val = OrderDirection.CALL if opposite == "CALL" else OrderDirection.PUT

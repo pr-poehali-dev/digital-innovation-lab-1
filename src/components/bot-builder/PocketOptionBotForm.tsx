@@ -1179,21 +1179,31 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
           </div>
 
           {(config.requireStrongTrendOnStart ?? false) && (
-            <div>
-              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
-                Сильный тренд = <span className="text-white font-bold">{config.strongTrendCandles ?? 3} свечей</span> одного цвета подряд
-              </Label>
-              <Slider min={2} max={6} step={1} value={[config.strongTrendCandles ?? 3]} onValueChange={([v]) => set({ strongTrendCandles: v })} />
-              <p className="text-zinc-600 font-space-mono text-xs mt-1.5">
-                {(config.strongTrendCandles ?? 3) === 2
-                  ? "⚡ Слабое требование — 2 свечи (часто срабатывает, мало пропусков)"
-                  : (config.strongTrendCandles ?? 3) === 3
-                  ? "⚖️ Оптимально — 3 свечи 🟢🟢🟢/🔴🔴🔴 даёт уверенный тренд"
-                  : (config.strongTrendCandles ?? 3) <= 4
-                  ? "🟢 Строго — 4 свечи подряд, очень уверенный сигнал"
-                  : "🐢 Очень строго — 5-6 свечей, редкие но качественные входы"}
-              </p>
-            </div>
+            <>
+              <div>
+                <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                  Сильный тренд = <span className="text-white font-bold">{config.strongTrendCandles ?? 3} свечей</span> одного цвета подряд
+                </Label>
+                <Slider min={2} max={6} step={1} value={[config.strongTrendCandles ?? 3]} onValueChange={([v]) => set({ strongTrendCandles: v })} />
+                <p className="text-zinc-600 font-space-mono text-xs mt-1.5">
+                  {(config.strongTrendCandles ?? 3) === 2
+                    ? "⚡ Слабое требование — 2 свечи (часто срабатывает, мало пропусков)"
+                    : (config.strongTrendCandles ?? 3) === 3
+                    ? "⚖️ Оптимально — 3 свечи 🟢🟢🟢/🔴🔴🔴 даёт уверенный тренд"
+                    : (config.strongTrendCandles ?? 3) <= 4
+                    ? "🟢 Строго — 4 свечи подряд, очень уверенный сигнал"
+                    : "🐢 Очень строго — 5-6 свечей, редкие но качественные входы"}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between pt-1 pl-4 border-l-2 border-zinc-800">
+                <div>
+                  <Label className="text-zinc-300 text-sm">🔄 Перезапуск ожидания после проигрыша</Label>
+                  <p className="text-zinc-500 text-xs font-space-mono">После проигранной сделки бот снова ждёт сильный тренд (а не хватается за слабый сигнал)</p>
+                </div>
+                <Switch checked={config.resetTrendAfterLoss ?? true} onCheckedChange={(v) => set({ resetTrendAfterLoss: v })} />
+              </div>
+            </>
           )}
 
           <div>

@@ -58,6 +58,7 @@ export interface POBotConfig {
   warmupCandles?: number
   requireStrongTrendOnStart?: boolean
   strongTrendCandles?: number
+  resetTrendAfterLoss?: boolean
 }
 
 export interface StrategyMeta {
@@ -356,6 +357,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   warmupCandles: 2,
   requireStrongTrendOnStart: false,
   strongTrendCandles: 3,
+  resetTrendAfterLoss: true,
 }
 
 // Helper to avoid TS template literal conflicts with Python f-strings
@@ -3326,6 +3328,12 @@ async def main():
                 final_won = profit > 0
                 # "Полная" победа = профит покрывает хотя бы изначальную ставку (иначе — недо-победа, Мартингейл повышает ставку)
                 full_win = profit >= bet
+                # Перезапуск ожидания сильного тренда после проигрыша
+                RESET_TREND_AFTER_LOSS = ${cfg.resetTrendAfterLoss ? "True" : "False"}
+                if not final_won and REQUIRE_STRONG_TREND and RESET_TREND_AFTER_LOSS:
+                    _first_trade_done = False
+                    print(f"[STRONG_TREND] 🔄 Сброс! После проигрыша снова жду сильный тренд: {STRONG_TREND_CANDLES} свечей одного цвета")
+                    tg_info(f"🔄 <b>[{BOT_NAME}] Сброс после проигрыша</b>\\nЖду сильный тренд из {STRONG_TREND_CANDLES} свечей перед следующей сделкой")
                 current_bet   = adjust_bet(final_won, profit=profit, bet=bet)
                 trade_log.append({"won": final_won, "profit": profit, "main_won": won, "full_win": full_win})
                 wins = sum(1 for t in trade_log if t["won"])

@@ -1333,6 +1333,47 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
         )}
       </Card>
 
+      {/* Защита баланса */}
+      <Card className="bg-emerald-950/30 border border-emerald-500/40">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="font-orbitron text-white text-base flex items-center gap-2">
+              <Icon name="Shield" size={16} className="text-emerald-400" />
+              Защита баланса
+              <Badge className="ml-1 bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs">Активна</Badge>
+            </CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
+            <p className="text-emerald-300 text-xs font-space-mono leading-relaxed">
+              🛡️ Бот не поставит ставку, превышающую заданный % от баланса. Также блокирует сделки если на счёте недостаточно денег. Ставки меньше базовой проходят всегда.
+            </p>
+          </div>
+          <div>
+            <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+              Макс. ставка от баланса: <span className="text-emerald-400 font-bold">{config.safetyMaxBetPercent ?? 30}%</span>
+            </Label>
+            <Slider
+              min={5}
+              max={95}
+              step={5}
+              value={[config.safetyMaxBetPercent ?? 30]}
+              onValueChange={([v]) => set({ safetyMaxBetPercent: v })}
+            />
+            <div className="flex justify-between text-zinc-600 text-xs font-space-mono mt-1">
+              <span>5% (макс. защита)</span><span>95% (мин. защита)</span>
+            </div>
+          </div>
+          <div className="bg-zinc-800 rounded-lg p-3 font-space-mono text-xs space-y-1">
+            <p className="text-zinc-400">Пример: при балансе 1000₽ и лимите {config.safetyMaxBetPercent ?? 30}%:</p>
+            <p className="text-emerald-400">✅ Макс. безопасная ставка: {Math.round(1000 * (config.safetyMaxBetPercent ?? 30) / 100)}₽</p>
+            <p className="text-red-400">🚫 Ставки больше — блокируются (если ≥ базовой {config.betAmount}₽)</p>
+            <p className="text-yellow-400">💡 Ставки меньше базовой ({config.betAmount}₽) — всегда проходят</p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Хеджирование */}
       <Card className="bg-zinc-900 border-zinc-700">
         <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleDetail("hedge")}>

@@ -62,6 +62,7 @@ export interface POBotConfig {
   pauseAfterLossesEnabled?: boolean
   pauseAfterLossesCount?: number
   pauseAfterLossesMinutes?: number
+  safetyMaxBetPercent?: number
 }
 
 export interface StrategyMeta {
@@ -364,6 +365,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   pauseAfterLossesEnabled: true,
   pauseAfterLossesCount: 3,
   pauseAfterLossesMinutes: 10,
+  safetyMaxBetPercent: 30,
 }
 
 // Helper to avoid TS template literal conflicts with Python f-strings
@@ -795,6 +797,7 @@ EXPIRY_SEC   = ${String(parseInt(cfg.expiry) * 60)}             # Экспира
 BASE_BET     = ${cfg.betAmount}          # Базовая ставка ₽
 BET_PERCENT  = ${cfg.betPercent ? "True" : "False"}        # True = % от баланса
 IS_DEMO      = ${cfg.isDemo ? "True" : "False"}                   # True = демо, False = реальный счёт
+SAFETY_MAX_BET_PCT = ${cfg.safetyMaxBetPercent ?? 30}      # Защита: макс. % ставки от баланса
 
 CURRENCY     = "${cfg.currency}"         # Валюта счёта
 TAKE_PROFIT  = ${cfg.takeProfitRub}      # Стоп профит за сессию
@@ -1888,21 +1891,46 @@ async def main():
                     CURRENCY = currency
                     bet = current_bet
 
-                # ===== ЗАЩИТА БАЛАНСА: ставка не более 30% от баланса =====
+                # ===== ЗАЩИТА #1: ХВАТИТ ЛИ ДЕНЕГ НА СЧЁТЕ =====
+                if balance > 0 and bet > balance:
+                    print(f"{'='*55}")
+                    print(f"[ЗАЩИТА] 💸 НЕДОСТАТОЧНО СРЕДСТВ")
+                    print(f"[ЗАЩИТА]    Ставка: {bet:.2f} {currency}")
+                    print(f"[ЗАЩИТА]    На счёте: {balance:.2f} {currency}")
+                    print(f"[ЗАЩИТА]    Не хватает: {(bet - balance):.2f} {currency}")
+                    print(f"[ЗАЩИТА]    💡 Сброс мартингейла к базовой ставке")
+                    print(f"{'='*55}")
+                    tg(
+                        f"💸 <b>[{BOT_NAME}] Недостаточно средств</b>\\n"
+                        f"Ставка: <b>{bet:.2f} {currency}</b>\\n"
+                        f"На счёте: {balance:.2f} {currency}\\n"
+                        f"Не хватает: {(bet - balance):.2f} {currency}\\n"
+                        f"⚠️ Сброс мартингейла, попробую с базовой"
+                    )
+                    # Сбрасываем мартингейл — ставка слишком большая для текущего баланса
+                    try:
+                        current_bet = BASE_BET
+                        loss_streak = 0
+                    except NameError:
+                        pass
+                    await asyncio.sleep(CHECK_INTERVAL)
+                    continue
+
+                # ===== ЗАЩИТА #2: МАКС. % ОТ БАЛАНСА (настраивается в UI) =====
                 # Исключение: если ставка МЕНЬШЕ базовой — пропускаем (она безопасная)
-                _max_safe_bet = round(balance * 0.30, 2)
+                _max_safe_bet = round(balance * (SAFETY_MAX_BET_PCT / 100.0), 2)
                 if balance > 0 and bet > _max_safe_bet and bet >= BASE_BET:
                     print(f"{'='*55}")
-                    print(f"[ЗАЩИТА] 🛡️ СТАВКА ЗАБЛОКИРОВАНА")
+                    print(f"[ЗАЩИТА] 🛡️ СТАВКА ЗАБЛОКИРОВАНА (лимит {SAFETY_MAX_BET_PCT}%)")
                     print(f"[ЗАЩИТА]    Ставка: {bet:.2f} {currency}")
                     print(f"[ЗАЩИТА]    Баланс: {balance:.2f} {currency}")
-                    print(f"[ЗАЩИТА]    Лимит 30%: {_max_safe_bet:.2f} {currency}")
+                    print(f"[ЗАЩИТА]    Лимит {SAFETY_MAX_BET_PCT}%: {_max_safe_bet:.2f} {currency}")
                     print(f"[ЗАЩИТА]    Превышение: +{(bet - _max_safe_bet):.2f} {currency}")
                     print(f"[ЗАЩИТА]    💡 Жду следующий сигнал, риск слишком высок")
                     print(f"{'='*55}")
                     tg(
                         f"🛡️ <b>[{BOT_NAME}] Ставка заблокирована</b>\\n"
-                        f"Ставка: <b>{bet:.2f} {currency}</b> > 30% баланса\\n"
+                        f"Ставка: <b>{bet:.2f} {currency}</b> > {SAFETY_MAX_BET_PCT}% баланса\\n"
                         f"Баланс: {balance:.2f} {currency}\\n"
                         f"Лимит: {_max_safe_bet:.2f} {currency}\\n"
                         f"⏸ Пропускаю сигнал, жду безопасный момент"

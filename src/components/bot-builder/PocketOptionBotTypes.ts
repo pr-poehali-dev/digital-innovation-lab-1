@@ -3219,32 +3219,48 @@ async def main():
             else:
                 try:
                     # ВАЖНО: используем ТЕ ЖЕ свечи что и в основном анализе тренда (тот же таймфрейм)
-                    # Это устраняет расхождение между [ТРЕНД] и [STRONG_TREND]
                     _closed_strong = candles[:-1] if candles else []
                     if len(_closed_strong) >= STRONG_TREND_CANDLES:
                         _last_n = _closed_strong[-STRONG_TREND_CANDLES:]
-                        _colors = []
-                        for _csc in _last_n:
+                        # Полный контекст последних 5 свечей для наглядности (как в [СВЕЧИ])
+                        _ctx_n = _closed_strong[-5:] if len(_closed_strong) >= 5 else _closed_strong
+                        def _color_of(_csc):
                             if hasattr(_csc, 'open') and hasattr(_csc, 'close'):
                                 _o, _cl = float(_csc.open), float(_csc.close)
                             elif isinstance(_csc, dict):
                                 _o = float(_csc.get('open', _csc.get('o', 0))); _cl = float(_csc.get('close', _csc.get('c', 0)))
                             else:
                                 _o = float(_csc[0]); _cl = float(_csc[3])
-                            _colors.append("UP" if _cl >= _o else "DOWN")
+                            return "UP" if _cl >= _o else "DOWN"
+                        _colors = [_color_of(c) for c in _last_n]
+                        _ctx_colors = [_color_of(c) for c in _ctx_n]
                         _bar_strong = "".join("🟢" if c == "UP" else "🔴" for c in _colors)
+                        _ctx_bar = "".join("🟢" if c == "UP" else "🔴" for c in _ctx_colors)
+                        # Подсвечиваем последние N свечей в общем контексте
+                        _ctx_highlighted = ""
+                        for _i, _c in enumerate(_ctx_colors):
+                            _emoji = "🟢" if _c == "UP" else "🔴"
+                            # Последние N свечей выделяем рамками (квадратные скобки)
+                            if _i >= len(_ctx_colors) - len(_colors):
+                                _ctx_highlighted += f"[{_emoji}]"
+                            else:
+                                _ctx_highlighted += _emoji
                         _all_up   = all(c == "UP" for c in _colors)
                         _all_down = all(c == "DOWN" for c in _colors)
                         # Сильный тренд должен совпадать с сигналом
                         _trend_matches = (_all_up and signal == "CALL") or (_all_down and signal == "PUT")
+                        _expected = ("🟢" * STRONG_TREND_CANDLES) if signal == "CALL" else ("🔴" * STRONG_TREND_CANDLES)
                         if not _trend_matches:
                             _wait_left = max(0, int((STRONG_TREND_MAX_WAIT_SEC - _strong_elapsed) / 60))
-                            print(f"[STRONG_TREND] ⏸ Жду сильный тренд | Сейчас: {_bar_strong} (таймфрейм {EXPIRY_SEC}с) | Нужно: {STRONG_TREND_CANDLES}× одного цвета | До таймаута: ~{_wait_left} мин")
+                            print(f"[STRONG_TREND] ⏸ Жду сильный тренд | Контекст 5 свечей: {_ctx_highlighted} (в скобках — последние {STRONG_TREND_CANDLES})")
+                            print(f"[STRONG_TREND]    Сейчас: {_bar_strong} | Нужно: {_expected} для сигнала {signal} | До таймаута: ~{_wait_left} мин")
                             await asyncio.sleep(CHECK_INTERVAL)
                             continue
                         else:
-                            print(f"[STRONG_TREND] 🎯 СИЛЬНЫЙ ТРЕНД НАЙДЕН: {_bar_strong} → первая сделка {signal}!")
-                            tg_info(f"🎯 <b>[{BOT_NAME}] Сильный тренд!</b>\\n{_bar_strong} → первая сделка {signal}")
+                            print(f"[STRONG_TREND] 🎯 СИЛЬНЫЙ ТРЕНД НАЙДЕН!")
+                            print(f"[STRONG_TREND]    Контекст 5 свечей: {_ctx_highlighted}")
+                            print(f"[STRONG_TREND]    Совпало: {_bar_strong} = {_expected} → первая сделка {signal}!")
+                            tg_info(f"🎯 <b>[{BOT_NAME}] Сильный тренд!</b>\\nКонтекст: {_ctx_bar}\\nСовпало: {_bar_strong} → первая сделка {signal}")
                             _first_trade_done = True
                             _strong_trend_wait_start = None
                     else:

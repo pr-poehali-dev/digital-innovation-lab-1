@@ -1646,6 +1646,48 @@ async def main():
         f"⏳ Ожидаю сигналы..."
     )
 
+    # ===== ФАЗА РАЗОГРЕВА: ждём закрытия 2 свежих 1-минутных свечей перед первой сделкой =====
+    import time as _time_warmup
+    warmup_start = _time_warmup.time()
+    _now_struct = _time_warmup.localtime(warmup_start)
+    _seconds_to_next_minute = 60 - _now_struct.tm_sec
+    warmup_end = warmup_start + _seconds_to_next_minute + 60
+    _warmup_total = int(warmup_end - warmup_start)
+    print(f"[WARMUP] 🔥 Фаза разогрева: ждём закрытия 2 свежих 1-минутных свечей ({_warmup_total} сек)")
+    tg_info(f"🔥 <b>[{BOT_NAME}] Разогрев</b>\\nЖду закрытия 2 свежих 1-минутных свечей перед первой сделкой\\n⏱ Примерно {_warmup_total} сек")
+    _candles_seen = 0
+    _last_candle_minute = None
+    while _time_warmup.time() < warmup_end or _candles_seen < 2:
+        _remaining = max(0, int(warmup_end - _time_warmup.time()))
+        try:
+            _wc = await client.get_candles(asset=ASSET, timeframe=60, count=3)
+            if _wc:
+                _last = _wc[-1]
+                _t_attr = None
+                for _tk in ('time', 't', 'timestamp', 'open_time'):
+                    if hasattr(_last, _tk):
+                        try: _t_attr = float(getattr(_last, _tk)); break
+                        except: pass
+                    if isinstance(_last, dict) and _last.get(_tk):
+                        try: _t_attr = float(_last[_tk]); break
+                        except: pass
+                if _t_attr:
+                    _cur_minute = int(_t_attr // 60)
+                    if _last_candle_minute is None:
+                        _last_candle_minute = _cur_minute
+                    elif _cur_minute > _last_candle_minute:
+                        _candles_seen += 1
+                        _last_candle_minute = _cur_minute
+                        print(f"[WARMUP] ✅ Закрылась свеча #{_candles_seen} | Осталось: {max(0, 2 - _candles_seen)} свечей")
+        except Exception as _we:
+            print(f"[WARMUP] Ошибка получения свечей: {_we}")
+        if _candles_seen >= 2 and _time_warmup.time() >= warmup_end:
+            break
+        print(f"[WARMUP] ⏳ Жду закрытия свечей... ({_candles_seen}/2 готово, до конца разогрева {_remaining}с)")
+        await asyncio.sleep(5)
+    print(f"[WARMUP] ✅ Разогрев завершён! Бот готов к торговле.")
+    tg_info(f"✅ <b>[{BOT_NAME}] Готов к торговле</b>\\n2 свежие свечи закрылись, начинаю мониторинг сигналов")
+
     _reconnect_attempts = 0
 
     while True:
@@ -2927,6 +2969,49 @@ async def main():
         f"━━━━━━━━━━━━━━━━━━━━\\n"
         f"⏳ Ожидаю сигналы..."
     )
+
+    # ===== ФАЗА РАЗОГРЕВА: ждём закрытия 2 свежих 1-минутных свечей перед первой сделкой =====
+    import time as _time_warmup
+    warmup_start = _time_warmup.time()
+    # Время до конца текущей минуты + 2 полные минуты = когда закроется 2-я свеча после старта
+    _now_struct = _time_warmup.localtime(warmup_start)
+    _seconds_to_next_minute = 60 - _now_struct.tm_sec
+    warmup_end = warmup_start + _seconds_to_next_minute + 60  # конец текущей минуты + ещё одна полная
+    _warmup_total = int(warmup_end - warmup_start)
+    print(f"[WARMUP] 🔥 Фаза разогрева: ждём закрытия 2 свежих 1-минутных свечей ({_warmup_total} сек)")
+    tg_info(f"🔥 <b>[{BOT_NAME}] Разогрев</b>\\nЖду закрытия 2 свежих 1-минутных свечей перед первой сделкой\\n⏱ Примерно {_warmup_total} сек")
+    _candles_seen = 0
+    _last_candle_minute = None
+    while _time_warmup.time() < warmup_end or _candles_seen < 2:
+        _remaining = max(0, int(warmup_end - _time_warmup.time()))
+        try:
+            _wc = await client.get_candles(asset=ASSET, timeframe=60, count=3)
+            if _wc:
+                _last = _wc[-1]
+                _t_attr = None
+                for _tk in ('time', 't', 'timestamp', 'open_time'):
+                    if hasattr(_last, _tk):
+                        try: _t_attr = float(getattr(_last, _tk)); break
+                        except: pass
+                    if isinstance(_last, dict) and _last.get(_tk):
+                        try: _t_attr = float(_last[_tk]); break
+                        except: pass
+                if _t_attr:
+                    _cur_minute = int(_t_attr // 60)
+                    if _last_candle_minute is None:
+                        _last_candle_minute = _cur_minute
+                    elif _cur_minute > _last_candle_minute:
+                        _candles_seen += 1
+                        _last_candle_minute = _cur_minute
+                        print(f"[WARMUP] ✅ Закрылась свеча #{_candles_seen} | Осталось: {max(0, 2 - _candles_seen)} свечей")
+        except Exception as _we:
+            print(f"[WARMUP] Ошибка получения свечей: {_we}")
+        if _candles_seen >= 2 and _time_warmup.time() >= warmup_end:
+            break
+        print(f"[WARMUP] ⏳ Жду закрытия свечей... ({_candles_seen}/2 готово, до конца разогрева {_remaining}с)")
+        await asyncio.sleep(5)
+    print(f"[WARMUP] ✅ Разогрев завершён! Бот готов к торговле.")
+    tg_info(f"✅ <b>[{BOT_NAME}] Готов к торговле</b>\\n2 свежие свечи закрылись, начинаю мониторинг сигналов")
 
     last_lost_signal = None
     while True:

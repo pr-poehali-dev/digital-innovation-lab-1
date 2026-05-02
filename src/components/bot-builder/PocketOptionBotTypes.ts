@@ -2708,7 +2708,12 @@ def print_stats():
     wins  = sum(1 for t in trade_log if t["won"])
     total = len(trade_log)
     wr    = (wins / total * 100) if total else 0
+    # Считаем сколько раз хедж/ext "спасли" сделку (основная проиграла, но итог +)
+    saved_by_hedge = sum(1 for t in trade_log if t.get("main_won") is False and t["won"])
+    main_wins = sum(1 for t in trade_log if t.get("main_won"))
     print(f"[STATS] {wins}/{total} | WR: {wr:.1f}% | Сессия: {total_profit:.2f} {CURRENCY}")
+    if saved_by_hedge > 0:
+        print(f"[STATS] 🛡️ Спасено хеджем: {saved_by_hedge} | Чистых WIN основной: {main_wins}")
     print(f"[STATS] По тренду: {calls_follow} ставок | Против/комбо: {calls_reverse} ставок")
 
 async def main():
@@ -3029,12 +3034,16 @@ async def main():
                         profit += e_profit
                 total_profit += profit
                 trades_today += 1
-                current_bet   = adjust_bet(won)
-                trade_log.append({"won": won, "profit": profit})
+                # Реальный результат — по итоговому профиту (с учётом хеджа и ext), а не только основной сделки
+                final_won = profit > 0
+                current_bet   = adjust_bet(final_won)
+                trade_log.append({"won": final_won, "profit": profit, "main_won": won})
                 wins = sum(1 for t in trade_log if t["won"])
                 wr   = wins / len(trade_log) * 100
-                res_emoji = "✅" if won else "❌"
-                tg(f"{res_emoji} <b>[{BOT_NAME}] {'Выигрыш' if won else 'Проигрыш'}</b>\\n{signal} | {bet} {currency} | {ASSET}\\nПрофит: {profit:+.2f} {currency}\\nСессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
+                res_emoji = "✅" if final_won else "❌"
+                # Метка "спасено хеджем" если основная проиграла, но итог в плюсе
+                saved_label = " 🛡️ <i>(спасено хеджем)</i>" if (not won and final_won) else ""
+                tg(f"{res_emoji} <b>[{BOT_NAME}] {'Выигрыш' if final_won else 'Проигрыш'}</b>{saved_label}\\n{signal} | {bet} {currency} | {ASSET}\\nПрофит: {profit:+.2f} {currency}\\nСессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)})")
                 print_stats()
         else:
             ts = datetime.now().strftime("%H:%M:%S")

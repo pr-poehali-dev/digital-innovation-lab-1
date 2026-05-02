@@ -1888,6 +1888,28 @@ async def main():
                     CURRENCY = currency
                     bet = current_bet
 
+                # ===== ЗАЩИТА БАЛАНСА: ставка не более 30% от баланса =====
+                # Исключение: если ставка МЕНЬШЕ базовой — пропускаем (она безопасная)
+                _max_safe_bet = round(balance * 0.30, 2)
+                if balance > 0 and bet > _max_safe_bet and bet >= BASE_BET:
+                    print(f"{'='*55}")
+                    print(f"[ЗАЩИТА] 🛡️ СТАВКА ЗАБЛОКИРОВАНА")
+                    print(f"[ЗАЩИТА]    Ставка: {bet:.2f} {currency}")
+                    print(f"[ЗАЩИТА]    Баланс: {balance:.2f} {currency}")
+                    print(f"[ЗАЩИТА]    Лимит 30%: {_max_safe_bet:.2f} {currency}")
+                    print(f"[ЗАЩИТА]    Превышение: +{(bet - _max_safe_bet):.2f} {currency}")
+                    print(f"[ЗАЩИТА]    💡 Жду следующий сигнал, риск слишком высок")
+                    print(f"{'='*55}")
+                    tg(
+                        f"🛡️ <b>[{BOT_NAME}] Ставка заблокирована</b>\\n"
+                        f"Ставка: <b>{bet:.2f} {currency}</b> > 30% баланса\\n"
+                        f"Баланс: {balance:.2f} {currency}\\n"
+                        f"Лимит: {_max_safe_bet:.2f} {currency}\\n"
+                        f"⏸ Пропускаю сигнал, жду безопасный момент"
+                    )
+                    await asyncio.sleep(CHECK_INTERVAL)
+                    continue
+
                 if trend_sig and signal == trend_sig:
                     calls_follow += 1
                 elif trend_sig and signal != trend_sig:

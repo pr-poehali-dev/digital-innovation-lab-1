@@ -1308,12 +1308,14 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
             print(f"[HEDGE] {mode} | {pips} пип | {hedge_bet} | {opposite} | осталось {remaining}с")
             tg(f"🛡 <b>[HEDGE {mode}]</b> {opposite} | {hedge_bet} | {pips} пип | осталось {remaining}с")
             dir_val = OrderDirection.CALL if opposite == "CALL" else OrderDirection.PUT
+            # Запоминаем баланс ПЕРЕД открытием хеджа — чтобы fallback правильно посчитал результат именно этой сделки
+            balance_before_hedge, _ = await get_balance(client)
             order = await client.place_order(asset=(_resolved_asset or ASSET), amount=hedge_bet, direction=dir_val, duration=remaining)
-            print(f"[HEDGE] Открыт ID: {order.order_id}")
-            return order.order_id, hedge_bet, remaining
+            print(f"[HEDGE] Открыт ID: {order.order_id} | баланс до хеджа: {balance_before_hedge}")
+            return order.order_id, hedge_bet, remaining, balance_before_hedge
         except Exception as e:
             print(f"[HEDGE] Ошибка: {e}")
-    return None, 0.0, 0
+    return None, 0.0, 0, 0.0
 
 async def profit_extension_monitor(client, original_direction, original_bet, entry_price, expiry_sec):
     """
@@ -2608,12 +2610,14 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
             print(f"[HEDGE] {mode} | {pips} пип | {hedge_bet} | {opposite} | осталось {remaining}с")
             tg(f"🛡 <b>[HEDGE {mode}]</b> {opposite} | {hedge_bet} | {pips} пип | осталось {remaining}с")
             dir_val = OrderDirection.CALL if opposite == "CALL" else OrderDirection.PUT
+            # Запоминаем баланс ПЕРЕД открытием хеджа — чтобы fallback правильно посчитал результат именно этой сделки
+            balance_before_hedge, _ = await get_balance(client)
             order = await client.place_order(asset=(_resolved_asset or ASSET), amount=hedge_bet, direction=dir_val, duration=remaining)
-            print(f"[HEDGE] Открыт ID: {order.order_id}")
-            return order.order_id, hedge_bet, remaining
+            print(f"[HEDGE] Открыт ID: {order.order_id} | баланс до хеджа: {balance_before_hedge}")
+            return order.order_id, hedge_bet, remaining, balance_before_hedge
         except Exception as e:
             print(f"[HEDGE] Ошибка: {e}")
-    return None, 0.0, 0
+    return None, 0.0, 0, 0.0
 
 async def profit_extension_monitor(client, original_direction, original_bet, entry_price, expiry_sec):
     """Расширение прибыли при движении цены в нашу сторону."""
@@ -2999,10 +3003,16 @@ async def main():
                 ext_res   = gather_results[2]
                 won, profit = main_res if not isinstance(main_res, Exception) else (False, round(-bet, 2))
                 if hedge_task and not isinstance(hedge_res, Exception) and isinstance(hedge_res, tuple):
-                    hedge_order_id, hedge_bet, hedge_remaining = hedge_res
+                    # Распаковка 4 элементов: order_id, ставка, оставшееся время, баланс ПЕРЕД хеджем
+                    if len(hedge_res) == 4:
+                        hedge_order_id, hedge_bet, hedge_remaining, balance_before_hedge = hedge_res
+                    else:
+                        hedge_order_id, hedge_bet, hedge_remaining = hedge_res
+                        balance_before_hedge = balance_before
                     if hedge_order_id:
                         hedge_count += 1
-                        h_won, h_profit = await check_result(client, hedge_order_id, balance_before, hedge_bet, wait_sec=hedge_remaining)
+                        # Передаём именно balance_before_hedge — чтобы fallback по балансу считал ТОЛЬКО результат хедж-сделки
+                        h_won, h_profit = await check_result(client, hedge_order_id, balance_before_hedge, hedge_bet, wait_sec=hedge_remaining)
                         if h_won:
                             hedge_wins += 1
                         hedge_result = f"✅ +{h_profit:.2f}" if h_won else f"❌ {h_profit:.2f}"

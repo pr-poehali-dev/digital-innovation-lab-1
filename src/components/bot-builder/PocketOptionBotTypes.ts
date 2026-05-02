@@ -3222,45 +3222,77 @@ async def main():
                     _closed_strong = candles[:-1] if candles else []
                     if len(_closed_strong) >= STRONG_TREND_CANDLES:
                         _last_n = _closed_strong[-STRONG_TREND_CANDLES:]
-                        # Полный контекст последних 5 свечей для наглядности (как в [СВЕЧИ])
                         _ctx_n = _closed_strong[-5:] if len(_closed_strong) >= 5 else _closed_strong
-                        def _color_of(_csc):
+                        def _oc_of(_csc):
+                            """Возвращает (open, close) свечи"""
                             if hasattr(_csc, 'open') and hasattr(_csc, 'close'):
-                                _o, _cl = float(_csc.open), float(_csc.close)
+                                return float(_csc.open), float(_csc.close)
                             elif isinstance(_csc, dict):
-                                _o = float(_csc.get('open', _csc.get('o', 0))); _cl = float(_csc.get('close', _csc.get('c', 0)))
+                                return float(_csc.get('open', _csc.get('o', 0))), float(_csc.get('close', _csc.get('c', 0)))
                             else:
-                                _o = float(_csc[0]); _cl = float(_csc[3])
-                            return "UP" if _cl >= _o else "DOWN"
-                        _colors = [_color_of(c) for c in _last_n]
-                        _ctx_colors = [_color_of(c) for c in _ctx_n]
+                                return float(_csc[0]), float(_csc[3])
+                        _last_data = [_oc_of(c) for c in _last_n]
+                        _ctx_data  = [_oc_of(c) for c in _ctx_n]
+                        _colors = ["UP" if cl >= o else "DOWN" for (o, cl) in _last_data]
+                        _ctx_colors = ["UP" if cl >= o else "DOWN" for (o, cl) in _ctx_data]
                         _bar_strong = "".join("🟢" if c == "UP" else "🔴" for c in _colors)
                         _ctx_bar = "".join("🟢" if c == "UP" else "🔴" for c in _ctx_colors)
-                        # Подсвечиваем последние N свечей в общем контексте
+                        # Контекст с выделением последних N свечей
                         _ctx_highlighted = ""
                         for _i, _c in enumerate(_ctx_colors):
                             _emoji = "🟢" if _c == "UP" else "🔴"
-                            # Последние N свечей выделяем рамками (квадратные скобки)
                             if _i >= len(_ctx_colors) - len(_colors):
                                 _ctx_highlighted += f"[{_emoji}]"
                             else:
                                 _ctx_highlighted += _emoji
+                        # Размер пипса для актива (для расчёта Δ пипсов)
+                        _pip_strong = _pip_size_map.get((_resolved_asset or ASSET), 0.0001) if "_pip_size_map" in dir() else 0.0001
+                        # Считаем суммарное движение и движение каждой свечи в пипсах
+                        _deltas_pips = [round((cl - o) / _pip_strong, 1) for (o, cl) in _last_data]
+                        _total_delta_price = sum(cl - o for (o, cl) in _last_data)
+                        _total_delta_pips = round(_total_delta_price / _pip_strong, 1)
+                        # Детальная разбивка по свечам: 🟢+5.2 пип / 🔴-3.1 пип
+                        _details = " ".join(f"{'🟢' if d >= 0 else '🔴'}{d:+.1f}пип" for d in _deltas_pips)
+                        # Цена начала первой и конца последней свечи
+                        _first_open = _last_data[0][0]
+                        _last_close = _last_data[-1][1]
                         _all_up   = all(c == "UP" for c in _colors)
                         _all_down = all(c == "DOWN" for c in _colors)
-                        # Сильный тренд должен совпадать с сигналом
                         _trend_matches = (_all_up and signal == "CALL") or (_all_down and signal == "PUT")
                         _expected = ("🟢" * STRONG_TREND_CANDLES) if signal == "CALL" else ("🔴" * STRONG_TREND_CANDLES)
+                        # Оценка силы движения
+                        _abs_pips = abs(_total_delta_pips)
+                        if _abs_pips < 5:
+                            _strength = "💤 слабое"
+                        elif _abs_pips < 15:
+                            _strength = "⚖️ умеренное"
+                        elif _abs_pips < 30:
+                            _strength = "💪 сильное"
+                        else:
+                            _strength = "🔥 очень сильное"
                         if not _trend_matches:
                             _wait_left = max(0, int((STRONG_TREND_MAX_WAIT_SEC - _strong_elapsed) / 60))
-                            print(f"[STRONG_TREND] ⏸ Жду сильный тренд | Контекст 5 свечей: {_ctx_highlighted} (в скобках — последние {STRONG_TREND_CANDLES})")
-                            print(f"[STRONG_TREND]    Сейчас: {_bar_strong} | Нужно: {_expected} для сигнала {signal} | До таймаута: ~{_wait_left} мин")
+                            print(f"[STRONG_TREND] ⏸ Жду сильный тренд | Контекст 5 свечей: {_ctx_highlighted}")
+                            print(f"[STRONG_TREND]    Сейчас: {_bar_strong} | Нужно: {_expected} для {signal} | До таймаута: ~{_wait_left} мин")
+                            print(f"[STRONG_TREND]    📊 По свечам: {_details}")
+                            print(f"[STRONG_TREND]    💹 Суммарно: {_total_delta_pips:+.1f} пип ({_strength}) | {_first_open:.5f} → {_last_close:.5f}")
                             await asyncio.sleep(CHECK_INTERVAL)
                             continue
                         else:
                             print(f"[STRONG_TREND] 🎯 СИЛЬНЫЙ ТРЕНД НАЙДЕН!")
                             print(f"[STRONG_TREND]    Контекст 5 свечей: {_ctx_highlighted}")
                             print(f"[STRONG_TREND]    Совпало: {_bar_strong} = {_expected} → первая сделка {signal}!")
-                            tg_info(f"🎯 <b>[{BOT_NAME}] Сильный тренд!</b>\\nКонтекст: {_ctx_bar}\\nСовпало: {_bar_strong} → первая сделка {signal}")
+                            print(f"[STRONG_TREND]    📊 По свечам: {_details}")
+                            print(f"[STRONG_TREND]    💹 Суммарно: {_total_delta_pips:+.1f} пип ({_strength}) | {_first_open:.5f} → {_last_close:.5f}")
+                            tg_info(
+                                f"🎯 <b>[{BOT_NAME}] Сильный тренд!</b>\\n"
+                                f"━━━━━━━━━━━━━━━━━━━━\\n"
+                                f"Контекст: {_ctx_bar}\\n"
+                                f"Совпало: {_bar_strong} → <b>{signal}</b>\\n"
+                                f"📊 По свечам: {_details}\\n"
+                                f"💹 Суммарно: <b>{_total_delta_pips:+.1f} пип</b> {_strength}\\n"
+                                f"💰 {_first_open:.5f} → {_last_close:.5f}"
+                            )
                             _first_trade_done = True
                             _strong_trend_wait_start = None
                     else:

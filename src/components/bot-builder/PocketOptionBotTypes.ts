@@ -639,7 +639,8 @@ def adjust_bet(won):
     : `
 current_bet = BASE_BET
 
-def adjust_bet(won):
+def adjust_bet(won, profit=0.0, bet=0.0):
+    """Без мартингейла — всегда возвращаем базовую ставку (profit/bet принимаем для совместимости)."""
     return BASE_BET
 `
 
@@ -2107,7 +2108,8 @@ def adjust_bet(won, profit=0.0, bet=0.0):
     : `
 current_bet = BASE_BET
 
-def adjust_bet(won):
+def adjust_bet(won, profit=0.0, bet=0.0):
+    """Без мартингейла — всегда возвращаем базовую ставку (profit/bet принимаем для совместимости)."""
     return BASE_BET
 `
 

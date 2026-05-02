@@ -59,6 +59,9 @@ export interface POBotConfig {
   requireStrongTrendOnStart?: boolean
   strongTrendCandles?: number
   resetTrendAfterLoss?: boolean
+  pauseAfterLossesEnabled?: boolean
+  pauseAfterLossesCount?: number
+  pauseAfterLossesMinutes?: number
 }
 
 export interface StrategyMeta {
@@ -358,6 +361,9 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   requireStrongTrendOnStart: false,
   strongTrendCandles: 3,
   resetTrendAfterLoss: true,
+  pauseAfterLossesEnabled: true,
+  pauseAfterLossesCount: 3,
+  pauseAfterLossesMinutes: 10,
 }
 
 // Helper to avoid TS template literal conflicts with Python f-strings
@@ -3336,6 +3342,41 @@ async def main():
                     tg_info(f"🔄 <b>[{BOT_NAME}] Сброс после проигрыша</b>\\nЖду сильный тренд из {STRONG_TREND_CANDLES} свечей перед следующей сделкой")
                 current_bet   = adjust_bet(final_won, profit=profit, bet=bet)
                 trade_log.append({"won": final_won, "profit": profit, "main_won": won, "full_win": full_win})
+                # ===== ПАУЗА ПОСЛЕ СЕРИИ ПРОИГРЫШЕЙ =====
+                PAUSE_AFTER_LOSSES_ENABLED = ${cfg.pauseAfterLossesEnabled ? "True" : "False"}
+                PAUSE_AFTER_LOSSES_COUNT   = ${cfg.pauseAfterLossesCount ?? 3}
+                PAUSE_AFTER_LOSSES_MINUTES = ${cfg.pauseAfterLossesMinutes ?? 10}
+                if PAUSE_AFTER_LOSSES_ENABLED and not final_won:
+                    # Считаем последовательную серию проигрышей с конца trade_log
+                    _losses_in_row = 0
+                    for _t in reversed(trade_log):
+                        if not _t["won"]:
+                            _losses_in_row += 1
+                        else:
+                            break
+                    if _losses_in_row >= PAUSE_AFTER_LOSSES_COUNT:
+                        _pause_sec = PAUSE_AFTER_LOSSES_MINUTES * 60
+                        print(f"[PAUSE] ⏸ Серия проигрышей: {_losses_in_row} подряд! Пауза {PAUSE_AFTER_LOSSES_MINUTES} минут для остывания рынка...")
+                        tg(
+                            f"⏸ <b>[{BOT_NAME}] Защитная пауза</b>\\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\\n"
+                            f"❄️ Серия проигрышей: <b>{_losses_in_row} подряд</b>\\n"
+                            f"⏱ Пауза: <b>{PAUSE_AFTER_LOSSES_MINUTES} минут</b>\\n"
+                            f"💡 Защита от «разноса» депозита на эмоциях рынка"
+                        )
+                        # Сбрасываем флаг сильного тренда, чтобы после паузы войти только на чёткий сигнал
+                        if REQUIRE_STRONG_TREND:
+                            _first_trade_done = False
+                        # Пауза с возможностью прерывания через /resume
+                        _pause_start = _time_warmup.time() if "_time_warmup" in dir() else __import__("time").time()
+                        while __import__("time").time() - _pause_start < _pause_sec:
+                            tg_poll_commands()
+                            if _tg_stopped:
+                                break
+                            await asyncio.sleep(10)
+                        if not _tg_stopped:
+                            print(f"[PAUSE] ✅ Пауза окончена, продолжаю торговлю")
+                            tg(f"✅ <b>[{BOT_NAME}] Пауза окончена</b>\\nПродолжаю торговлю")
                 wins = sum(1 for t in trade_log if t["won"])
                 wr   = wins / len(trade_log) * 100
                 # Серия побед/поражений

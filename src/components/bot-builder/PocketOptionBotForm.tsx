@@ -1206,6 +1206,50 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
             </>
           )}
 
+          <div className="flex items-center justify-between pt-1">
+            <div>
+              <Label className="text-zinc-300 text-sm">⏸ Защитная пауза после серии проигрышей</Label>
+              <p className="text-zinc-500 text-xs font-space-mono">После N проигрышей подряд бот делает перерыв — защита от «разноса» депозита</p>
+            </div>
+            <Switch checked={config.pauseAfterLossesEnabled ?? true} onCheckedChange={(v) => set({ pauseAfterLossesEnabled: v })} />
+          </div>
+
+          {(config.pauseAfterLossesEnabled ?? true) && (
+            <>
+              <div>
+                <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                  Пауза после <span className="text-white font-bold">{config.pauseAfterLossesCount ?? 3} проигрышей</span> подряд
+                </Label>
+                <Slider min={2} max={7} step={1} value={[config.pauseAfterLossesCount ?? 3]} onValueChange={([v]) => set({ pauseAfterLossesCount: v })} />
+                <p className="text-zinc-600 font-space-mono text-xs mt-1.5">
+                  {(config.pauseAfterLossesCount ?? 3) === 2
+                    ? "⚡ Чувствительно — пауза уже после 2 проигрышей"
+                    : (config.pauseAfterLossesCount ?? 3) === 3
+                    ? "⚖️ Оптимально — после 3 проигрышей подряд (рекомендуется)"
+                    : (config.pauseAfterLossesCount ?? 3) <= 5
+                    ? "🟢 Лояльно — даём боту шанс отыграться"
+                    : "🐢 Очень терпеливо — пауза только при разносе"}
+                </p>
+              </div>
+
+              <div>
+                <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                  Длительность паузы: <span className="text-white font-bold">{config.pauseAfterLossesMinutes ?? 10} мин</span>
+                </Label>
+                <Slider min={1} max={60} step={1} value={[config.pauseAfterLossesMinutes ?? 10]} onValueChange={([v]) => set({ pauseAfterLossesMinutes: v })} />
+                <p className="text-zinc-600 font-space-mono text-xs mt-1.5">
+                  {(config.pauseAfterLossesMinutes ?? 10) <= 5
+                    ? "⚡ Короткая пауза — рынок не успеет сильно поменяться"
+                    : (config.pauseAfterLossesMinutes ?? 10) <= 15
+                    ? "⚖️ Оптимально — рынок успеет «остыть»"
+                    : (config.pauseAfterLossesMinutes ?? 10) <= 30
+                    ? "🟢 Долго — пропустим много сигналов, но войдём свежо"
+                    : "🐢 Очень долго — пауза почти час"}
+                </p>
+              </div>
+            </>
+          )}
+
           <div>
             <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Выплата брокера: {config.payoutRate}%</Label>
             <Slider min={50} max={99} step={1} value={[config.payoutRate]} onValueChange={([v]) => set({ payoutRate: v })} />

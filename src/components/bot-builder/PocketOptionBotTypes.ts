@@ -1028,6 +1028,8 @@ hedge_wins    = 0
 ext_count     = 0
 ext_wins      = 0
 cur_streak    = 0   # >0 = серия побед, <0 = серия поражений
+insufficient_funds_count = 0   # Подряд идущих "недостаточно средств"
+INSUFFICIENT_FUNDS_LIMIT = 5   # После N подряд — авто-стоп
 ${martingaleBlock}
 # ===== ТРЕНД ПО 2 ПОСЛЕДНИМ СВЕЧАМ =====
 _last_trend = None
@@ -1893,19 +1895,23 @@ async def main():
 
                 # ===== ЗАЩИТА #1: ХВАТИТ ЛИ ДЕНЕГ НА СЧЁТЕ =====
                 if balance > 0 and bet > balance:
+                    insufficient_funds_count += 1
+                    _remaining = INSUFFICIENT_FUNDS_LIMIT - insufficient_funds_count
                     print(f"{'='*55}")
-                    print(f"[ЗАЩИТА] 💸 НЕДОСТАТОЧНО СРЕДСТВ")
+                    print(f"[ЗАЩИТА] 💸 НЕДОСТАТОЧНО СРЕДСТВ #{insufficient_funds_count}/{INSUFFICIENT_FUNDS_LIMIT}")
                     print(f"[ЗАЩИТА]    Ставка: {bet:.2f} {currency}")
                     print(f"[ЗАЩИТА]    На счёте: {balance:.2f} {currency}")
                     print(f"[ЗАЩИТА]    Не хватает: {(bet - balance):.2f} {currency}")
                     print(f"[ЗАЩИТА]    💡 Сброс мартингейла к базовой ставке")
+                    if _remaining > 0:
+                        print(f"[ЗАЩИТА]    ⚠️ До авто-стопа осталось попыток: {_remaining}")
                     print(f"{'='*55}")
                     tg(
-                        f"💸 <b>[{BOT_NAME}] Недостаточно средств</b>\\n"
+                        f"💸 <b>[{BOT_NAME}] Недостаточно средств #{insufficient_funds_count}/{INSUFFICIENT_FUNDS_LIMIT}</b>\\n"
                         f"Ставка: <b>{bet:.2f} {currency}</b>\\n"
                         f"На счёте: {balance:.2f} {currency}\\n"
                         f"Не хватает: {(bet - balance):.2f} {currency}\\n"
-                        f"⚠️ Сброс мартингейла, попробую с базовой"
+                        f"⚠️ Сброс мартингейла, осталось попыток: {max(0, _remaining)}"
                     )
                     # Сбрасываем мартингейл — ставка слишком большая для текущего баланса
                     try:
@@ -1913,6 +1919,30 @@ async def main():
                         loss_streak = 0
                     except NameError:
                         pass
+
+                    # ===== АВТО-СТОП БОТА: критически малый депозит =====
+                    if insufficient_funds_count >= INSUFFICIENT_FUNDS_LIMIT:
+                        print(f"{'='*55}")
+                        print(f"[АВТО-СТОП] 🛑🛑🛑 КРИТИЧЕСКИ МАЛЫЙ ДЕПОЗИТ 🛑🛑🛑")
+                        print(f"[АВТО-СТОП]    Бот {INSUFFICIENT_FUNDS_LIMIT} раз подряд не смог поставить сделку")
+                        print(f"[АВТО-СТОП]    Текущий баланс: {balance:.2f} {currency}")
+                        print(f"[АВТО-СТОП]    Базовая ставка: {BASE_BET:.2f} {currency}")
+                        print(f"[АВТО-СТОП]    💡 Пополни счёт или уменьши базовую ставку")
+                        print(f"[АВТО-СТОП]    🛑 БОТ ОСТАНОВЛЕН")
+                        print(f"{'='*55}")
+                        tg(
+                            f"🛑🛑🛑 <b>[{BOT_NAME}] АВТО-СТОП</b>\\n"
+                            f"Депозит критически мал!\\n"
+                            f"Бот {INSUFFICIENT_FUNDS_LIMIT} раз подряд не смог поставить сделку.\\n\\n"
+                            f"💰 Баланс: <b>{balance:.2f} {currency}</b>\\n"
+                            f"📌 Базовая ставка: {BASE_BET:.2f} {currency}\\n\\n"
+                            f"💡 Что делать:\\n"
+                            f"• Пополни счёт\\n"
+                            f"• Или уменьши базовую ставку\\n"
+                            f"• Затем перезапусти бота"
+                        )
+                        return  # Выходим из main цикла → бот останавливается
+
                     await asyncio.sleep(CHECK_INTERVAL)
                     continue
 
@@ -1937,6 +1967,11 @@ async def main():
                     )
                     await asyncio.sleep(CHECK_INTERVAL)
                     continue
+
+                # Прошли все защиты — сбрасываем счётчик "недостаточно средств"
+                if insufficient_funds_count > 0:
+                    print(f"[ЗАЩИТА] ✅ Денег хватает, счётчик авто-стопа сброшен ({insufficient_funds_count} → 0)")
+                    insufficient_funds_count = 0
 
                 if trend_sig and signal == trend_sig:
                     calls_follow += 1
@@ -2612,6 +2647,8 @@ hedge_wins    = 0
 ext_count     = 0
 ext_wins      = 0
 cur_streak    = 0   # >0 = серия побед, <0 = серия поражений
+insufficient_funds_count = 0   # Подряд идущих "недостаточно средств"
+INSUFFICIENT_FUNDS_LIMIT = 5   # После N подряд — авто-стоп
 ${martingaleBlock}
 # ===== ТРЕНД ПО 2 ПОСЛЕДНИМ СВЕЧАМ =====
 _last_trend = None

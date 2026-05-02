@@ -56,6 +56,8 @@ export interface POBotConfig {
   srWindow: number
   candleTimeframe: 60 | 300 | 900 | 3600
   warmupCandles?: number
+  requireStrongTrendOnStart?: boolean
+  strongTrendCandles?: number
 }
 
 export interface StrategyMeta {
@@ -352,6 +354,8 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   srWindow: 10,
   candleTimeframe: 60,
   warmupCandles: 2,
+  requireStrongTrendOnStart: false,
+  strongTrendCandles: 3,
 }
 
 // Helper to avoid TS template literal conflicts with Python f-strings
@@ -3016,6 +3020,14 @@ async def main():
     print(f"[WARMUP] ✅ Разогрев завершён! Бот готов к торговле.")
     tg_info(f"✅ <b>[{BOT_NAME}] Готов к торговле</b>\\n{WARMUP_CANDLES} свежих свечей закрылись, начинаю мониторинг сигналов")
 
+    # ===== ОЖИДАНИЕ СИЛЬНОГО ТРЕНДА ДЛЯ ПЕРВОЙ СДЕЛКИ =====
+    REQUIRE_STRONG_TREND = ${cfg.requireStrongTrendOnStart ? "True" : "False"}
+    STRONG_TREND_CANDLES = ${cfg.strongTrendCandles ?? 3}
+    _first_trade_done = False
+    if REQUIRE_STRONG_TREND:
+        print(f"[STRONG_TREND] 🎯 Жду сильный тренд для первой сделки: {STRONG_TREND_CANDLES} свечей одного цвета подряд")
+        tg_info(f"🎯 <b>[{BOT_NAME}] Ищу сильный тренд</b>\\nЖду {STRONG_TREND_CANDLES} свечей одного цвета подряд для первой сделки")
+
     last_lost_signal = None
     while True:
         if total_profit >= TAKE_PROFIT:
@@ -3167,6 +3179,43 @@ async def main():
         else:
             print(f"[ИТОГ] ⏸ ОЖИДАНИЕ — нет сигнала")
         print(f"{'='*55}")
+
+        # ===== ПРОВЕРКА СИЛЬНОГО ТРЕНДА ДЛЯ ПЕРВОЙ СДЕЛКИ =====
+        if signal and REQUIRE_STRONG_TREND and not _first_trade_done:
+            try:
+                _strong_candles = await client.get_candles(asset=ASSET, timeframe=60, count=STRONG_TREND_CANDLES + 2)
+                _closed_strong = _strong_candles[:-1] if _strong_candles else []
+                if len(_closed_strong) >= STRONG_TREND_CANDLES:
+                    _last_n = _closed_strong[-STRONG_TREND_CANDLES:]
+                    _colors = []
+                    for _csc in _last_n:
+                        if hasattr(_csc, 'open') and hasattr(_csc, 'close'):
+                            _o, _cl = float(_csc.open), float(_csc.close)
+                        elif isinstance(_csc, dict):
+                            _o = float(_csc.get('open', _csc.get('o', 0))); _cl = float(_csc.get('close', _csc.get('c', 0)))
+                        else:
+                            _o = float(_csc[0]); _cl = float(_csc[3])
+                        _colors.append("UP" if _cl >= _o else "DOWN")
+                    _bar_strong = "".join("🟢" if c == "UP" else "🔴" for c in _colors)
+                    _all_up   = all(c == "UP" for c in _colors)
+                    _all_down = all(c == "DOWN" for c in _colors)
+                    # Сильный тренд должен совпадать с сигналом
+                    _trend_matches = (_all_up and signal == "CALL") or (_all_down and signal == "PUT")
+                    if not _trend_matches:
+                        print(f"[STRONG_TREND] ⏸ Жду сильный тренд для первой сделки | Сейчас: {_bar_strong} | Нужно: {STRONG_TREND_CANDLES}× одного цвета совпадающего с {signal}")
+                        await asyncio.sleep(CHECK_INTERVAL)
+                        continue
+                    else:
+                        print(f"[STRONG_TREND] 🎯 СИЛЬНЫЙ ТРЕНД НАЙДЕН: {_bar_strong} → первая сделка {signal}!")
+                        tg_info(f"🎯 <b>[{BOT_NAME}] Сильный тренд!</b>\\n{_bar_strong} → первая сделка {signal}")
+                        _first_trade_done = True
+                else:
+                    print(f"[STRONG_TREND] ⏳ Недостаточно свечей ({len(_closed_strong)}/{STRONG_TREND_CANDLES})")
+                    await asyncio.sleep(CHECK_INTERVAL)
+                    continue
+            except Exception as _ste:
+                print(f"[STRONG_TREND] Ошибка: {_ste}, пропускаю проверку")
+                _first_trade_done = True
 
         if signal:
             if BET_PERCENT:

@@ -1170,6 +1170,32 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
             </p>
           </div>
 
+          <div className="flex items-center justify-between pt-1">
+            <div>
+              <Label className="text-zinc-300 text-sm">🎯 Ждать сильный тренд для первой сделки</Label>
+              <p className="text-zinc-500 text-xs font-space-mono">После разогрева бот не сразу торгует, а ждёт N свечей одного цвета подряд</p>
+            </div>
+            <Switch checked={config.requireStrongTrendOnStart ?? false} onCheckedChange={(v) => set({ requireStrongTrendOnStart: v })} />
+          </div>
+
+          {(config.requireStrongTrendOnStart ?? false) && (
+            <div>
+              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                Сильный тренд = <span className="text-white font-bold">{config.strongTrendCandles ?? 3} свечей</span> одного цвета подряд
+              </Label>
+              <Slider min={2} max={6} step={1} value={[config.strongTrendCandles ?? 3]} onValueChange={([v]) => set({ strongTrendCandles: v })} />
+              <p className="text-zinc-600 font-space-mono text-xs mt-1.5">
+                {(config.strongTrendCandles ?? 3) === 2
+                  ? "⚡ Слабое требование — 2 свечи (часто срабатывает, мало пропусков)"
+                  : (config.strongTrendCandles ?? 3) === 3
+                  ? "⚖️ Оптимально — 3 свечи 🟢🟢🟢/🔴🔴🔴 даёт уверенный тренд"
+                  : (config.strongTrendCandles ?? 3) <= 4
+                  ? "🟢 Строго — 4 свечи подряд, очень уверенный сигнал"
+                  : "🐢 Очень строго — 5-6 свечей, редкие но качественные входы"}
+              </p>
+            </div>
+          )}
+
           <div>
             <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Выплата брокера: {config.payoutRate}%</Label>
             <Slider min={50} max={99} step={1} value={[config.payoutRate]} onValueChange={([v]) => set({ payoutRate: v })} />

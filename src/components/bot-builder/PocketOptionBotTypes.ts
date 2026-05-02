@@ -3044,9 +3044,12 @@ async def main():
     # ===== ОЖИДАНИЕ СИЛЬНОГО ТРЕНДА ДЛЯ ПЕРВОЙ СДЕЛКИ =====
     REQUIRE_STRONG_TREND = ${cfg.requireStrongTrendOnStart ? "True" : "False"}
     STRONG_TREND_CANDLES = ${cfg.strongTrendCandles ?? 3}
+    # Жёсткий таймаут поиска сильного тренда: STRONG_TREND_CANDLES * 60 сек * 5 циклов = до ~15 минут максимум
+    STRONG_TREND_MAX_WAIT_SEC = STRONG_TREND_CANDLES * 60 * 5
+    _strong_trend_wait_start = None
     _first_trade_done = False
     if REQUIRE_STRONG_TREND:
-        print(f"[STRONG_TREND] 🎯 Жду сильный тренд для первой сделки: {STRONG_TREND_CANDLES} свечей одного цвета подряд")
+        print(f"[STRONG_TREND] 🎯 Жду сильный тренд для первой сделки: {STRONG_TREND_CANDLES} свечей одного цвета подряд (макс {STRONG_TREND_MAX_WAIT_SEC//60} мин)")
         tg_info(f"🎯 <b>[{BOT_NAME}] Ищу сильный тренд</b>\\nЖду {STRONG_TREND_CANDLES} свечей одного цвета подряд для первой сделки")
 
     last_lost_signal = None
@@ -3203,40 +3206,52 @@ async def main():
 
         # ===== ПРОВЕРКА СИЛЬНОГО ТРЕНДА ДЛЯ ПЕРВОЙ СДЕЛКИ =====
         if signal and REQUIRE_STRONG_TREND and not _first_trade_done:
-            try:
-                _strong_candles = await client.get_candles(asset=ASSET, timeframe=60, count=STRONG_TREND_CANDLES + 2)
-                _closed_strong = _strong_candles[:-1] if _strong_candles else []
-                if len(_closed_strong) >= STRONG_TREND_CANDLES:
-                    _last_n = _closed_strong[-STRONG_TREND_CANDLES:]
-                    _colors = []
-                    for _csc in _last_n:
-                        if hasattr(_csc, 'open') and hasattr(_csc, 'close'):
-                            _o, _cl = float(_csc.open), float(_csc.close)
-                        elif isinstance(_csc, dict):
-                            _o = float(_csc.get('open', _csc.get('o', 0))); _cl = float(_csc.get('close', _csc.get('c', 0)))
+            # Запоминаем когда начали ждать (для жёсткого таймаута)
+            if _strong_trend_wait_start is None:
+                _strong_trend_wait_start = __import__("time").time()
+            _strong_elapsed = __import__("time").time() - _strong_trend_wait_start
+            # ЖЁСТКИЙ ТАЙМАУТ — защита от вечного зависания в ожидании тренда
+            if _strong_elapsed > STRONG_TREND_MAX_WAIT_SEC:
+                print(f"[STRONG_TREND] ⚠️ Таймаут ожидания сильного тренда ({STRONG_TREND_MAX_WAIT_SEC//60} мин) — снимаю требование, торгую по обычному сигналу")
+                tg_info(f"⚠️ <b>[{BOT_NAME}] Таймаут поиска тренда</b>\\nЖду слишком долго, перехожу к обычной торговле")
+                _first_trade_done = True
+            else:
+                try:
+                    _strong_candles = await client.get_candles(asset=ASSET, timeframe=60, count=STRONG_TREND_CANDLES + 2)
+                    _closed_strong = _strong_candles[:-1] if _strong_candles else []
+                    if len(_closed_strong) >= STRONG_TREND_CANDLES:
+                        _last_n = _closed_strong[-STRONG_TREND_CANDLES:]
+                        _colors = []
+                        for _csc in _last_n:
+                            if hasattr(_csc, 'open') and hasattr(_csc, 'close'):
+                                _o, _cl = float(_csc.open), float(_csc.close)
+                            elif isinstance(_csc, dict):
+                                _o = float(_csc.get('open', _csc.get('o', 0))); _cl = float(_csc.get('close', _csc.get('c', 0)))
+                            else:
+                                _o = float(_csc[0]); _cl = float(_csc[3])
+                            _colors.append("UP" if _cl >= _o else "DOWN")
+                        _bar_strong = "".join("🟢" if c == "UP" else "🔴" for c in _colors)
+                        _all_up   = all(c == "UP" for c in _colors)
+                        _all_down = all(c == "DOWN" for c in _colors)
+                        # Сильный тренд должен совпадать с сигналом
+                        _trend_matches = (_all_up and signal == "CALL") or (_all_down and signal == "PUT")
+                        if not _trend_matches:
+                            _wait_left = max(0, int((STRONG_TREND_MAX_WAIT_SEC - _strong_elapsed) / 60))
+                            print(f"[STRONG_TREND] ⏸ Жду сильный тренд | Сейчас: {_bar_strong} | Нужно: {STRONG_TREND_CANDLES}× одного цвета | До таймаута: ~{_wait_left} мин")
+                            await asyncio.sleep(CHECK_INTERVAL)
+                            continue
                         else:
-                            _o = float(_csc[0]); _cl = float(_csc[3])
-                        _colors.append("UP" if _cl >= _o else "DOWN")
-                    _bar_strong = "".join("🟢" if c == "UP" else "🔴" for c in _colors)
-                    _all_up   = all(c == "UP" for c in _colors)
-                    _all_down = all(c == "DOWN" for c in _colors)
-                    # Сильный тренд должен совпадать с сигналом
-                    _trend_matches = (_all_up and signal == "CALL") or (_all_down and signal == "PUT")
-                    if not _trend_matches:
-                        print(f"[STRONG_TREND] ⏸ Жду сильный тренд для первой сделки | Сейчас: {_bar_strong} | Нужно: {STRONG_TREND_CANDLES}× одного цвета совпадающего с {signal}")
+                            print(f"[STRONG_TREND] 🎯 СИЛЬНЫЙ ТРЕНД НАЙДЕН: {_bar_strong} → первая сделка {signal}!")
+                            tg_info(f"🎯 <b>[{BOT_NAME}] Сильный тренд!</b>\\n{_bar_strong} → первая сделка {signal}")
+                            _first_trade_done = True
+                            _strong_trend_wait_start = None
+                    else:
+                        print(f"[STRONG_TREND] ⏳ Недостаточно свечей ({len(_closed_strong)}/{STRONG_TREND_CANDLES})")
                         await asyncio.sleep(CHECK_INTERVAL)
                         continue
-                    else:
-                        print(f"[STRONG_TREND] 🎯 СИЛЬНЫЙ ТРЕНД НАЙДЕН: {_bar_strong} → первая сделка {signal}!")
-                        tg_info(f"🎯 <b>[{BOT_NAME}] Сильный тренд!</b>\\n{_bar_strong} → первая сделка {signal}")
-                        _first_trade_done = True
-                else:
-                    print(f"[STRONG_TREND] ⏳ Недостаточно свечей ({len(_closed_strong)}/{STRONG_TREND_CANDLES})")
-                    await asyncio.sleep(CHECK_INTERVAL)
-                    continue
-            except Exception as _ste:
-                print(f"[STRONG_TREND] Ошибка: {_ste}, пропускаю проверку")
-                _first_trade_done = True
+                except Exception as _ste:
+                    print(f"[STRONG_TREND] Ошибка: {_ste}, пропускаю проверку")
+                    _first_trade_done = True
 
         if signal:
             if BET_PERCENT:
@@ -3369,6 +3384,8 @@ async def main():
                             break
                     if _losses_in_row >= PAUSE_AFTER_LOSSES_COUNT:
                         _pause_sec = PAUSE_AFTER_LOSSES_MINUTES * 60
+                        # Жёсткий лимит паузы: максимум 2 часа (защита от случайных огромных значений)
+                        _pause_sec = min(_pause_sec, 7200)
                         print(f"[PAUSE] ⏸ Серия проигрышей: {_losses_in_row} подряд! Пауза {PAUSE_AFTER_LOSSES_MINUTES} минут для остывания рынка...")
                         tg(
                             f"⏸ <b>[{BOT_NAME}] Защитная пауза</b>\\n"
@@ -3380,12 +3397,26 @@ async def main():
                         # Сбрасываем флаг сильного тренда, чтобы после паузы войти только на чёткий сигнал
                         if REQUIRE_STRONG_TREND:
                             _first_trade_done = False
-                        # Пауза с возможностью прерывания через /resume
-                        _pause_start = _time_warmup.time() if "_time_warmup" in dir() else __import__("time").time()
-                        while __import__("time").time() - _pause_start < _pause_sec:
+                            _strong_trend_wait_start = None
+                        # Пауза с возможностью прерывания через /resume или /stop
+                        _pause_start_t = __import__("time").time()
+                        _pause_iterations = 0
+                        _max_iterations = int(_pause_sec / 10) + 10  # защита от вечного цикла
+                        while True:
+                            _pause_iterations += 1
+                            _elapsed_pause = __import__("time").time() - _pause_start_t
+                            # Условия выхода (защита от зависания)
+                            if _elapsed_pause >= _pause_sec:
+                                break
+                            if _pause_iterations > _max_iterations:
+                                print(f"[PAUSE] ⚠️ Превышен лимит итераций паузы — принудительный выход")
+                                break
                             tg_poll_commands()
                             if _tg_stopped:
                                 break
+                            if not _tg_paused and _elapsed_pause >= _pause_sec * 0.5:
+                                # Если пользователь вручную нажал /resume — выходим раньше
+                                pass
                             await asyncio.sleep(10)
                         if not _tg_stopped:
                             print(f"[PAUSE] ✅ Пауза окончена, продолжаю торговлю")

@@ -185,6 +185,23 @@ export default function BotBuilder() {
 
   // Share config via URL
   const [shareCopied, setShareCopied] = useState(false)
+  const [resetDone, setResetDone] = useState(false)
+
+  const handleResetDefaults = () => {
+    if (!confirm("Сбросить настройки обоих ботов к заводским дефолтам?\n\n(Telegram-токен и chat_id будут заменены на дефолтные)")) return
+    localStorage.removeItem("tg_settings")
+    setPoConfig({ ...PO_DEFAULT_CONFIG })
+    setPoConfig2({
+      ...PO_DEFAULT_CONFIG,
+      botName: "ШВЕД",
+      comboMode: true,
+      comboLogic: "OR",
+      comboStrategies: ["rsi_reversal", "ema_cross", "ema_trend", "support_resistance"],
+      trendMode: "any",
+    })
+    setResetDone(true)
+    setTimeout(() => setResetDone(false), 2500)
+  }
 
   const handleShare = () => {
     const params = new URLSearchParams()
@@ -289,6 +306,18 @@ export default function BotBuilder() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleResetDefaults}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-orbitron text-xs font-bold transition-all duration-200
+                        ${resetDone
+                          ? "bg-green-500/20 border-green-500/40 text-green-400"
+                          : "bg-orange-500/10 border-orange-500/30 text-orange-400 hover:bg-orange-500/20"
+                        }`}
+                      title="Сбросить настройки обоих ботов к дефолтам"
+                    >
+                      <Icon name={resetDone ? "Check" : "RotateCcw"} size={13} />
+                      {resetDone ? "Сброшено!" : "Сброс к дефолтам"}
+                    </button>
                     <button
                       onClick={handleShare}
                       className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-orbitron text-xs font-bold transition-all duration-200

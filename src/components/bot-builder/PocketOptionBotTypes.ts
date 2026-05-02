@@ -2833,6 +2833,82 @@ async def get_candles_data(client):
         print(f"[ERROR] get_candles: {e}")
         return [], []
 
+# ===== ЖИВОЙ БУФЕР СВЕЧЕЙ =====
+# Бот держит в памяти последние 50 свечей и текущую "живую" свечу.
+# Фоновая задача опрашивает цену раз в LIVE_TICK_INTERVAL сек и обновляет буфер.
+# Главный цикл читает буфер мгновенно, без ожиданий get_candles.
+LIVE_BUFFER_SIZE = 50
+LIVE_TICK_INTERVAL = 2  # секунд между опросами цены
+
+class CandleBuffer:
+    def __init__(self):
+        self.candles = []  # список (open, high, low, close) — закрытые свечи
+        self.live = None   # текущая формирующаяся свеча (open, high, low, close, started_at)
+        self.last_price = 0.0
+        self.last_update = 0.0
+        self.ready = False
+
+    async def warmup(self, client):
+        """Первичная загрузка истории."""
+        candles, _ = await get_candles_data(client)
+        if candles:
+            self.candles = candles[-LIVE_BUFFER_SIZE:]
+            self.last_price = candles[-1][3]
+            self.ready = True
+            print(f"[BUFFER] 🔥 Загружено {len(self.candles)} свечей в буфер | last={self.last_price}")
+
+    async def tick(self, client):
+        """Опрашиваем текущую цену и обновляем буфер."""
+        try:
+            raw = await client.get_candles(asset=ASSET, timeframe=EXPIRY_SEC, count=2)
+            if not raw:
+                return
+            now = __import__("time").time()
+            # Закрытая свеча — предпоследняя
+            closed = raw[-2] if len(raw) >= 2 else None
+            current = raw[-1]
+            cur_close = float(current.close)
+            self.last_price = cur_close
+            self.last_update = now
+            # Обновляем закрытые свечи (если появилась новая)
+            if closed is not None:
+                closed_tup = (float(closed.open), float(closed.high), float(closed.low), float(closed.close))
+                if not self.candles or self.candles[-1] != closed_tup:
+                    self.candles.append(closed_tup)
+                    if len(self.candles) > LIVE_BUFFER_SIZE:
+                        self.candles = self.candles[-LIVE_BUFFER_SIZE:]
+            # Обновляем "живую" свечу
+            self.live = (float(current.open), float(current.high), float(current.low), cur_close)
+        except Exception as e:
+            pass
+
+    def all_candles(self):
+        """Возвращает список свечей включая текущую (для анализа в реальном времени)."""
+        if self.live:
+            return self.candles + [self.live]
+        return list(self.candles)
+
+    def closed_candles(self):
+        """Только закрытые свечи (для строгого тренд-анализа)."""
+        return list(self.candles)
+
+    def prices(self):
+        """Список close-цен включая текущую."""
+        out = [c[3] for c in self.candles]
+        if self.live:
+            out.append(self.live[3])
+        return out
+
+async def buffer_updater(buf, client):
+    """Фоновая задача — каждые LIVE_TICK_INTERVAL сек обновляет буфер."""
+    while True:
+        try:
+            await buf.tick(client)
+        except Exception as e:
+            print(f"[BUFFER] tick error: {e}")
+        await asyncio.sleep(LIVE_TICK_INTERVAL)
+
+
 async def place_trade(client, direction, amount):
     try:
         dir_val = OrderDirection.CALL if direction == "CALL" else OrderDirection.PUT
@@ -3285,6 +3361,13 @@ async def main():
     if WARMUP_CANDLES > 0:
         tg_info(f"✅ <b>[{BOT_NAME}] Готов к торговле</b>\\nРазогрев завершён, начинаю мониторинг сигналов")
 
+    # ===== ЗАПУСК ЖИВОГО БУФЕРА СВЕЧЕЙ =====
+    _live_buf = CandleBuffer()
+    await _live_buf.warmup(client)
+    _buf_task = asyncio.create_task(buffer_updater(_live_buf, client))
+    print(f"[BUFFER] 🚀 Живой буфер запущен (опрос каждые {LIVE_TICK_INTERVAL}с, размер {LIVE_BUFFER_SIZE} свечей)")
+    tg_info(f"🚀 <b>[{BOT_NAME}] Живой буфер</b>\\nОпрос цены каждые {LIVE_TICK_INTERVAL}с | буфер {LIVE_BUFFER_SIZE} свечей\\nРешения принимаются мгновенно")
+
     # ===== ОЖИДАНИЕ СИЛЬНОГО ТРЕНДА ДЛЯ ПЕРВОЙ СДЕЛКИ =====
     REQUIRE_STRONG_TREND = ${cfg.requireStrongTrendOnStart ? "True" : "False"}
     STRONG_TREND_CANDLES = ${cfg.strongTrendCandles ?? 3}
@@ -3387,10 +3470,17 @@ async def main():
             )
             _last_report_time = _time.time()
 
-        await asyncio.sleep(3)
-        candles, prices = await get_candles_data(client)
+        # ===== ЧТЕНИЕ ИЗ ЖИВОГО БУФЕРА =====
+        # Буфер обновляется фоновой задачей каждые LIVE_TICK_INTERVAL сек.
+        # Главный цикл больше не ждёт get_candles — он читает из памяти мгновенно.
+        await asyncio.sleep(1)
+        if not _live_buf.ready or not _live_buf.candles:
+            await asyncio.sleep(2)
+            continue
+        candles = _live_buf.all_candles()
+        prices = _live_buf.prices()
         if not prices:
-            await asyncio.sleep(CHECK_INTERVAL)
+            await asyncio.sleep(2)
             continue
 
         new_trend, old_trend = check_trend_change(candles)
@@ -3413,11 +3503,11 @@ async def main():
         if signal:
             if TRADE_DIRECTION == "call_only" and signal != "CALL":
                 print(f"[FILTER] Сигнал {signal} пропущен — фильтр: только CALL")
-                await asyncio.sleep(CHECK_INTERVAL)
+                await asyncio.sleep(2)
                 continue
             if TRADE_DIRECTION == "put_only" and signal != "PUT":
                 print(f"[FILTER] Сигнал {signal} пропущен — фильтр: только PUT")
-                await asyncio.sleep(CHECK_INTERVAL)
+                await asyncio.sleep(2)
                 continue
 
         # ===== СВОДНАЯ СТРОКА =====
@@ -3440,7 +3530,7 @@ async def main():
                 if not trend_sig:
                     print(f"[ИТОГ] ❌ ПРОПУСК — тренд {labels.get(trend, trend or '?')} не подходит для режима '{TREND_MODE}'")
                     print(f"{'='*55}")
-                    await asyncio.sleep(CHECK_INTERVAL)
+                    await asyncio.sleep(2)
                     continue
                 signal = trend_sig
             print(f"[ИТОГ] ✅ ТОРГУЕМ — {signal}")
@@ -3519,7 +3609,7 @@ async def main():
                             print(f"[STRONG_TREND]    Сейчас: {_bar_strong} | Нужно: {_expected} для {signal} | До таймаута: ~{_wait_left} мин")
                             print(f"[STRONG_TREND]    📊 По свечам: {_details}")
                             print(f"[STRONG_TREND]    💹 Суммарно: {_total_delta_pips:+.1f} пип ({_strength}) | {_first_open:.5f} → {_last_close:.5f}")
-                            await asyncio.sleep(CHECK_INTERVAL)
+                            await asyncio.sleep(2)
                             continue
                         else:
                             print(f"[STRONG_TREND] 🎯 СИЛЬНЫЙ ТРЕНД НАЙДЕН!")
@@ -3540,7 +3630,7 @@ async def main():
                             _strong_trend_wait_start = None
                     else:
                         print(f"[STRONG_TREND] ⏳ Недостаточно свечей ({len(_closed_strong)}/{STRONG_TREND_CANDLES})")
-                        await asyncio.sleep(CHECK_INTERVAL)
+                        await asyncio.sleep(2)
                         continue
                 except Exception as _ste:
                     print(f"[STRONG_TREND] Ошибка: {_ste}, пропускаю проверку")
@@ -3765,9 +3855,13 @@ async def main():
                 print_stats()
         else:
             ts = datetime.now().strftime("%H:%M:%S")
-            print(f"[{ts}] Нет подтверждённого сигнала, ожидание {CHECK_INTERVAL} сек...")
-            await asyncio.sleep(CHECK_INTERVAL)
+            print(f"[{ts}] Нет подтверждённого сигнала, проверка через 2 сек (буфер живой)...")
+            await asyncio.sleep(2)
 
+    try:
+        _buf_task.cancel()
+    except Exception:
+        pass
     await client.disconnect()
 
 if __name__ == "__main__":

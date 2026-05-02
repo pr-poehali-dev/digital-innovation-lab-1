@@ -812,6 +812,10 @@ MARTINGALE       = ${cfg.martingaleEnabled ? "True" : "False"}
 MARTINGALE_MULT  = ${cfg.martingaleMultiplier}
 MARTINGALE_STEPS = ${cfg.martingaleSteps}
 
+# ===== БЕЗОПАСНОСТЬ СТАВОК =====
+SAFETY_MAX_BET_PCT     = ${cfg.safetyMaxBetPercent ?? 30}    # Максимум % от баланса на одну сделку/хедж
+SAFETY_MIN_RESERVE_PCT = ${cfg.safetyMinReservePercent ?? 0} # Минимальный резерв в % (не трогаем)
+
 CHECK_INTERVAL   = ${cfg.checkInterval}      # Интервал проверки сигнала (сек)
 TREND_MODE       = "${cfg.trendMode ?? "same"}"     # "same" = 2 одинаковых, "reverse" = разворот, "any" = любой паттерн
 TREND_FOLLOW     = "${cfg.trendFollow}"              # "follow" = по тренду, "reverse" = против, "combo" = без фильтра
@@ -2500,6 +2504,10 @@ AUTO_RESTART     = ${cfg.autoRestart ? "True" : "False"}
 MARTINGALE       = ${cfg.martingaleEnabled ? "True" : "False"}
 MARTINGALE_MULT  = ${cfg.martingaleMultiplier}
 MARTINGALE_STEPS = ${cfg.martingaleSteps}
+
+# ===== БЕЗОПАСНОСТЬ СТАВОК =====
+SAFETY_MAX_BET_PCT     = ${cfg.safetyMaxBetPercent ?? 30}    # Максимум % от баланса на одну сделку/хедж
+SAFETY_MIN_RESERVE_PCT = ${cfg.safetyMinReservePercent ?? 0} # Минимальный резерв в % (не трогаем)
 
 CHECK_INTERVAL   = ${cfg.checkInterval}      # Интервал проверки сигнала (сек)
 TREND_MODE       = "${cfg.trendMode ?? "same"}"     # "same" = 2 одинаковых, "reverse" = разворот, "any" = любой паттерн

@@ -2984,27 +2984,30 @@ async def main():
         f"⏳ Ожидаю сигналы..."
     )
 
-    # ===== ФАЗА РАЗОГРЕВА: ждём закрытия N свежих 1-минутных свечей перед первой сделкой =====
+    # ===== ФАЗА РАЗОГРЕВА: ждём закрытия N свежих свечей основного таймфрейма перед первой сделкой =====
     WARMUP_CANDLES = ${cfg.warmupCandles ?? 2}
     import time as _time_warmup
     warmup_start = _time_warmup.time()
+    # Считаем по основному таймфрейму бота (EXPIRY_SEC), а не захардкоженно 60с
+    _tf_sec = max(60, EXPIRY_SEC)
     _now_struct = _time_warmup.localtime(warmup_start)
-    _seconds_to_next_minute = 60 - _now_struct.tm_sec
-    # Минимум: до конца текущей минуты + (N-1) полных минут
-    warmup_end = warmup_start + _seconds_to_next_minute + max(0, WARMUP_CANDLES - 1) * 60
+    _seconds_to_next_tf = _tf_sec - (int(warmup_start) % _tf_sec)
+    # Минимум: до конца текущего интервала + (N-1) полных интервалов
+    warmup_end = warmup_start + _seconds_to_next_tf + max(0, WARMUP_CANDLES - 1) * _tf_sec
     # ЖЁСТКИЙ таймаут — макс. время разогрева = ожидаемое + 30 сек запаса (защита от зависания)
     warmup_hard_timeout = warmup_end + 30
     _warmup_total = int(warmup_end - warmup_start)
-    print(f"[WARMUP] 🔥 Фаза разогрева: ждём закрытия {WARMUP_CANDLES} свежих 1-минутных свечей ({_warmup_total} сек)")
+    _tf_min = _tf_sec // 60
+    print(f"[WARMUP] 🔥 Фаза разогрева: ждём закрытия {WARMUP_CANDLES} свежих {_tf_min}-минутных свечей ({_warmup_total} сек)")
     if WARMUP_CANDLES > 0:
-        tg_info(f"🔥 <b>[{BOT_NAME}] Разогрев</b>\\nЖду закрытия {WARMUP_CANDLES} свежих 1-минутных свечей перед первой сделкой\\n⏱ Примерно {_warmup_total} сек")
+        tg_info(f"🔥 <b>[{BOT_NAME}] Разогрев</b>\\nЖду закрытия {WARMUP_CANDLES} свежих {_tf_min}-минутных свечей перед первой сделкой\\n⏱ Примерно {_warmup_total} сек")
     _candles_seen = 0
-    _last_candle_minute = None
+    _last_candle_bucket = None
     if WARMUP_CANDLES > 0:
         while _time_warmup.time() < warmup_hard_timeout:
             _remaining = max(0, int(warmup_end - _time_warmup.time()))
             try:
-                _wc = await client.get_candles(asset=ASSET, timeframe=60, count=3)
+                _wc = await client.get_candles(asset=ASSET, timeframe=_tf_sec, count=3)
                 if _wc:
                     _last = _wc[-1]
                     _t_attr = None
@@ -3015,23 +3018,21 @@ async def main():
                         if isinstance(_last, dict) and _last.get(_tk):
                             try: _t_attr = float(_last[_tk]); break
                             except: pass
-                    # Fallback: если timestamp не нашли — считаем по локальному времени (каждая полная минута = +1 свеча)
+                    # Fallback: если timestamp не нашли — считаем по локальному времени (каждый интервал таймфрейма = +1 свеча)
                     if _t_attr:
-                        _cur_minute = int(_t_attr // 60)
+                        _cur_bucket = int(_t_attr // _tf_sec)
                     else:
-                        _cur_minute = int(_time_warmup.time() // 60)
-                    if _last_candle_minute is None:
-                        _last_candle_minute = _cur_minute
-                    elif _cur_minute > _last_candle_minute:
+                        _cur_bucket = int(_time_warmup.time() // _tf_sec)
+                    if _last_candle_bucket is None:
+                        _last_candle_bucket = _cur_bucket
+                    elif _cur_bucket > _last_candle_bucket:
                         _candles_seen += 1
-                        _last_candle_minute = _cur_minute
+                        _last_candle_bucket = _cur_bucket
                         print(f"[WARMUP] ✅ Закрылась свеча #{_candles_seen} | Осталось: {max(0, WARMUP_CANDLES - _candles_seen)} свечей")
             except Exception as _we:
                 print(f"[WARMUP] Ошибка получения свечей: {_we}")
-            # ВЫХОД: набрали достаточно свечей И время вышло
             if _candles_seen >= WARMUP_CANDLES and _time_warmup.time() >= warmup_end:
                 break
-            # ВЫХОД ПО ТАЙМАУТУ: время разогрева полностью вышло — выходим в любом случае (защита от вечного цикла)
             if _time_warmup.time() >= warmup_hard_timeout:
                 print(f"[WARMUP] ⚠️ Жёсткий таймаут разогрева достигнут (свечей увидел: {_candles_seen}/{WARMUP_CANDLES}). Продолжаю торговлю.")
                 break
@@ -3217,8 +3218,9 @@ async def main():
                 _first_trade_done = True
             else:
                 try:
-                    _strong_candles = await client.get_candles(asset=ASSET, timeframe=60, count=STRONG_TREND_CANDLES + 2)
-                    _closed_strong = _strong_candles[:-1] if _strong_candles else []
+                    # ВАЖНО: используем ТЕ ЖЕ свечи что и в основном анализе тренда (тот же таймфрейм)
+                    # Это устраняет расхождение между [ТРЕНД] и [STRONG_TREND]
+                    _closed_strong = candles[:-1] if candles else []
                     if len(_closed_strong) >= STRONG_TREND_CANDLES:
                         _last_n = _closed_strong[-STRONG_TREND_CANDLES:]
                         _colors = []
@@ -3237,7 +3239,7 @@ async def main():
                         _trend_matches = (_all_up and signal == "CALL") or (_all_down and signal == "PUT")
                         if not _trend_matches:
                             _wait_left = max(0, int((STRONG_TREND_MAX_WAIT_SEC - _strong_elapsed) / 60))
-                            print(f"[STRONG_TREND] ⏸ Жду сильный тренд | Сейчас: {_bar_strong} | Нужно: {STRONG_TREND_CANDLES}× одного цвета | До таймаута: ~{_wait_left} мин")
+                            print(f"[STRONG_TREND] ⏸ Жду сильный тренд | Сейчас: {_bar_strong} (таймфрейм {EXPIRY_SEC}с) | Нужно: {STRONG_TREND_CANDLES}× одного цвета | До таймаута: ~{_wait_left} мин")
                             await asyncio.sleep(CHECK_INTERVAL)
                             continue
                         else:

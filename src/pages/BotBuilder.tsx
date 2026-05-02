@@ -35,8 +35,18 @@ export default function BotBuilder() {
   }
 
   // Telegram settings — сохраняются в localStorage
+  // Версия дефолтов — при изменении (например, новый токен/чат) старые сохранённые настройки сбрасываются
+  const DEFAULTS_VERSION = "2026-05-02-v1"
   const savedTg = (() => {
-    try { return JSON.parse(localStorage.getItem("tg_settings") || "{}") } catch { return {} }
+    try {
+      const currentVer = localStorage.getItem("defaults_version")
+      if (currentVer !== DEFAULTS_VERSION) {
+        localStorage.removeItem("tg_settings")
+        localStorage.setItem("defaults_version", DEFAULTS_VERSION)
+        return {}
+      }
+      return JSON.parse(localStorage.getItem("tg_settings") || "{}")
+    } catch { return {} }
   })()
   const saveTgSettings = (token: string, chatId: string) => {
     localStorage.setItem("tg_settings", JSON.stringify({ tgToken: token, tgChatId: chatId }))

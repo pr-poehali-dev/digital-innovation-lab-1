@@ -1155,6 +1155,22 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
           </div>
 
           <div>
+            <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+              🔥 Разогрев — ждать закрытия <span className="text-white font-bold">{config.warmupCandles ?? 2} {((config.warmupCandles ?? 2) === 1) ? "свечи" : ((config.warmupCandles ?? 2) < 5) ? "свечей" : "свечей"}</span> перед первой сделкой
+            </Label>
+            <Slider min={0} max={10} step={1} value={[config.warmupCandles ?? 2]} onValueChange={([v]) => set({ warmupCandles: v })} />
+            <p className="text-zinc-600 font-space-mono text-xs mt-1.5">
+              {(config.warmupCandles ?? 2) === 0
+                ? "⚠️ Без разогрева — бот может ставить на «грязных» данных при старте"
+                : (config.warmupCandles ?? 2) <= 2
+                ? "⚖️ Оптимально — бот накопит свежие данные за ~" + ((config.warmupCandles ?? 2) * 60) + " сек, тренд определится точно"
+                : (config.warmupCandles ?? 2) <= 5
+                ? "🟢 Аккуратно — бот ждёт ~" + ((config.warmupCandles ?? 2) * 60) + " сек, минимум ложных сигналов"
+                : "🐢 Долгое ожидание — ~" + ((config.warmupCandles ?? 2) * 60) + " сек до первой сделки"}
+            </p>
+          </div>
+
+          <div>
             <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Выплата брокера: {config.payoutRate}%</Label>
             <Slider min={50} max={99} step={1} value={[config.payoutRate]} onValueChange={([v]) => set({ payoutRate: v })} />
             <p className="text-zinc-600 font-space-mono text-xs mt-1.5">

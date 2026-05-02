@@ -925,8 +925,73 @@ def tg_poll_commands():
                     tg(f"✅ <b>[{BOT_NAME}]</b> Ставка: <b>{BASE_BET} {CURRENCY}</b>")
                 except:
                     tg(f"❌ Формат: /setbet {BOT_NAME} 10")
+            elif cmd == "/summary" and for_me:
+                # ===== ПОЛНЫЙ ОТЧЁТ ЗА СЕССИЮ =====
+                _total = len(trade_log)
+                if _total == 0:
+                    tg(f"📋 <b>[{BOT_NAME}] Отчёт</b>\\nЕщё не было ни одной сделки. Жду сигналов...")
+                else:
+                    _wins = sum(1 for t in trade_log if t["won"])
+                    _losses = _total - _wins
+                    _wr = _wins / _total * 100
+                    _profits = [t["profit"] for t in trade_log]
+                    _best = max(_profits)
+                    _worst = min(_profits)
+                    _avg = sum(_profits) / _total
+                    _full_wins = sum(1 for t in trade_log if t.get("full_win"))
+                    _saved = sum(1 for t in trade_log if (t.get("main_won") is False) and t["won"])
+                    _main_wins = sum(1 for t in trade_log if t.get("main_won"))
+                    _wins_in_a_row = 0; _max_wins_streak = 0
+                    _losses_in_a_row = 0; _max_losses_streak = 0
+                    for _t in trade_log:
+                        if _t["won"]:
+                            _wins_in_a_row += 1; _losses_in_a_row = 0
+                            _max_wins_streak = max(_max_wins_streak, _wins_in_a_row)
+                        else:
+                            _losses_in_a_row += 1; _wins_in_a_row = 0
+                            _max_losses_streak = max(_max_losses_streak, _losses_in_a_row)
+                    _hc = globals().get("hedge_count", 0); _hw = globals().get("hedge_wins", 0)
+                    _ec = globals().get("ext_count", 0);   _ew = globals().get("ext_wins", 0)
+                    _cs = globals().get("cur_streak", 0)
+                    _hedge_wr = (_hw / _hc * 100) if _hc > 0 else 0
+                    _ext_wr = (_ew / _ec * 100) if _ec > 0 else 0
+                    if total_profit >= 0:
+                        _ppct = min(100, int(total_profit / TAKE_PROFIT * 100)) if TAKE_PROFIT > 0 else 0
+                        _pbar = "🟩" * (_ppct // 10) + "⬜" * (10 - _ppct // 10)
+                        _plbl = f"до TP: {_ppct}%"
+                    else:
+                        _ppct = min(100, int(abs(total_profit) / STOP_LOSS * 100)) if STOP_LOSS > 0 else 0
+                        _pbar = "🟥" * (_ppct // 10) + "⬜" * (10 - _ppct // 10)
+                        _plbl = f"до SL: {_ppct}%"
+                    _hedge_line = f"\\n🛡️ Хедж: {_hw}/{_hc} ({_hedge_wr:.0f}%) | спасений: {_saved}" if _hc > 0 else ""
+                    _ext_line = f"\\n📈 Расширение: {_ew}/{_ec} ({_ext_wr:.0f}%)" if _ec > 0 else ""
+                    _streak_str = f"🔥 +{_cs}" if _cs > 0 else (f"❄️ {_cs}" if _cs < 0 else "—")
+                    tg(
+                        f"📋 <b>[{BOT_NAME}] Полный отчёт</b>\\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\\n"
+                        f"💰 <b>Профит сессии:</b> {total_profit:+.2f} {CURRENCY}\\n"
+                        f"{_pbar} {_plbl}\\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\\n"
+                        f"📊 <b>Сделки</b>\\n"
+                        f"  Всего: <b>{_total}</b> (✅{_wins} / ❌{_losses})\\n"
+                        f"  Winrate: <b>{_wr:.1f}%</b>\\n"
+                        f"  🎯 Полных побед: {_full_wins}\\n"
+                        f"  ✅ Чистых WIN основной: {_main_wins}{_hedge_line}{_ext_line}\\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\\n"
+                        f"💹 <b>Профит-аналитика</b>\\n"
+                        f"  🏆 Лучший трейд: <b>+{_best:.2f}</b>\\n"
+                        f"  💔 Худший трейд: <b>{_worst:.2f}</b>\\n"
+                        f"  📊 Средний: <b>{_avg:+.2f}</b>\\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\\n"
+                        f"🔥 <b>Серии</b>\\n"
+                        f"  Макс побед подряд: <b>{_max_wins_streak}</b>\\n"
+                        f"  Макс поражений: <b>{_max_losses_streak}</b>\\n"
+                        f"  Текущая: <b>{_streak_str}</b>\\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\\n"
+                        f"⚙️ Текущая ставка: <b>{current_bet} {CURRENCY}</b>"
+                    )
             elif cmd == "/help":
-                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статистика\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
+                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — краткий статус\\n/summary {BOT_NAME} — полный отчёт за сессию\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
     except Exception:
         pass
 
@@ -2319,8 +2384,73 @@ def tg_poll_commands():
                     tg(f"✅ <b>[{BOT_NAME}]</b> Ставка: <b>{BASE_BET} {CURRENCY}</b>")
                 except:
                     tg(f"❌ Формат: /setbet {BOT_NAME} 10")
+            elif cmd == "/summary" and for_me:
+                # ===== ПОЛНЫЙ ОТЧЁТ ЗА СЕССИЮ =====
+                _total = len(trade_log)
+                if _total == 0:
+                    tg(f"📋 <b>[{BOT_NAME}] Отчёт</b>\\nЕщё не было ни одной сделки. Жду сигналов...")
+                else:
+                    _wins = sum(1 for t in trade_log if t["won"])
+                    _losses = _total - _wins
+                    _wr = _wins / _total * 100
+                    _profits = [t["profit"] for t in trade_log]
+                    _best = max(_profits)
+                    _worst = min(_profits)
+                    _avg = sum(_profits) / _total
+                    _full_wins = sum(1 for t in trade_log if t.get("full_win"))
+                    _saved = sum(1 for t in trade_log if (t.get("main_won") is False) and t["won"])
+                    _main_wins = sum(1 for t in trade_log if t.get("main_won"))
+                    _wins_in_a_row = 0; _max_wins_streak = 0
+                    _losses_in_a_row = 0; _max_losses_streak = 0
+                    for _t in trade_log:
+                        if _t["won"]:
+                            _wins_in_a_row += 1; _losses_in_a_row = 0
+                            _max_wins_streak = max(_max_wins_streak, _wins_in_a_row)
+                        else:
+                            _losses_in_a_row += 1; _wins_in_a_row = 0
+                            _max_losses_streak = max(_max_losses_streak, _losses_in_a_row)
+                    _hc = globals().get("hedge_count", 0); _hw = globals().get("hedge_wins", 0)
+                    _ec = globals().get("ext_count", 0);   _ew = globals().get("ext_wins", 0)
+                    _cs = globals().get("cur_streak", 0)
+                    _hedge_wr = (_hw / _hc * 100) if _hc > 0 else 0
+                    _ext_wr = (_ew / _ec * 100) if _ec > 0 else 0
+                    if total_profit >= 0:
+                        _ppct = min(100, int(total_profit / TAKE_PROFIT * 100)) if TAKE_PROFIT > 0 else 0
+                        _pbar = "🟩" * (_ppct // 10) + "⬜" * (10 - _ppct // 10)
+                        _plbl = f"до TP: {_ppct}%"
+                    else:
+                        _ppct = min(100, int(abs(total_profit) / STOP_LOSS * 100)) if STOP_LOSS > 0 else 0
+                        _pbar = "🟥" * (_ppct // 10) + "⬜" * (10 - _ppct // 10)
+                        _plbl = f"до SL: {_ppct}%"
+                    _hedge_line = f"\\n🛡️ Хедж: {_hw}/{_hc} ({_hedge_wr:.0f}%) | спасений: {_saved}" if _hc > 0 else ""
+                    _ext_line = f"\\n📈 Расширение: {_ew}/{_ec} ({_ext_wr:.0f}%)" if _ec > 0 else ""
+                    _streak_str = f"🔥 +{_cs}" if _cs > 0 else (f"❄️ {_cs}" if _cs < 0 else "—")
+                    tg(
+                        f"📋 <b>[{BOT_NAME}] Полный отчёт</b>\\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\\n"
+                        f"💰 <b>Профит сессии:</b> {total_profit:+.2f} {CURRENCY}\\n"
+                        f"{_pbar} {_plbl}\\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\\n"
+                        f"📊 <b>Сделки</b>\\n"
+                        f"  Всего: <b>{_total}</b> (✅{_wins} / ❌{_losses})\\n"
+                        f"  Winrate: <b>{_wr:.1f}%</b>\\n"
+                        f"  🎯 Полных побед: {_full_wins}\\n"
+                        f"  ✅ Чистых WIN основной: {_main_wins}{_hedge_line}{_ext_line}\\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\\n"
+                        f"💹 <b>Профит-аналитика</b>\\n"
+                        f"  🏆 Лучший трейд: <b>+{_best:.2f}</b>\\n"
+                        f"  💔 Худший трейд: <b>{_worst:.2f}</b>\\n"
+                        f"  📊 Средний: <b>{_avg:+.2f}</b>\\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\\n"
+                        f"🔥 <b>Серии</b>\\n"
+                        f"  Макс побед подряд: <b>{_max_wins_streak}</b>\\n"
+                        f"  Макс поражений: <b>{_max_losses_streak}</b>\\n"
+                        f"  Текущая: <b>{_streak_str}</b>\\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\\n"
+                        f"⚙️ Текущая ставка: <b>{current_bet} {CURRENCY}</b>"
+                    )
             elif cmd == "/help":
-                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статистика\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
+                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — краткий статус\\n/summary {BOT_NAME} — полный отчёт за сессию\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
     except Exception:
         pass
 

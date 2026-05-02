@@ -807,8 +807,17 @@ Pocket Option Bot — ${strategyLabel}
 
 import asyncio
 import os
+import builtins as _builtins
 from datetime import datetime
 from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
+
+# ===== ВРЕМЯ В ЛОГАХ =====
+# Перехватываем print глобально — каждая строка лога получает префикс [HH:MM:SS]
+_original_print = _builtins.print
+def _print_with_time(*args, **kwargs):
+    _ts = datetime.now().strftime("%H:%M:%S")
+    _original_print(f"[{_ts}]", *args, **kwargs)
+_builtins.print = _print_with_time
 
 # ===== НАСТРОЙКИ =====
 ASSET        = os.environ.get("PO_ASSET", "${assetSymbol}")
@@ -2505,8 +2514,17 @@ Pocket Option КОМБО-Бот
 
 import asyncio
 import os
+import builtins as _builtins
 from datetime import datetime
 from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
+
+# ===== ВРЕМЯ В ЛОГАХ =====
+# Перехватываем print глобально — каждая строка лога получает префикс [HH:MM:SS]
+_original_print = _builtins.print
+def _print_with_time(*args, **kwargs):
+    _ts = datetime.now().strftime("%H:%M:%S")
+    _original_print(f"[{_ts}]", *args, **kwargs)
+_builtins.print = _print_with_time
 
 # ===== НАСТРОЙКИ =====
 ASSET        = "${comboAssetSymbol}"

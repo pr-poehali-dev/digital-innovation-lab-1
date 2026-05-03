@@ -2923,17 +2923,23 @@ class CandleBuffer:
                     try:
                         from datetime import timezone, timedelta
                         _tz_msk = timezone(timedelta(hours=3))
-                        _is_ms = False
-                        _ct_attr = None
+                        _ts = None
                         for _tk in ('time', 't', 'timestamp', 'open_time'):
                             _v = getattr(closed, _tk, None)
                             if _v is None and isinstance(closed, dict):
                                 _v = closed.get(_tk)
-                            if _v is not None:
-                                _ct_attr = float(_v); break
-                        if _ct_attr:
-                            _is_ms = _ct_attr > 1e10
-                            _ts = _ct_attr / 1000 if _is_ms else _ct_attr
+                            if _v is None:
+                                continue
+                            if isinstance(_v, datetime):
+                                _ts = _v.timestamp()
+                                break
+                            try:
+                                _num = float(_v)
+                                _ts = _num / 1000 if _num > 1e10 else _num
+                                break
+                            except (TypeError, ValueError):
+                                continue
+                        if _ts:
                             _open_t = datetime.fromtimestamp(_ts, tz=_tz_msk).strftime('%H:%M:%S')
                             _close_t = datetime.fromtimestamp(_ts + EXPIRY_SEC, tz=_tz_msk).strftime('%H:%M:%S')
                             _now_msk = datetime.now(tz=_tz_msk).strftime('%H:%M:%S')

@@ -3987,132 +3987,15 @@ async def main():
         f"⏳ Ожидаю сигналы..."
     )
 
-    # ===== ФАЗА РАЗОГРЕВА: ждём закрытия N свежих свечей основного таймфрейма перед первой сделкой =====
-    WARMUP_CANDLES = ${cfg.warmupCandles ?? 2}
-    import time as _time_warmup
-    warmup_start = _time_warmup.time()
-    # ===== ПРОВЕРКА ОБЩЕГО ПУЛА СВЕЧЕЙ =====
-    # Если другой бот уже накопил свежие свечи (того же или меньшего таймфрейма) — берём их и СКИПАЕМ WARMUP.
-    _pool_candles_pre = _pool_get_candles((_resolved_asset or ASSET), max(60, EXPIRY_SEC), min_count=WARMUP_CANDLES if WARMUP_CANDLES > 0 else 2)
-    _pool_skip_warmup = False
-    if _pool_candles_pre and len(_pool_candles_pre) >= max(2, WARMUP_CANDLES):
-        print(f"[POOL] 🚀 НАЙДЕНЫ свечи в общем пуле: {len(_pool_candles_pre)} штук — пропускаю WARMUP!")
-        tg_info(f"🚀 <b>[{BOT_NAME}] Знания из пула</b>\\nНайдено {len(_pool_candles_pre)} свечей от другого бота — старт без разогрева!")
-        _pool_skip_warmup = True
-    # Считаем по основному таймфрейму бота (EXPIRY_SEC), а не захардкоженно 60с
-    _tf_sec = max(60, EXPIRY_SEC)
-    _now_struct = _time_warmup.localtime(warmup_start)
-    _seconds_to_next_tf = _tf_sec - (int(warmup_start) % _tf_sec)
-    # Минимум: до конца текущего интервала + (N-1) полных интервалов
-    warmup_end = warmup_start + _seconds_to_next_tf + max(0, WARMUP_CANDLES - 1) * _tf_sec
-    # ЖЁСТКИЙ таймаут — макс. время разогрева = ожидаемое + 30 сек запаса (защита от зависания)
-    warmup_hard_timeout = warmup_end + 30
-    _warmup_total = int(warmup_end - warmup_start)
-    _tf_min = _tf_sec // 60
-    print(f"[WARMUP] 🔥 Фаза разогрева: ждём закрытия {WARMUP_CANDLES} свежих {_tf_min}-минутных свечей ({_warmup_total} сек)")
-    if WARMUP_CANDLES > 0 and not _pool_skip_warmup:
-        tg_info(f"🔥 <b>[{BOT_NAME}] Разогрев</b>\\nЖду закрытия {WARMUP_CANDLES} свежих {_tf_min}-минутных свечей перед первой сделкой\\n⏱ Примерно {_warmup_total} сек")
-    _candles_seen = 0
-    _last_candle_bucket = None
-    _warmup_collected = list(_pool_candles_pre) if _pool_skip_warmup else []  # ← начинаем с того что есть в пуле
-    _warmup_seen_buckets = set()  # чтобы не дублировать
-    if WARMUP_CANDLES > 0 and not _pool_skip_warmup:
-        while _time_warmup.time() < warmup_hard_timeout:
-            _remaining = max(0, int(warmup_end - _time_warmup.time()))
-            try:
-                _wc = await client.get_candles(asset=ASSET, timeframe=_tf_sec, count=3)
-                if _wc:
-                    _last = _wc[-1]
-                    _t_attr = None
-                    for _tk in ('time', 't', 'timestamp', 'open_time'):
-                        if hasattr(_last, _tk):
-                            try: _t_attr = float(getattr(_last, _tk)); break
-                            except: pass
-                        if isinstance(_last, dict) and _last.get(_tk):
-                            try: _t_attr = float(_last[_tk]); break
-                            except: pass
-                    # Fallback: если timestamp не нашли — считаем по локальному времени (каждый интервал таймфрейма = +1 свеча)
-                    if _t_attr:
-                        _cur_bucket = int(_t_attr // _tf_sec)
-                    else:
-                        _cur_bucket = int(_time_warmup.time() // _tf_sec)
-                    # ЗАПОМИНАЕМ ВСЕ закрытые свечи которые видим (последние 2 = закрытые, [-1] = текущая)
-                    # _wc[-1] — текущая (формирующаяся), всё остальное — закрытые
-                    _closed_only = list(_wc[:-1]) if len(_wc) > 1 else []
-                    for _c in _closed_only:
-                        # Пытаемся найти timestamp; если нет — генерим псевдо-bucket по уникальному (o,h,l,c)
-                        _ct = None
-                        for _tk in ('time', 't', 'timestamp', 'open_time'):
-                            if hasattr(_c, _tk):
-                                try:
-                                    _ct = float(getattr(_c, _tk))
-                                    break
-                                except Exception:
-                                    pass
-                            if isinstance(_c, dict) and _c.get(_tk):
-                                try:
-                                    _ct = float(_c[_tk])
-                                    break
-                                except Exception:
-                                    pass
-                        try:
-                            _o, _h, _l, _cl = float(_c.open), float(_c.high), float(_c.low), float(_c.close)
-                        except Exception:
-                            continue
-                        # Ключ дедупликации: timestamp если есть, иначе (open,close) — почти всегда уникален
-                        _dedup_key = int(_ct // _tf_sec) if _ct else f"{_o:.5f}_{_cl:.5f}_{_h:.5f}_{_l:.5f}"
-                        if _dedup_key in _warmup_seen_buckets:
-                            continue
-                        _warmup_seen_buckets.add(_dedup_key)
-                        _warmup_collected.append((_o, _h, _l, _cl))
-                    if _last_candle_bucket is None:
-                        _last_candle_bucket = _cur_bucket
-                    elif _cur_bucket > _last_candle_bucket:
-                        _candles_seen += 1
-                        _last_candle_bucket = _cur_bucket
-                        # последняя только что закрывшаяся свеча
-                        if len(_wc) >= 2:
-                            _just_closed = _wc[-2]
-                            _em = '🟢' if _just_closed.close >= _just_closed.open else '🔴'
-                            print(f"[WARMUP] ✅ Закрылась свеча #{_candles_seen} {_em} o={_just_closed.open:.5f} c={_just_closed.close:.5f} | Осталось: {max(0, WARMUP_CANDLES - _candles_seen)}")
-                        else:
-                            print(f"[WARMUP] ✅ Закрылась свеча #{_candles_seen} | Осталось: {max(0, WARMUP_CANDLES - _candles_seen)}")
-            except Exception as _we:
-                print(f"[WARMUP] Ошибка получения свечей: {_we}")
-            if _candles_seen >= WARMUP_CANDLES and _time_warmup.time() >= warmup_end:
-                break
-            if _time_warmup.time() >= warmup_hard_timeout:
-                print(f"[WARMUP] ⚠️ Жёсткий таймаут разогрева достигнут (свечей увидел: {_candles_seen}/{WARMUP_CANDLES}). Продолжаю торговлю.")
-                break
-            print(f"[WARMUP] ⏳ Жду закрытия свечей... ({_candles_seen}/{WARMUP_CANDLES} готово, до конца разогрева {_remaining}с)")
-            await asyncio.sleep(5)
-    # ===== ВАЛИДАЦИЯ WARMUP =====
-    # Берём СВЕЖИЙ тик через тот же путь что использует tick() (count=2)
-    # и сверяем с собранными свечами. Если API нам подсунул старые/чужие данные —
-    # цены разойдутся, и мы выкидываем _warmup_collected.
-    _warmup_valid = True
-    if _warmup_collected:
-        try:
-            _fresh = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=_tf_sec, count=2)
-            if _fresh:
-                _live_now = float(_fresh[-1].close)
-                _last_warmup = _warmup_collected[-1][3]
-                _gap = abs(_live_now - _last_warmup) / max(_live_now, 0.0001)
-                if _gap > 0.005:  # >0.5% = разные эпохи цен (мусор из API-кеша)
-                    print(f"[WARMUP] ⚠️ ВАЛИДАЦИЯ ПРОВАЛЕНА! warmup_last={_last_warmup:.5f} vs live_now={_live_now:.5f} (дельта {_gap*100:.2f}%)")
-                    print(f"[WARMUP] 🗑 Выкидываю собранные свечи — они из кеша API. Буфер наполнится в реальном времени.")
-                    _warmup_collected = []
-                    _warmup_valid = False
-                    tg_info(f"⚠️ <b>[{BOT_NAME}] Кеш API устарел</b>\\nСобранные свечи отброшены ({_gap*100:.2f}% расхождение с live).\\nБуфер наполнится из живых тиков.")
-                else:
-                    print(f"[WARMUP] ✅ Валидация ОК: warmup_last={_last_warmup:.5f} ≈ live={_live_now:.5f} (дельта {_gap*100:.3f}%)")
-        except Exception as _ve:
-            print(f"[WARMUP] Ошибка валидации: {_ve}")
-
-    print(f"[WARMUP] ✅ Разогрев завершён! Запомнил свечей: {len(_warmup_collected)} | валидация: {'OK' if _warmup_valid else 'ОТБРОШЕНО'}")
-    if WARMUP_CANDLES > 0:
-        _wm_msg = f"запомнил {len(_warmup_collected)} свечей" if _warmup_valid else "свечи отброшены (мусор API), буфер наполнится в реальном времени"
-        tg_info(f"✅ <b>[{BOT_NAME}] Готов к торговле</b>\\nРазогрев завершён, {_wm_msg}.")
+    # ===== ФАЗА РАЗОГРЕВА ПОЛНОСТЬЮ УБРАНА =====
+    # ✅ НОВАЯ ЛОГИКА: бот НЕ дёргает API-историю на старте.
+    # Свечи строятся из живых тиков в CandleBuffer.tick().
+    # Готовность к торговле определяется в живом буфере (минимум 2 свои свечи).
+    _tf_sec_for_msg = max(60, EXPIRY_SEC)
+    _wait_min = max(2, ${cfg.warmupCandles ?? 2}) * (_tf_sec_for_msg // 60)
+    print(f"[STARTUP] ✅ Разогрев пропущен — свечи будут собраны из живых тиков в реальном времени")
+    print(f"[STARTUP] ⏱ Первая сделка через ~{_wait_min} мин (нужно увидеть 2 свечи по {_tf_sec_for_msg//60}м)")
+    tg_info(f"🚀 <b>[{BOT_NAME}] Старт</b>\\nСобираю свечи из живых тиков (без устаревшей истории API)\\n⏱ Первая сделка через ~{_wait_min} мин")
 
     # ===== ЗАПУСК ЖИВОГО БУФЕРА СВЕЧЕЙ =====
     # ✅ НОВАЯ ЛОГИКА: бот стартует с ПУСТОГО буфера и САМ строит свечи из тиков цены.
@@ -4232,15 +4115,29 @@ async def main():
         _MIN_OWN_CANDLES = 2
         if not _live_buf.ready or len(_live_buf.candles) < _MIN_OWN_CANDLES:
             _have = len(_live_buf.candles) if _live_buf.candles else 0
-            _need = _MIN_OWN_CANDLES - _have
-            if _have == 0:
-                _msg = f"⏳ [BUFFER] Жду ПЕРВУЮ свечу... (нужно увидеть {_MIN_OWN_CANDLES} свечи по {EXPIRY_SEC}с)"
+            # Считаем сколько секунд осталось до закрытия текущей живой свечи
+            import time as _t_wait
+            _now_ts = _t_wait.time()
+            _eta_sec = None
+            if _live_buf.live_bucket is not None:
+                _eta_sec = max(0, int((_live_buf.live_bucket + EXPIRY_SEC) - _now_ts))
+            # Прогресс-бар [████░░░░] X/Y
+            _filled = _have
+            _empty = _MIN_OWN_CANDLES - _have
+            _bar = '█' * _filled + '░' * _empty
+            if _have == 0 and _eta_sec is None:
+                _msg = f"⏳ [BUFFER] [{_bar}] 0/{_MIN_OWN_CANDLES} | жду первый тик цены..."
+            elif _eta_sec is not None:
+                _eta_m = _eta_sec // 60
+                _eta_s = _eta_sec % 60
+                _eta_str = f"{_eta_m}м{_eta_s:02d}с" if _eta_m > 0 else f"{_eta_s}с"
+                _msg = f"⏳ [BUFFER] [{_bar}] {_have}/{_MIN_OWN_CANDLES} свечей | до закрытия следующей: {_eta_str}"
             else:
-                _msg = f"⏳ [BUFFER] Накопилось {_have}/{_MIN_OWN_CANDLES} своих свечей — жду ещё {_need}"
-            # печатаем не чаще раза в 10с
-            if not hasattr(_live_buf, '_last_wait_log') or (asyncio.get_event_loop().time() - getattr(_live_buf, '_last_wait_log', 0)) > 10:
+                _msg = f"⏳ [BUFFER] [{_bar}] {_have}/{_MIN_OWN_CANDLES} свечей"
+            # печатаем не чаще раза в 15с
+            if not hasattr(_live_buf, '_last_wait_log') or (_now_ts - getattr(_live_buf, '_last_wait_log', 0)) > 15:
                 print(_msg)
-                _live_buf._last_wait_log = asyncio.get_event_loop().time()
+                _live_buf._last_wait_log = _now_ts
             await asyncio.sleep(2)
             continue
         if _live_buf.sync_warn:

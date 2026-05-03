@@ -3092,8 +3092,9 @@ def _session_init():
     try:
         _os_sess.makedirs(_SESSION_DIR, exist_ok=True)
         if not _os_sess.path.exists(_SESSION_FILE):
+            _header = "timestamp_utc;asset;timeframe_sec;open;high;low;close;color;recorded_at" + chr(10)
             with open(_SESSION_FILE, "w", encoding="utf-8") as f:
-                f.write("timestamp_utc;asset;timeframe_sec;open;high;low;close;color;recorded_at\n")
+                f.write(_header)
             print(f"[SESSION] 📝 Файл сессии создан: свечи/{_SESSION_START}.csv")
     except Exception as _se:
         print(f"[SESSION] init error: {_se}")
@@ -3110,7 +3111,7 @@ def _session_save_candle(asset, tf_sec, candle_t, o, h, l, c):
         _ts_str = _dt_sess.utcfromtimestamp(int(candle_t)).strftime("%Y-%m-%d %H:%M:%S")
         _now_str = _dt_sess.now().strftime("%Y-%m-%d %H:%M:%S")
         _color = "GREEN" if c >= o else "RED"
-        _line = f"{_ts_str};{asset};{int(tf_sec)};{o};{h};{l};{c};{_color};{_now_str}\n"
+        _line = f"{_ts_str};{asset};{int(tf_sec)};{o};{h};{l};{c};{_color};{_now_str}" + chr(10)
         with open(_SESSION_FILE, "a", encoding="utf-8") as f:
             f.write(_line)
         print(f"[SESSION] 💾 Свеча записана: {_ts_str} UTC | {_color} | o={o} c={c} → свечи/{_SESSION_START}.csv")

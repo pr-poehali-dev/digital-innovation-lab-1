@@ -3085,7 +3085,7 @@ import os as _os_pool
 import json as _json_pool
 _POOL_FILE = _os_pool.path.join(_os_pool.path.dirname(_os_pool.path.abspath(__file__)) if "__file__" in dir() else ".", "candle_pool.json")
 _POOL_MAX_PER_KEY = 500  # макс свечей на ключ (asset_timeframe)
-_POOL_FRESH_SEC = 300    # данные считаем свежими если updated_at в пределах 5 мин
+_POOL_FRESH_SEC = 30     # данные считаем свежими только в пределах 30 сек (раньше было 300с — старые свечи приводили к торговле по неактуальным ценам)
 
 def _pool_load():
     """Читаем пул из файла. Возвращаем dict или {} если нет/битый."""
@@ -3142,11 +3142,15 @@ def _pool_get_candles(asset, tf_sec, min_count=2):
         k = _pool_key(asset, tf_sec)
         # 1) Прямой матч
         entry = data.get(k)
-        if entry and (now - entry.get("updated_at", 0)) < _POOL_FRESH_SEC:
-            cs = entry.get("candles", [])
-            if len(cs) >= min_count:
-                print(f"[POOL] ✅ Прямой матч: {k} | свечей: {len(cs)} | возраст: {int(now - entry['updated_at'])}с")
-                return [(c["o"], c["h"], c["l"], c["c"]) for c in cs]
+        if entry:
+            _age = int(now - entry.get("updated_at", 0))
+            if _age < _POOL_FRESH_SEC:
+                cs = entry.get("candles", [])
+                if len(cs) >= min_count:
+                    print(f"[POOL] ✅ Прямой матч: {k} | свечей: {len(cs)} | возраст: {_age}с (≤{_POOL_FRESH_SEC}с — свежие)")
+                    return [(c["o"], c["h"], c["l"], c["c"]) for c in cs]
+            else:
+                print(f"[POOL] ⚠️ Найден кэш {k} но УСТАРЕВШИЙ ({_age}с > {_POOL_FRESH_SEC}с) — пропускаем, делаем свежий warmup")
         # 2) Агрегация: ищем донор с делимым таймфреймом (asset тот же, tf_donor < tf_sec, tf_sec % tf_donor == 0)
         for kk, ee in data.items():
             try:

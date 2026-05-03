@@ -2890,6 +2890,7 @@ class CandleBuffer:
         self.last_price = 0.0
         self.last_update = 0.0
         self.ready = False
+        self.sync_warn = False  # True = последняя свеча устарела (рассинхрон с API)
 
     async def warmup(self, client):
         """Первичная загрузка истории."""
@@ -2948,6 +2949,9 @@ class CandleBuffer:
                             print(f"[RAW_API] 🆕 НОВАЯ ЗАКРЫТАЯ {_em} {_open_t}→{_close_t} (МСК) | сейчас={_now_msk} | задержка={_diff:.0f}с | o={closed.open:.5f} c={closed.close:.5f}")
                             if _diff > EXPIRY_SEC:
                                 print(f"[SYNC_WARN] ⚠️ РАССИНХРОН! Свеча закрылась {_diff:.0f}с назад (>{EXPIRY_SEC}с) — устарела!")
+                                self.sync_warn = True
+                            else:
+                                self.sync_warn = False
                         else:
                             _em = '🟢' if closed.close >= closed.open else '🔴'
                             print(f"[RAW_API] 🆕 НОВАЯ ЗАКРЫТАЯ {_em} (нет timestamp) | o={closed.open:.5f} c={closed.close:.5f}")
@@ -3601,6 +3605,10 @@ async def main():
         await asyncio.sleep(1)
         if not _live_buf.ready or not _live_buf.candles:
             await asyncio.sleep(2)
+            continue
+        if _live_buf.sync_warn:
+            print(f"[SYNC_GUARD] ⏸ Пропуск итерации — данные API устарели, жду свежую свечу...")
+            await asyncio.sleep(5)
             continue
         candles = _live_buf.all_candles()
         prices = _live_buf.prices()

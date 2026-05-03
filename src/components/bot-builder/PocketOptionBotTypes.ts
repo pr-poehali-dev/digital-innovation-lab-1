@@ -1994,31 +1994,33 @@ async def main():
             _wins_now = sum(1 for t in trade_log if t["won"])
             _wr_now = f"{_wins_now/len(trade_log)*100:.0f}%" if trade_log else "—"
             _streak_now = (f"🔥{cur_streak}п" if cur_streak > 1 else (f"❄️{abs(cur_streak)}п" if cur_streak < -1 else ("✅1" if cur_streak == 1 else ("❌1" if cur_streak == -1 else "—"))))
-            print(f"{'='*55}")
-            print(f"[ИТОГ {ts}] Тренд: {trend_str} | Сигнал: {sig_emoji} {sig_str}")
-            print(f"[СЧЁТ]     Баланс: {_bal_now:.2f} {_cur_now} | WR: {_wr_now} ({_wins_now}/{len(trade_log)}) | Серия: {_streak_now} | Профит сессии: {total_profit:+.2f}")
+            _profit_emoji = "🟢" if total_profit > 0 else ("🔴" if total_profit < 0 else "⚪")
+            _trades_total = len(trade_log)
+            print(f"┌{'─'*65}")
+            print(f"│ ⏰ {ts}  ▶  {trend_str}  ▶  Сигнал: {sig_emoji} {sig_str}")
+            print(f"│ 💰 {_bal_now:.2f} {_cur_now}  │  WR {_wr_now} ({_wins_now}/{_trades_total})  │  Серия {_streak_now}  │  {_profit_emoji} {total_profit:+.2f}")
 
             if signal:
                 labels = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "DOWN_UP": "🔴🟢", "UP_DOWN": "🟢🔴"}
                 if TREND_FOLLOW != "combo":
                     if not trend_sig:
-                        print(f"[ИТОГ] ❌ ПРОПУСК — тренд {labels.get(trend, trend or '?')} не подходит для режима '{TREND_MODE}'")
-                        print(f"{'='*55}")
+                        print(f"│ ❌ ПРОПУСК — тренд {labels.get(trend, trend or '?')} не подходит для режима '{TREND_MODE}'")
+                        print(f"└{'─'*65}")
                         rejected_signals += 1
                         rejected_no_trend += 1
                         await asyncio.sleep(CHECK_INTERVAL)
                         continue
                     if signal != trend_sig:
-                        print(f"[ИТОГ] ❌ ПРОПУСК — сигнал {signal} конфликтует с трендом {trend_sig} ({labels.get(trend, trend or '?')})")
-                        print(f"{'='*55}")
+                        print(f"│ ❌ ПРОПУСК — сигнал {signal} конфликтует с трендом {trend_sig} ({labels.get(trend, trend or '?')})")
+                        print(f"└{'─'*65}")
                         rejected_signals += 1
                         rejected_conflict += 1
                         await asyncio.sleep(CHECK_INTERVAL)
                         continue
-                print(f"[ИТОГ] ✅ ТОРГУЕМ — {signal} | тренд и сигнал совпадают")
+                print(f"│ ✅ ТОРГУЕМ — {signal} | тренд и сигнал совпадают")
             else:
-                print(f"[ИТОГ] ⏸ ОЖИДАНИЕ — нет сигнала стратегии")
-            print(f"{'='*55}")
+                print(f"│ ⏸ ОЖИДАНИЕ — нет сигнала стратегии")
+            print(f"└{'─'*65}")
 
             if signal:
                 if BET_PERCENT:

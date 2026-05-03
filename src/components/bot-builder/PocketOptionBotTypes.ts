@@ -3237,7 +3237,7 @@ class CandleBuffer:
                             # Считаем что свеча реально только что закрылась → её "истинная задержка" = ~EXPIRY_SEC/2
                             if self.time_shift is None:
                                 self.time_shift = _raw_diff
-                                print(f"[TIME_SYNC] 🕐 Калибровка часов: сервер отстаёт на {self.time_shift:.0f}с от локального времени (это нормально, фиксируем)")
+                                print(f"[TIME_SYNC] 🕐 Калибровка часов выполнена ✅ (бот синхронизирован с потоком свечей)")
                             # Корректированная задержка относительно потока свечей
                             _diff = _raw_diff - self.time_shift
                             # Дополнительно: если есть предыдущая свеча — считаем дельту между свечами
@@ -3246,8 +3246,16 @@ class CandleBuffer:
                                 _gap_from_prev = (_close_dt - self.last_candle_close_dt).total_seconds()
                             self.last_candle_close_dt = _close_dt
                             _em = '🟢' if closed.close >= closed.open else '🔴'
-                            _gap_str = f" | gap_prev={_gap_from_prev:.0f}с" if _gap_from_prev is not None else ""
-                            print(f"[RAW_API] 🆕 НОВАЯ ЗАКРЫТАЯ {_em} {_open_t}→{_close_t} UTC | сейчас={_now_str} UTC | shift={self.time_shift:.0f}с | задержка={_diff:.0f}с{_gap_str} | o={closed.open:.5f} c={closed.close:.5f}")
+                            _gap_str = f" | gap={_gap_from_prev:.0f}с" if _gap_from_prev is not None else ""
+                            # Красивый статус задержки вместо пугающих чисел
+                            _abs_diff = abs(_diff)
+                            if _abs_diff <= EXPIRY_SEC:
+                                _delay_str = "задержка ОК ✅"
+                            elif _abs_diff <= EXPIRY_SEC * 2:
+                                _delay_str = f"задержка {_abs_diff:.0f}с ⚠️"
+                            else:
+                                _delay_str = f"задержка {_abs_diff:.0f}с ❌ (поток встал)"
+                            print(f"[RAW_API] 🆕 СВЕЧА {_em} {_open_t}→{_close_t} UTC | {_delay_str}{_gap_str} | o={closed.open:.5f} c={closed.close:.5f}")
                             # Свеча "устарела" только если корректированная задержка > 2× таймфрейма
                             # ИЛИ если gap между свечами слишком большой (поток встал)
                             _stale = _diff > EXPIRY_SEC * 2

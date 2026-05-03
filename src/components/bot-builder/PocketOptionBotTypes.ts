@@ -1990,7 +1990,10 @@ async def main():
             trend_str = _tlbls.get(trend, "— нет паттерна")
             sig_str = signal if signal else "нет"
             sig_emoji = "📈" if signal == "CALL" else ("📉" if signal == "PUT" else "⏸")
-            _bal_now, _cur_now = await get_balance(client)
+            _bal_now, _cur_api = await get_balance(client)
+            # Приоритет — валюта из конфига (CURRENCY), API часто врёт USD на рублёвых счетах
+            _cur_now = CURRENCY or _cur_api or "RUB"
+            _cur_symbol = "₽" if _cur_now == "RUB" else ("$" if _cur_now == "USD" else _cur_now)
             _wins_now = sum(1 for t in trade_log if t["won"])
             _wr_now = f"{_wins_now/len(trade_log)*100:.0f}%" if trade_log else "—"
             _streak_now = (f"🔥{cur_streak}п" if cur_streak > 1 else (f"❄️{abs(cur_streak)}п" if cur_streak < -1 else ("✅1" if cur_streak == 1 else ("❌1" if cur_streak == -1 else "—"))))
@@ -2022,7 +2025,7 @@ async def main():
             _chart_line = f"  📊 {_mini_chart}" if _mini_chart else ""
             print(f"┌{'─'*65}")
             print(f"│ ⏰ {ts}  ▶  {trend_str}  ▶  Сигнал: {sig_emoji} {sig_str}{_chart_line}")
-            print(f"│ 💰 {_bal_now:.2f} {_cur_now}  │  WR {_wr_now} ({_wins_now}/{_trades_total})  │  Серия {_streak_now}  │  {_profit_emoji} {total_profit:+.2f}")
+            print(f"│ 💰 {_bal_now:.2f}{_cur_symbol}  │  WR {_wr_now} ({_wins_now}/{_trades_total})  │  Серия {_streak_now}  │  {_profit_emoji} {total_profit:+.2f}{_cur_symbol}")
 
             if signal:
                 labels = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "DOWN_UP": "🔴🟢", "UP_DOWN": "🟢🔴"}

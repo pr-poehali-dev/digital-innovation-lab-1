@@ -3608,8 +3608,23 @@ async def main():
             continue
         if _live_buf.sync_warn:
             print(f"[SYNC_GUARD] ⏸ Пропуск итерации — данные API устарели, жду свежую свечу...")
+            global _sync_guard_notified
+            try:
+                _sync_guard_notified
+            except NameError:
+                _sync_guard_notified = False
+            if not _sync_guard_notified:
+                tg_info(f"⚠️ <b>[{BOT_NAME}] Защита от рассинхрона</b>\\n\\n📡 API PocketOption отдаёт устаревшие свечи\\n⏸ Бот приостановил торговлю до восстановления\\n\\n💡 Сделки возобновятся автоматически когда придёт свежая свеча")
+                _sync_guard_notified = True
             await asyncio.sleep(5)
             continue
+        else:
+            try:
+                if _sync_guard_notified:
+                    tg_info(f"✅ <b>[{BOT_NAME}] Синхронизация восстановлена</b>\\n\\n📡 API снова отдаёт свежие данные\\n▶️ Торговля возобновлена")
+                    _sync_guard_notified = False
+            except NameError:
+                pass
         candles = _live_buf.all_candles()
         prices = _live_buf.prices()
         if not prices:

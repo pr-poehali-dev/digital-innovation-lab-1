@@ -1140,8 +1140,21 @@ def get_trend(candles):
     e2 = "🟢" if c2 == "UP" else "🔴"
     e3 = "🟢" if c3 == "UP" else "🔴"
     w2, w3 = window2
+    def _ts_fmt(c):
+        try:
+            t = c[4] if len(c) >= 5 else 0
+            if hasattr(t, 'strftime'):
+                return t.strftime('%H:%M:%S')
+            if isinstance(t, (int, float)) and t > 0:
+                _t = float(t)
+                if _t > 1e12:
+                    _t = _t / 1000.0
+                return datetime.fromtimestamp(_t).strftime('%H:%M:%S')
+        except Exception:
+            pass
+        return "??:??:??"
     def fmt(c, e):
-        return f"{e} o={c[0]:.5f} c={c[3]:.5f} Δ={c[3]-c[0]:+.5f}"
+        return f"{e} t={_ts_fmt(c)} o={c[0]:.5f} c={c[3]:.5f} Δ={c[3]-c[0]:+.5f}"
     cur   = candles[-1]
     window5 = closed[-5:] if len(closed) >= 5 else closed
     colors5 = [candle_color(c) for c in window5]
@@ -1149,7 +1162,8 @@ def get_trend(candles):
     downs5 = colors5.count("DOWN")
     bar   = "".join("🟢" if col == "UP" else "🔴" for col in colors5)
     cur_emoji = "🟢" if cur[3] >= cur[0] else "🔴"
-    print(f"[СВЕЧИ] таймфрейм={EXPIRY_SEC}с ({EXPIRY_SEC//60}мин) | последние {len(window5)} свечей: {bar} (▲{ups5}/▼{downs5}) | текущая: {cur_emoji}")
+    _times5 = " ".join(_ts_fmt(c) for c in window5)
+    print(f"[СВЕЧИ] таймфрейм={EXPIRY_SEC}с ({EXPIRY_SEC//60}мин) | {bar} (▲{ups5}/▼{downs5}) | текущая: {cur_emoji} | времена закр.: {_times5}")
     print(f"[АНАЛИЗ] Свеча -2: {fmt(w2, e2)}")
     print(f"[АНАЛИЗ] Свеча -1: {fmt(w3, e3)}  ← последняя закрытая")
     if c2 == "UP" and c3 == "UP":
@@ -1269,8 +1283,9 @@ async def get_candles_data(client):
             lc = closed_raw[-1]
             emoji = '🟢' if lc.close >= lc.open else '🔴'
             print(f"[CANDLE] Последняя закрытая: {emoji} o={lc.open:.5f} c={lc.close:.5f} | закрытых: {len(closed_raw)}")
-            candles_all = [(c.open, c.high, c.low, c.close) for c in closed_raw]
-            candles_all += [(cur_candle.open, cur_candle.high, cur_candle.low, cur_candle.close)]
+            # Кортеж: (open, high, low, close, timestamp) — timestamp нужен для отладки времени свечей
+            candles_all = [(c.open, c.high, c.low, c.close, getattr(c, 'time', 0)) for c in closed_raw]
+            candles_all += [(cur_candle.open, cur_candle.high, cur_candle.low, cur_candle.close, getattr(cur_candle, 'time', 0))]
             prices_all  = [c[3] for c in candles_all]
             return candles_all, prices_all
         except Exception as e:
@@ -2966,8 +2981,21 @@ def get_trend(candles):
     e2 = "🟢" if c2 == "UP" else "🔴"
     e3 = "🟢" if c3 == "UP" else "🔴"
     w2, w3 = window2
+    def _ts_fmt(c):
+        try:
+            t = c[4] if len(c) >= 5 else 0
+            if hasattr(t, 'strftime'):
+                return t.strftime('%H:%M:%S')
+            if isinstance(t, (int, float)) and t > 0:
+                _t = float(t)
+                if _t > 1e12:
+                    _t = _t / 1000.0
+                return datetime.fromtimestamp(_t).strftime('%H:%M:%S')
+        except Exception:
+            pass
+        return "??:??:??"
     def fmt(c, e):
-        return f"{e} o={c[0]:.5f} c={c[3]:.5f} Δ={c[3]-c[0]:+.5f}"
+        return f"{e} t={_ts_fmt(c)} o={c[0]:.5f} c={c[3]:.5f} Δ={c[3]-c[0]:+.5f}"
     cur   = candles[-1]
     window5 = closed[-5:] if len(closed) >= 5 else closed
     colors5 = [candle_color(c) for c in window5]
@@ -2975,7 +3003,8 @@ def get_trend(candles):
     downs5 = colors5.count("DOWN")
     bar   = "".join("🟢" if col == "UP" else "🔴" for col in colors5)
     cur_emoji = "🟢" if cur[3] >= cur[0] else "🔴"
-    print(f"[СВЕЧИ] таймфрейм={EXPIRY_SEC}с ({EXPIRY_SEC//60}мин) | последние {len(window5)} свечей: {bar} (▲{ups5}/▼{downs5}) | текущая: {cur_emoji}")
+    _times5 = " ".join(_ts_fmt(c) for c in window5)
+    print(f"[СВЕЧИ] таймфрейм={EXPIRY_SEC}с ({EXPIRY_SEC//60}мин) | {bar} (▲{ups5}/▼{downs5}) | текущая: {cur_emoji} | времена закр.: {_times5}")
     print(f"[АНАЛИЗ] Свеча -2: {fmt(w2, e2)}")
     print(f"[АНАЛИЗ] Свеча -1: {fmt(w3, e3)}  ← последняя закрытая")
     if c2 == "UP" and c3 == "UP":

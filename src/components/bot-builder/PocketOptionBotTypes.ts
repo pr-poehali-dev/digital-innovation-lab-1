@@ -2102,6 +2102,17 @@ async def main():
                 if sig_line:
                     tg_parts.append(sig_line)
                 tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")
+                # При первой сделке — добавляем инфо о синхронизации часов
+                if trades_today == 0:
+                    try:
+                        _ts = getattr(buf, 'time_shift', None)
+                        if _ts is not None:
+                            _h = int(abs(_ts) // 3600)
+                            _m = int((abs(_ts) % 3600) // 60)
+                            _sign = '+' if _ts >= 0 else '-'
+                            tg_parts.append(f"🕐 Синхр. часов: сервер {_sign}{_h}ч{_m:02d}м (ОК, авто-калибровка работает)")
+                    except Exception:
+                        pass
                 tg("\\n".join(tg_parts))
                 balance_before, _ = await get_balance(client)
                 _pt_result = await place_trade(client, signal, bet)

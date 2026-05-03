@@ -953,7 +953,31 @@ def tg_poll_commands():
                 tg(f"▶️ <b>[{BOT_NAME}] возобновлён</b>")
             elif cmd == "/status" and for_me:
                 wins_s = sum(1 for t in trade_log if t["won"])
-                tg(f"📊 <b>Статус [{BOT_NAME}]</b>\\n💰 Профит: {total_profit:+.2f} {CURRENCY}\\n📈 Сделок: {trades_today} (✅{wins_s}/❌{trades_today-wins_s})\\n{'⏸ На паузе' if _tg_paused else '▶️ Работает'}")
+                _wr_s = (wins_s / trades_today * 100) if trades_today > 0 else 0
+                _state = '⏸ На паузе' if _tg_paused else '▶️ Работает'
+                # Подтягиваем буфер из глобалов (имя различается между ботами)
+                _buf_g = globals().get('_live_buf') or globals().get('buf') or globals().get('_live_buffer')
+                _ts_line = ''; _last_price_line = ''; _sync_line = ''
+                if _buf_g is not None:
+                    _ts = getattr(_buf_g, 'time_shift', None)
+                    if _ts is not None:
+                        _h = int(abs(_ts) // 3600); _m = int((abs(_ts) % 3600) // 60)
+                        _sign = '+' if _ts >= 0 else '-'
+                        _ts_line = f"\\n🕐 Сдвиг часов: {_sign}{_h}ч{_m:02d}м"
+                    _lp = getattr(_buf_g, 'last_price', 0)
+                    if _lp:
+                        _last_price_line = f"\\n💹 Цена: {_lp}"
+                    _sync_warn = getattr(_buf_g, 'sync_warn', False)
+                    _sync_line = "\\n⚠️ Поток API завис" if _sync_warn else "\\n✅ Поток свечей живой"
+                _cur_bet_g = globals().get('current_bet', BASE_BET)
+                tg(
+                    f"📊 <b>Статус [{BOT_NAME}]</b>\\n"
+                    f"💰 Профит: {total_profit:+.2f} {CURRENCY}\\n"
+                    f"📈 Сделок: {trades_today} (✅{wins_s}/❌{trades_today-wins_s}) | WR: {_wr_s:.0f}%\\n"
+                    f"⚙️ Ставка: {_cur_bet_g} {CURRENCY} | Актив: {ASSET}\\n"
+                    f"{_state}"
+                    f"{_sync_line}{_ts_line}{_last_price_line}"
+                )
             elif cmd == "/settp" and for_me:
                 try:
                     TAKE_PROFIT = float(val)
@@ -2688,7 +2712,31 @@ def tg_poll_commands():
                 tg(f"▶️ <b>[{BOT_NAME}] возобновлён</b>")
             elif cmd == "/status" and for_me:
                 wins_s = sum(1 for t in trade_log if t["won"])
-                tg(f"📊 <b>Статус [{BOT_NAME}]</b>\\n💰 Профит: {total_profit:+.2f} {CURRENCY}\\n📈 Сделок: {trades_today} (✅{wins_s}/❌{trades_today-wins_s})\\n{'⏸ На паузе' if _tg_paused else '▶️ Работает'}")
+                _wr_s = (wins_s / trades_today * 100) if trades_today > 0 else 0
+                _state = '⏸ На паузе' if _tg_paused else '▶️ Работает'
+                # Подтягиваем буфер из глобалов (имя различается между ботами)
+                _buf_g = globals().get('_live_buf') or globals().get('buf') or globals().get('_live_buffer')
+                _ts_line = ''; _last_price_line = ''; _sync_line = ''
+                if _buf_g is not None:
+                    _ts = getattr(_buf_g, 'time_shift', None)
+                    if _ts is not None:
+                        _h = int(abs(_ts) // 3600); _m = int((abs(_ts) % 3600) // 60)
+                        _sign = '+' if _ts >= 0 else '-'
+                        _ts_line = f"\\n🕐 Сдвиг часов: {_sign}{_h}ч{_m:02d}м"
+                    _lp = getattr(_buf_g, 'last_price', 0)
+                    if _lp:
+                        _last_price_line = f"\\n💹 Цена: {_lp}"
+                    _sync_warn = getattr(_buf_g, 'sync_warn', False)
+                    _sync_line = "\\n⚠️ Поток API завис" if _sync_warn else "\\n✅ Поток свечей живой"
+                _cur_bet_g = globals().get('current_bet', BASE_BET)
+                tg(
+                    f"📊 <b>Статус [{BOT_NAME}]</b>\\n"
+                    f"💰 Профит: {total_profit:+.2f} {CURRENCY}\\n"
+                    f"📈 Сделок: {trades_today} (✅{wins_s}/❌{trades_today-wins_s}) | WR: {_wr_s:.0f}%\\n"
+                    f"⚙️ Ставка: {_cur_bet_g} {CURRENCY} | Актив: {ASSET}\\n"
+                    f"{_state}"
+                    f"{_sync_line}{_ts_line}{_last_price_line}"
+                )
             elif cmd == "/settp" and for_me:
                 try:
                     TAKE_PROFIT = float(val)

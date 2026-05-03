@@ -1996,8 +1996,32 @@ async def main():
             _streak_now = (f"🔥{cur_streak}п" if cur_streak > 1 else (f"❄️{abs(cur_streak)}п" if cur_streak < -1 else ("✅1" if cur_streak == 1 else ("❌1" if cur_streak == -1 else "—"))))
             _profit_emoji = "🟢" if total_profit > 0 else ("🔴" if total_profit < 0 else "⚪")
             _trades_total = len(trade_log)
+            # Мини-график последних 8 свечей: 🟩 зелёная, 🟥 красная, ⬜ дожи
+            _mini_chart = ""
+            try:
+                _last8 = candles[-8:] if candles and len(candles) >= 1 else []
+                for _mc in _last8:
+                    if hasattr(_mc, 'open') and hasattr(_mc, 'close'):
+                        _mo, _mcl = float(_mc.open), float(_mc.close)
+                    elif isinstance(_mc, dict):
+                        _mo = float(_mc.get('open', _mc.get('o', 0)))
+                        _mcl = float(_mc.get('close', _mc.get('c', 0)))
+                    elif hasattr(_mc, '__getitem__'):
+                        _mo = float(_mc[0] if len(_mc) > 0 else 0)
+                        _mcl = float(_mc[3] if len(_mc) > 3 else _mc[1])
+                    else:
+                        continue
+                    if _mcl > _mo:
+                        _mini_chart += "🟩"
+                    elif _mcl < _mo:
+                        _mini_chart += "🟥"
+                    else:
+                        _mini_chart += "⬜"
+            except Exception:
+                _mini_chart = ""
+            _chart_line = f"  📊 {_mini_chart}" if _mini_chart else ""
             print(f"┌{'─'*65}")
-            print(f"│ ⏰ {ts}  ▶  {trend_str}  ▶  Сигнал: {sig_emoji} {sig_str}")
+            print(f"│ ⏰ {ts}  ▶  {trend_str}  ▶  Сигнал: {sig_emoji} {sig_str}{_chart_line}")
             print(f"│ 💰 {_bal_now:.2f} {_cur_now}  │  WR {_wr_now} ({_wins_now}/{_trades_total})  │  Серия {_streak_now}  │  {_profit_emoji} {total_profit:+.2f}")
 
             if signal:

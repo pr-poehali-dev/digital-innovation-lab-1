@@ -3075,7 +3075,7 @@ async def get_candles_data(client):
 # Фоновая задача опрашивает цену раз в LIVE_TICK_INTERVAL сек и обновляет буфер.
 # Главный цикл читает буфер мгновенно, без ожиданий get_candles.
 LIVE_BUFFER_SIZE = 50
-LIVE_TICK_INTERVAL = 2  # секунд между опросами цены
+LIVE_TICK_INTERVAL = 1  # секунд между опросами цены — чем меньше, тем точнее h/l свечи
 
 # ===== ЗАПИСЬ ВИДЕННЫХ СВЕЧЕЙ В ФАЙЛ СЕССИИ =====
 # Все свечи которые бот ВИДЕЛ ЛИЧНО (закрытые) пишутся в свечи/YYYY-MM-DD_HH-MM-SS.csv
@@ -3278,37 +3278,108 @@ def _pool_get_candles(asset, tf_sec, min_count=2):
 
 class CandleBuffer:
     def __init__(self):
-        self.candles = []  # список (open, high, low, close) — закрытые свечи
-        self.live = None   # текущая формирующаяся свеча (open, high, low, close, started_at)
+        # ✅ НОВАЯ ЛОГИКА: бот САМ строит свечи из тиков цены.
+        # Никакой истории с API, никаких "закрытых свечей из кеша".
+        # Только то, что мы УВИДЕЛИ СВОИМИ ГЛАЗАМИ.
+        self.candles = []        # список (open, high, low, close) — закрытые свечи которые МЫ ВИДЕЛИ
+        self.live = None         # текущая формирующаяся свеча (open, high, low, close)
+        self.live_bucket = None  # int — начало текущей свечи (unix-ts // EXPIRY_SEC * EXPIRY_SEC)
         self.last_price = 0.0
         self.last_update = 0.0
         self.ready = False
-        self.sync_warn = False  # True = последняя свеча устарела (рассинхрон с API)
-        self.time_shift = None  # секунды: local_time - server_time (авто-калибровка часов)
-        self.last_candle_close_dt = None  # время закрытия последней принятой свечи (server time)
+        self.sync_warn = False
+        self.time_shift = None
+        self.last_candle_close_dt = None
 
     async def warmup(self, client):
-        """Первичная загрузка истории."""
-        candles, _ = await get_candles_data(client)
-        if candles:
-            self.candles = candles[-LIVE_BUFFER_SIZE:]
-            self.last_price = candles[-1][3]
-            self.ready = True
-            _used_asset = _resolved_asset or ASSET
-            _is_otc = '_otc' in _used_asset.lower()
-            _flag = '✅ OTC' if _is_otc else '⚠️ НЕ-OTC (выходной = свечи могут быть старые!)'
-            print(f"[BUFFER] 🔥 Загружено {len(self.candles)} свечей | актив={_used_asset} {_flag} | last={self.last_price}")
-            print(f"[ASSET_CHECK] Запрошено: {ASSET} | Использовано API: {_used_asset}")
+        """⚠️ NO-OP: больше не загружаем историю. Бот стартует с пустого буфера и ЖДЁТ свои свечи."""
+        _used_asset = _resolved_asset or ASSET
+        print(f"[BUFFER] 🔥 НОВАЯ ЛОГИКА: ждём свечи которые УВИДИМ САМИ | актив={_used_asset} | таймфрейм={EXPIRY_SEC}с")
+        print(f"[BUFFER] ⏳ Готовы к торговле когда накопим >= 2 свечи (~{EXPIRY_SEC*2}с минимум)")
+        self.ready = True  # буфер готов опрашивать цены сразу
 
     async def tick(self, client):
-        """Опрашиваем текущую цену и обновляем буфер."""
+        """✅ НОВАЯ ЛОГИКА: опрашиваем ТОЛЬКО текущую цену и САМИ строим свечи.
+        Никаких 'closed' свечей из API — только то, что мы видим в реальном времени.
+        """
+        try:
+            _query_asset = _resolved_asset or ASSET
+            # Берём 1 свечу — нам нужна только её current.close (= текущая цена тика)
+            raw = await client.get_candles(asset=_query_asset, timeframe=EXPIRY_SEC, count=1)
+            if not raw:
+                return
+            import time as _t_mod
+            from datetime import timedelta
+            now = _t_mod.time()
+            current = raw[-1]
+            cur_price = float(current.close)
+            # ===== ОПРЕДЕЛЯЕМ В КАКУЮ СВЕЧУ ПОПАДАЕТ ТЕКУЩИЙ ТИК =====
+            # bucket = начало свечи в которой мы сейчас живём (unix-ts округлённое вниз до EXPIRY_SEC)
+            bucket = int(now // EXPIRY_SEC) * EXPIRY_SEC
+            # ===== СЛУЧАЙ 1: первый тик за всё время =====
+            if self.live is None or self.live_bucket is None:
+                self.live_bucket = bucket
+                self.live = (cur_price, cur_price, cur_price, cur_price)  # o=h=l=c
+                self.last_price = cur_price
+                self.last_update = now
+                _utc_t = datetime.utcfromtimestamp(bucket).strftime('%H:%M:%S')
+                print(f"[CANDLE_BUILD] 🆕 СТАРТ ПЕРВОЙ СВЕЧИ {_utc_t} UTC | open={cur_price:.5f}")
+                return
+            # ===== СЛУЧАЙ 2: тик в той же свече — обновляем h/l/c =====
+            if bucket == self.live_bucket:
+                _o, _h, _l, _c = self.live
+                _h = max(_h, cur_price)
+                _l = min(_l, cur_price)
+                _c = cur_price
+                self.live = (_o, _h, _l, _c)
+                self.last_price = cur_price
+                self.last_update = now
+                return
+            # ===== СЛУЧАЙ 3: началась НОВАЯ свеча — закрываем старую и открываем новую =====
+            # Закрываем предыдущую свечу
+            closed_tup = self.live  # это (o, h, l, c) старой свечи
+            self.candles.append(closed_tup)
+            if len(self.candles) > LIVE_BUFFER_SIZE:
+                self.candles = self.candles[-LIVE_BUFFER_SIZE:]
+            # Логируем закрытие
+            _close_dt = datetime.utcfromtimestamp(self.live_bucket + EXPIRY_SEC)
+            _open_dt = datetime.utcfromtimestamp(self.live_bucket)
+            _open_t = _open_dt.strftime('%H:%M:%S')
+            _close_t = _close_dt.strftime('%H:%M:%S')
+            _color = '🟢' if closed_tup[3] >= closed_tup[0] else '🔴'
+            print(f"[CANDLE_BUILD] ✅ ЗАКРЫТА {_color} {_open_t}→{_close_t} UTC | o={closed_tup[0]:.5f} h={closed_tup[1]:.5f} l={closed_tup[2]:.5f} c={closed_tup[3]:.5f}")
+            self.last_candle_close_dt = _close_dt
+            # Записываем в файл сессии
+            try:
+                _session_save_candle((_resolved_asset or ASSET), EXPIRY_SEC, int(self.live_bucket), closed_tup[0], closed_tup[1], closed_tup[2], closed_tup[3])
+            except Exception as _se:
+                print(f"[SESSION] save error: {_se}")
+            # Записываем в общий пул
+            try:
+                _pool_push_candle((_resolved_asset or ASSET), EXPIRY_SEC, int(self.live_bucket), closed_tup[0], closed_tup[1], closed_tup[2], closed_tup[3])
+            except Exception as _pe:
+                pass
+            # Открываем новую свечу
+            self.live_bucket = bucket
+            self.live = (cur_price, cur_price, cur_price, cur_price)
+            self.last_price = cur_price
+            self.last_update = now
+            _new_open_t = datetime.utcfromtimestamp(bucket).strftime('%H:%M:%S')
+            print(f"[CANDLE_BUILD] 🆕 НОВАЯ СВЕЧА {_new_open_t} UTC | open={cur_price:.5f} | накоплено закрытых: {len(self.candles)}")
+            self.sync_warn = False
+            return
+        except Exception as e:
+            print(f"[BUFFER] tick error: {e}")
+            return
+
+    # ===== СТАРАЯ ЛОГИКА ОТКЛЮЧЕНА — оставлено для совместимости =====
+    async def _legacy_tick_unused(self, client):
         try:
             _query_asset = _resolved_asset or ASSET
             raw = await client.get_candles(asset=_query_asset, timeframe=EXPIRY_SEC, count=2)
             if not raw:
                 return
             now = __import__("time").time()
-            # Закрытая свеча — предпоследняя
             closed = raw[-2] if len(raw) >= 2 else None
             current = raw[-1]
             cur_close = float(current.close)
@@ -4044,16 +4115,10 @@ async def main():
         tg_info(f"✅ <b>[{BOT_NAME}] Готов к торговле</b>\\nРазогрев завершён, {_wm_msg}.")
 
     # ===== ЗАПУСК ЖИВОГО БУФЕРА СВЕЧЕЙ =====
-    # ВАЖНО: НЕ дёргаем кривой get_candles_data — кладём в буфер свечи которые САМИ увидели в warmup!
+    # ✅ НОВАЯ ЛОГИКА: бот стартует с ПУСТОГО буфера и САМ строит свечи из тиков цены.
+    # Никаких warmup_collected, никакой истории с API — только то, что увидим САМИ.
     _live_buf = CandleBuffer()
-    if _warmup_collected:
-        _live_buf.candles = _warmup_collected[-LIVE_BUFFER_SIZE:]
-        _live_buf.last_price = _warmup_collected[-1][3]
-        _live_buf.ready = True
-        print(f"[BUFFER] 🔥 Загружено {len(_live_buf.candles)} свечей ИЗ WARMUP (живые данные!) | last={_live_buf.last_price}")
-    else:
-        # Fallback: если warmup ничего не увидел — старый путь через API
-        await _live_buf.warmup(client)
+    await _live_buf.warmup(client)  # просто печатает заглавный лог и ставит ready=True
     _buf_task = asyncio.create_task(buffer_updater(_live_buf, client))
     print(f"[BUFFER] 🚀 Живой буфер запущен (опрос каждые {LIVE_TICK_INTERVAL}с, размер {LIVE_BUFFER_SIZE} свечей)")
     tg_info(f"🚀 <b>[{BOT_NAME}] Живой буфер</b>\\nОпрос цены каждые {LIVE_TICK_INTERVAL}с | буфер {LIVE_BUFFER_SIZE} свечей\\nРешения принимаются мгновенно")
@@ -4162,9 +4227,20 @@ async def main():
 
         # ===== ЧТЕНИЕ ИЗ ЖИВОГО БУФЕРА =====
         # Буфер обновляется фоновой задачей каждые LIVE_TICK_INTERVAL сек.
-        # Главный цикл больше не ждёт get_candles — он читает из памяти мгновенно.
+        # ✅ НОВАЯ ЛОГИКА: ждём минимум 2 ЗАКРЫТЫХ свечи которые мы УВИДЕЛИ САМИ.
         await asyncio.sleep(1)
-        if not _live_buf.ready or not _live_buf.candles:
+        _MIN_OWN_CANDLES = 2
+        if not _live_buf.ready or len(_live_buf.candles) < _MIN_OWN_CANDLES:
+            _have = len(_live_buf.candles) if _live_buf.candles else 0
+            _need = _MIN_OWN_CANDLES - _have
+            if _have == 0:
+                _msg = f"⏳ [BUFFER] Жду ПЕРВУЮ свечу... (нужно увидеть {_MIN_OWN_CANDLES} свечи по {EXPIRY_SEC}с)"
+            else:
+                _msg = f"⏳ [BUFFER] Накопилось {_have}/{_MIN_OWN_CANDLES} своих свечей — жду ещё {_need}"
+            # печатаем не чаще раза в 10с
+            if not hasattr(_live_buf, '_last_wait_log') or (asyncio.get_event_loop().time() - getattr(_live_buf, '_last_wait_log', 0)) > 10:
+                print(_msg)
+                _live_buf._last_wait_log = asyncio.get_event_loop().time()
             await asyncio.sleep(2)
             continue
         if _live_buf.sync_warn:

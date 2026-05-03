@@ -2926,8 +2926,8 @@ class CandleBuffer:
                     if len(self.candles) > LIVE_BUFFER_SIZE:
                         self.candles = self.candles[-LIVE_BUFFER_SIZE:]
                     try:
-                        from datetime import timezone, timedelta
-                        _tz_msk = timezone(timedelta(hours=3))
+                        from datetime import timedelta
+                        # ВАЖНО: и API и datetime.now() — обе naive (без tz) → сравниваем "как есть"
                         _candle_dt = None
                         for _tk in ('time', 't', 'timestamp', 'open_time'):
                             _v = getattr(closed, _tk, None)
@@ -2936,17 +2936,12 @@ class CandleBuffer:
                             if _v is None:
                                 continue
                             if isinstance(_v, datetime):
-                                # Если naive — считаем что это уже МСК (так отдаёт API PocketOption)
-                                if _v.tzinfo is None:
-                                    _candle_dt = _v.replace(tzinfo=_tz_msk)
-                                else:
-                                    _candle_dt = _v.astimezone(_tz_msk)
+                                _candle_dt = _v.replace(tzinfo=None) if _v.tzinfo else _v
                                 break
                             try:
                                 _num = float(_v)
                                 _raw_ts = _num / 1000 if _num > 1e10 else _num
-                                # Считаем что unix-timestamp от API трактуется как МСК
-                                _candle_dt = datetime.fromtimestamp(_raw_ts, tz=timezone.utc).replace(tzinfo=_tz_msk)
+                                _candle_dt = datetime.fromtimestamp(_raw_ts)
                                 break
                             except (TypeError, ValueError):
                                 continue
@@ -2954,11 +2949,11 @@ class CandleBuffer:
                             _close_dt = _candle_dt + timedelta(seconds=EXPIRY_SEC)
                             _open_t = _candle_dt.strftime('%H:%M:%S')
                             _close_t = _close_dt.strftime('%H:%M:%S')
-                            _now_dt = datetime.now(tz=_tz_msk)
-                            _now_msk = _now_dt.strftime('%H:%M:%S')
+                            _now_dt = datetime.now()
+                            _now_str = _now_dt.strftime('%H:%M:%S')
                             _diff = (_now_dt - _close_dt).total_seconds()
                             _em = '🟢' if closed.close >= closed.open else '🔴'
-                            print(f"[RAW_API] 🆕 НОВАЯ ЗАКРЫТАЯ {_em} {_open_t}→{_close_t} (МСК) | сейчас={_now_msk} | задержка={_diff:.0f}с | o={closed.open:.5f} c={closed.close:.5f}")
+                            print(f"[RAW_API] 🆕 НОВАЯ ЗАКРЫТАЯ {_em} {_open_t}→{_close_t} (время сервера) | сейчас={_now_str} | задержка={_diff:.0f}с | o={closed.open:.5f} c={closed.close:.5f}")
                             if _diff > EXPIRY_SEC:
                                 print(f"[SYNC_WARN] ⚠️ РАССИНХРОН! Свеча закрылась {_diff:.0f}с назад (>{EXPIRY_SEC}с) — устарела!")
                                 self.sync_warn = True

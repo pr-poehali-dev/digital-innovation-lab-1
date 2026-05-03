@@ -1982,7 +1982,14 @@ async def main():
 
             _reconnect_attempts = 0
 
-            new_trend, old_trend = check_trend_change(candles)
+            # ✅ ИСПРАВЛЕНО: get_trend вызывается ОДИН раз — переиспользуем результат.
+            # Раньше check_trend_change(candles) вызывал get_trend, потом ниже снова trend = get_trend(candles)
+            # → блок [СВЕЧИ]/[АНАЛИЗ]/[ТРЕНД] печатался ДВАЖДЫ. Сейчас — только раз.
+            trend = get_trend(candles)
+            global _last_trend
+            old_trend = _last_trend
+            new_trend = trend if (trend and trend != _last_trend) else None
+            _last_trend = trend
             if new_trend:
                 arrow = "📈" if new_trend in ("UP_UP", "DOWN_UP") else "📉"
                 labels = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
@@ -1990,7 +1997,6 @@ async def main():
                 print(f"[TREND] {old_trend} → {new_trend}")
                 tg_info(msg)
 
-            trend = get_trend(candles)
             trend_sig = trend_to_signal(trend)
             signal, signal_info = get_signal(prices, candles)
 
@@ -3341,8 +3347,9 @@ class CandleBuffer:
                 self.last_update = now
                 return
             # ===== СЛУЧАЙ 3: началась НОВАЯ свеча — закрываем старую и открываем новую =====
-            # Закрываем предыдущую свечу
-            closed_tup = self.live  # это (o, h, l, c) старой свечи
+            # Закрываем предыдущую свечу + ДОБАВЛЯЕМ ВРЕМЯ ОТКРЫТИЯ (5-й элемент)
+            # 5-tuple (o, h, l, c, bucket_ts) — анализатор get_trend умеет читать c[4]
+            closed_tup = (self.live[0], self.live[1], self.live[2], self.live[3], int(self.live_bucket))
             self.candles.append(closed_tup)
             if len(self.candles) > LIVE_BUFFER_SIZE:
                 self.candles = self.candles[-LIVE_BUFFER_SIZE:]
@@ -4195,7 +4202,12 @@ async def main():
             await asyncio.sleep(2)
             continue
 
-        new_trend, old_trend = check_trend_change(candles)
+        # ✅ ИСПРАВЛЕНО: get_trend вызывается ОДИН раз — переиспользуем результат.
+        trend = get_trend(candles)
+        global _last_trend
+        old_trend = _last_trend
+        new_trend = trend if (trend and trend != _last_trend) else None
+        _last_trend = trend
         if new_trend:
             arrow = "📈" if new_trend in ("UP_UP", "DOWN_UP") else "📉"
             labels = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
@@ -4203,7 +4215,6 @@ async def main():
             print(f"[TREND] {old_trend} → {new_trend}")
             tg_info(msg)
 
-        trend = get_trend(candles)
         trend_sig = trend_to_signal(trend)
         signal, signal_info = get_combined_signal(prices, candles)
 

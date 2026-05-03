@@ -3805,23 +3805,34 @@ async def main():
                     else:
                         _cur_bucket = int(_time_warmup.time() // _tf_sec)
                     # ЗАПОМИНАЕМ ВСЕ закрытые свечи которые видим (последние 2 = закрытые, [-1] = текущая)
-                    for _idx in range(max(0, len(_wc) - 1)):
-                        _c = _wc[_idx]
+                    # _wc[-1] — текущая (формирующаяся), всё остальное — закрытые
+                    _closed_only = list(_wc[:-1]) if len(_wc) > 1 else []
+                    for _c in _closed_only:
+                        # Пытаемся найти timestamp; если нет — генерим псевдо-bucket по уникальному (o,h,l,c)
                         _ct = None
                         for _tk in ('time', 't', 'timestamp', 'open_time'):
                             if hasattr(_c, _tk):
-                                try: _ct = float(getattr(_c, _tk)); break
-                                except: pass
-                        if _ct is None:
-                            continue
-                        _cb = int(_ct // _tf_sec)
-                        if _cb in _warmup_seen_buckets:
-                            continue
-                        _warmup_seen_buckets.add(_cb)
+                                try:
+                                    _ct = float(getattr(_c, _tk))
+                                    break
+                                except Exception:
+                                    pass
+                            if isinstance(_c, dict) and _c.get(_tk):
+                                try:
+                                    _ct = float(_c[_tk])
+                                    break
+                                except Exception:
+                                    pass
                         try:
-                            _warmup_collected.append((float(_c.open), float(_c.high), float(_c.low), float(_c.close)))
+                            _o, _h, _l, _cl = float(_c.open), float(_c.high), float(_c.low), float(_c.close)
                         except Exception:
-                            pass
+                            continue
+                        # Ключ дедупликации: timestamp если есть, иначе (open,close) — почти всегда уникален
+                        _dedup_key = int(_ct // _tf_sec) if _ct else f"{_o:.5f}_{_cl:.5f}_{_h:.5f}_{_l:.5f}"
+                        if _dedup_key in _warmup_seen_buckets:
+                            continue
+                        _warmup_seen_buckets.add(_dedup_key)
+                        _warmup_collected.append((_o, _h, _l, _cl))
                     if _last_candle_bucket is None:
                         _last_candle_bucket = _cur_bucket
                     elif _cur_bucket > _last_candle_bucket:

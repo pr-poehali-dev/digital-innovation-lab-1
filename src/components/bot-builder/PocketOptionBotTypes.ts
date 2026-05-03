@@ -3013,11 +3013,25 @@ class CandleBuffer:
             closed = raw[-2] if len(raw) >= 2 else None
             current = raw[-1]
             cur_close = float(current.close)
+            # SANITY-CHECK: если цена скакнула >0.5% за 1 тик — это глюк API (мусор из кеша)
+            # Игнорируем такой тик, не записываем в буфер.
+            if self.last_price > 0:
+                _jump = abs(cur_close - self.last_price) / max(self.last_price, 0.0001)
+                if _jump > 0.005:
+                    print(f"[TICK_GUARD] ⚠️ ПОДОЗРИТЕЛЬНЫЙ СКАЧОК: {self.last_price:.5f} → {cur_close:.5f} ({_jump*100:.2f}%) — игнорирую тик, ставлю sync_warn")
+                    self.sync_warn = True
+                    return
             self.last_price = cur_close
             self.last_update = now
             # Обновляем закрытые свечи (если появилась новая)
             if closed is not None:
                 closed_tup = (float(closed.open), float(closed.high), float(closed.low), float(closed.close))
+                # SANITY-CHECK: новая закрытая свеча не должна сильно отличаться от текущей цены
+                _closed_close = closed_tup[3]
+                if cur_close > 0 and abs(_closed_close - cur_close) / max(cur_close, 0.0001) > 0.01:
+                    print(f"[TICK_GUARD] ⚠️ Свеча из кеша API: closed.close={_closed_close:.5f} vs live={cur_close:.5f} — пропускаю запись")
+                    self.sync_warn = True
+                    return
                 if not self.candles or self.candles[-1] != closed_tup:
                     self.candles.append(closed_tup)
                     if len(self.candles) > LIVE_BUFFER_SIZE:
@@ -3636,9 +3650,33 @@ async def main():
                 break
             print(f"[WARMUP] ⏳ Жду закрытия свечей... ({_candles_seen}/{WARMUP_CANDLES} готово, до конца разогрева {_remaining}с)")
             await asyncio.sleep(5)
-    print(f"[WARMUP] ✅ Разогрев завершён! Запомнил свечей: {len(_warmup_collected)}")
+    # ===== ВАЛИДАЦИЯ WARMUP =====
+    # Берём СВЕЖИЙ тик через тот же путь что использует tick() (count=2)
+    # и сверяем с собранными свечами. Если API нам подсунул старые/чужие данные —
+    # цены разойдутся, и мы выкидываем _warmup_collected.
+    _warmup_valid = True
+    if _warmup_collected:
+        try:
+            _fresh = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=_tf_sec, count=2)
+            if _fresh:
+                _live_now = float(_fresh[-1].close)
+                _last_warmup = _warmup_collected[-1][3]
+                _gap = abs(_live_now - _last_warmup) / max(_live_now, 0.0001)
+                if _gap > 0.005:  # >0.5% = разные эпохи цен (мусор из API-кеша)
+                    print(f"[WARMUP] ⚠️ ВАЛИДАЦИЯ ПРОВАЛЕНА! warmup_last={_last_warmup:.5f} vs live_now={_live_now:.5f} (дельта {_gap*100:.2f}%)")
+                    print(f"[WARMUP] 🗑 Выкидываю собранные свечи — они из кеша API. Буфер наполнится в реальном времени.")
+                    _warmup_collected = []
+                    _warmup_valid = False
+                    tg_info(f"⚠️ <b>[{BOT_NAME}] Кеш API устарел</b>\\nСобранные свечи отброшены ({_gap*100:.2f}% расхождение с live).\\nБуфер наполнится из живых тиков.")
+                else:
+                    print(f"[WARMUP] ✅ Валидация ОК: warmup_last={_last_warmup:.5f} ≈ live={_live_now:.5f} (дельта {_gap*100:.3f}%)")
+        except Exception as _ve:
+            print(f"[WARMUP] Ошибка валидации: {_ve}")
+
+    print(f"[WARMUP] ✅ Разогрев завершён! Запомнил свечей: {len(_warmup_collected)} | валидация: {'OK' if _warmup_valid else 'ОТБРОШЕНО'}")
     if WARMUP_CANDLES > 0:
-        tg_info(f"✅ <b>[{BOT_NAME}] Готов к торговле</b>\\nРазогрев завершён, запомнил {len(_warmup_collected)} свечей. Сразу торгуем!")
+        _wm_msg = f"запомнил {len(_warmup_collected)} свечей" if _warmup_valid else "свечи отброшены (мусор API), буфер наполнится в реальном времени"
+        tg_info(f"✅ <b>[{BOT_NAME}] Готов к торговле</b>\\nРазогрев завершён, {_wm_msg}.")
 
     # ===== ЗАПУСК ЖИВОГО БУФЕРА СВЕЧЕЙ =====
     # ВАЖНО: НЕ дёргаем кривой get_candles_data — кладём в буфер свечи которые САМИ увидели в warmup!

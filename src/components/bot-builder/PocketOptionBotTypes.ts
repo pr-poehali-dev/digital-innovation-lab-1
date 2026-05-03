@@ -2895,6 +2895,8 @@ class CandleBuffer:
         self.last_update = 0.0
         self.ready = False
         self.sync_warn = False  # True = последняя свеча устарела (рассинхрон с API)
+        self.time_shift = None  # секунды: local_time - server_time (авто-калибровка часов)
+        self.last_candle_close_dt = None  # время закрытия последней принятой свечи (server time)
 
     async def warmup(self, client):
         """Первичная загрузка истории."""
@@ -2956,11 +2958,27 @@ class CandleBuffer:
                             _close_t = _close_dt.strftime('%H:%M:%S')
                             _now_dt = datetime.now()
                             _now_str = _now_dt.strftime('%H:%M:%S')
-                            _diff = (_now_dt - _close_dt).total_seconds()
+                            _raw_diff = (_now_dt - _close_dt).total_seconds()
+                            # АВТО-КАЛИБРОВКА: при первой свече запоминаем разницу часов
+                            # Считаем что свеча реально только что закрылась → её "истинная задержка" = ~EXPIRY_SEC/2
+                            if self.time_shift is None:
+                                self.time_shift = _raw_diff
+                                print(f"[TIME_SYNC] 🕐 Калибровка часов: сервер отстаёт на {self.time_shift:.0f}с от локального времени (это нормально, фиксируем)")
+                            # Корректированная задержка относительно потока свечей
+                            _diff = _raw_diff - self.time_shift
+                            # Дополнительно: если есть предыдущая свеча — считаем дельту между свечами
+                            _gap_from_prev = None
+                            if self.last_candle_close_dt is not None:
+                                _gap_from_prev = (_close_dt - self.last_candle_close_dt).total_seconds()
+                            self.last_candle_close_dt = _close_dt
                             _em = '🟢' if closed.close >= closed.open else '🔴'
-                            print(f"[RAW_API] 🆕 НОВАЯ ЗАКРЫТАЯ {_em} {_open_t}→{_close_t} (время сервера) | сейчас={_now_str} | задержка={_diff:.0f}с | o={closed.open:.5f} c={closed.close:.5f}")
-                            if _diff > EXPIRY_SEC:
-                                print(f"[SYNC_WARN] ⚠️ РАССИНХРОН! Свеча закрылась {_diff:.0f}с назад (>{EXPIRY_SEC}с) — устарела!")
+                            _gap_str = f" | gap_prev={_gap_from_prev:.0f}с" if _gap_from_prev is not None else ""
+                            print(f"[RAW_API] 🆕 НОВАЯ ЗАКРЫТАЯ {_em} {_open_t}→{_close_t} (server) | сейчас={_now_str} | shift={self.time_shift:.0f}с | задержка={_diff:.0f}с{_gap_str} | o={closed.open:.5f} c={closed.close:.5f}")
+                            # Свеча "устарела" только если корректированная задержка > 2× таймфрейма
+                            # ИЛИ если gap между свечами слишком большой (поток встал)
+                            _stale = _diff > EXPIRY_SEC * 2
+                            if _stale:
+                                print(f"[SYNC_WARN] ⚠️ РАССИНХРОН! Корректированная задержка {_diff:.0f}с > {EXPIRY_SEC*2}с — поток встал!")
                                 self.sync_warn = True
                             else:
                                 self.sync_warn = False

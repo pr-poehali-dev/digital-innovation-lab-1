@@ -2977,6 +2977,112 @@ async def get_candles_data(client):
 LIVE_BUFFER_SIZE = 50
 LIVE_TICK_INTERVAL = 2  # секунд между опросами цены
 
+# ===== ОБЩИЙ ПУЛ СВЕЧЕЙ МЕЖДУ БОТАМИ =====
+# Файл candle_pool.json рядом с ботом. Все боты пишут сюда закрытые свечи и
+# при старте читают, чтобы пропустить WARMUP если есть свежие данные.
+# Поддерживает АГРЕГАЦИЮ: бот на 30мин может собрать свечи из 3-минутных тиков бота-донора.
+import os as _os_pool
+import json as _json_pool
+_POOL_FILE = _os_pool.path.join(_os_pool.path.dirname(_os_pool.path.abspath(__file__)) if "__file__" in dir() else ".", "candle_pool.json")
+_POOL_MAX_PER_KEY = 500  # макс свечей на ключ (asset_timeframe)
+_POOL_FRESH_SEC = 300    # данные считаем свежими если updated_at в пределах 5 мин
+
+def _pool_load():
+    """Читаем пул из файла. Возвращаем dict или {} если нет/битый."""
+    try:
+        if not _os_pool.path.exists(_POOL_FILE):
+            return {}
+        with open(_POOL_FILE, "r", encoding="utf-8") as f:
+            return _json_pool.load(f) or {}
+    except Exception:
+        return {}
+
+def _pool_save(data):
+    """Атомарная запись пула: пишем во временный файл, потом os.rename (atomic)."""
+    try:
+        _tmp = _POOL_FILE + ".tmp"
+        with open(_tmp, "w", encoding="utf-8") as f:
+            _json_pool.dump(data, f, ensure_ascii=False)
+        _os_pool.replace(_tmp, _POOL_FILE)
+    except Exception as _pe:
+        print(f"[POOL] save error: {_pe}")
+
+def _pool_key(asset, tf_sec):
+    return f"{asset}_{int(tf_sec)}"
+
+def _pool_push_candle(asset, tf_sec, candle_t, o, h, l, c):
+    """Дописать одну закрытую свечу в пул. candle_t — unix-timestamp начала свечи."""
+    try:
+        data = _pool_load()
+        k = _pool_key(asset, tf_sec)
+        entry = data.get(k) or {"updated_at": 0, "candles": []}
+        candles = entry.get("candles", [])
+        # Проверка на дубль по timestamp
+        if candles and candles[-1].get("t") == candle_t:
+            return
+        candles.append({"t": int(candle_t), "o": float(o), "h": float(h), "l": float(l), "c": float(c)})
+        if len(candles) > _POOL_MAX_PER_KEY:
+            candles = candles[-_POOL_MAX_PER_KEY:]
+        entry["candles"] = candles
+        entry["updated_at"] = int(__import__("time").time())
+        data[k] = entry
+        _pool_save(data)
+    except Exception as _pe:
+        print(f"[POOL] push error: {_pe}")
+
+def _pool_get_candles(asset, tf_sec, min_count=2):
+    """
+    Достать свечи для пары (asset, tf_sec) из пула.
+    Если прямого ключа нет — пытаемся АГРЕГИРОВАТЬ из меньшего таймфрейма (доноры).
+    Возвращает список (o,h,l,c) или [] если данных недостаточно/устарели.
+    """
+    try:
+        data = _pool_load()
+        now = __import__("time").time()
+        k = _pool_key(asset, tf_sec)
+        # 1) Прямой матч
+        entry = data.get(k)
+        if entry and (now - entry.get("updated_at", 0)) < _POOL_FRESH_SEC:
+            cs = entry.get("candles", [])
+            if len(cs) >= min_count:
+                print(f"[POOL] ✅ Прямой матч: {k} | свечей: {len(cs)} | возраст: {int(now - entry['updated_at'])}с")
+                return [(c["o"], c["h"], c["l"], c["c"]) for c in cs]
+        # 2) Агрегация: ищем донор с делимым таймфреймом (asset тот же, tf_donor < tf_sec, tf_sec % tf_donor == 0)
+        for kk, ee in data.items():
+            try:
+                _a, _tf = kk.rsplit("_", 1)
+                _tf = int(_tf)
+            except Exception:
+                continue
+            if _a != asset or _tf >= tf_sec or tf_sec % _tf != 0:
+                continue
+            if (now - ee.get("updated_at", 0)) >= _POOL_FRESH_SEC:
+                continue
+            ratio = tf_sec // _tf
+            cs = ee.get("candles", [])
+            if len(cs) < ratio * min_count:
+                continue
+            # Группируем по бакетам tf_sec
+            groups = {}
+            for cd in cs:
+                bucket = int(cd["t"] // tf_sec) * tf_sec
+                groups.setdefault(bucket, []).append(cd)
+            # Берём только полные группы (== ratio свечей в группе) и сортируем по времени
+            full = sorted([(b, g) for b, g in groups.items() if len(g) == ratio])
+            if len(full) < min_count:
+                continue
+            agg = []
+            for b, g in full[-_POOL_MAX_PER_KEY:]:
+                g_sorted = sorted(g, key=lambda x: x["t"])
+                agg.append((g_sorted[0]["o"], max(x["h"] for x in g_sorted), min(x["l"] for x in g_sorted), g_sorted[-1]["c"]))
+            print(f"[POOL] 🔄 АГРЕГАЦИЯ: {kk} ({_tf}с) → {tf_sec}с | свечей донора: {len(cs)} | собрано: {len(agg)} | ratio={ratio}:1")
+            return agg
+        return []
+    except Exception as _pe:
+        print(f"[POOL] get error: {_pe}")
+        return []
+
+
 class CandleBuffer:
     def __init__(self):
         self.candles = []  # список (open, high, low, close) — закрытые свечи
@@ -3036,6 +3142,28 @@ class CandleBuffer:
                     self.candles.append(closed_tup)
                     if len(self.candles) > LIVE_BUFFER_SIZE:
                         self.candles = self.candles[-LIVE_BUFFER_SIZE:]
+                    # ====== ЗАПИСЬ В ОБЩИЙ ПУЛ ======
+                    try:
+                        _t_pool = None
+                        for _tk in ('time', 't', 'timestamp', 'open_time'):
+                            _v = getattr(closed, _tk, None)
+                            if _v is None and isinstance(closed, dict):
+                                _v = closed.get(_tk)
+                            if _v is None:
+                                continue
+                            if isinstance(_v, datetime):
+                                _t_pool = _v.timestamp()
+                                break
+                            try:
+                                _num = float(_v)
+                                _t_pool = _num / 1000 if _num > 1e10 else _num
+                                break
+                            except (TypeError, ValueError):
+                                continue
+                        if _t_pool:
+                            _pool_push_candle((_resolved_asset or ASSET), EXPIRY_SEC, int(_t_pool), closed_tup[0], closed_tup[1], closed_tup[2], closed_tup[3])
+                    except Exception as _ppe:
+                        print(f"[POOL] push from tick error: {_ppe}")
                     try:
                         from datetime import timedelta
                         # ВАЖНО: и API и datetime.now() — обе naive (без tz) → сравниваем "как есть"
@@ -3589,6 +3717,14 @@ async def main():
     WARMUP_CANDLES = ${cfg.warmupCandles ?? 2}
     import time as _time_warmup
     warmup_start = _time_warmup.time()
+    # ===== ПРОВЕРКА ОБЩЕГО ПУЛА СВЕЧЕЙ =====
+    # Если другой бот уже накопил свежие свечи (того же или меньшего таймфрейма) — берём их и СКИПАЕМ WARMUP.
+    _pool_candles_pre = _pool_get_candles((_resolved_asset or ASSET), max(60, EXPIRY_SEC), min_count=WARMUP_CANDLES if WARMUP_CANDLES > 0 else 2)
+    _pool_skip_warmup = False
+    if _pool_candles_pre and len(_pool_candles_pre) >= max(2, WARMUP_CANDLES):
+        print(f"[POOL] 🚀 НАЙДЕНЫ свечи в общем пуле: {len(_pool_candles_pre)} штук — пропускаю WARMUP!")
+        tg_info(f"🚀 <b>[{BOT_NAME}] Знания из пула</b>\\nНайдено {len(_pool_candles_pre)} свечей от другого бота — старт без разогрева!")
+        _pool_skip_warmup = True
     # Считаем по основному таймфрейму бота (EXPIRY_SEC), а не захардкоженно 60с
     _tf_sec = max(60, EXPIRY_SEC)
     _now_struct = _time_warmup.localtime(warmup_start)
@@ -3600,13 +3736,13 @@ async def main():
     _warmup_total = int(warmup_end - warmup_start)
     _tf_min = _tf_sec // 60
     print(f"[WARMUP] 🔥 Фаза разогрева: ждём закрытия {WARMUP_CANDLES} свежих {_tf_min}-минутных свечей ({_warmup_total} сек)")
-    if WARMUP_CANDLES > 0:
+    if WARMUP_CANDLES > 0 and not _pool_skip_warmup:
         tg_info(f"🔥 <b>[{BOT_NAME}] Разогрев</b>\\nЖду закрытия {WARMUP_CANDLES} свежих {_tf_min}-минутных свечей перед первой сделкой\\n⏱ Примерно {_warmup_total} сек")
     _candles_seen = 0
     _last_candle_bucket = None
-    _warmup_collected = []  # ← ЗАПОМИНАЕМ свечи которые САМИ увидели в warmup
+    _warmup_collected = list(_pool_candles_pre) if _pool_skip_warmup else []  # ← начинаем с того что есть в пуле
     _warmup_seen_buckets = set()  # чтобы не дублировать
-    if WARMUP_CANDLES > 0:
+    if WARMUP_CANDLES > 0 and not _pool_skip_warmup:
         while _time_warmup.time() < warmup_hard_timeout:
             _remaining = max(0, int(warmup_end - _time_warmup.time()))
             try:

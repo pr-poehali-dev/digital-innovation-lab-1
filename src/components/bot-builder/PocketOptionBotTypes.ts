@@ -2903,12 +2903,17 @@ class CandleBuffer:
             self.candles = candles[-LIVE_BUFFER_SIZE:]
             self.last_price = candles[-1][3]
             self.ready = True
-            print(f"[BUFFER] 🔥 Загружено {len(self.candles)} свечей в буфер | last={self.last_price}")
+            _used_asset = _resolved_asset or ASSET
+            _is_otc = '_otc' in _used_asset.lower()
+            _flag = '✅ OTC' if _is_otc else '⚠️ НЕ-OTC (выходной = свечи могут быть старые!)'
+            print(f"[BUFFER] 🔥 Загружено {len(self.candles)} свечей | актив={_used_asset} {_flag} | last={self.last_price}")
+            print(f"[ASSET_CHECK] Запрошено: {ASSET} | Использовано API: {_used_asset}")
 
     async def tick(self, client):
         """Опрашиваем текущую цену и обновляем буфер."""
         try:
-            raw = await client.get_candles(asset=ASSET, timeframe=EXPIRY_SEC, count=2)
+            _query_asset = _resolved_asset or ASSET
+            raw = await client.get_candles(asset=_query_asset, timeframe=EXPIRY_SEC, count=2)
             if not raw:
                 return
             now = __import__("time").time()

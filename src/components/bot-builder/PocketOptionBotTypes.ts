@@ -1183,10 +1183,12 @@ async def get_candles_data(client):
                 print(f"[CANDLES] всего={len(sorted_raw)} закрытых={len(closed_raw)} TF={EXPIRY_SEC}s")
                 _last7 = sorted_raw[-7:]
                 _is_ms = _last7[-1].time > 1e10
+                from datetime import timezone, timedelta
+                _tz_msk = timezone(timedelta(hours=3))
                 for _i, _c in enumerate(_last7):
                     _ts = _c.time / 1000 if _is_ms else _c.time
-                    _open_t = datetime.fromtimestamp(_ts).strftime('%H:%M:%S')
-                    _close_t = datetime.fromtimestamp(_ts + EXPIRY_SEC).strftime('%H:%M:%S')
+                    _open_t = datetime.fromtimestamp(_ts, tz=_tz_msk).strftime('%H:%M:%S')
+                    _close_t = datetime.fromtimestamp(_ts + EXPIRY_SEC, tz=_tz_msk).strftime('%H:%M:%S')
                     _em = '🟢' if _c.close >= _c.open else '🔴'
                     _mark = ' ← ТЕКУЩАЯ' if _i == len(_last7) - 1 else ''
                     print(f"[RAW_API] [{_i - len(_last7)}] {_em} {_open_t}→{_close_t} o={_c.open:.5f} c={_c.close:.5f}{_mark}")

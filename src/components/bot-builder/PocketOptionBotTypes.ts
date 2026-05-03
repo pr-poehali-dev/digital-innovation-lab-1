@@ -3077,6 +3077,48 @@ async def get_candles_data(client):
 LIVE_BUFFER_SIZE = 50
 LIVE_TICK_INTERVAL = 2  # секунд между опросами цены
 
+# ===== ЗАПИСЬ ВИДЕННЫХ СВЕЧЕЙ В ФАЙЛ СЕССИИ =====
+# Все свечи которые бот ВИДЕЛ ЛИЧНО (закрытые) пишутся в свечи/YYYY-MM-DD_HH-MM-SS.csv
+# Имя файла = дата+время старта бота. Один запуск = один файл.
+import os as _os_sess
+from datetime import datetime as _dt_sess
+_SESSION_DIR = _os_sess.path.join(_os_sess.path.dirname(_os_sess.path.abspath(__file__)) if "__file__" in dir() else ".", "свечи")
+_SESSION_START = _dt_sess.now().strftime("%Y-%m-%d_%H-%M-%S")
+_SESSION_FILE = _os_sess.path.join(_SESSION_DIR, f"{_SESSION_START}.csv")
+_SESSION_SEEN = set()  # хэши уже записанных свечей чтобы не дублировать
+
+def _session_init():
+    """Создаёт папку 'свечи/' и файл сессии с заголовком."""
+    try:
+        _os_sess.makedirs(_SESSION_DIR, exist_ok=True)
+        if not _os_sess.path.exists(_SESSION_FILE):
+            with open(_SESSION_FILE, "w", encoding="utf-8") as f:
+                f.write("timestamp_utc;asset;timeframe_sec;open;high;low;close;color;recorded_at\n")
+            print(f"[SESSION] 📝 Файл сессии создан: свечи/{_SESSION_START}.csv")
+    except Exception as _se:
+        print(f"[SESSION] init error: {_se}")
+
+def _session_save_candle(asset, tf_sec, candle_t, o, h, l, c):
+    """Записать ОДНУ закрытую свечу в файл сессии. candle_t = unix-ts начала свечи."""
+    try:
+        # дедупликация по (asset, tf, time)
+        _hash = f"{asset}_{int(tf_sec)}_{int(candle_t)}"
+        if _hash in _SESSION_SEEN:
+            return
+        _SESSION_SEEN.add(_hash)
+        _os_sess.makedirs(_SESSION_DIR, exist_ok=True)
+        _ts_str = _dt_sess.utcfromtimestamp(int(candle_t)).strftime("%Y-%m-%d %H:%M:%S")
+        _now_str = _dt_sess.now().strftime("%Y-%m-%d %H:%M:%S")
+        _color = "GREEN" if c >= o else "RED"
+        _line = f"{_ts_str};{asset};{int(tf_sec)};{o};{h};{l};{c};{_color};{_now_str}\n"
+        with open(_SESSION_FILE, "a", encoding="utf-8") as f:
+            f.write(_line)
+        print(f"[SESSION] 💾 Свеча записана: {_ts_str} UTC | {_color} | o={o} c={c} → свечи/{_SESSION_START}.csv")
+    except Exception as _se:
+        print(f"[SESSION] save error: {_se}")
+
+_session_init()
+
 # ===== ОБЩИЙ ПУЛ СВЕЧЕЙ МЕЖДУ БОТАМИ =====
 # Файл candle_pool.json рядом с ботом. Все боты пишут сюда закрытые свечи и
 # при старте читают, чтобы пропустить WARMUP если есть свежие данные.
@@ -3312,6 +3354,8 @@ class CandleBuffer:
                                 continue
                         if _t_pool:
                             _pool_push_candle((_resolved_asset or ASSET), EXPIRY_SEC, int(_t_pool), closed_tup[0], closed_tup[1], closed_tup[2], closed_tup[3])
+                            # ✅ ЗАПИСЬ В ФАЙЛ СЕССИИ — каждая свеча которую БОТ УВИДЕЛ ЛИЧНО
+                            _session_save_candle((_resolved_asset or ASSET), EXPIRY_SEC, int(_t_pool), closed_tup[0], closed_tup[1], closed_tup[2], closed_tup[3])
                     except Exception as _ppe:
                         print(f"[POOL] push from tick error: {_ppe}")
                     try:

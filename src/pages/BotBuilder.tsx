@@ -182,6 +182,77 @@ export default function BotBuilder() {
     URL.revokeObjectURL(url)
   }
 
+  const handleClearCacheDownload = () => {
+    // Универсальный Python-скрипт: удаляет candle_pool.json и __pycache__ рядом с ботом
+    const content = `#!/usr/bin/env python3
+"""
+🧹 Очистка кэша Pocket Option бота.
+Положи этот файл РЯДОМ с bot.py и запусти: python clear_cache.py
+Удалит:
+  - candle_pool.json (общий кэш свечей между ботами)
+  - __pycache__/ (скомпилированный Python-код)
+"""
+import os
+import shutil
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+removed = []
+errors = []
+
+# 1. candle_pool.json
+pool_file = os.path.join(HERE, "candle_pool.json")
+if os.path.exists(pool_file):
+    try:
+        os.remove(pool_file)
+        removed.append("candle_pool.json")
+    except Exception as e:
+        errors.append(f"candle_pool.json: {e}")
+
+# 2. __pycache__/
+pycache = os.path.join(HERE, "__pycache__")
+if os.path.isdir(pycache):
+    try:
+        shutil.rmtree(pycache)
+        removed.append("__pycache__/")
+    except Exception as e:
+        errors.append(f"__pycache__: {e}")
+
+# 3. Все .pyc рядом
+for f in os.listdir(HERE):
+    if f.endswith(".pyc"):
+        try:
+            os.remove(os.path.join(HERE, f))
+            removed.append(f)
+        except Exception as e:
+            errors.append(f"{f}: {e}")
+
+print("=" * 50)
+print("🧹 ОЧИСТКА КЭША POCKET OPTION БОТА")
+print("=" * 50)
+if removed:
+    print("✅ Удалено:")
+    for r in removed:
+        print(f"   • {r}")
+else:
+    print("ℹ️  Кэш уже чист — удалять нечего.")
+if errors:
+    print("\\n⚠️  Ошибки:")
+    for e in errors:
+        print(f"   • {e}")
+print("=" * 50)
+print("Готово! Теперь запускай бота заново.")
+input("Нажми Enter чтобы закрыть окно...")
+`
+    const blob = new Blob([content], { type: "text/x-python" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "clear_cache.py"
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const handleCryptoDownload = () => {
     const filename = `crypto_bot_${config.type}.py`
     const blob = new Blob([code], { type: "text/x-python" })
@@ -1011,6 +1082,16 @@ export default function BotBuilder() {
                           >
                             <Icon name="Download" size={12} className="mr-1" />
                             .env
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleClearCacheDownload}
+                            className="border-orange-500/40 text-orange-400 hover:bg-orange-500/10 font-space-mono text-xs"
+                            title="Скачать скрипт очистки кэша свечей и __pycache__"
+                          >
+                            <Icon name="Trash2" size={12} className="mr-1" />
+                            Очистить кэш
                           </Button>
                           <Button
                             variant="outline"

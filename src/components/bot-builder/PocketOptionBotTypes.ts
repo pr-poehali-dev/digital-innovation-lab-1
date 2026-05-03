@@ -1075,8 +1075,29 @@ def tg_poll_commands():
                         f"━━━━━━━━━━━━━━━━━━━━\\n"
                         f"⚙️ Текущая ставка: <b>{current_bet} {CURRENCY}</b>"
                     )
+            elif cmd == "/pool":
+                # Показываем содержимое общего пула свечей (общее знание между ботами)
+                try:
+                    _pdata = _pool_load()
+                    _now_p = __import__("time").time()
+                    if not _pdata:
+                        tg(f"📊 <b>Пул свечей пуст</b>\\n\\nЕщё ни один бот не успел сохранить свечи. После пары тиков здесь появятся данные.")
+                    else:
+                        _lines = ["📊 <b>Общий пул свечей</b>", "━━━━━━━━━━━━━━━━━━━━"]
+                        for _k in sorted(_pdata.keys()):
+                            _e = _pdata[_k] or {}
+                            _cs = _e.get("candles", [])
+                            _age = int(_now_p - _e.get("updated_at", 0))
+                            _fresh = "🟢" if _age < _POOL_FRESH_SEC else "🔴"
+                            _last_close = _cs[-1].get("c") if _cs else "—"
+                            _lines.append(f"{_fresh} <code>{_k}</code> | <b>{len(_cs)}</b> свечей | возраст {_age}с | last={_last_close}")
+                        _lines.append("━━━━━━━━━━━━━━━━━━━━")
+                        _lines.append(f"🟢 свежие (&lt;{_POOL_FRESH_SEC}с)  🔴 устаревшие")
+                        tg("\\n".join(_lines))
+                except Exception as _pe:
+                    tg(f"❌ <b>Ошибка чтения пула:</b> {_pe}")
             elif cmd == "/help":
-                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статус (профит, WR, цена, синхронизация, состояние API)\\n/summary {BOT_NAME} — полный отчёт за сессию\\n/settp {BOT_NAME} 50 — Take Profit\\n/setsl {BOT_NAME} 20 — Stop Loss\\n/setbet {BOT_NAME} 10 — базовая ставка\\n\\n<i>Вместо имени можно писать all — команда применится ко всем ботам</i>")
+                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статус (профит, WR, цена, синхронизация, состояние API)\\n/summary {BOT_NAME} — полный отчёт за сессию\\n/pool — общий пул свечей между ботами\\n/settp {BOT_NAME} 50 — Take Profit\\n/setsl {BOT_NAME} 20 — Stop Loss\\n/setbet {BOT_NAME} 10 — базовая ставка\\n\\n<i>Вместо имени можно писать all — команда применится ко всем ботам</i>")
     except Exception:
         pass
 
@@ -2851,8 +2872,29 @@ def tg_poll_commands():
                         f"━━━━━━━━━━━━━━━━━━━━\\n"
                         f"⚙️ Текущая ставка: <b>{current_bet} {CURRENCY}</b>"
                     )
+            elif cmd == "/pool":
+                # Показываем содержимое общего пула свечей (общее знание между ботами)
+                try:
+                    _pdata = _pool_load()
+                    _now_p = __import__("time").time()
+                    if not _pdata:
+                        tg(f"📊 <b>Пул свечей пуст</b>\\n\\nЕщё ни один бот не успел сохранить свечи. После пары тиков здесь появятся данные.")
+                    else:
+                        _lines = ["📊 <b>Общий пул свечей</b>", "━━━━━━━━━━━━━━━━━━━━"]
+                        for _k in sorted(_pdata.keys()):
+                            _e = _pdata[_k] or {}
+                            _cs = _e.get("candles", [])
+                            _age = int(_now_p - _e.get("updated_at", 0))
+                            _fresh = "🟢" if _age < _POOL_FRESH_SEC else "🔴"
+                            _last_close = _cs[-1].get("c") if _cs else "—"
+                            _lines.append(f"{_fresh} <code>{_k}</code> | <b>{len(_cs)}</b> свечей | возраст {_age}с | last={_last_close}")
+                        _lines.append("━━━━━━━━━━━━━━━━━━━━")
+                        _lines.append(f"🟢 свежие (&lt;{_POOL_FRESH_SEC}с)  🔴 устаревшие")
+                        tg("\\n".join(_lines))
+                except Exception as _pe:
+                    tg(f"❌ <b>Ошибка чтения пула:</b> {_pe}")
             elif cmd == "/help":
-                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статус (профит, WR, цена, синхронизация, состояние API)\\n/summary {BOT_NAME} — полный отчёт за сессию\\n/settp {BOT_NAME} 50 — Take Profit\\n/setsl {BOT_NAME} 20 — Stop Loss\\n/setbet {BOT_NAME} 10 — базовая ставка\\n\\n<i>Вместо имени можно писать all — команда применится ко всем ботам</i>")
+                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статус (профит, WR, цена, синхронизация, состояние API)\\n/summary {BOT_NAME} — полный отчёт за сессию\\n/pool — общий пул свечей между ботами\\n/settp {BOT_NAME} 50 — Take Profit\\n/setsl {BOT_NAME} 20 — Stop Loss\\n/setbet {BOT_NAME} 10 — базовая ставка\\n\\n<i>Вместо имени можно писать all — команда применится ко всем ботам</i>")
     except Exception:
         pass
 

@@ -3208,7 +3208,7 @@ class CandleBuffer:
                         print(f"[POOL] push from tick error: {_ppe}")
                     try:
                         from datetime import timedelta
-                        # ВАЖНО: и API и datetime.now() — обе naive (без tz) → сравниваем "как есть"
+                        # ВАЖНО: работаем в UTC чтобы не зависеть от часового пояса юзера (Красноярск, Москва — без разницы)
                         _candle_dt = None
                         for _tk in ('time', 't', 'timestamp', 'open_time'):
                             _v = getattr(closed, _tk, None)
@@ -3222,7 +3222,7 @@ class CandleBuffer:
                             try:
                                 _num = float(_v)
                                 _raw_ts = _num / 1000 if _num > 1e10 else _num
-                                _candle_dt = datetime.fromtimestamp(_raw_ts)
+                                _candle_dt = datetime.utcfromtimestamp(_raw_ts)
                                 break
                             except (TypeError, ValueError):
                                 continue
@@ -3230,7 +3230,7 @@ class CandleBuffer:
                             _close_dt = _candle_dt + timedelta(seconds=EXPIRY_SEC)
                             _open_t = _candle_dt.strftime('%H:%M:%S')
                             _close_t = _close_dt.strftime('%H:%M:%S')
-                            _now_dt = datetime.now()
+                            _now_dt = datetime.utcnow()
                             _now_str = _now_dt.strftime('%H:%M:%S')
                             _raw_diff = (_now_dt - _close_dt).total_seconds()
                             # АВТО-КАЛИБРОВКА: при первой свече запоминаем разницу часов
@@ -3247,7 +3247,7 @@ class CandleBuffer:
                             self.last_candle_close_dt = _close_dt
                             _em = '🟢' if closed.close >= closed.open else '🔴'
                             _gap_str = f" | gap_prev={_gap_from_prev:.0f}с" if _gap_from_prev is not None else ""
-                            print(f"[RAW_API] 🆕 НОВАЯ ЗАКРЫТАЯ {_em} {_open_t}→{_close_t} (server) | сейчас={_now_str} | shift={self.time_shift:.0f}с | задержка={_diff:.0f}с{_gap_str} | o={closed.open:.5f} c={closed.close:.5f}")
+                            print(f"[RAW_API] 🆕 НОВАЯ ЗАКРЫТАЯ {_em} {_open_t}→{_close_t} UTC | сейчас={_now_str} UTC | shift={self.time_shift:.0f}с | задержка={_diff:.0f}с{_gap_str} | o={closed.open:.5f} c={closed.close:.5f}")
                             # Свеча "устарела" только если корректированная задержка > 2× таймфрейма
                             # ИЛИ если gap между свечами слишком большой (поток встал)
                             _stale = _diff > EXPIRY_SEC * 2

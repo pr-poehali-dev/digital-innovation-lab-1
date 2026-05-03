@@ -3165,29 +3165,44 @@ async def place_trade(client, direction, amount):
 
 async def check_result(client, order_id, balance_before, bet, wait_sec=None):
     _wait = wait_sec if wait_sec is not None else EXPIRY_SEC
-    print(f"[WAIT] Ожидаем результат {round(_wait/60, 1)} мин...")
-    await asyncio.sleep(_wait + 5)
     _payout = globals().get("PAYOUT", 0.92)
+    # УМНЫЙ ПОЛЛИНГ: спим до экспирации - 3с, потом часто спрашиваем "сделка закрыта?"
+    _sleep_before_poll = max(0, _wait - 3)
+    print(f"[WAIT] Ожидаем результат ~{round(_wait/60, 1)} мин (ранний поллинг за 3с до экспирации)...")
+    if _sleep_before_poll > 0:
+        await asyncio.sleep(_sleep_before_poll)
+    # Поллинг: до 30 секунд после расчётной экспирации, по 1 разу в секунду
+    _poll_started = __import__("time").time()
+    _poll_max = 30 + 5  # 35с запас на закрытие сделки в API
     try:
-        for attempt in range(30):
+        _attempt = 0
+        while __import__("time").time() - _poll_started < _poll_max:
+            _attempt += 1
             try:
                 deal = await client.get_deal(order_id)
                 if deal is None:
-                    await asyncio.sleep(3)
+                    await asyncio.sleep(1)
                     continue
                 profit_raw = getattr(deal, 'profit', None) or getattr(deal, 'win', None) or getattr(deal, 'result', None)
                 if profit_raw is None and hasattr(deal, '__dict__'):
                     profit_raw = deal.__dict__.get('profit') or deal.__dict__.get('win') or deal.__dict__.get('result')
                 if profit_raw is None:
-                    await asyncio.sleep(3)
+                    await asyncio.sleep(1)
+                    continue
+                # Проверяем что сделка реально закрыта (некоторые API возвращают profit=0 пока сделка ACTIVE)
+                _status = getattr(deal, 'status', None) or (deal.__dict__.get('status') if hasattr(deal, '__dict__') else None)
+                _status_str = str(_status).lower() if _status is not None else ''
+                if 'active' in _status_str or 'open' in _status_str or 'pending' in _status_str:
+                    await asyncio.sleep(1)
                     continue
                 profit_val = float(profit_raw)
                 won = profit_val > 0
                 profit = round(bet * _payout, 2) if won else round(-bet, 2)
-                print(f"[RESULT] {'ВЫИГРЫШ ✅' if won else 'ПРОИГРЫШ ❌'} | Профит: {profit}")
+                _elapsed = __import__("time").time() - _poll_started
+                print(f"[RESULT] {'ВЫИГРЫШ ✅' if won else 'ПРОИГРЫШ ❌'} | Профит: {profit} | Получено за {_elapsed:.1f}с поллинга (попытка #{_attempt})")
                 return won, profit
             except Exception as e_inner:
-                await asyncio.sleep(3)
+                await asyncio.sleep(1)
                 continue
         print(f"[WARN] get_deal таймаут — fallback по балансу")
         balance_after, _ = await get_balance(client)

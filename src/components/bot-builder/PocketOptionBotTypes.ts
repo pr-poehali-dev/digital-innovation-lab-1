@@ -3575,6 +3575,8 @@ async def main():
         tg_info(f"🔥 <b>[{BOT_NAME}] Разогрев</b>\\nЖду закрытия {WARMUP_CANDLES} свежих {_tf_min}-минутных свечей перед первой сделкой\\n⏱ Примерно {_warmup_total} сек")
     _candles_seen = 0
     _last_candle_bucket = None
+    _warmup_collected = []  # ← ЗАПОМИНАЕМ свечи которые САМИ увидели в warmup
+    _warmup_seen_buckets = set()  # чтобы не дублировать
     if WARMUP_CANDLES > 0:
         while _time_warmup.time() < warmup_hard_timeout:
             _remaining = max(0, int(warmup_end - _time_warmup.time()))
@@ -3595,12 +3597,36 @@ async def main():
                         _cur_bucket = int(_t_attr // _tf_sec)
                     else:
                         _cur_bucket = int(_time_warmup.time() // _tf_sec)
+                    # ЗАПОМИНАЕМ ВСЕ закрытые свечи которые видим (последние 2 = закрытые, [-1] = текущая)
+                    for _idx in range(max(0, len(_wc) - 1)):
+                        _c = _wc[_idx]
+                        _ct = None
+                        for _tk in ('time', 't', 'timestamp', 'open_time'):
+                            if hasattr(_c, _tk):
+                                try: _ct = float(getattr(_c, _tk)); break
+                                except: pass
+                        if _ct is None:
+                            continue
+                        _cb = int(_ct // _tf_sec)
+                        if _cb in _warmup_seen_buckets:
+                            continue
+                        _warmup_seen_buckets.add(_cb)
+                        try:
+                            _warmup_collected.append((float(_c.open), float(_c.high), float(_c.low), float(_c.close)))
+                        except Exception:
+                            pass
                     if _last_candle_bucket is None:
                         _last_candle_bucket = _cur_bucket
                     elif _cur_bucket > _last_candle_bucket:
                         _candles_seen += 1
                         _last_candle_bucket = _cur_bucket
-                        print(f"[WARMUP] ✅ Закрылась свеча #{_candles_seen} | Осталось: {max(0, WARMUP_CANDLES - _candles_seen)} свечей")
+                        # последняя только что закрывшаяся свеча
+                        if len(_wc) >= 2:
+                            _just_closed = _wc[-2]
+                            _em = '🟢' if _just_closed.close >= _just_closed.open else '🔴'
+                            print(f"[WARMUP] ✅ Закрылась свеча #{_candles_seen} {_em} o={_just_closed.open:.5f} c={_just_closed.close:.5f} | Осталось: {max(0, WARMUP_CANDLES - _candles_seen)}")
+                        else:
+                            print(f"[WARMUP] ✅ Закрылась свеча #{_candles_seen} | Осталось: {max(0, WARMUP_CANDLES - _candles_seen)}")
             except Exception as _we:
                 print(f"[WARMUP] Ошибка получения свечей: {_we}")
             if _candles_seen >= WARMUP_CANDLES and _time_warmup.time() >= warmup_end:
@@ -3610,13 +3636,21 @@ async def main():
                 break
             print(f"[WARMUP] ⏳ Жду закрытия свечей... ({_candles_seen}/{WARMUP_CANDLES} готово, до конца разогрева {_remaining}с)")
             await asyncio.sleep(5)
-    print(f"[WARMUP] ✅ Разогрев завершён! Бот готов к торговле.")
+    print(f"[WARMUP] ✅ Разогрев завершён! Запомнил свечей: {len(_warmup_collected)}")
     if WARMUP_CANDLES > 0:
-        tg_info(f"✅ <b>[{BOT_NAME}] Готов к торговле</b>\\nРазогрев завершён, начинаю мониторинг сигналов")
+        tg_info(f"✅ <b>[{BOT_NAME}] Готов к торговле</b>\\nРазогрев завершён, запомнил {len(_warmup_collected)} свечей. Сразу торгуем!")
 
     # ===== ЗАПУСК ЖИВОГО БУФЕРА СВЕЧЕЙ =====
+    # ВАЖНО: НЕ дёргаем кривой get_candles_data — кладём в буфер свечи которые САМИ увидели в warmup!
     _live_buf = CandleBuffer()
-    await _live_buf.warmup(client)
+    if _warmup_collected:
+        _live_buf.candles = _warmup_collected[-LIVE_BUFFER_SIZE:]
+        _live_buf.last_price = _warmup_collected[-1][3]
+        _live_buf.ready = True
+        print(f"[BUFFER] 🔥 Загружено {len(_live_buf.candles)} свечей ИЗ WARMUP (живые данные!) | last={_live_buf.last_price}")
+    else:
+        # Fallback: если warmup ничего не увидел — старый путь через API
+        await _live_buf.warmup(client)
     _buf_task = asyncio.create_task(buffer_updater(_live_buf, client))
     print(f"[BUFFER] 🚀 Живой буфер запущен (опрос каждые {LIVE_TICK_INTERVAL}с, размер {LIVE_BUFFER_SIZE} свечей)")
     tg_info(f"🚀 <b>[{BOT_NAME}] Живой буфер</b>\\nОпрос цены каждые {LIVE_TICK_INTERVAL}с | буфер {LIVE_BUFFER_SIZE} свечей\\nРешения принимаются мгновенно")

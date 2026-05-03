@@ -2920,6 +2920,33 @@ class CandleBuffer:
                     self.candles.append(closed_tup)
                     if len(self.candles) > LIVE_BUFFER_SIZE:
                         self.candles = self.candles[-LIVE_BUFFER_SIZE:]
+                    try:
+                        from datetime import timezone, timedelta
+                        _tz_msk = timezone(timedelta(hours=3))
+                        _is_ms = False
+                        _ct_attr = None
+                        for _tk in ('time', 't', 'timestamp', 'open_time'):
+                            _v = getattr(closed, _tk, None)
+                            if _v is None and isinstance(closed, dict):
+                                _v = closed.get(_tk)
+                            if _v is not None:
+                                _ct_attr = float(_v); break
+                        if _ct_attr:
+                            _is_ms = _ct_attr > 1e10
+                            _ts = _ct_attr / 1000 if _is_ms else _ct_attr
+                            _open_t = datetime.fromtimestamp(_ts, tz=_tz_msk).strftime('%H:%M:%S')
+                            _close_t = datetime.fromtimestamp(_ts + EXPIRY_SEC, tz=_tz_msk).strftime('%H:%M:%S')
+                            _now_msk = datetime.now(tz=_tz_msk).strftime('%H:%M:%S')
+                            _diff = datetime.now(tz=_tz_msk).timestamp() - (_ts + EXPIRY_SEC)
+                            _em = '🟢' if closed.close >= closed.open else '🔴'
+                            print(f"[RAW_API] 🆕 НОВАЯ ЗАКРЫТАЯ {_em} {_open_t}→{_close_t} (МСК) | сейчас={_now_msk} | задержка={_diff:.0f}с | o={closed.open:.5f} c={closed.close:.5f}")
+                            if _diff > EXPIRY_SEC:
+                                print(f"[SYNC_WARN] ⚠️ РАССИНХРОН! Свеча закрылась {_diff:.0f}с назад (>{EXPIRY_SEC}с) — устарела!")
+                        else:
+                            _em = '🟢' if closed.close >= closed.open else '🔴'
+                            print(f"[RAW_API] 🆕 НОВАЯ ЗАКРЫТАЯ {_em} (нет timestamp) | o={closed.open:.5f} c={closed.close:.5f}")
+                    except Exception as _le:
+                        print(f"[RAW_API_ERR] {_le}")
             # Обновляем "живую" свечу
             self.live = (float(current.open), float(current.high), float(current.low), cur_close)
         except Exception as e:

@@ -1192,6 +1192,15 @@ async def get_candles_data(client):
                     _em = '🟢' if _c.close >= _c.open else '🔴'
                     _mark = ' ← ТЕКУЩАЯ' if _i == len(_last7) - 1 else ''
                     print(f"[RAW_API] [{_i - len(_last7)}] {_em} {_open_t}→{_close_t} o={_c.open:.5f} c={_c.close:.5f}{_mark}")
+                _last_closed = sorted_raw[-2] if len(sorted_raw) >= 2 else sorted_raw[-1]
+                _lc_ts = _last_closed.time / 1000 if _is_ms else _last_closed.time
+                _lc_close_ts = _lc_ts + EXPIRY_SEC
+                _now_ts = datetime.now(tz=_tz_msk).timestamp()
+                _diff = _now_ts - _lc_close_ts
+                if _diff > EXPIRY_SEC:
+                    print(f"[SYNC_WARN] ⚠️ РАССИНХРОН! Последняя закрытая закрылась {_diff:.0f}с назад (>{EXPIRY_SEC}с) — данные устарели!")
+                else:
+                    print(f"[SYNC_OK] ✅ Последняя закрытая: {_diff:.0f}с назад (норма ≤{EXPIRY_SEC}с)")
             else:
                 sorted_raw = list(raw)
                 closed_raw = sorted_raw[:-1]

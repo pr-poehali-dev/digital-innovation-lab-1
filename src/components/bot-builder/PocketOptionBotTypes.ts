@@ -4016,33 +4016,12 @@ async def main():
                     print(f"[ENTRY_PRICE] Fallback ошибка: {_ep_err}")
             print(f"[ENTRY_PRICE] entry_price={entry_price}")
             if order_id:
-                print(f"[ENTRY_PRICE] Пауза 60с для точного определения цены...")
-                await asyncio.sleep(60)
-                try:
-                    _upd2 = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=60, count=3)
-                    if _upd2:
-                        def _gt2(c):
-                            for _t in ('time', 't', 'timestamp', 'open_time'):
-                                if hasattr(c, _t):
-                                    try: return float(getattr(c, _t))
-                                    except: pass
-                                if isinstance(c, dict) and c.get(_t):
-                                    try: return float(c[_t])
-                                    except: pass
-                            return 0
-                        def _gc2(c):
-                            if hasattr(c, 'close'): return float(c.close)
-                            if isinstance(c, dict): return float(c.get('close', c.get('c', 0)))
-                            if hasattr(c, '__getitem__'): return float(c[3] if len(c) > 3 else c[1])
-                            return 0
-                        _su2 = sorted(_upd2, key=_gt2)
-                        _ucand2 = _su2[-1] if _gt2(_su2[-1]) > 0 else _upd2[-1]
-                        _np2 = _gc2(_ucand2)
-                        if _np2 > 0:
-                            entry_price = _np2
-                    print(f"[ENTRY_PRICE] Точная цена входа после 60с: {entry_price}")
-                except Exception as _ue2:
-                    print(f"[ENTRY_PRICE] Обновление не удалось: {_ue2}")
+                # Мгновенно берём актуальную цену из живого буфера — никаких 60с ожиданий!
+                if _live_buf and _live_buf.last_price > 0:
+                    entry_price = float(_live_buf.last_price)
+                    print(f"[ENTRY_PRICE] ⚡ Цена входа из живого буфера: {entry_price:.5f}")
+                else:
+                    print(f"[ENTRY_PRICE] Используем цену из place_trade: {entry_price}")
                 hedge_task = asyncio.create_task(
                     hedge_monitor(client, signal, bet, entry_price, EXPIRY_SEC)
                 ) if entry_price > 0 else None

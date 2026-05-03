@@ -3107,6 +3107,52 @@ def _pool_save(data):
     except Exception as _pe:
         print(f"[POOL] save error: {_pe}")
 
+_POOL_AUTO_CLEAN_SEC = 300   # авто-очистка: записи старше 5 минут удаляются при старте
+
+def _pool_auto_cleanup():
+    """Авто-очистка устаревшего пула при старте бота. Удаляет/файл/записи старше _POOL_AUTO_CLEAN_SEC."""
+    try:
+        if not _os_pool.path.exists(_POOL_FILE):
+            return
+        data = _pool_load()
+        if not data:
+            return
+        now = __import__("time").time()
+        stale_keys = []
+        fresh_keys = []
+        for k, v in list(data.items()):
+            age = now - (v or {}).get("updated_at", 0)
+            if age >= _POOL_AUTO_CLEAN_SEC:
+                stale_keys.append((k, int(age)))
+                del data[k]
+            else:
+                fresh_keys.append((k, int(age)))
+        if stale_keys:
+            if data:
+                _pool_save(data)
+                print(f"[POOL_CLEAN] 🧹 Удалены устаревшие записи (>{_POOL_AUTO_CLEAN_SEC}с):")
+                for k, a in stale_keys:
+                    print(f"[POOL_CLEAN]    ❌ {k} — возраст {a}с")
+            else:
+                # Все записи устарели — удаляем файл целиком
+                try:
+                    _os_pool.remove(_POOL_FILE)
+                    print(f"[POOL_CLEAN] 🧹 Весь пул устарел — файл candle_pool.json удалён ({len(stale_keys)} записей)")
+                except Exception as _re:
+                    print(f"[POOL_CLEAN] remove error: {_re}")
+            if fresh_keys:
+                print(f"[POOL_CLEAN] ✅ Сохранены свежие записи:")
+                for k, a in fresh_keys:
+                    print(f"[POOL_CLEAN]    🟢 {k} — возраст {a}с")
+        else:
+            if fresh_keys:
+                print(f"[POOL_CLEAN] ✅ Пул в порядке: {len(fresh_keys)} свежих записей, очистка не требуется")
+    except Exception as _ce:
+        print(f"[POOL_CLEAN] error: {_ce}")
+
+# Вызываем авто-очистку СРАЗУ при импорте модуля бота (до warmup)
+_pool_auto_cleanup()
+
 def _pool_key(asset, tf_sec):
     return f"{asset}_{int(tf_sec)}"
 

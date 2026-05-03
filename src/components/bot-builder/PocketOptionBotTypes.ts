@@ -3350,6 +3350,19 @@ class CandleBuffer:
             # Закрываем предыдущую свечу + ДОБАВЛЯЕМ ВРЕМЯ ОТКРЫТИЯ (5-й элемент)
             # 5-tuple (o, h, l, c, bucket_ts) — анализатор get_trend умеет читать c[4]
             closed_tup = (self.live[0], self.live[1], self.live[2], self.live[3], int(self.live_bucket))
+            # ✅ ЗАЩИТА ОТ ПЛОСКОЙ СВЕЧИ: если o=h=l=c — мы стартанули в конце окна
+            # и собрали 1 тик. Такая свеча — мусор, не считаем её "закрытой".
+            _is_flat = (closed_tup[0] == closed_tup[1] == closed_tup[2] == closed_tup[3])
+            if _is_flat:
+                _open_t_skip = datetime.utcfromtimestamp(self.live_bucket).strftime('%H:%M:%S')
+                print(f"[CANDLE_BUILD] 🚫 ПРОПУЩЕНА ПЛОСКАЯ СВЕЧА {_open_t_skip} UTC | o=h=l=c={closed_tup[0]:.5f} (мало тиков, бот стартанул в конце окна)")
+                # Открываем новую свечу с актуальной цены, не сохраняя плоскую
+                self.live_bucket = bucket
+                self.live = (cur_price, cur_price, cur_price, cur_price)
+                self.last_price = cur_price
+                self.last_update = now
+                self.sync_warn = False
+                return
             self.candles.append(closed_tup)
             if len(self.candles) > LIVE_BUFFER_SIZE:
                 self.candles = self.candles[-LIVE_BUFFER_SIZE:]
@@ -4255,8 +4268,16 @@ async def main():
                     print(f"{'='*55}")
                     await asyncio.sleep(2)
                     continue
-                signal = trend_sig
-            print(f"[ИТОГ] ✅ ТОРГУЕМ — {signal}")
+                # ✅ ИСПРАВЛЕНО: проверяем КОНФЛИКТ сигнала и тренда.
+                # Раньше signal слепо переписывался на trend_sig — поэтому в логе
+                # был "Сигнал: PUT" а торговался "CALL". Теперь конфликтные сигналы пропускаются.
+                if signal != trend_sig:
+                    print(f"[ИТОГ] ❌ ПРОПУСК — сигнал {signal} КОНФЛИКТУЕТ с трендом {trend_sig} ({labels.get(trend, trend or '?')})")
+                    print(f"[ИТОГ]    Стратегия говорит: {signal} | Тренд показывает: {trend_sig} | Не торгую против тренда")
+                    print(f"{'='*55}")
+                    await asyncio.sleep(2)
+                    continue
+            print(f"[ИТОГ] ✅ ТОРГУЕМ — {signal} | тренд и сигнал совпадают")
         else:
             print(f"[ИТОГ] ⏸ ОЖИДАНИЕ — нет сигнала")
         print(f"{'='*55}")

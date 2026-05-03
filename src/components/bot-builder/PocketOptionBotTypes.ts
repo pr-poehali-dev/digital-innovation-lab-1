@@ -1179,15 +1179,8 @@ async def get_candles_data(client):
                 print(f"[INFO] Актив найден как: {name}")
             if hasattr(raw[0], 'time'):
                 sorted_raw = sorted(raw, key=lambda c: c.time)
-                now_ts = datetime.now().timestamp()
-                sample_time = sorted_raw[-1].time
-                if sample_time > 1e10:
-                    closed_raw = [c for c in sorted_raw if c.time / 1000 + EXPIRY_SEC + 3 <= now_ts]
-                else:
-                    closed_raw = [c for c in sorted_raw if c.time + EXPIRY_SEC + 3 <= now_ts]
-                if not closed_raw:
-                    closed_raw = sorted_raw[:-1]
-                print(f"[TIME_DEBUG] now={now_ts:.0f} last_candle_time={sorted_raw[-1].time} ms={sample_time > 1e10} expiry={EXPIRY_SEC} closed={len(closed_raw)}/{len(sorted_raw)}")
+                closed_raw = sorted_raw[:-1]
+                print(f"[CANDLES] всего={len(sorted_raw)} закрытых={len(closed_raw)} текущая=последняя в массиве")
             else:
                 sorted_raw = list(raw)
                 closed_raw = sorted_raw[:-1]

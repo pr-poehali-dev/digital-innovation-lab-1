@@ -1062,7 +1062,7 @@ def tg_poll_commands():
                         f"⚙️ Текущая ставка: <b>{current_bet} {CURRENCY}</b>"
                     )
             elif cmd == "/help":
-                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — краткий статус\\n/summary {BOT_NAME} — полный отчёт за сессию\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
+                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статус (профит, WR, цена, синхронизация, состояние API)\\n/summary {BOT_NAME} — полный отчёт за сессию\\n/settp {BOT_NAME} 50 — Take Profit\\n/setsl {BOT_NAME} 20 — Stop Loss\\n/setbet {BOT_NAME} 10 — базовая ставка\\n\\n<i>Вместо имени можно писать all — команда применится ко всем ботам</i>")
     except Exception:
         pass
 
@@ -1346,7 +1346,7 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
     Complex: прошло > 50% времени И пипсов >= порога → Power немедленно
     """
     if not ${cfg.hedgeEnabled ? "True" : "False"}:
-        return None, 0.0
+        return None, 0.0, 0, 0.0
     _pip_map = {
         # Forex мажоры
         "EURUSD": 8, "GBPUSD": 10, "USDJPY": 150, "USDCHF": 9, "USDCAD": 9, "AUDUSD": 9, "NZDUSD": 9,
@@ -2199,8 +2199,11 @@ async def main():
                     hedge_res = gather_results[1]
                     ext_res   = gather_results[2]
                     won, profit, loss_amount = main_res if not isinstance(main_res, Exception) else (False, 0.0, bet)
-                    if hedge_task and not isinstance(hedge_res, Exception) and isinstance(hedge_res, tuple):
-                        hedge_order_id, hedge_bet, hedge_remaining = hedge_res
+                    if hedge_task and not isinstance(hedge_res, Exception) and isinstance(hedge_res, tuple) and len(hedge_res) >= 3:
+                        # Безопасная распаковка: берём первые 3 значения, остальные игнорим
+                        hedge_order_id = hedge_res[0]
+                        hedge_bet = hedge_res[1]
+                        hedge_remaining = hedge_res[2] if len(hedge_res) > 2 else 0
                         if hedge_order_id:
                             hedge_count += 1
                             h_won, h_profit, h_loss = await check_result(client, hedge_order_id, balance_before, hedge_bet, wait_sec=hedge_remaining)
@@ -2821,7 +2824,7 @@ def tg_poll_commands():
                         f"⚙️ Текущая ставка: <b>{current_bet} {CURRENCY}</b>"
                     )
             elif cmd == "/help":
-                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — краткий статус\\n/summary {BOT_NAME} — полный отчёт за сессию\\n/settp {BOT_NAME} 50\\n/setsl {BOT_NAME} 20\\n/setbet {BOT_NAME} 10\\n\\n<i>Вместо имени можно писать all</i>")
+                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статус (профит, WR, цена, синхронизация, состояние API)\\n/summary {BOT_NAME} — полный отчёт за сессию\\n/settp {BOT_NAME} 50 — Take Profit\\n/setsl {BOT_NAME} 20 — Stop Loss\\n/setbet {BOT_NAME} 10 — базовая ставка\\n\\n<i>Вместо имени можно писать all — команда применится ко всем ботам</i>")
     except Exception:
         pass
 
@@ -3180,7 +3183,7 @@ async def get_balance(client):
 async def hedge_monitor(client, original_direction, original_bet, entry_price, expiry_sec):
     """Хеджирование при уходе цены против позиции."""
     if not ${cfg.hedgeEnabled ? "True" : "False"}:
-        return None, 0.0
+        return None, 0.0, 0, 0.0
     _pip_map = {
         "EURUSD": 8, "GBPUSD": 10, "USDJPY": 150, "USDCHF": 9, "USDCAD": 9, "AUDUSD": 9, "NZDUSD": 9,
         "EURUSD_otc": 8, "GBPUSD_otc": 10, "USDJPY_otc": 150, "USDCHF_otc": 9, "USDCAD_otc": 9, "AUDUSD_otc": 9, "NZDUSD_otc": 9,

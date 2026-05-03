@@ -970,6 +970,19 @@ def tg_poll_commands():
                     _sync_warn = getattr(_buf_g, 'sync_warn', False)
                     _sync_line = "\\n⚠️ Поток API завис" if _sync_warn else "\\n✅ Поток свечей живой"
                 _cur_bet_g = globals().get('current_bet', BASE_BET)
+                # Мини-график последних 15 сделок + текущая серия
+                _chart_line = ''
+                if trade_log:
+                    _last15 = trade_log[-15:]
+                    _chart = ''.join('✅' if t['won'] else '❌' for t in _last15)
+                    _streak_g = globals().get('cur_streak', 0)
+                    if _streak_g > 0:
+                        _streak_emoji = f"🔥 серия побед: {_streak_g}"
+                    elif _streak_g < 0:
+                        _streak_emoji = f"❄️ серия проигрышей: {abs(_streak_g)}"
+                    else:
+                        _streak_emoji = "—"
+                    _chart_line = f"\\n📊 Последние: {_chart}\\n{_streak_emoji}"
                 tg(
                     f"📊 <b>Статус [{BOT_NAME}]</b>\\n"
                     f"💰 Профит: {total_profit:+.2f} {CURRENCY}\\n"
@@ -977,6 +990,7 @@ def tg_poll_commands():
                     f"⚙️ Ставка: {_cur_bet_g} {CURRENCY} | Актив: {ASSET}\\n"
                     f"{_state}"
                     f"{_sync_line}{_ts_line}{_last_price_line}"
+                    f"{_chart_line}"
                 )
             elif cmd == "/settp" and for_me:
                 try:
@@ -2732,6 +2746,19 @@ def tg_poll_commands():
                     _sync_warn = getattr(_buf_g, 'sync_warn', False)
                     _sync_line = "\\n⚠️ Поток API завис" if _sync_warn else "\\n✅ Поток свечей живой"
                 _cur_bet_g = globals().get('current_bet', BASE_BET)
+                # Мини-график последних 15 сделок + текущая серия
+                _chart_line = ''
+                if trade_log:
+                    _last15 = trade_log[-15:]
+                    _chart = ''.join('✅' if t['won'] else '❌' for t in _last15)
+                    _streak_g = globals().get('cur_streak', 0)
+                    if _streak_g > 0:
+                        _streak_emoji = f"🔥 серия побед: {_streak_g}"
+                    elif _streak_g < 0:
+                        _streak_emoji = f"❄️ серия проигрышей: {abs(_streak_g)}"
+                    else:
+                        _streak_emoji = "—"
+                    _chart_line = f"\\n📊 Последние: {_chart}\\n{_streak_emoji}"
                 tg(
                     f"📊 <b>Статус [{BOT_NAME}]</b>\\n"
                     f"💰 Профит: {total_profit:+.2f} {CURRENCY}\\n"
@@ -2739,6 +2766,7 @@ def tg_poll_commands():
                     f"⚙️ Ставка: {_cur_bet_g} {CURRENCY} | Актив: {ASSET}\\n"
                     f"{_state}"
                     f"{_sync_line}{_ts_line}{_last_price_line}"
+                    f"{_chart_line}"
                 )
             elif cmd == "/settp" and for_me:
                 try:

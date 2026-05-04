@@ -896,21 +896,38 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
         payload_data["message_id"] = message_id
     payload = json.dumps(payload_data).encode()
     req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+    _t0 = time.time()
+    _has_markup = reply_markup is not None
+    _text_len = len(text) if text else 0
     for attempt in range(1, retries + 1):
         try:
             resp = urllib.request.urlopen(req, timeout=20)
-            if _result_holder is not None:
-                try:
-                    _r = json.loads(resp.read().decode())
-                    _result_holder.append(_r)
-                except Exception:
-                    pass
+            _resp_data = None
+            try:
+                _resp_data = json.loads(resp.read().decode())
+            except Exception:
+                pass
+            if _result_holder is not None and _resp_data is not None:
+                _result_holder.append(_resp_data)
+            _elapsed = int((time.time() - _t0) * 1000)
+            if _resp_data is not None:
+                _ok = _resp_data.get("ok", False)
+                _out_id = _resp_data.get("message_id", "—")
+                if _ok:
+                    print(f"[TG_API] ✅ action={action} msg_id={message_id or '—'}→{_out_id} text_len={_text_len} markup={_has_markup} elapsed={_elapsed}ms")
+                else:
+                    _err = _resp_data.get("error", "?")
+                    print(f"[TG_API] ⚠️  action={action} msg_id={message_id or '—'} elapsed={_elapsed}ms err={_err}")
+            else:
+                print(f"[TG_API] ✅ action={action} msg_id={message_id or '—'} text_len={_text_len} markup={_has_markup} elapsed={_elapsed}ms (no body)")
             return
         except Exception as e:
             if attempt < retries:
+                print(f"[TG_API] 🔄 retry {attempt}/{retries} action={action} err={e}")
                 time.sleep(delay)
             else:
-                print(f"[TG] Ошибка: {e}")
+                _elapsed = int((time.time() - _t0) * 1000)
+                print(f"[TG_API] 💥 FAIL action={action} msg_id={message_id or '—'} elapsed={_elapsed}ms err={e}")
 
 def tg(text):
     """Отправка уведомления о ставке (всегда, если TG включён)"""
@@ -936,29 +953,37 @@ def tg_send_menu(text, buttons):
     Если есть предыдущее меню — удаляет его. Сохраняет message_id в _tg_last_menu_id."""
     global _tg_last_menu_id
     if not TG_ENABLED:
+        print("[TG_MENU] ⏭ skip — TG отключён")
         return
     # Удаляем старое меню (если есть)
     if _tg_last_menu_id:
+        print(f"[TG_MENU] 🗑 удаляю старое меню msg_id={_tg_last_menu_id}")
         try:
             import threading
             threading.Thread(target=_tg_send, args=(None,), kwargs={"action": "delete", "message_id": _tg_last_menu_id}, daemon=True).start()
-        except Exception:
-            pass
+        except Exception as _de:
+            print(f"[TG_MENU] ⚠️ не удалось удалить старое меню: {_de}")
         _tg_last_menu_id = None
     # Строим reply_markup
+    _btn_count = sum(len(_r) for _r in buttons)
     keyboard = []
     for row in buttons:
         keyboard.append([{"text": _l, "callback_data": _cd} for (_l, _cd) in row])
     reply_markup = {"inline_keyboard": keyboard}
+    print(f"[TG_MENU] 📤 отправляю меню: {_btn_count} кнопок, {len(buttons)} рядов")
     # Отправляем синхронно — нам нужен message_id
     _holder = []
     try:
         _tg_send(text, retries=2, delay=2, reply_markup=reply_markup, _result_holder=_holder)
     except Exception as e:
-        print(f"[TG_MENU] Ошибка отправки: {e}")
+        print(f"[TG_MENU] 💥 Ошибка отправки: {e}")
         return
     if _holder and _holder[0].get("ok") and _holder[0].get("message_id"):
         _tg_last_menu_id = _holder[0]["message_id"]
+        print(f"[TG_MENU] ✅ меню показано, msg_id={_tg_last_menu_id}")
+    else:
+        _err_info = _holder[0] if _holder else "пустой ответ"
+        print(f"[TG_MENU] ⚠️ меню НЕ показано: {_err_info}")
 
 def tg_edit_menu(message_id, text, buttons):
     """Редактирует существующее меню (для подтверждений FORCE)."""
@@ -1062,6 +1087,7 @@ def _tg_answer_callback(callback_id, text=""):
 def _handle_button_click(action_str, message_id, callback_id):
     """Обрабатывает нажатие inline-кнопки. action_str — содержимое callback_data."""
     global _tg_paused, _tg_stopped, _tg_force_pattern, _tg_force_at, _tg_pending_force, _tg_last_menu_id
+    print(f"[TG_BTN] 🎯 click='{action_str}' msg_id={message_id} cb_id={callback_id[:8] if callback_id else '?'}")
     _tg_answer_callback(callback_id, "")
     if action_str == "pause":
         _tg_paused = True
@@ -3299,21 +3325,38 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
         payload_data["message_id"] = message_id
     payload = json.dumps(payload_data).encode()
     req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+    _t0 = time.time()
+    _has_markup = reply_markup is not None
+    _text_len = len(text) if text else 0
     for attempt in range(1, retries + 1):
         try:
             resp = urllib.request.urlopen(req, timeout=20)
-            if _result_holder is not None:
-                try:
-                    _r = json.loads(resp.read().decode())
-                    _result_holder.append(_r)
-                except Exception:
-                    pass
+            _resp_data = None
+            try:
+                _resp_data = json.loads(resp.read().decode())
+            except Exception:
+                pass
+            if _result_holder is not None and _resp_data is not None:
+                _result_holder.append(_resp_data)
+            _elapsed = int((time.time() - _t0) * 1000)
+            if _resp_data is not None:
+                _ok = _resp_data.get("ok", False)
+                _out_id = _resp_data.get("message_id", "—")
+                if _ok:
+                    print(f"[TG_API] ✅ action={action} msg_id={message_id or '—'}→{_out_id} text_len={_text_len} markup={_has_markup} elapsed={_elapsed}ms")
+                else:
+                    _err = _resp_data.get("error", "?")
+                    print(f"[TG_API] ⚠️  action={action} msg_id={message_id or '—'} elapsed={_elapsed}ms err={_err}")
+            else:
+                print(f"[TG_API] ✅ action={action} msg_id={message_id or '—'} text_len={_text_len} markup={_has_markup} elapsed={_elapsed}ms (no body)")
             return
         except Exception as e:
             if attempt < retries:
+                print(f"[TG_API] 🔄 retry {attempt}/{retries} action={action} err={e}")
                 time.sleep(delay)
             else:
-                print(f"[TG] Ошибка: {e}")
+                _elapsed = int((time.time() - _t0) * 1000)
+                print(f"[TG_API] 💥 FAIL action={action} msg_id={message_id or '—'} elapsed={_elapsed}ms err={e}")
 
 def tg(text):
     """Отправка уведомления о ставке (всегда, если TG включён)"""
@@ -3339,29 +3382,37 @@ def tg_send_menu(text, buttons):
     Если есть предыдущее меню — удаляет его. Сохраняет message_id в _tg_last_menu_id."""
     global _tg_last_menu_id
     if not TG_ENABLED:
+        print("[TG_MENU] ⏭ skip — TG отключён")
         return
     # Удаляем старое меню (если есть)
     if _tg_last_menu_id:
+        print(f"[TG_MENU] 🗑 удаляю старое меню msg_id={_tg_last_menu_id}")
         try:
             import threading
             threading.Thread(target=_tg_send, args=(None,), kwargs={"action": "delete", "message_id": _tg_last_menu_id}, daemon=True).start()
-        except Exception:
-            pass
+        except Exception as _de:
+            print(f"[TG_MENU] ⚠️ не удалось удалить старое меню: {_de}")
         _tg_last_menu_id = None
     # Строим reply_markup
+    _btn_count = sum(len(_r) for _r in buttons)
     keyboard = []
     for row in buttons:
         keyboard.append([{"text": _l, "callback_data": _cd} for (_l, _cd) in row])
     reply_markup = {"inline_keyboard": keyboard}
+    print(f"[TG_MENU] 📤 отправляю меню: {_btn_count} кнопок, {len(buttons)} рядов")
     # Отправляем синхронно — нам нужен message_id
     _holder = []
     try:
         _tg_send(text, retries=2, delay=2, reply_markup=reply_markup, _result_holder=_holder)
     except Exception as e:
-        print(f"[TG_MENU] Ошибка отправки: {e}")
+        print(f"[TG_MENU] 💥 Ошибка отправки: {e}")
         return
     if _holder and _holder[0].get("ok") and _holder[0].get("message_id"):
         _tg_last_menu_id = _holder[0]["message_id"]
+        print(f"[TG_MENU] ✅ меню показано, msg_id={_tg_last_menu_id}")
+    else:
+        _err_info = _holder[0] if _holder else "пустой ответ"
+        print(f"[TG_MENU] ⚠️ меню НЕ показано: {_err_info}")
 
 def tg_edit_menu(message_id, text, buttons):
     """Редактирует существующее меню (для подтверждений FORCE)."""
@@ -3465,6 +3516,7 @@ def _tg_answer_callback(callback_id, text=""):
 def _handle_button_click(action_str, message_id, callback_id):
     """Обрабатывает нажатие inline-кнопки. action_str — содержимое callback_data."""
     global _tg_paused, _tg_stopped, _tg_force_pattern, _tg_force_at, _tg_pending_force, _tg_last_menu_id
+    print(f"[TG_BTN] 🎯 click='{action_str}' msg_id={message_id} cb_id={callback_id[:8] if callback_id else '?'}")
     _tg_answer_callback(callback_id, "")
     if action_str == "pause":
         _tg_paused = True

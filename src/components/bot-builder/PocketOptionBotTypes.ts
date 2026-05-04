@@ -882,15 +882,29 @@ TG_CHAT_ID = "${cfg.tgChatId}"
 TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 
-def _tg_send(text, retries=5, delay=5):
-    """Отправка через промежуточный сервер — не требует VPN на машине юзера"""
+def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message_id=None, _result_holder=None):
+    """Отправка/редактирование/удаление сообщений через прокси-функцию (без VPN).
+    Если передан _result_holder (list) — кладёт туда ответ Telegram (для получения message_id)."""
     import urllib.request, json, time
     url = "https://functions.poehali.dev/fb70e0a6-b6c1-49e2-b148-c37dab50f024"
-    payload = json.dumps({"token": TG_TOKEN, "chat_id": TG_CHAT_ID, "text": text}).encode()
+    payload_data = {"token": TG_TOKEN, "chat_id": TG_CHAT_ID, "action": action}
+    if text is not None:
+        payload_data["text"] = text
+    if reply_markup is not None:
+        payload_data["reply_markup"] = reply_markup
+    if message_id is not None:
+        payload_data["message_id"] = message_id
+    payload = json.dumps(payload_data).encode()
     req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
     for attempt in range(1, retries + 1):
         try:
-            urllib.request.urlopen(req, timeout=20)
+            resp = urllib.request.urlopen(req, timeout=20)
+            if _result_holder is not None:
+                try:
+                    _r = json.loads(resp.read().decode())
+                    _result_holder.append(_r)
+                except Exception:
+                    pass
             return
         except Exception as e:
             if attempt < retries:
@@ -911,6 +925,101 @@ def tg_info(text):
     if _notify_mode == "bets_only":
         return
     tg(text)
+
+# ===== ID последнего меню (чтобы не плодить и удалять старые) =====
+_tg_last_menu_id = None
+# Состояние подтверждения FORCE: { "pattern": "UP_UP", "ts": time }, либо None
+_tg_pending_force = None
+
+def tg_send_menu(text, buttons):
+    """Отправляет НОВОЕ inline-меню. buttons = list[list[(label, callback_data)]].
+    Если есть предыдущее меню — удаляет его. Сохраняет message_id в _tg_last_menu_id."""
+    global _tg_last_menu_id
+    if not TG_ENABLED:
+        return
+    # Удаляем старое меню (если есть)
+    if _tg_last_menu_id:
+        try:
+            import threading
+            threading.Thread(target=_tg_send, args=(None,), kwargs={"action": "delete", "message_id": _tg_last_menu_id}, daemon=True).start()
+        except Exception:
+            pass
+        _tg_last_menu_id = None
+    # Строим reply_markup
+    keyboard = []
+    for row in buttons:
+        keyboard.append([{"text": _l, "callback_data": _cd} for (_l, _cd) in row])
+    reply_markup = {"inline_keyboard": keyboard}
+    # Отправляем синхронно — нам нужен message_id
+    _holder = []
+    try:
+        _tg_send(text, retries=2, delay=2, reply_markup=reply_markup, _result_holder=_holder)
+    except Exception as e:
+        print(f"[TG_MENU] Ошибка отправки: {e}")
+        return
+    if _holder and _holder[0].get("ok") and _holder[0].get("message_id"):
+        _tg_last_menu_id = _holder[0]["message_id"]
+
+def tg_edit_menu(message_id, text, buttons):
+    """Редактирует существующее меню (для подтверждений FORCE)."""
+    if not TG_ENABLED or not message_id:
+        return
+    keyboard = []
+    for row in buttons:
+        keyboard.append([{"text": _l, "callback_data": _cd} for (_l, _cd) in row])
+    reply_markup = {"inline_keyboard": keyboard}
+    import threading
+    threading.Thread(target=_tg_send, kwargs={"text": text, "action": "edit", "message_id": message_id, "reply_markup": reply_markup, "retries": 2, "delay": 2}, daemon=True).start()
+
+def tg_delete_message(message_id):
+    """Удаляет сообщение по id."""
+    if not TG_ENABLED or not message_id:
+        return
+    import threading
+    threading.Thread(target=_tg_send, args=(None,), kwargs={"action": "delete", "message_id": message_id, "retries": 2, "delay": 2}, daemon=True).start()
+
+def _build_main_menu_buttons():
+    """Строит набор кнопок главного меню. Возвращает list[list[(label, callback_data)]]."""
+    _state_emoji = "▶️" if not _tg_paused else "⏸"
+    _force_btn = ("❌ Снять FORCE", "force:off") if _tg_force_pattern else None
+    rows = [
+        [("⏸ Пауза", "pause"), ("▶️ Продолжить", "resume")],
+        [("🛑 СТОП", "stop")],
+        [("📊 Статус", "status"), ("💰 Профит", "profit")],
+        [("📋 Отчёт", "summary"), ("📈 График", "screenshot")],
+        [("🟢🟢", "force:UP_UP"), ("🔴🔴", "force:DOWN_DOWN")],
+        [("🟢🔴", "force:UP_DOWN"), ("🔴🟢", "force:DOWN_UP")],
+    ]
+    if _force_btn:
+        rows.append([_force_btn])
+    rows.append([("🔄 Обновить меню", "refresh")])
+    return rows
+
+def _build_main_menu_text():
+    """Строит текст-шапку главного меню с актуальной статой."""
+    _wins_m = sum(1 for t in trade_log if t["won"])
+    _losses_m = trades_today - _wins_m
+    _wr_m = (_wins_m / trades_today * 100) if trades_today > 0 else 0
+    _state = "⏸ ПАУЗА" if _tg_paused else "▶️ Работает"
+    _profit_emoji = "🟢" if total_profit >= 0 else "🔴"
+    _force_line = ""
+    if _tg_force_pattern:
+        _fmap = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "UP_DOWN": "🟢🔴", "DOWN_UP": "🔴🟢"}
+        _force_line = f"\\n⚡ FORCE: <b>{_fmap.get(_tg_force_pattern, _tg_force_pattern)}</b> (одноразово)"
+    return (
+        f"🎮 <b>[{BOT_NAME}] Пульт</b>\\n"
+        f"━━━━━━━━━━━━━━━━━━━━\\n"
+        f"{_profit_emoji} Профит: <b>{total_profit:+.2f} {CURRENCY}</b>\\n"
+        f"📈 Сделок: <b>{trades_today}</b> (✅{_wins_m}/❌{_losses_m}) | WR: <b>{_wr_m:.0f}%</b>\\n"
+        f"⚙️ Ставка: {globals().get('current_bet', BASE_BET)} {CURRENCY} | {ASSET}\\n"
+        f"{_state}{_force_line}"
+    )
+
+def tg_show_main_menu():
+    """Показывает главное меню (пересоздаёт, удаляя старое)."""
+    if not TG_ENABLED:
+        return
+    tg_send_menu(_build_main_menu_text(), _build_main_menu_buttons())
 
 # ===== УПРАВЛЕНИЕ ЧЕРЕЗ TELEGRAM =====
 _tg_paused   = False
@@ -938,20 +1047,180 @@ def _force_alias_to_pattern(alias):
         return "DOWN_UP", "🔴🟢 (кр-зел)"
     return None, None
 
+def _tg_answer_callback(callback_id, text=""):
+    """Подтверждает нажатие inline-кнопки (убирает 'часики' с кнопки)."""
+    if not callback_id:
+        return
+    try:
+        import urllib.request, urllib.parse
+        u = f"https://api.telegram.org/bot{TG_TOKEN}/answerCallbackQuery"
+        d = urllib.parse.urlencode({"callback_query_id": callback_id, "text": text}).encode()
+        urllib.request.urlopen(urllib.request.Request(u, data=d, method="POST"), timeout=5)
+    except Exception:
+        pass
+
+def _handle_button_click(action_str, message_id, callback_id):
+    """Обрабатывает нажатие inline-кнопки. action_str — содержимое callback_data."""
+    global _tg_paused, _tg_stopped, _tg_force_pattern, _tg_force_at, _tg_pending_force, _tg_last_menu_id
+    _tg_answer_callback(callback_id, "")
+    if action_str == "pause":
+        _tg_paused = True
+        tg_delete_message(message_id)
+        _tg_last_menu_id = None
+        tg(f"⏸ <b>[{BOT_NAME}] на паузе</b>\\nЖду команду или нажатие ▶️ Продолжить")
+        tg_show_main_menu()
+    elif action_str == "resume":
+        _tg_paused = False
+        tg_delete_message(message_id)
+        _tg_last_menu_id = None
+        tg(f"▶️ <b>[{BOT_NAME}] возобновлён</b>")
+        tg_show_main_menu()
+    elif action_str == "stop":
+        # Стоп — двухшаговое подтверждение через редактирование того же меню
+        tg_edit_menu(
+            message_id,
+            f"⚠️ <b>[{BOT_NAME}] Точно остановить?</b>\\n\\nБот завершит работу полностью.",
+            [[("✅ Да, СТОП", "stop:confirm")], [("❌ Отмена", "refresh")]]
+        )
+    elif action_str == "stop:confirm":
+        _tg_stopped = True
+        tg_delete_message(message_id)
+        _tg_last_menu_id = None
+        tg(f"🛑 <b>[{BOT_NAME}] остановлен</b>")
+    elif action_str == "status":
+        tg_delete_message(message_id)
+        _tg_last_menu_id = None
+        # Эмулируем команду /status — переиспользуем код из tg_poll_commands, но проще — собираем тут
+        _wins_s = sum(1 for t in trade_log if t["won"])
+        _wr_s = (_wins_s / trades_today * 100) if trades_today > 0 else 0
+        _state_s = '⏸ На паузе' if _tg_paused else '▶️ Работает'
+        _buf_s = globals().get('_live_buf') or globals().get('buf') or globals().get('_live_buffer')
+        _last_price_line_s = ''
+        if _buf_s is not None:
+            _lp_s = getattr(_buf_s, 'last_price', 0)
+            if _lp_s:
+                _last_price_line_s = f"\\n💹 Цена: {_lp_s}"
+        _chart_line_s = ''
+        if trade_log:
+            _last15_s = trade_log[-15:]
+            _chart_s = ''.join('✅' if t['won'] else '❌' for t in _last15_s)
+            _chart_line_s = f"\\n📊 Последние: {_chart_s}"
+        tg(
+            f"📊 <b>Статус [{BOT_NAME}]</b>\\n"
+            f"💰 Профит: {total_profit:+.2f} {CURRENCY}\\n"
+            f"📈 Сделок: {trades_today} (✅{_wins_s}/❌{trades_today-_wins_s}) | WR: {_wr_s:.0f}%\\n"
+            f"⚙️ Ставка: {globals().get('current_bet', BASE_BET)} {CURRENCY} | {ASSET}\\n"
+            f"{_state_s}{_last_price_line_s}{_chart_line_s}"
+        )
+        tg_show_main_menu()
+    elif action_str == "profit":
+        tg_delete_message(message_id)
+        _tg_last_menu_id = None
+        _wp = sum(1 for t in trade_log if t["won"])
+        _lp_t = trades_today - _wp
+        _wr_p = (_wp / trades_today * 100) if trades_today > 0 else 0
+        _profits_p = [t["profit"] for t in trade_log] if trade_log else []
+        _best = max(_profits_p) if _profits_p else 0
+        _worst = min(_profits_p) if _profits_p else 0
+        _emo = "🟢" if total_profit >= 0 else "🔴"
+        tg(
+            f"💰 <b>[{BOT_NAME}] Профит сегодня</b>\\n"
+            f"━━━━━━━━━━━━━━━━━━━━\\n"
+            f"{_emo} <b>{total_profit:+.2f} {CURRENCY}</b>\\n"
+            f"📈 Сделок: {trades_today} (✅{_wp}/❌{_lp_t}) | WR: {_wr_p:.1f}%\\n"
+            f"🏆 Лучшая: +{_best:.2f} {CURRENCY}\\n"
+            f"💔 Худшая: {_worst:.2f} {CURRENCY}"
+        )
+        tg_show_main_menu()
+    elif action_str == "summary":
+        tg_delete_message(message_id)
+        _tg_last_menu_id = None
+        # Эмулируем /summary через искусственное сообщение
+        _emulate_command(f"/summary {BOT_NAME}")
+        tg_show_main_menu()
+    elif action_str == "screenshot":
+        tg_delete_message(message_id)
+        _tg_last_menu_id = None
+        _emulate_command(f"/screenshot {BOT_NAME}")
+        tg_show_main_menu()
+    elif action_str == "refresh":
+        # Просто пересоздаём меню (с актуальной статой)
+        tg_delete_message(message_id)
+        _tg_last_menu_id = None
+        tg_show_main_menu()
+    elif action_str.startswith("force:"):
+        _patt = action_str.split(":", 1)[1]
+        if _patt == "off":
+            _tg_force_pattern = None
+            _tg_force_at = 0
+            _tg_pending_force = None
+            tg_delete_message(message_id)
+            _tg_last_menu_id = None
+            tg(f"✅ <b>[{BOT_NAME}]</b> FORCE снят")
+            tg_show_main_menu()
+        elif _patt in ("UP_UP", "DOWN_DOWN", "UP_DOWN", "DOWN_UP"):
+            # Подтверждение
+            _tg_pending_force = {"pattern": _patt, "ts": __import__("time").time()}
+            _fmap = {"UP_UP": "🟢🟢 (зел-зел)", "DOWN_DOWN": "🔴🔴 (кр-кр)", "UP_DOWN": "🟢🔴 (зел-кр)", "DOWN_UP": "🔴🟢 (кр-зел)"}
+            tg_edit_menu(
+                message_id,
+                f"⚠️ <b>[{BOT_NAME}] Применить FORCE?</b>\\n━━━━━━━━━━━━━━━━━━━━\\n🎯 Паттерн: <b>{_fmap.get(_patt, _patt)}</b>\\n🔁 Применится <b>1 раз</b> на следующем тике\\nПосле сделки — авто-сброс.",
+                [[("✅ Да, форсить!", f"force_confirm:{_patt}")], [("❌ Отмена", "refresh")]]
+            )
+        elif _patt.startswith("confirm:"):
+            pass  # legacy, не используется
+    elif action_str.startswith("force_confirm:"):
+        _patt = action_str.split(":", 1)[1]
+        if _patt in ("UP_UP", "DOWN_DOWN", "UP_DOWN", "DOWN_UP"):
+            _tg_force_pattern = _patt
+            _tg_force_at = __import__("time").time()
+            _tg_pending_force = None
+            tg_delete_message(message_id)
+            _tg_last_menu_id = None
+            _fmap2 = {"UP_UP": "🟢🟢 (зел-зел)", "DOWN_DOWN": "🔴🔴 (кр-кр)", "UP_DOWN": "🟢🔴 (зел-кр)", "DOWN_UP": "🔴🟢 (кр-зел)"}
+            tg(
+                f"⚡ <b>[{BOT_NAME}] FORCE АКТИВЕН</b>\\n"
+                f"━━━━━━━━━━━━━━━━━━━━\\n"
+                f"🎯 Паттерн: <b>{_fmap2.get(_patt, _patt)}</b>\\n"
+                f"🔁 Применится на следующем тике (1 раз)"
+            )
+            tg_show_main_menu()
+
+# Очередь искусственных команд (используется кнопками для переиспользования логики /summary, /screenshot)
+_tg_emulated_queue = []
+def _emulate_command(text):
+    """Добавляет в очередь команду — она будет обработана как обычная текстовая (тем же кодом)."""
+    _tg_emulated_queue.append(text)
+
 def tg_poll_commands():
-    """Получить новые команды из Telegram и обработать их"""
+    """Получить новые команды и нажатия кнопок из Telegram"""
     global _tg_paused, _tg_stopped, _tg_offset, TAKE_PROFIT, STOP_LOSS, BASE_BET
     global _tg_force_pattern, _tg_force_at
     if not TG_ENABLED:
         return
     import urllib.request, json as _json
     try:
-        url = f"https://api.telegram.org/bot{TG_TOKEN}/getUpdates?offset={_tg_offset}&timeout=1&limit=5"
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/getUpdates?offset={_tg_offset}&timeout=1&limit=10"
         resp = urllib.request.urlopen(url, timeout=5).read()
         data = _json.loads(resp)
         _bot_name_lower = BOT_NAME.lower()
         for upd in data.get("result", []):
             _tg_offset = upd["update_id"] + 1
+            # ===== CALLBACK_QUERY (нажатия inline-кнопок) =====
+            cq = upd.get("callback_query")
+            if cq:
+                cq_chat = str(cq.get("message", {}).get("chat", {}).get("id", ""))
+                if cq_chat != str(TG_CHAT_ID):
+                    continue
+                cq_data = cq.get("data", "")
+                cq_msg_id = cq.get("message", {}).get("message_id")
+                cq_id = cq.get("id")
+                try:
+                    _handle_button_click(cq_data, cq_msg_id, cq_id)
+                except Exception as _be:
+                    print(f"[TG_BTN] Ошибка обработки кнопки '{cq_data}': {_be}")
+                continue
+            # ===== ОБЫЧНЫЕ ТЕКСТОВЫЕ СООБЩЕНИЯ =====
             msg = upd.get("message", {})
             text = msg.get("text", "").strip()
             chat = str(msg.get("chat", {}).get("id", ""))
@@ -1227,9 +1496,18 @@ def tg_poll_commands():
                             f"/force {BOT_NAME} rg — 🔴🟢 (кр-зел)\\n"
                             f"/force {BOT_NAME} off — отменить"
                         )
+            elif cmd == "/menu" and for_me:
+                # Показать (или пересоздать) inline-меню с кнопками
+                try:
+                    tg_show_main_menu()
+                except Exception as _me2:
+                    tg(f"❌ <b>[{BOT_NAME}]</b> Не удалось показать меню: {_me2}")
             elif cmd == "/help":
                 tg(
                     f"📋 <b>Команды [{BOT_NAME}]:</b>\\n"
+                    f"━━━ <b>🎮 Меню кнопок</b> ━━━\\n"
+                    f"/menu {BOT_NAME} — открыть пульт с кнопками\\n"
+                    f"<i>(меню само появляется после каждой сделки)</i>\\n"
                     f"━━━ <b>Управление</b> ━━━\\n"
                     f"/stop {BOT_NAME} — остановить\\n"
                     f"/pause {BOT_NAME} — пауза\\n"
@@ -1252,6 +1530,77 @@ def tg_poll_commands():
                     f"/force {BOT_NAME} off — отменить\\n\\n"
                     f"<i>Вместо имени можно писать all — для всех ботов</i>"
                 )
+        # ===== ОБРАБОТКА ЭМУЛИРОВАННЫХ КОМАНД (от inline-кнопок) =====
+        if _tg_emulated_queue:
+            _emu_list = list(_tg_emulated_queue)
+            _tg_emulated_queue.clear()
+            for _emu_text in _emu_list:
+                _eparts = _emu_text.split()
+                if not _eparts:
+                    continue
+                _ecmd = _eparts[0].lower()
+                _etarget = _eparts[1].lower() if len(_eparts) > 1 else ""
+                _eval = _eparts[1] if len(_eparts) > 1 else ""
+                # рекурсивно отправляем команду как фейковое сообщение через сам poll нельзя — у нас нет message-структуры.
+                # Используем минимальный диспетчер для нужных команд:
+                if _ecmd == "/summary":
+                    _emu_total = len(trade_log)
+                    if _emu_total == 0:
+                        tg(f"📋 <b>[{BOT_NAME}] Отчёт</b>\\nЕщё не было ни одной сделки.")
+                    else:
+                        _ew_ = sum(1 for t in trade_log if t["won"])
+                        _el_ = _emu_total - _ew_
+                        _ewr_ = _ew_ / _emu_total * 100
+                        _eprofits = [t["profit"] for t in trade_log]
+                        _ebest = max(_eprofits); _eworst = min(_eprofits); _eavg = sum(_eprofits) / _emu_total
+                        tg(
+                            f"📋 <b>[{BOT_NAME}] Отчёт сессии</b>\\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\\n"
+                            f"💰 Профит: <b>{total_profit:+.2f} {CURRENCY}</b>\\n"
+                            f"📊 Сделок: <b>{_emu_total}</b> (✅{_ew_}/❌{_el_}) | WR: <b>{_ewr_:.1f}%</b>\\n"
+                            f"🏆 Лучший: +{_ebest:.2f} | 💔 Худший: {_eworst:.2f}\\n"
+                            f"📊 Средний: {_eavg:+.2f}"
+                        )
+                elif _ecmd == "/screenshot":
+                    _ebuf = globals().get('_live_buf') or globals().get('buf') or globals().get('_live_buffer')
+                    _ec_list = list(getattr(_ebuf, 'candles', []) or []) if _ebuf else []
+                    if not _ec_list:
+                        _ec_list = list(globals().get('_candle_cache', []) or [])
+                    if not _ec_list:
+                        tg(f"📊 <b>[{BOT_NAME}] График</b>\\nЕщё нет закрытых свечей.")
+                    else:
+                        _last10 = _ec_list[-10:]
+                        _ohlc2 = []
+                        for _ec in _last10:
+                            if hasattr(_ec, 'open'):
+                                _ohlc2.append((float(_ec.open), float(_ec.high), float(_ec.low), float(_ec.close)))
+                            elif isinstance(_ec, dict):
+                                _ohlc2.append((float(_ec.get('open', _ec.get('o', 0))), float(_ec.get('high', _ec.get('h', 0))), float(_ec.get('low', _ec.get('l', 0))), float(_ec.get('close', _ec.get('c', 0)))))
+                            else:
+                                _ohlc2.append((float(_ec[0]), float(_ec[1]), float(_ec[2]), float(_ec[3])))
+                        _hi2 = max(_o[1] for _o in _ohlc2); _lo2 = min(_o[2] for _o in _ohlc2)
+                        _rng2 = _hi2 - _lo2 if _hi2 > _lo2 else 0.00001
+                        _rows2 = 8
+                        _grid2 = [[" "] * len(_ohlc2) for _ in range(_rows2)]
+                        for _i2, (_o2, _h2, _l2, _c2) in enumerate(_ohlc2):
+                            _y_top = int(round((_hi2 - max(_o2, _c2)) / _rng2 * (_rows2 - 1)))
+                            _y_bot = int(round((_hi2 - min(_o2, _c2)) / _rng2 * (_rows2 - 1)))
+                            _y_hh2 = int(round((_hi2 - _h2) / _rng2 * (_rows2 - 1)))
+                            _y_ll2 = int(round((_hi2 - _l2) / _rng2 * (_rows2 - 1)))
+                            _ch2 = "🟢" if _c2 >= _o2 else "🔴"
+                            for _y2 in range(_y_hh2, _y_ll2 + 1):
+                                if _y_top <= _y2 <= _y_bot:
+                                    _grid2[_y2][_i2] = _ch2
+                                else:
+                                    _grid2[_y2][_i2] = "│"
+                        _chart2 = "\\n".join("".join(r) for r in _grid2)
+                        tg(
+                            f"📊 <b>[{BOT_NAME}] График</b>\\n"
+                            f"<code>{_chart2}</code>\\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\\n"
+                            f"📉 Hi: <b>{_hi2:.5f}</b> | 📈 Lo: <b>{_lo2:.5f}</b>\\n"
+                            f"⏱ Свечей: {len(_ohlc2)}"
+                        )
     except Exception:
         pass
 
@@ -2013,6 +2362,11 @@ async def main():
         await asyncio.sleep(5)
     print(f"[WARMUP] ✅ Разогрев завершён! Бот готов к торговле.")
     tg_info(f"✅ <b>[{BOT_NAME}] Готов к торговле</b>\\n2 свежие свечи закрылись, начинаю мониторинг сигналов")
+    # 🎮 Стартовое inline-меню (управление через кнопки)
+    try:
+        tg_show_main_menu()
+    except Exception as _me:
+        print(f"[TG_MENU] Ошибка стартового меню: {_me}")
 
     _reconnect_attempts = 0
 
@@ -2534,6 +2888,11 @@ async def main():
                     print(f"{'='*55}")
                     tg(f"{res_emoji} <b>[{BOT_NAME}] {'Выигрыш' if won else 'Проигрыш'}</b>\\n{signal} | {bet} {currency} | {ASSET}\\nПрофит: {profit:+.2f} {currency}\\nСессия: {total_profit:+.2f} {currency} | WR: {wr:.0f}% ({wins}/{len(trade_log)}){hedge_stat}{ext_stat}")
                     print_stats()
+                    # 🎮 Авто-меню после каждой сделки (inline-кнопки)
+                    try:
+                        tg_show_main_menu()
+                    except Exception as _me:
+                        print(f"[TG_MENU] Ошибка показа меню: {_me}")
             else:
                 ts = datetime.now().strftime("%H:%M:%S")
                 print(f"[{ts}] Нет сигнала, ожидание {CHECK_INTERVAL} сек...")
@@ -2926,15 +3285,29 @@ TG_CHAT_ID = "${cfg.tgChatId}"
 TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 
-def _tg_send(text, retries=5, delay=5):
-    """Отправка через промежуточный сервер — не требует VPN на машине юзера"""
+def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message_id=None, _result_holder=None):
+    """Отправка/редактирование/удаление сообщений через прокси-функцию (без VPN).
+    Если передан _result_holder (list) — кладёт туда ответ Telegram (для получения message_id)."""
     import urllib.request, json, time
     url = "https://functions.poehali.dev/fb70e0a6-b6c1-49e2-b148-c37dab50f024"
-    payload = json.dumps({"token": TG_TOKEN, "chat_id": TG_CHAT_ID, "text": text}).encode()
+    payload_data = {"token": TG_TOKEN, "chat_id": TG_CHAT_ID, "action": action}
+    if text is not None:
+        payload_data["text"] = text
+    if reply_markup is not None:
+        payload_data["reply_markup"] = reply_markup
+    if message_id is not None:
+        payload_data["message_id"] = message_id
+    payload = json.dumps(payload_data).encode()
     req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
     for attempt in range(1, retries + 1):
         try:
-            urllib.request.urlopen(req, timeout=20)
+            resp = urllib.request.urlopen(req, timeout=20)
+            if _result_holder is not None:
+                try:
+                    _r = json.loads(resp.read().decode())
+                    _result_holder.append(_r)
+                except Exception:
+                    pass
             return
         except Exception as e:
             if attempt < retries:
@@ -2955,6 +3328,101 @@ def tg_info(text):
     if _notify_mode == "bets_only":
         return
     tg(text)
+
+# ===== ID последнего меню (чтобы не плодить и удалять старые) =====
+_tg_last_menu_id = None
+# Состояние подтверждения FORCE: { "pattern": "UP_UP", "ts": time }, либо None
+_tg_pending_force = None
+
+def tg_send_menu(text, buttons):
+    """Отправляет НОВОЕ inline-меню. buttons = list[list[(label, callback_data)]].
+    Если есть предыдущее меню — удаляет его. Сохраняет message_id в _tg_last_menu_id."""
+    global _tg_last_menu_id
+    if not TG_ENABLED:
+        return
+    # Удаляем старое меню (если есть)
+    if _tg_last_menu_id:
+        try:
+            import threading
+            threading.Thread(target=_tg_send, args=(None,), kwargs={"action": "delete", "message_id": _tg_last_menu_id}, daemon=True).start()
+        except Exception:
+            pass
+        _tg_last_menu_id = None
+    # Строим reply_markup
+    keyboard = []
+    for row in buttons:
+        keyboard.append([{"text": _l, "callback_data": _cd} for (_l, _cd) in row])
+    reply_markup = {"inline_keyboard": keyboard}
+    # Отправляем синхронно — нам нужен message_id
+    _holder = []
+    try:
+        _tg_send(text, retries=2, delay=2, reply_markup=reply_markup, _result_holder=_holder)
+    except Exception as e:
+        print(f"[TG_MENU] Ошибка отправки: {e}")
+        return
+    if _holder and _holder[0].get("ok") and _holder[0].get("message_id"):
+        _tg_last_menu_id = _holder[0]["message_id"]
+
+def tg_edit_menu(message_id, text, buttons):
+    """Редактирует существующее меню (для подтверждений FORCE)."""
+    if not TG_ENABLED or not message_id:
+        return
+    keyboard = []
+    for row in buttons:
+        keyboard.append([{"text": _l, "callback_data": _cd} for (_l, _cd) in row])
+    reply_markup = {"inline_keyboard": keyboard}
+    import threading
+    threading.Thread(target=_tg_send, kwargs={"text": text, "action": "edit", "message_id": message_id, "reply_markup": reply_markup, "retries": 2, "delay": 2}, daemon=True).start()
+
+def tg_delete_message(message_id):
+    """Удаляет сообщение по id."""
+    if not TG_ENABLED or not message_id:
+        return
+    import threading
+    threading.Thread(target=_tg_send, args=(None,), kwargs={"action": "delete", "message_id": message_id, "retries": 2, "delay": 2}, daemon=True).start()
+
+def _build_main_menu_buttons():
+    """Строит набор кнопок главного меню. Возвращает list[list[(label, callback_data)]]."""
+    _state_emoji = "▶️" if not _tg_paused else "⏸"
+    _force_btn = ("❌ Снять FORCE", "force:off") if _tg_force_pattern else None
+    rows = [
+        [("⏸ Пауза", "pause"), ("▶️ Продолжить", "resume")],
+        [("🛑 СТОП", "stop")],
+        [("📊 Статус", "status"), ("💰 Профит", "profit")],
+        [("📋 Отчёт", "summary"), ("📈 График", "screenshot")],
+        [("🟢🟢", "force:UP_UP"), ("🔴🔴", "force:DOWN_DOWN")],
+        [("🟢🔴", "force:UP_DOWN"), ("🔴🟢", "force:DOWN_UP")],
+    ]
+    if _force_btn:
+        rows.append([_force_btn])
+    rows.append([("🔄 Обновить меню", "refresh")])
+    return rows
+
+def _build_main_menu_text():
+    """Строит текст-шапку главного меню с актуальной статой."""
+    _wins_m = sum(1 for t in trade_log if t["won"])
+    _losses_m = trades_today - _wins_m
+    _wr_m = (_wins_m / trades_today * 100) if trades_today > 0 else 0
+    _state = "⏸ ПАУЗА" if _tg_paused else "▶️ Работает"
+    _profit_emoji = "🟢" if total_profit >= 0 else "🔴"
+    _force_line = ""
+    if _tg_force_pattern:
+        _fmap = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "UP_DOWN": "🟢🔴", "DOWN_UP": "🔴🟢"}
+        _force_line = f"\\n⚡ FORCE: <b>{_fmap.get(_tg_force_pattern, _tg_force_pattern)}</b> (одноразово)"
+    return (
+        f"🎮 <b>[{BOT_NAME}] Пульт</b>\\n"
+        f"━━━━━━━━━━━━━━━━━━━━\\n"
+        f"{_profit_emoji} Профит: <b>{total_profit:+.2f} {CURRENCY}</b>\\n"
+        f"📈 Сделок: <b>{trades_today}</b> (✅{_wins_m}/❌{_losses_m}) | WR: <b>{_wr_m:.0f}%</b>\\n"
+        f"⚙️ Ставка: {globals().get('current_bet', BASE_BET)} {CURRENCY} | {ASSET}\\n"
+        f"{_state}{_force_line}"
+    )
+
+def tg_show_main_menu():
+    """Показывает главное меню (пересоздаёт, удаляя старое)."""
+    if not TG_ENABLED:
+        return
+    tg_send_menu(_build_main_menu_text(), _build_main_menu_buttons())
 
 # ===== УПРАВЛЕНИЕ ЧЕРЕЗ TELEGRAM =====
 _tg_paused   = False
@@ -2982,20 +3450,180 @@ def _force_alias_to_pattern(alias):
         return "DOWN_UP", "🔴🟢 (кр-зел)"
     return None, None
 
+def _tg_answer_callback(callback_id, text=""):
+    """Подтверждает нажатие inline-кнопки (убирает 'часики' с кнопки)."""
+    if not callback_id:
+        return
+    try:
+        import urllib.request, urllib.parse
+        u = f"https://api.telegram.org/bot{TG_TOKEN}/answerCallbackQuery"
+        d = urllib.parse.urlencode({"callback_query_id": callback_id, "text": text}).encode()
+        urllib.request.urlopen(urllib.request.Request(u, data=d, method="POST"), timeout=5)
+    except Exception:
+        pass
+
+def _handle_button_click(action_str, message_id, callback_id):
+    """Обрабатывает нажатие inline-кнопки. action_str — содержимое callback_data."""
+    global _tg_paused, _tg_stopped, _tg_force_pattern, _tg_force_at, _tg_pending_force, _tg_last_menu_id
+    _tg_answer_callback(callback_id, "")
+    if action_str == "pause":
+        _tg_paused = True
+        tg_delete_message(message_id)
+        _tg_last_menu_id = None
+        tg(f"⏸ <b>[{BOT_NAME}] на паузе</b>\\nЖду команду или нажатие ▶️ Продолжить")
+        tg_show_main_menu()
+    elif action_str == "resume":
+        _tg_paused = False
+        tg_delete_message(message_id)
+        _tg_last_menu_id = None
+        tg(f"▶️ <b>[{BOT_NAME}] возобновлён</b>")
+        tg_show_main_menu()
+    elif action_str == "stop":
+        # Стоп — двухшаговое подтверждение через редактирование того же меню
+        tg_edit_menu(
+            message_id,
+            f"⚠️ <b>[{BOT_NAME}] Точно остановить?</b>\\n\\nБот завершит работу полностью.",
+            [[("✅ Да, СТОП", "stop:confirm")], [("❌ Отмена", "refresh")]]
+        )
+    elif action_str == "stop:confirm":
+        _tg_stopped = True
+        tg_delete_message(message_id)
+        _tg_last_menu_id = None
+        tg(f"🛑 <b>[{BOT_NAME}] остановлен</b>")
+    elif action_str == "status":
+        tg_delete_message(message_id)
+        _tg_last_menu_id = None
+        # Эмулируем команду /status — переиспользуем код из tg_poll_commands, но проще — собираем тут
+        _wins_s = sum(1 for t in trade_log if t["won"])
+        _wr_s = (_wins_s / trades_today * 100) if trades_today > 0 else 0
+        _state_s = '⏸ На паузе' if _tg_paused else '▶️ Работает'
+        _buf_s = globals().get('_live_buf') or globals().get('buf') or globals().get('_live_buffer')
+        _last_price_line_s = ''
+        if _buf_s is not None:
+            _lp_s = getattr(_buf_s, 'last_price', 0)
+            if _lp_s:
+                _last_price_line_s = f"\\n💹 Цена: {_lp_s}"
+        _chart_line_s = ''
+        if trade_log:
+            _last15_s = trade_log[-15:]
+            _chart_s = ''.join('✅' if t['won'] else '❌' for t in _last15_s)
+            _chart_line_s = f"\\n📊 Последние: {_chart_s}"
+        tg(
+            f"📊 <b>Статус [{BOT_NAME}]</b>\\n"
+            f"💰 Профит: {total_profit:+.2f} {CURRENCY}\\n"
+            f"📈 Сделок: {trades_today} (✅{_wins_s}/❌{trades_today-_wins_s}) | WR: {_wr_s:.0f}%\\n"
+            f"⚙️ Ставка: {globals().get('current_bet', BASE_BET)} {CURRENCY} | {ASSET}\\n"
+            f"{_state_s}{_last_price_line_s}{_chart_line_s}"
+        )
+        tg_show_main_menu()
+    elif action_str == "profit":
+        tg_delete_message(message_id)
+        _tg_last_menu_id = None
+        _wp = sum(1 for t in trade_log if t["won"])
+        _lp_t = trades_today - _wp
+        _wr_p = (_wp / trades_today * 100) if trades_today > 0 else 0
+        _profits_p = [t["profit"] for t in trade_log] if trade_log else []
+        _best = max(_profits_p) if _profits_p else 0
+        _worst = min(_profits_p) if _profits_p else 0
+        _emo = "🟢" if total_profit >= 0 else "🔴"
+        tg(
+            f"💰 <b>[{BOT_NAME}] Профит сегодня</b>\\n"
+            f"━━━━━━━━━━━━━━━━━━━━\\n"
+            f"{_emo} <b>{total_profit:+.2f} {CURRENCY}</b>\\n"
+            f"📈 Сделок: {trades_today} (✅{_wp}/❌{_lp_t}) | WR: {_wr_p:.1f}%\\n"
+            f"🏆 Лучшая: +{_best:.2f} {CURRENCY}\\n"
+            f"💔 Худшая: {_worst:.2f} {CURRENCY}"
+        )
+        tg_show_main_menu()
+    elif action_str == "summary":
+        tg_delete_message(message_id)
+        _tg_last_menu_id = None
+        # Эмулируем /summary через искусственное сообщение
+        _emulate_command(f"/summary {BOT_NAME}")
+        tg_show_main_menu()
+    elif action_str == "screenshot":
+        tg_delete_message(message_id)
+        _tg_last_menu_id = None
+        _emulate_command(f"/screenshot {BOT_NAME}")
+        tg_show_main_menu()
+    elif action_str == "refresh":
+        # Просто пересоздаём меню (с актуальной статой)
+        tg_delete_message(message_id)
+        _tg_last_menu_id = None
+        tg_show_main_menu()
+    elif action_str.startswith("force:"):
+        _patt = action_str.split(":", 1)[1]
+        if _patt == "off":
+            _tg_force_pattern = None
+            _tg_force_at = 0
+            _tg_pending_force = None
+            tg_delete_message(message_id)
+            _tg_last_menu_id = None
+            tg(f"✅ <b>[{BOT_NAME}]</b> FORCE снят")
+            tg_show_main_menu()
+        elif _patt in ("UP_UP", "DOWN_DOWN", "UP_DOWN", "DOWN_UP"):
+            # Подтверждение
+            _tg_pending_force = {"pattern": _patt, "ts": __import__("time").time()}
+            _fmap = {"UP_UP": "🟢🟢 (зел-зел)", "DOWN_DOWN": "🔴🔴 (кр-кр)", "UP_DOWN": "🟢🔴 (зел-кр)", "DOWN_UP": "🔴🟢 (кр-зел)"}
+            tg_edit_menu(
+                message_id,
+                f"⚠️ <b>[{BOT_NAME}] Применить FORCE?</b>\\n━━━━━━━━━━━━━━━━━━━━\\n🎯 Паттерн: <b>{_fmap.get(_patt, _patt)}</b>\\n🔁 Применится <b>1 раз</b> на следующем тике\\nПосле сделки — авто-сброс.",
+                [[("✅ Да, форсить!", f"force_confirm:{_patt}")], [("❌ Отмена", "refresh")]]
+            )
+        elif _patt.startswith("confirm:"):
+            pass  # legacy, не используется
+    elif action_str.startswith("force_confirm:"):
+        _patt = action_str.split(":", 1)[1]
+        if _patt in ("UP_UP", "DOWN_DOWN", "UP_DOWN", "DOWN_UP"):
+            _tg_force_pattern = _patt
+            _tg_force_at = __import__("time").time()
+            _tg_pending_force = None
+            tg_delete_message(message_id)
+            _tg_last_menu_id = None
+            _fmap2 = {"UP_UP": "🟢🟢 (зел-зел)", "DOWN_DOWN": "🔴🔴 (кр-кр)", "UP_DOWN": "🟢🔴 (зел-кр)", "DOWN_UP": "🔴🟢 (кр-зел)"}
+            tg(
+                f"⚡ <b>[{BOT_NAME}] FORCE АКТИВЕН</b>\\n"
+                f"━━━━━━━━━━━━━━━━━━━━\\n"
+                f"🎯 Паттерн: <b>{_fmap2.get(_patt, _patt)}</b>\\n"
+                f"🔁 Применится на следующем тике (1 раз)"
+            )
+            tg_show_main_menu()
+
+# Очередь искусственных команд (используется кнопками для переиспользования логики /summary, /screenshot)
+_tg_emulated_queue = []
+def _emulate_command(text):
+    """Добавляет в очередь команду — она будет обработана как обычная текстовая (тем же кодом)."""
+    _tg_emulated_queue.append(text)
+
 def tg_poll_commands():
-    """Получить новые команды из Telegram и обработать их"""
+    """Получить новые команды и нажатия кнопок из Telegram"""
     global _tg_paused, _tg_stopped, _tg_offset, TAKE_PROFIT, STOP_LOSS, BASE_BET
     global _tg_force_pattern, _tg_force_at
     if not TG_ENABLED:
         return
     import urllib.request, json as _json
     try:
-        url = f"https://api.telegram.org/bot{TG_TOKEN}/getUpdates?offset={_tg_offset}&timeout=1&limit=5"
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/getUpdates?offset={_tg_offset}&timeout=1&limit=10"
         resp = urllib.request.urlopen(url, timeout=5).read()
         data = _json.loads(resp)
         _bot_name_lower = BOT_NAME.lower()
         for upd in data.get("result", []):
             _tg_offset = upd["update_id"] + 1
+            # ===== CALLBACK_QUERY (нажатия inline-кнопок) =====
+            cq = upd.get("callback_query")
+            if cq:
+                cq_chat = str(cq.get("message", {}).get("chat", {}).get("id", ""))
+                if cq_chat != str(TG_CHAT_ID):
+                    continue
+                cq_data = cq.get("data", "")
+                cq_msg_id = cq.get("message", {}).get("message_id")
+                cq_id = cq.get("id")
+                try:
+                    _handle_button_click(cq_data, cq_msg_id, cq_id)
+                except Exception as _be:
+                    print(f"[TG_BTN] Ошибка обработки кнопки '{cq_data}': {_be}")
+                continue
+            # ===== ОБЫЧНЫЕ ТЕКСТОВЫЕ СООБЩЕНИЯ =====
             msg = upd.get("message", {})
             text = msg.get("text", "").strip()
             chat = str(msg.get("chat", {}).get("id", ""))
@@ -3271,9 +3899,18 @@ def tg_poll_commands():
                             f"/force {BOT_NAME} rg — 🔴🟢 (кр-зел)\\n"
                             f"/force {BOT_NAME} off — отменить"
                         )
+            elif cmd == "/menu" and for_me:
+                # Показать (или пересоздать) inline-меню с кнопками
+                try:
+                    tg_show_main_menu()
+                except Exception as _me2:
+                    tg(f"❌ <b>[{BOT_NAME}]</b> Не удалось показать меню: {_me2}")
             elif cmd == "/help":
                 tg(
                     f"📋 <b>Команды [{BOT_NAME}]:</b>\\n"
+                    f"━━━ <b>🎮 Меню кнопок</b> ━━━\\n"
+                    f"/menu {BOT_NAME} — открыть пульт с кнопками\\n"
+                    f"<i>(меню само появляется после каждой сделки)</i>\\n"
                     f"━━━ <b>Управление</b> ━━━\\n"
                     f"/stop {BOT_NAME} — остановить\\n"
                     f"/pause {BOT_NAME} — пауза\\n"
@@ -3296,6 +3933,77 @@ def tg_poll_commands():
                     f"/force {BOT_NAME} off — отменить\\n\\n"
                     f"<i>Вместо имени можно писать all — для всех ботов</i>"
                 )
+        # ===== ОБРАБОТКА ЭМУЛИРОВАННЫХ КОМАНД (от inline-кнопок) =====
+        if _tg_emulated_queue:
+            _emu_list = list(_tg_emulated_queue)
+            _tg_emulated_queue.clear()
+            for _emu_text in _emu_list:
+                _eparts = _emu_text.split()
+                if not _eparts:
+                    continue
+                _ecmd = _eparts[0].lower()
+                _etarget = _eparts[1].lower() if len(_eparts) > 1 else ""
+                _eval = _eparts[1] if len(_eparts) > 1 else ""
+                # рекурсивно отправляем команду как фейковое сообщение через сам poll нельзя — у нас нет message-структуры.
+                # Используем минимальный диспетчер для нужных команд:
+                if _ecmd == "/summary":
+                    _emu_total = len(trade_log)
+                    if _emu_total == 0:
+                        tg(f"📋 <b>[{BOT_NAME}] Отчёт</b>\\nЕщё не было ни одной сделки.")
+                    else:
+                        _ew_ = sum(1 for t in trade_log if t["won"])
+                        _el_ = _emu_total - _ew_
+                        _ewr_ = _ew_ / _emu_total * 100
+                        _eprofits = [t["profit"] for t in trade_log]
+                        _ebest = max(_eprofits); _eworst = min(_eprofits); _eavg = sum(_eprofits) / _emu_total
+                        tg(
+                            f"📋 <b>[{BOT_NAME}] Отчёт сессии</b>\\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\\n"
+                            f"💰 Профит: <b>{total_profit:+.2f} {CURRENCY}</b>\\n"
+                            f"📊 Сделок: <b>{_emu_total}</b> (✅{_ew_}/❌{_el_}) | WR: <b>{_ewr_:.1f}%</b>\\n"
+                            f"🏆 Лучший: +{_ebest:.2f} | 💔 Худший: {_eworst:.2f}\\n"
+                            f"📊 Средний: {_eavg:+.2f}"
+                        )
+                elif _ecmd == "/screenshot":
+                    _ebuf = globals().get('_live_buf') or globals().get('buf') or globals().get('_live_buffer')
+                    _ec_list = list(getattr(_ebuf, 'candles', []) or []) if _ebuf else []
+                    if not _ec_list:
+                        _ec_list = list(globals().get('_candle_cache', []) or [])
+                    if not _ec_list:
+                        tg(f"📊 <b>[{BOT_NAME}] График</b>\\nЕщё нет закрытых свечей.")
+                    else:
+                        _last10 = _ec_list[-10:]
+                        _ohlc2 = []
+                        for _ec in _last10:
+                            if hasattr(_ec, 'open'):
+                                _ohlc2.append((float(_ec.open), float(_ec.high), float(_ec.low), float(_ec.close)))
+                            elif isinstance(_ec, dict):
+                                _ohlc2.append((float(_ec.get('open', _ec.get('o', 0))), float(_ec.get('high', _ec.get('h', 0))), float(_ec.get('low', _ec.get('l', 0))), float(_ec.get('close', _ec.get('c', 0)))))
+                            else:
+                                _ohlc2.append((float(_ec[0]), float(_ec[1]), float(_ec[2]), float(_ec[3])))
+                        _hi2 = max(_o[1] for _o in _ohlc2); _lo2 = min(_o[2] for _o in _ohlc2)
+                        _rng2 = _hi2 - _lo2 if _hi2 > _lo2 else 0.00001
+                        _rows2 = 8
+                        _grid2 = [[" "] * len(_ohlc2) for _ in range(_rows2)]
+                        for _i2, (_o2, _h2, _l2, _c2) in enumerate(_ohlc2):
+                            _y_top = int(round((_hi2 - max(_o2, _c2)) / _rng2 * (_rows2 - 1)))
+                            _y_bot = int(round((_hi2 - min(_o2, _c2)) / _rng2 * (_rows2 - 1)))
+                            _y_hh2 = int(round((_hi2 - _h2) / _rng2 * (_rows2 - 1)))
+                            _y_ll2 = int(round((_hi2 - _l2) / _rng2 * (_rows2 - 1)))
+                            _ch2 = "🟢" if _c2 >= _o2 else "🔴"
+                            for _y2 in range(_y_hh2, _y_ll2 + 1):
+                                if _y_top <= _y2 <= _y_bot:
+                                    _grid2[_y2][_i2] = _ch2
+                                else:
+                                    _grid2[_y2][_i2] = "│"
+                        _chart2 = "\\n".join("".join(r) for r in _grid2)
+                        tg(
+                            f"📊 <b>[{BOT_NAME}] График</b>\\n"
+                            f"<code>{_chart2}</code>\\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\\n"
+                            f"📉 Hi: <b>{_hi2:.5f}</b> | 📈 Lo: <b>{_lo2:.5f}</b>\\n"
+                            f"⏱ Свечей: {len(_ohlc2)}"
+                        )
     except Exception:
         pass
 
@@ -4965,6 +5673,11 @@ async def main():
                     f"{progress_bar} {progress_label}"
                 )
                 print_stats()
+                # 🎮 Авто-меню после каждой сделки (inline-кнопки)
+                try:
+                    tg_show_main_menu()
+                except Exception as _me:
+                    print(f"[TG_MENU] Ошибка показа меню: {_me}")
         else:
             ts = datetime.now().strftime("%H:%M:%S")
             print(f"[{ts}] Нет подтверждённого сигнала, проверка через 2 сек (буфер живой)...")

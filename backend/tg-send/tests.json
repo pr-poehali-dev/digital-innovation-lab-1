@@ -12,6 +12,27 @@
       "path": "/",
       "body": {},
       "expectedStatus": 400
+    },
+    {
+      "name": "Send without text",
+      "method": "POST",
+      "path": "/",
+      "body": {"token": "fake", "chat_id": "123"},
+      "expectedStatus": 400
+    },
+    {
+      "name": "Edit without message_id",
+      "method": "POST",
+      "path": "/",
+      "body": {"token": "fake", "chat_id": "123", "action": "edit", "text": "hi"},
+      "expectedStatus": 400
+    },
+    {
+      "name": "Delete without message_id",
+      "method": "POST",
+      "path": "/",
+      "body": {"token": "fake", "chat_id": "123", "action": "delete"},
+      "expectedStatus": 400
     }
   ]
 }

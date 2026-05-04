@@ -916,10 +916,32 @@ def tg_info(text):
 _tg_paused   = False
 _tg_stopped  = False
 _tg_offset   = 0
+# Принудительный паттерн 2 свечей (одноразово, после применения сбрасывается).
+# Возможные значения: "UP_UP", "DOWN_DOWN", "UP_DOWN", "DOWN_UP" или None
+_tg_force_pattern = None
+_tg_force_at = 0  # время установки
+
+def _force_alias_to_pattern(alias):
+    """Конвертирует пользовательский ввод в код тренда. Возвращает (pattern, human_label) или (None, None)."""
+    if not alias:
+        return None, None
+    a = alias.lower().strip().replace(" ", "")
+    # Эмодзи-варианты
+    a = a.replace("🟢", "g").replace("🔴", "r").replace("зел", "g").replace("крас", "r").replace("кр", "r")
+    if a in ("gg", "greengreen", "uu", "upup", "up_up"):
+        return "UP_UP", "🟢🟢 (зел-зел)"
+    if a in ("rr", "redred", "dd", "downdown", "down_down"):
+        return "DOWN_DOWN", "🔴🔴 (кр-кр)"
+    if a in ("gr", "greenred", "ud", "updown", "up_down"):
+        return "UP_DOWN", "🟢🔴 (зел-кр)"
+    if a in ("rg", "redgreen", "du", "downup", "down_up"):
+        return "DOWN_UP", "🔴🟢 (кр-зел)"
+    return None, None
 
 def tg_poll_commands():
     """Получить новые команды из Telegram и обработать их"""
     global _tg_paused, _tg_stopped, _tg_offset, TAKE_PROFIT, STOP_LOSS, BASE_BET
+    global _tg_force_pattern, _tg_force_at
     if not TG_ENABLED:
         return
     import urllib.request, json as _json
@@ -1096,8 +1118,140 @@ def tg_poll_commands():
                         tg("\\n".join(_lines))
                 except Exception as _pe:
                     tg(f"❌ <b>Ошибка чтения пула:</b> {_pe}")
+            elif cmd == "/profit" and for_me:
+                # ===== ПРОФИТ ЗА СЕГОДНЯ =====
+                _wins_p = sum(1 for t in trade_log if t["won"])
+                _losses_p = trades_today - _wins_p
+                _wr_p = (_wins_p / trades_today * 100) if trades_today > 0 else 0
+                _profits_p = [t["profit"] for t in trade_log] if trade_log else []
+                _best_p = max(_profits_p) if _profits_p else 0
+                _worst_p = min(_profits_p) if _profits_p else 0
+                _emoji_p = "🟢" if total_profit >= 0 else "🔴"
+                tg(
+                    f"💰 <b>[{BOT_NAME}] Профит сегодня</b>\\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\\n"
+                    f"{_emoji_p} <b>{total_profit:+.2f} {CURRENCY}</b>\\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\\n"
+                    f"📈 Сделок: {trades_today} (✅{_wins_p} / ❌{_losses_p})\\n"
+                    f"🎯 WR: {_wr_p:.1f}%\\n"
+                    f"🏆 Лучшая: +{_best_p:.2f} {CURRENCY}\\n"
+                    f"💔 Худшая: {_worst_p:.2f} {CURRENCY}"
+                )
+            elif cmd == "/screenshot" and for_me:
+                # ===== ASCII-ГРАФИК ПОСЛЕДНИХ СВЕЧЕЙ =====
+                _buf_g = globals().get('_live_buf') or globals().get('buf') or globals().get('_live_buffer')
+                _candles_g = []
+                if _buf_g is not None:
+                    _candles_g = list(getattr(_buf_g, 'candles', []) or [])
+                if not _candles_g:
+                    _candles_g = list(globals().get('_candle_cache', []) or [])
+                if not _candles_g:
+                    tg(f"📊 <b>[{BOT_NAME}] Скриншот</b>\\n\\nЕщё нет закрытых свечей. Подожди пару минут.")
+                else:
+                    _last_n = _candles_g[-10:]
+                    _ohlc = []
+                    for _c in _last_n:
+                        if hasattr(_c, 'open'):
+                            _ohlc.append((float(_c.open), float(_c.high), float(_c.low), float(_c.close), getattr(_c, 'time', None)))
+                        elif isinstance(_c, dict):
+                            _ohlc.append((float(_c.get('open', _c.get('o', 0))), float(_c.get('high', _c.get('h', 0))), float(_c.get('low', _c.get('l', 0))), float(_c.get('close', _c.get('c', 0))), _c.get('time')))
+                        else:
+                            _ohlc.append((float(_c[0]), float(_c[1]), float(_c[2]), float(_c[3]), _c[4] if len(_c) >= 5 else None))
+                    _all_h = [_o[1] for _o in _ohlc]
+                    _all_l = [_o[2] for _o in _ohlc]
+                    _hi = max(_all_h); _lo = min(_all_l)
+                    _rng = _hi - _lo if _hi > _lo else 0.00001
+                    _rows = 8
+                    _grid = [[" "] * len(_ohlc) for _ in range(_rows)]
+                    for _i, (_op, _hh, _ll, _cl, _) in enumerate(_ohlc):
+                        _y_op = int(round((_hi - _op) / _rng * (_rows - 1)))
+                        _y_cl = int(round((_hi - _cl) / _rng * (_rows - 1)))
+                        _y_hh = int(round((_hi - _hh) / _rng * (_rows - 1)))
+                        _y_ll = int(round((_hi - _ll) / _rng * (_rows - 1)))
+                        _ch = "🟢" if _cl >= _op else "🔴"
+                        _y_top = min(_y_op, _y_cl); _y_bot = max(_y_op, _y_cl)
+                        for _y in range(_y_hh, _y_ll + 1):
+                            if _y_top <= _y <= _y_bot:
+                                _grid[_y][_i] = _ch
+                            else:
+                                _grid[_y][_i] = "│"
+                    _chart_lines = ["".join(_row) for _row in _grid]
+                    _last_close = _ohlc[-1][3]
+                    _last_color = "🟢" if _ohlc[-1][3] >= _ohlc[-1][0] else "🔴"
+                    _trend_now = globals().get('_last_trend')
+                    _trend_label = {"UP_UP": "🟢🟢 ↑↑", "DOWN_DOWN": "🔴🔴 ↓↓", "UP_DOWN": "🟢🔴 ↑↓", "DOWN_UP": "🔴🟢 ↓↑"}.get(_trend_now, "—")
+                    _force_line = ""
+                    if _tg_force_pattern:
+                        _, _fh = _force_alias_to_pattern(_tg_force_pattern.replace("UP_UP", "gg").replace("DOWN_DOWN", "rr").replace("UP_DOWN", "gr").replace("DOWN_UP", "rg"))
+                        _force_line = f"\\n⚡ FORCE: {_fh or _tg_force_pattern} (одноразово)"
+                    tg(
+                        f"📊 <b>[{BOT_NAME}] График</b>\\n"
+                        f"<code>{chr(10).join(_chart_lines)}</code>\\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\\n"
+                        f"📉 Hi: <b>{_hi:.5f}</b>\\n"
+                        f"📈 Lo: <b>{_lo:.5f}</b>\\n"
+                        f"💹 Last: {_last_color} <b>{_last_close:.5f}</b>\\n"
+                        f"🎯 Тренд: {_trend_label}\\n"
+                        f"⏱ Свечей: {len(_ohlc)} (из {len(_candles_g)})"
+                        f"{_force_line}"
+                    )
+            elif cmd == "/force" and for_me:
+                # ===== ФОРС ЦВЕТА 2 СВЕЧЕЙ (одноразово) =====
+                if val.lower() in ("off", "выкл", "stop", "none", ""):
+                    if _tg_force_pattern:
+                        _tg_force_pattern = None
+                        _tg_force_at = 0
+                        tg(f"✅ <b>[{BOT_NAME}]</b> FORCE СНЯТ. Возвращаюсь к реальным свечам.")
+                    else:
+                        tg(f"ℹ️ <b>[{BOT_NAME}]</b> FORCE и так не активен.")
+                else:
+                    _patt, _human = _force_alias_to_pattern(val)
+                    if _patt:
+                        _tg_force_pattern = _patt
+                        _tg_force_at = __import__("time").time()
+                        tg(
+                            f"⚡ <b>[{BOT_NAME}] FORCE АКТИВЕН</b>\\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\\n"
+                            f"🎯 Паттерн: <b>{_human}</b>\\n"
+                            f"🔁 Применится <b>1 раз</b> на следующем цикле\\n"
+                            f"После сделки — авто-сброс, продолжу на реальных данных.\\n\\n"
+                            f"Отмена: /force {BOT_NAME} off"
+                        )
+                    else:
+                        tg(
+                            f"❌ <b>[{BOT_NAME}]</b> Неизвестный паттерн: <code>{val}</code>\\n\\n"
+                            f"<b>Доступные:</b>\\n"
+                            f"/force {BOT_NAME} gg — 🟢🟢 (зел-зел)\\n"
+                            f"/force {BOT_NAME} rr — 🔴🔴 (кр-кр)\\n"
+                            f"/force {BOT_NAME} gr — 🟢🔴 (зел-кр)\\n"
+                            f"/force {BOT_NAME} rg — 🔴🟢 (кр-зел)\\n"
+                            f"/force {BOT_NAME} off — отменить"
+                        )
             elif cmd == "/help":
-                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статус (профит, WR, цена, синхронизация, состояние API)\\n/summary {BOT_NAME} — полный отчёт за сессию\\n/pool — общий пул свечей между ботами\\n/settp {BOT_NAME} 50 — Take Profit\\n/setsl {BOT_NAME} 20 — Stop Loss\\n/setbet {BOT_NAME} 10 — базовая ставка\\n\\n<i>Вместо имени можно писать all — команда применится ко всем ботам</i>")
+                tg(
+                    f"📋 <b>Команды [{BOT_NAME}]:</b>\\n"
+                    f"━━━ <b>Управление</b> ━━━\\n"
+                    f"/stop {BOT_NAME} — остановить\\n"
+                    f"/pause {BOT_NAME} — пауза\\n"
+                    f"/resume {BOT_NAME} — продолжить\\n"
+                    f"━━━ <b>Информация</b> ━━━\\n"
+                    f"/status {BOT_NAME} — статус (профит, WR, цена)\\n"
+                    f"/profit {BOT_NAME} — профит за сегодня\\n"
+                    f"/summary {BOT_NAME} — полный отчёт сессии\\n"
+                    f"/screenshot {BOT_NAME} — ASCII-график\\n"
+                    f"/pool — общий пул свечей\\n"
+                    f"━━━ <b>Настройки</b> ━━━\\n"
+                    f"/settp {BOT_NAME} 50 — Take Profit\\n"
+                    f"/setsl {BOT_NAME} 20 — Stop Loss\\n"
+                    f"/setbet {BOT_NAME} 10 — базовая ставка\\n"
+                    f"━━━ <b>⚡ FORCE (одноразово)</b> ━━━\\n"
+                    f"/force {BOT_NAME} gg — 🟢🟢\\n"
+                    f"/force {BOT_NAME} rr — 🔴🔴\\n"
+                    f"/force {BOT_NAME} gr — 🟢🔴\\n"
+                    f"/force {BOT_NAME} rg — 🔴🟢\\n"
+                    f"/force {BOT_NAME} off — отменить\\n\\n"
+                    f"<i>Вместо имени можно писать all — для всех ботов</i>"
+                )
     except Exception:
         pass
 
@@ -1982,6 +2136,49 @@ async def main():
 
             _reconnect_attempts = 0
 
+            # ===== ⚡ FORCE из Telegram (одноразовая подмена 2 закрытых свечей) =====
+            global _tg_force_pattern, _tg_force_at
+            if _tg_force_pattern and len(candles) >= 3:
+                # candles[-1] — живая, candles[-2] и candles[-3] — последние 2 закрытые
+                # Подменяем именно их: open копируем как есть, close корректируем под нужный цвет
+                _force_was = _tg_force_pattern
+                def _flip_candle(_c, _want_up):
+                    """Возвращает свечу с правильным направлением (UP/DOWN), сохраняя open и величину движения."""
+                    if hasattr(_c, 'open') and hasattr(_c, 'close'):
+                        _o = float(_c.open); _cl = float(_c.close)
+                    elif isinstance(_c, dict):
+                        _o = float(_c.get('open', _c.get('o', 0))); _cl = float(_c.get('close', _c.get('c', 0)))
+                    else:
+                        _o = float(_c[0]); _cl = float(_c[3])
+                        _h = float(_c[1]); _l = float(_c[2])
+                        _ts = _c[4] if len(_c) >= 5 else 0
+                    _delta = abs(_cl - _o) or 0.00010
+                    _new_close = _o + _delta if _want_up else _o - _delta
+                    _new_high = max(_o, _new_close)
+                    _new_low = min(_o, _new_close)
+                    if isinstance(_c, tuple):
+                        _ts2 = _c[4] if len(_c) >= 5 else 0
+                        return (_o, _new_high, _new_low, _new_close, _ts2)
+                    if isinstance(_c, dict):
+                        _nc = dict(_c); _nc['close'] = _new_close; _nc['c'] = _new_close
+                        _nc['high'] = _new_high; _nc['h'] = _new_high
+                        _nc['low'] = _new_low;  _nc['l'] = _new_low
+                        return _nc
+                    return _c
+                _want_2 = _force_was in ("UP_UP", "UP_DOWN")     # свеча -2 зелёная?
+                _want_1 = _force_was in ("UP_UP", "DOWN_UP")     # свеча -1 зелёная?
+                try:
+                    candles = list(candles)
+                    candles[-3] = _flip_candle(candles[-3], _want_2)
+                    candles[-2] = _flip_candle(candles[-2], _want_1)
+                    print(f"[TG_FORCE] ⚡ ПРИМЕНЁН паттерн {_force_was} к 2 закрытым свечам (одноразово)")
+                    tg_info(f"⚡ <b>[{BOT_NAME}] FORCE применён</b>\\nПаттерн {_force_was} использован, дальше — реальные данные")
+                except Exception as _fe:
+                    print(f"[TG_FORCE] ❌ Ошибка применения: {_fe}")
+                # Сразу сбрасываем — режим α (одноразовый)
+                _tg_force_pattern = None
+                _tg_force_at = 0
+
             # ✅ ИСПРАВЛЕНО: get_trend вызывается ОДИН раз — переиспользуем результат.
             # Раньше check_trend_change(candles) вызывал get_trend, потом ниже снова trend = get_trend(candles)
             # → блок [СВЕЧИ]/[АНАЛИЗ]/[ТРЕНД] печатался ДВАЖДЫ. Сейчас — только раз.
@@ -2763,10 +2960,32 @@ def tg_info(text):
 _tg_paused   = False
 _tg_stopped  = False
 _tg_offset   = 0
+# Принудительный паттерн 2 свечей (одноразово, после применения сбрасывается).
+# Возможные значения: "UP_UP", "DOWN_DOWN", "UP_DOWN", "DOWN_UP" или None
+_tg_force_pattern = None
+_tg_force_at = 0  # время установки
+
+def _force_alias_to_pattern(alias):
+    """Конвертирует пользовательский ввод в код тренда. Возвращает (pattern, human_label) или (None, None)."""
+    if not alias:
+        return None, None
+    a = alias.lower().strip().replace(" ", "")
+    # Эмодзи-варианты
+    a = a.replace("🟢", "g").replace("🔴", "r").replace("зел", "g").replace("крас", "r").replace("кр", "r")
+    if a in ("gg", "greengreen", "uu", "upup", "up_up"):
+        return "UP_UP", "🟢🟢 (зел-зел)"
+    if a in ("rr", "redred", "dd", "downdown", "down_down"):
+        return "DOWN_DOWN", "🔴🔴 (кр-кр)"
+    if a in ("gr", "greenred", "ud", "updown", "up_down"):
+        return "UP_DOWN", "🟢🔴 (зел-кр)"
+    if a in ("rg", "redgreen", "du", "downup", "down_up"):
+        return "DOWN_UP", "🔴🟢 (кр-зел)"
+    return None, None
 
 def tg_poll_commands():
     """Получить новые команды из Telegram и обработать их"""
     global _tg_paused, _tg_stopped, _tg_offset, TAKE_PROFIT, STOP_LOSS, BASE_BET
+    global _tg_force_pattern, _tg_force_at
     if not TG_ENABLED:
         return
     import urllib.request, json as _json
@@ -2943,8 +3162,140 @@ def tg_poll_commands():
                         tg("\\n".join(_lines))
                 except Exception as _pe:
                     tg(f"❌ <b>Ошибка чтения пула:</b> {_pe}")
+            elif cmd == "/profit" and for_me:
+                # ===== ПРОФИТ ЗА СЕГОДНЯ =====
+                _wins_p = sum(1 for t in trade_log if t["won"])
+                _losses_p = trades_today - _wins_p
+                _wr_p = (_wins_p / trades_today * 100) if trades_today > 0 else 0
+                _profits_p = [t["profit"] for t in trade_log] if trade_log else []
+                _best_p = max(_profits_p) if _profits_p else 0
+                _worst_p = min(_profits_p) if _profits_p else 0
+                _emoji_p = "🟢" if total_profit >= 0 else "🔴"
+                tg(
+                    f"💰 <b>[{BOT_NAME}] Профит сегодня</b>\\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\\n"
+                    f"{_emoji_p} <b>{total_profit:+.2f} {CURRENCY}</b>\\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\\n"
+                    f"📈 Сделок: {trades_today} (✅{_wins_p} / ❌{_losses_p})\\n"
+                    f"🎯 WR: {_wr_p:.1f}%\\n"
+                    f"🏆 Лучшая: +{_best_p:.2f} {CURRENCY}\\n"
+                    f"💔 Худшая: {_worst_p:.2f} {CURRENCY}"
+                )
+            elif cmd == "/screenshot" and for_me:
+                # ===== ASCII-ГРАФИК ПОСЛЕДНИХ СВЕЧЕЙ =====
+                _buf_g = globals().get('_live_buf') or globals().get('buf') or globals().get('_live_buffer')
+                _candles_g = []
+                if _buf_g is not None:
+                    _candles_g = list(getattr(_buf_g, 'candles', []) or [])
+                if not _candles_g:
+                    _candles_g = list(globals().get('_candle_cache', []) or [])
+                if not _candles_g:
+                    tg(f"📊 <b>[{BOT_NAME}] Скриншот</b>\\n\\nЕщё нет закрытых свечей. Подожди пару минут.")
+                else:
+                    _last_n = _candles_g[-10:]
+                    _ohlc = []
+                    for _c in _last_n:
+                        if hasattr(_c, 'open'):
+                            _ohlc.append((float(_c.open), float(_c.high), float(_c.low), float(_c.close), getattr(_c, 'time', None)))
+                        elif isinstance(_c, dict):
+                            _ohlc.append((float(_c.get('open', _c.get('o', 0))), float(_c.get('high', _c.get('h', 0))), float(_c.get('low', _c.get('l', 0))), float(_c.get('close', _c.get('c', 0))), _c.get('time')))
+                        else:
+                            _ohlc.append((float(_c[0]), float(_c[1]), float(_c[2]), float(_c[3]), _c[4] if len(_c) >= 5 else None))
+                    _all_h = [_o[1] for _o in _ohlc]
+                    _all_l = [_o[2] for _o in _ohlc]
+                    _hi = max(_all_h); _lo = min(_all_l)
+                    _rng = _hi - _lo if _hi > _lo else 0.00001
+                    _rows = 8
+                    _grid = [[" "] * len(_ohlc) for _ in range(_rows)]
+                    for _i, (_op, _hh, _ll, _cl, _) in enumerate(_ohlc):
+                        _y_op = int(round((_hi - _op) / _rng * (_rows - 1)))
+                        _y_cl = int(round((_hi - _cl) / _rng * (_rows - 1)))
+                        _y_hh = int(round((_hi - _hh) / _rng * (_rows - 1)))
+                        _y_ll = int(round((_hi - _ll) / _rng * (_rows - 1)))
+                        _ch = "🟢" if _cl >= _op else "🔴"
+                        _y_top = min(_y_op, _y_cl); _y_bot = max(_y_op, _y_cl)
+                        for _y in range(_y_hh, _y_ll + 1):
+                            if _y_top <= _y <= _y_bot:
+                                _grid[_y][_i] = _ch
+                            else:
+                                _grid[_y][_i] = "│"
+                    _chart_lines = ["".join(_row) for _row in _grid]
+                    _last_close = _ohlc[-1][3]
+                    _last_color = "🟢" if _ohlc[-1][3] >= _ohlc[-1][0] else "🔴"
+                    _trend_now = globals().get('_last_trend')
+                    _trend_label = {"UP_UP": "🟢🟢 ↑↑", "DOWN_DOWN": "🔴🔴 ↓↓", "UP_DOWN": "🟢🔴 ↑↓", "DOWN_UP": "🔴🟢 ↓↑"}.get(_trend_now, "—")
+                    _force_line = ""
+                    if _tg_force_pattern:
+                        _, _fh = _force_alias_to_pattern(_tg_force_pattern.replace("UP_UP", "gg").replace("DOWN_DOWN", "rr").replace("UP_DOWN", "gr").replace("DOWN_UP", "rg"))
+                        _force_line = f"\\n⚡ FORCE: {_fh or _tg_force_pattern} (одноразово)"
+                    tg(
+                        f"📊 <b>[{BOT_NAME}] График</b>\\n"
+                        f"<code>{chr(10).join(_chart_lines)}</code>\\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\\n"
+                        f"📉 Hi: <b>{_hi:.5f}</b>\\n"
+                        f"📈 Lo: <b>{_lo:.5f}</b>\\n"
+                        f"💹 Last: {_last_color} <b>{_last_close:.5f}</b>\\n"
+                        f"🎯 Тренд: {_trend_label}\\n"
+                        f"⏱ Свечей: {len(_ohlc)} (из {len(_candles_g)})"
+                        f"{_force_line}"
+                    )
+            elif cmd == "/force" and for_me:
+                # ===== ФОРС ЦВЕТА 2 СВЕЧЕЙ (одноразово) =====
+                if val.lower() in ("off", "выкл", "stop", "none", ""):
+                    if _tg_force_pattern:
+                        _tg_force_pattern = None
+                        _tg_force_at = 0
+                        tg(f"✅ <b>[{BOT_NAME}]</b> FORCE СНЯТ. Возвращаюсь к реальным свечам.")
+                    else:
+                        tg(f"ℹ️ <b>[{BOT_NAME}]</b> FORCE и так не активен.")
+                else:
+                    _patt, _human = _force_alias_to_pattern(val)
+                    if _patt:
+                        _tg_force_pattern = _patt
+                        _tg_force_at = __import__("time").time()
+                        tg(
+                            f"⚡ <b>[{BOT_NAME}] FORCE АКТИВЕН</b>\\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\\n"
+                            f"🎯 Паттерн: <b>{_human}</b>\\n"
+                            f"🔁 Применится <b>1 раз</b> на следующем цикле\\n"
+                            f"После сделки — авто-сброс, продолжу на реальных данных.\\n\\n"
+                            f"Отмена: /force {BOT_NAME} off"
+                        )
+                    else:
+                        tg(
+                            f"❌ <b>[{BOT_NAME}]</b> Неизвестный паттерн: <code>{val}</code>\\n\\n"
+                            f"<b>Доступные:</b>\\n"
+                            f"/force {BOT_NAME} gg — 🟢🟢 (зел-зел)\\n"
+                            f"/force {BOT_NAME} rr — 🔴🔴 (кр-кр)\\n"
+                            f"/force {BOT_NAME} gr — 🟢🔴 (зел-кр)\\n"
+                            f"/force {BOT_NAME} rg — 🔴🟢 (кр-зел)\\n"
+                            f"/force {BOT_NAME} off — отменить"
+                        )
             elif cmd == "/help":
-                tg(f"📋 <b>Команды [{BOT_NAME}]:</b>\\n/stop {BOT_NAME} — остановить\\n/pause {BOT_NAME} — пауза\\n/resume {BOT_NAME} — продолжить\\n/status {BOT_NAME} — статус (профит, WR, цена, синхронизация, состояние API)\\n/summary {BOT_NAME} — полный отчёт за сессию\\n/pool — общий пул свечей между ботами\\n/settp {BOT_NAME} 50 — Take Profit\\n/setsl {BOT_NAME} 20 — Stop Loss\\n/setbet {BOT_NAME} 10 — базовая ставка\\n\\n<i>Вместо имени можно писать all — команда применится ко всем ботам</i>")
+                tg(
+                    f"📋 <b>Команды [{BOT_NAME}]:</b>\\n"
+                    f"━━━ <b>Управление</b> ━━━\\n"
+                    f"/stop {BOT_NAME} — остановить\\n"
+                    f"/pause {BOT_NAME} — пауза\\n"
+                    f"/resume {BOT_NAME} — продолжить\\n"
+                    f"━━━ <b>Информация</b> ━━━\\n"
+                    f"/status {BOT_NAME} — статус (профит, WR, цена)\\n"
+                    f"/profit {BOT_NAME} — профит за сегодня\\n"
+                    f"/summary {BOT_NAME} — полный отчёт сессии\\n"
+                    f"/screenshot {BOT_NAME} — ASCII-график\\n"
+                    f"/pool — общий пул свечей\\n"
+                    f"━━━ <b>Настройки</b> ━━━\\n"
+                    f"/settp {BOT_NAME} 50 — Take Profit\\n"
+                    f"/setsl {BOT_NAME} 20 — Stop Loss\\n"
+                    f"/setbet {BOT_NAME} 10 — базовая ставка\\n"
+                    f"━━━ <b>⚡ FORCE (одноразово)</b> ━━━\\n"
+                    f"/force {BOT_NAME} gg — 🟢🟢\\n"
+                    f"/force {BOT_NAME} rr — 🔴🔴\\n"
+                    f"/force {BOT_NAME} gr — 🟢🔴\\n"
+                    f"/force {BOT_NAME} rg — 🔴🟢\\n"
+                    f"/force {BOT_NAME} off — отменить\\n\\n"
+                    f"<i>Вместо имени можно писать all — для всех ботов</i>"
+                )
     except Exception:
         pass
 
@@ -4214,6 +4565,44 @@ async def main():
         if not prices:
             await asyncio.sleep(2)
             continue
+
+        # ===== ⚡ FORCE из Telegram (одноразовая подмена 2 закрытых свечей) =====
+        global _tg_force_pattern, _tg_force_at
+        if _tg_force_pattern and len(candles) >= 3:
+            _force_was = _tg_force_pattern
+            def _flip_candle(_c, _want_up):
+                """Возвращает свечу с правильным направлением (UP/DOWN), сохраняя open и величину движения."""
+                if hasattr(_c, 'open') and hasattr(_c, 'close'):
+                    _o = float(_c.open); _cl = float(_c.close)
+                elif isinstance(_c, dict):
+                    _o = float(_c.get('open', _c.get('o', 0))); _cl = float(_c.get('close', _c.get('c', 0)))
+                else:
+                    _o = float(_c[0]); _cl = float(_c[3])
+                _delta = abs(_cl - _o) or 0.00010
+                _new_close = _o + _delta if _want_up else _o - _delta
+                _new_high = max(_o, _new_close)
+                _new_low = min(_o, _new_close)
+                if isinstance(_c, tuple):
+                    _ts2 = _c[4] if len(_c) >= 5 else 0
+                    return (_o, _new_high, _new_low, _new_close, _ts2)
+                if isinstance(_c, dict):
+                    _nc = dict(_c); _nc['close'] = _new_close; _nc['c'] = _new_close
+                    _nc['high'] = _new_high; _nc['h'] = _new_high
+                    _nc['low'] = _new_low;  _nc['l'] = _new_low
+                    return _nc
+                return _c
+            _want_2 = _force_was in ("UP_UP", "UP_DOWN")
+            _want_1 = _force_was in ("UP_UP", "DOWN_UP")
+            try:
+                candles = list(candles)
+                candles[-3] = _flip_candle(candles[-3], _want_2)
+                candles[-2] = _flip_candle(candles[-2], _want_1)
+                print(f"[TG_FORCE] ⚡ ПРИМЕНЁН паттерн {_force_was} к 2 закрытым свечам (одноразово)")
+                tg_info(f"⚡ <b>[{BOT_NAME}] FORCE применён</b>\\nПаттерн {_force_was} использован, дальше — реальные данные")
+            except Exception as _fe:
+                print(f"[TG_FORCE] ❌ Ошибка применения: {_fe}")
+            _tg_force_pattern = None
+            _tg_force_at = 0
 
         # ✅ ИСПРАВЛЕНО: get_trend вызывается ОДИН раз — переиспользуем результат.
         trend = get_trend(candles)

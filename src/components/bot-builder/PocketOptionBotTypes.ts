@@ -1027,6 +1027,7 @@ def _build_main_menu_buttons():
         [("🛑 СТОП", "stop")],
         [("📊 Статус", "status"), ("💰 Профит", "profit")],
         [("📋 Отчёт", "summary"), ("📈 График", "screenshot")],
+        [("🔧 Диагностика", "diag")],
         [("🟢🟢", "force:UP_UP"), ("🔴🔴", "force:DOWN_DOWN")],
         [("🟢🔴", "force:UP_DOWN"), ("🔴🟢", "force:DOWN_UP")],
     ]
@@ -1098,6 +1099,94 @@ def _tg_answer_callback(callback_id, text=""):
         urllib.request.urlopen(urllib.request.Request(u, data=d, method="POST"), timeout=5)
     except Exception:
         pass
+
+def _send_diag_report():
+    """Полный диагностический отчёт о состоянии бота. Шлётся в ТГ и в консоль."""
+    import time as _t_diag, sys as _sys_diag
+    try:
+        _wins_d = sum(1 for t in trade_log if t["won"])
+        _losses_d = trades_today - _wins_d
+        _wr_d = (_wins_d / trades_today * 100) if trades_today > 0 else 0
+        _state_d = "⏸ ПАУЗА" if _tg_paused else ("🛑 СТОП" if _tg_stopped else "▶️ Работает")
+        _cur_bet_d = globals().get('current_bet', BASE_BET)
+        _streak_d = globals().get('cur_streak', 0)
+        # FORCE-режим
+        _force_d = "—"
+        if _tg_force_pattern:
+            _fmap_d = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "UP_DOWN": "🟢🔴", "DOWN_UP": "🔴🟢"}
+            _force_d = f"{_fmap_d.get(_tg_force_pattern, _tg_force_pattern)} (активен)"
+        # Время последнего тика свечи
+        _buf_d = globals().get('_live_buf') or globals().get('buf') or globals().get('_live_buffer')
+        _price_d = "—"
+        _sync_d = "—"
+        _last_tick_d = "—"
+        if _buf_d is not None:
+            _lp_d = getattr(_buf_d, 'last_price', 0)
+            if _lp_d:
+                _price_d = str(_lp_d)
+            _sw_d = getattr(_buf_d, 'sync_warn', False)
+            _sync_d = "⚠️ ЗАВИС" if _sw_d else "✅ живой"
+            _lt_d = getattr(_buf_d, 'last_tick_at', None)
+            if _lt_d:
+                _ago = int(_t_diag.time() - _lt_d)
+                _last_tick_d = f"{_ago}с назад"
+        # Активные asyncio-задачи
+        _tasks_d = "—"
+        try:
+            import asyncio as _a_diag
+            _loop_d = _a_diag.get_event_loop()
+            _all_tasks = [t for t in _a_diag.all_tasks(_loop_d) if not t.done()]
+            _task_names = [t.get_name() for t in _all_tasks][:10]
+            _tasks_d = f"{len(_all_tasks)} активных: {', '.join(_task_names) if _task_names else '—'}"
+        except Exception as _te_d:
+            _tasks_d = f"ошибка: {_te_d}"
+        # Каскад настройки
+        _cascade_settings_d = f"H1×{${cfg.hedgeCascadeM1 ?? 1.0}} H2×{${cfg.hedgeCascadeM2 ?? 1.5}} H3×{${cfg.hedgeCascadeM3 ?? 2.0}} | откат {${cfg.hedgePullbackPips ?? 5}} пип | проверка {${cfg.hedgeCheckInterval ?? 2}}с"
+        _cascade_on_d = "✅ ВКЛ" if ${cfg.hedgeCascadeEnabled ? "True" : "False"} else "❌ выкл"
+        # Последние 5 сделок
+        _last5_d = ""
+        if trade_log:
+            for _tr in trade_log[-5:]:
+                _mk = "✅" if _tr.get("won") else "❌"
+                _last5_d += f"\\n  {_mk} {_tr.get('signal', '?')} | {_tr.get('profit', 0):+.2f}"
+        else:
+            _last5_d = "\\n  (сделок ещё не было)"
+        # Время работы
+        _start_t_d = globals().get('_bot_started_at', None)
+        _uptime_d = "—"
+        if _start_t_d:
+            _ut = int(_t_diag.time() - _start_t_d)
+            _uptime_d = f"{_ut//3600}ч {(_ut%3600)//60}м {_ut%60}с"
+        _msg = (
+            f"🔧 <b>[{BOT_NAME}] ДИАГНОСТИКА</b>\\n"
+            f"━━━━━━━━━━━━━━━━━━━━\\n"
+            f"<b>📊 Состояние:</b> {_state_d}\\n"
+            f"<b>⏱ Аптайм:</b> {_uptime_d}\\n"
+            f"<b>💰 Профит:</b> {total_profit:+.2f} {CURRENCY}\\n"
+            f"<b>📈 Сделок:</b> {trades_today} (✅{_wins_d}/❌{_losses_d}) | WR: {_wr_d:.0f}%\\n"
+            f"<b>⚙️ Ставка:</b> {_cur_bet_d} | <b>Серия:</b> {_streak_d:+d}\\n"
+            f"<b>💱 Актив:</b> {ASSET} | <b>Цена:</b> {_price_d}\\n"
+            f"<b>📡 Поток API:</b> {_sync_d} | <b>Тик:</b> {_last_tick_d}\\n"
+            f"<b>⚡ FORCE:</b> {_force_d}\\n"
+            f"━━━━━━━━━━━━━━━━━━━━\\n"
+            f"<b>🛡 КАСКАДНЫЙ ХЕДЖ:</b> {_cascade_on_d}\\n"
+            f"<i>{_cascade_settings_d}</i>\\n"
+            f"━━━━━━━━━━━━━━━━━━━━\\n"
+            f"<b>🧵 Asyncio задачи:</b>\\n<i>{_tasks_d}</i>\\n"
+            f"━━━━━━━━━━━━━━━━━━━━\\n"
+            f"<b>📋 Последние 5 сделок:</b>{_last5_d}\\n"
+            f"━━━━━━━━━━━━━━━━━━━━\\n"
+            f"<i>Если хедж молчит — проверь логи терминала на [CASCADE]</i>"
+        )
+        print(f"[DIAG] === ОТЧЁТ ===\\n{_msg}\\n[DIAG] === КОНЕЦ ===")
+        tg(_msg)
+    except Exception as _de:
+        import traceback as _tb_d
+        _err = f"❌ <b>[{BOT_NAME}] Ошибка диагностики</b>\\n{_de}"
+        print(f"[DIAG] ❌ {_de}")
+        print(_tb_d.format_exc())
+        try: tg(_err)
+        except: pass
 
 def _handle_button_click(action_str, message_id, callback_id):
     """Обрабатывает нажатие inline-кнопки. action_str — содержимое callback_data."""
@@ -1188,6 +1277,11 @@ def _handle_button_click(action_str, message_id, callback_id):
         # Просто пересоздаём меню (с актуальной статой)
         tg_delete_message(message_id)
         _tg_last_menu_id = None
+        tg_show_main_menu()
+    elif action_str == "diag":
+        tg_delete_message(message_id)
+        _tg_last_menu_id = None
+        _send_diag_report()
         tg_show_main_menu()
     elif action_str.startswith("startforce:"):
         # СТАРТОВЫЙ FORCE — без подтверждения, сразу ставим паттерн и пропускаем прогрев
@@ -1298,6 +1392,8 @@ def tg_poll_commands():
             if cmd == "/stop" and for_me:
                 _tg_stopped = True
                 tg(f"🛑 <b>[{BOT_NAME}] остановлен</b>")
+            elif cmd == "/diag" and for_me:
+                _send_diag_report()
             elif cmd == "/pause" and for_me:
                 _tg_paused = True
                 tg(f"⏸ <b>[{BOT_NAME}] на паузе.</b> /resume {BOT_NAME} для продолжения")
@@ -2543,6 +2639,8 @@ async def main():
     # ===== 🎯 СТАРТОВЫЙ ОПРОС FORCE: 4 кнопки выбора цвета 2 закрытых свечей =====
     # Если юзер нажмёт — установится _tg_force_pattern, прогрев пропустится, бот начнёт торговать СРАЗУ.
     # Если за 5 минут не нажмёт — обычный прогрев (~2 мин).
+    import time as _t_boot
+    globals()['_bot_started_at'] = _t_boot.time()
     _start_force_taken = False  # признак что стартовый force взят
     print(f"[STARTFORCE] 🎯 Показываю стартовый опрос FORCE на 5 минут...")
     try:
@@ -3804,6 +3902,7 @@ def _build_main_menu_buttons():
         [("🛑 СТОП", "stop")],
         [("📊 Статус", "status"), ("💰 Профит", "profit")],
         [("📋 Отчёт", "summary"), ("📈 График", "screenshot")],
+        [("🔧 Диагностика", "diag")],
         [("🟢🟢", "force:UP_UP"), ("🔴🔴", "force:DOWN_DOWN")],
         [("🟢🔴", "force:UP_DOWN"), ("🔴🟢", "force:DOWN_UP")],
     ]
@@ -3875,6 +3974,94 @@ def _tg_answer_callback(callback_id, text=""):
         urllib.request.urlopen(urllib.request.Request(u, data=d, method="POST"), timeout=5)
     except Exception:
         pass
+
+def _send_diag_report():
+    """Полный диагностический отчёт о состоянии бота. Шлётся в ТГ и в консоль."""
+    import time as _t_diag, sys as _sys_diag
+    try:
+        _wins_d = sum(1 for t in trade_log if t["won"])
+        _losses_d = trades_today - _wins_d
+        _wr_d = (_wins_d / trades_today * 100) if trades_today > 0 else 0
+        _state_d = "⏸ ПАУЗА" if _tg_paused else ("🛑 СТОП" if _tg_stopped else "▶️ Работает")
+        _cur_bet_d = globals().get('current_bet', BASE_BET)
+        _streak_d = globals().get('cur_streak', 0)
+        # FORCE-режим
+        _force_d = "—"
+        if _tg_force_pattern:
+            _fmap_d = {"UP_UP": "🟢🟢", "DOWN_DOWN": "🔴🔴", "UP_DOWN": "🟢🔴", "DOWN_UP": "🔴🟢"}
+            _force_d = f"{_fmap_d.get(_tg_force_pattern, _tg_force_pattern)} (активен)"
+        # Время последнего тика свечи
+        _buf_d = globals().get('_live_buf') or globals().get('buf') or globals().get('_live_buffer')
+        _price_d = "—"
+        _sync_d = "—"
+        _last_tick_d = "—"
+        if _buf_d is not None:
+            _lp_d = getattr(_buf_d, 'last_price', 0)
+            if _lp_d:
+                _price_d = str(_lp_d)
+            _sw_d = getattr(_buf_d, 'sync_warn', False)
+            _sync_d = "⚠️ ЗАВИС" if _sw_d else "✅ живой"
+            _lt_d = getattr(_buf_d, 'last_tick_at', None)
+            if _lt_d:
+                _ago = int(_t_diag.time() - _lt_d)
+                _last_tick_d = f"{_ago}с назад"
+        # Активные asyncio-задачи
+        _tasks_d = "—"
+        try:
+            import asyncio as _a_diag
+            _loop_d = _a_diag.get_event_loop()
+            _all_tasks = [t for t in _a_diag.all_tasks(_loop_d) if not t.done()]
+            _task_names = [t.get_name() for t in _all_tasks][:10]
+            _tasks_d = f"{len(_all_tasks)} активных: {', '.join(_task_names) if _task_names else '—'}"
+        except Exception as _te_d:
+            _tasks_d = f"ошибка: {_te_d}"
+        # Каскад настройки
+        _cascade_settings_d = f"H1×{${cfg.hedgeCascadeM1 ?? 1.0}} H2×{${cfg.hedgeCascadeM2 ?? 1.5}} H3×{${cfg.hedgeCascadeM3 ?? 2.0}} | откат {${cfg.hedgePullbackPips ?? 5}} пип | проверка {${cfg.hedgeCheckInterval ?? 2}}с"
+        _cascade_on_d = "✅ ВКЛ" if ${cfg.hedgeCascadeEnabled ? "True" : "False"} else "❌ выкл"
+        # Последние 5 сделок
+        _last5_d = ""
+        if trade_log:
+            for _tr in trade_log[-5:]:
+                _mk = "✅" if _tr.get("won") else "❌"
+                _last5_d += f"\\n  {_mk} {_tr.get('signal', '?')} | {_tr.get('profit', 0):+.2f}"
+        else:
+            _last5_d = "\\n  (сделок ещё не было)"
+        # Время работы
+        _start_t_d = globals().get('_bot_started_at', None)
+        _uptime_d = "—"
+        if _start_t_d:
+            _ut = int(_t_diag.time() - _start_t_d)
+            _uptime_d = f"{_ut//3600}ч {(_ut%3600)//60}м {_ut%60}с"
+        _msg = (
+            f"🔧 <b>[{BOT_NAME}] ДИАГНОСТИКА</b>\\n"
+            f"━━━━━━━━━━━━━━━━━━━━\\n"
+            f"<b>📊 Состояние:</b> {_state_d}\\n"
+            f"<b>⏱ Аптайм:</b> {_uptime_d}\\n"
+            f"<b>💰 Профит:</b> {total_profit:+.2f} {CURRENCY}\\n"
+            f"<b>📈 Сделок:</b> {trades_today} (✅{_wins_d}/❌{_losses_d}) | WR: {_wr_d:.0f}%\\n"
+            f"<b>⚙️ Ставка:</b> {_cur_bet_d} | <b>Серия:</b> {_streak_d:+d}\\n"
+            f"<b>💱 Актив:</b> {ASSET} | <b>Цена:</b> {_price_d}\\n"
+            f"<b>📡 Поток API:</b> {_sync_d} | <b>Тик:</b> {_last_tick_d}\\n"
+            f"<b>⚡ FORCE:</b> {_force_d}\\n"
+            f"━━━━━━━━━━━━━━━━━━━━\\n"
+            f"<b>🛡 КАСКАДНЫЙ ХЕДЖ:</b> {_cascade_on_d}\\n"
+            f"<i>{_cascade_settings_d}</i>\\n"
+            f"━━━━━━━━━━━━━━━━━━━━\\n"
+            f"<b>🧵 Asyncio задачи:</b>\\n<i>{_tasks_d}</i>\\n"
+            f"━━━━━━━━━━━━━━━━━━━━\\n"
+            f"<b>📋 Последние 5 сделок:</b>{_last5_d}\\n"
+            f"━━━━━━━━━━━━━━━━━━━━\\n"
+            f"<i>Если хедж молчит — проверь логи терминала на [CASCADE]</i>"
+        )
+        print(f"[DIAG] === ОТЧЁТ ===\\n{_msg}\\n[DIAG] === КОНЕЦ ===")
+        tg(_msg)
+    except Exception as _de:
+        import traceback as _tb_d
+        _err = f"❌ <b>[{BOT_NAME}] Ошибка диагностики</b>\\n{_de}"
+        print(f"[DIAG] ❌ {_de}")
+        print(_tb_d.format_exc())
+        try: tg(_err)
+        except: pass
 
 def _handle_button_click(action_str, message_id, callback_id):
     """Обрабатывает нажатие inline-кнопки. action_str — содержимое callback_data."""
@@ -3965,6 +4152,11 @@ def _handle_button_click(action_str, message_id, callback_id):
         # Просто пересоздаём меню (с актуальной статой)
         tg_delete_message(message_id)
         _tg_last_menu_id = None
+        tg_show_main_menu()
+    elif action_str == "diag":
+        tg_delete_message(message_id)
+        _tg_last_menu_id = None
+        _send_diag_report()
         tg_show_main_menu()
     elif action_str.startswith("startforce:"):
         # СТАРТОВЫЙ FORCE — без подтверждения, сразу ставим паттерн и пропускаем прогрев
@@ -4075,6 +4267,8 @@ def tg_poll_commands():
             if cmd == "/stop" and for_me:
                 _tg_stopped = True
                 tg(f"🛑 <b>[{BOT_NAME}] остановлен</b>")
+            elif cmd == "/diag" and for_me:
+                _send_diag_report()
             elif cmd == "/pause" and for_me:
                 _tg_paused = True
                 tg(f"⏸ <b>[{BOT_NAME}] на паузе.</b> /resume {BOT_NAME} для продолжения")

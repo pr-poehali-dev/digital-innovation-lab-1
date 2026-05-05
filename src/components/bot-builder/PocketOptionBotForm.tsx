@@ -1532,6 +1532,95 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
         )}
       </Card>
 
+      {/* 🛡 Каскадный хедж — НОВАЯ модель */}
+      <Card className="bg-zinc-900 border-zinc-700">
+        <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleDetail("hedgeCascade")}>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-space-mono text-zinc-300 flex items-center gap-2">
+              🛡 Каскадный хедж (3 уровня)
+              {config.hedgeCascadeEnabled ? (
+                <span className="text-[10px] bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded">ВКЛ</span>
+              ) : (
+                <span className="text-[10px] bg-zinc-700 text-zinc-500 px-2 py-0.5 rounded">ВЫКЛ</span>
+              )}
+            </CardTitle>
+            <Icon name={detailOpen.hedgeCascade ? "ChevronUp" : "ChevronDown"} size={16} className="text-zinc-500" />
+          </div>
+        </CardHeader>
+        {detailOpen.hedgeCascade && (
+          <CardContent className="space-y-3 pt-0">
+            <div className="flex items-center justify-between">
+              <Label className="text-zinc-300 font-space-mono text-xs">Включить каскадный хедж</Label>
+              <Switch checked={!!config.hedgeCascadeEnabled} onCheckedChange={(v) => set({ hedgeCascadeEnabled: v })} />
+            </div>
+
+            {config.hedgeCascadeEnabled && (
+              <div className="space-y-3 pt-2 border-t border-zinc-800">
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-2">
+                  <p className="text-amber-300 font-space-mono text-[10px]">
+                    ⚠️ <b>Каскадный хедж</b> — это НОВАЯ модель. Если включишь — обычный «умный хедж (ATR)» сверху продолжит работать тоже. Лучше выключить старый хедж, чтобы не дублировать защиту.
+                  </p>
+                </div>
+
+                {/* Множитель Хедж-1 */}
+                <div>
+                  <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                    Хедж-1 (открывается СРАЗУ): <span className="text-white font-bold">×{config.hedgeCascadeM1?.toFixed(1) ?? "1.0"}</span> от ставки
+                  </Label>
+                  <Slider min={0.1} max={3} step={0.1} value={[config.hedgeCascadeM1 ?? 1.0]} onValueChange={([v]) => set({ hedgeCascadeM1: v })} />
+                  <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
+                    Открывается мгновенно с основной, <b>противоположное направление</b>, та же экспирация
+                  </p>
+                </div>
+
+                {/* Множитель Хедж-2 */}
+                <div>
+                  <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                    Хедж-2 (после 1/2 экспирации): <span className="text-white font-bold">×{config.hedgeCascadeM2?.toFixed(1) ?? "1.5"}</span> от ставки
+                  </Label>
+                  <Slider min={0.5} max={3} step={0.1} value={[config.hedgeCascadeM2 ?? 1.5]} onValueChange={([v]) => set({ hedgeCascadeM2: v })} />
+                  <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
+                    Срабатывает после 1/2 экспирации, в момент <b>коррекции</b> цены (откат от пика). Направление <b>против основной</b>
+                  </p>
+                </div>
+
+                {/* Множитель Хедж-3 */}
+                <div>
+                  <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                    Хедж-3 (пересечение страйка): <span className="text-white font-bold">×{config.hedgeCascadeM3?.toFixed(1) ?? "2.0"}</span> от ставки
+                  </Label>
+                  <Slider min={0.5} max={4} step={0.1} value={[config.hedgeCascadeM3 ?? 2.0]} onValueChange={([v]) => set({ hedgeCascadeM3: v })} />
+                  <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
+                    Срабатывает 1 раз — когда цена впервые пересекает страйк основной. Направление <b>совпадает с основной</b>
+                  </p>
+                </div>
+
+                {/* Откат в пипсах */}
+                <div>
+                  <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                    Откат от пика (для Хеджа-2): <span className="text-white font-bold">{config.hedgeCascadePullbackPips ?? 3} пип</span>
+                  </Label>
+                  <Slider min={1} max={20} step={1} value={[config.hedgeCascadePullbackPips ?? 3]} onValueChange={([v]) => set({ hedgeCascadePullbackPips: v })} />
+                  <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
+                    {(config.hedgeCascadePullbackPips ?? 3) <= 2 ? "⚡ Очень чувствительно — хедж-2 откроется при малейшем дёргании" : (config.hedgeCascadePullbackPips ?? 3) >= 10 ? "🐢 Сурово — нужен явный разворот" : "⚖️ Норма (рекомендуется 3-5 пип)"}
+                  </p>
+                </div>
+
+                {/* Сводка */}
+                <div className="bg-zinc-800/50 rounded-lg p-3 space-y-1 font-space-mono text-[10px]">
+                  <p className="text-zinc-300 font-bold mb-1">Сводка по каскаду (X = размер основной):</p>
+                  <p className="text-zinc-400">🛡 <span className="text-purple-300">Хедж-1:</span> ×{config.hedgeCascadeM1?.toFixed(1) ?? "1.0"}X — сразу, ПРОТИВ основной</p>
+                  <p className="text-zinc-400">🔄 <span className="text-purple-300">Хедж-2:</span> ×{config.hedgeCascadeM2?.toFixed(1) ?? "1.5"}X — на 1/2, ПРОТИВ, ждёт откат {config.hedgeCascadePullbackPips ?? 3} пип</p>
+                  <p className="text-zinc-400">🎯 <span className="text-purple-300">Хедж-3:</span> ×{config.hedgeCascadeM3?.toFixed(1) ?? "2.0"}X — ПО основной, при пересечении страйка</p>
+                  <p className="text-zinc-400 mt-1">⏱ Все хеджи имеют ту же экспирацию — заканчиваются с основной</p>
+                  <p className="text-zinc-400">💰 <span className="text-purple-300">Макс. сумма на сигнал:</span> X × (1 + {config.hedgeCascadeM1?.toFixed(1) ?? "1.0"} + {config.hedgeCascadeM2?.toFixed(1) ?? "1.5"} + {config.hedgeCascadeM3?.toFixed(1) ?? "2.0"}) = <span className="text-white">{(1 + (config.hedgeCascadeM1 ?? 1.0) + (config.hedgeCascadeM2 ?? 1.5) + (config.hedgeCascadeM3 ?? 2.0)).toFixed(1)}X</span></p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
+
       {/* Profit Extension */}
       <Card className="bg-zinc-900 border-zinc-700">
         <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleDetail("profitExt")}>

@@ -53,6 +53,16 @@ export interface POBotConfig {
   hedgeTimeMaxPercent: number
   /** Кол-во подтверждающих тиков подряд (защита от шума) */
   hedgeConfirmTicks: number
+  /** Каскадный хедж: новая модель — 3 уровня страховки в цикле основной сделки */
+  hedgeCascadeEnabled?: boolean
+  /** Размер хеджа-1 как множитель от основной (X). Открывается сразу с основной, противоположное направление, та же экспирация */
+  hedgeCascadeM1?: number
+  /** Размер хеджа-2 как множитель от основной (X). Открывается после 1/2 экспирации в момент коррекции, противоположное направление */
+  hedgeCascadeM2?: number
+  /** Размер хеджа-3 как множитель от основной (X). Открывается при первом пересечении страйка ценой, СОВПАДАЕТ с основной */
+  hedgeCascadeM3?: number
+  /** Откат цены от пика в пипсах для детекции момента коррекции (хедж-2) */
+  hedgeCascadePullbackPips?: number
   pipSize: number
   profitExtEnabled: boolean
   profitExtPips: number
@@ -361,6 +371,11 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   hedgeTimeMinPercent: 30,
   hedgeTimeMaxPercent: 70,
   hedgeConfirmTicks: 2,
+  hedgeCascadeEnabled: false,
+  hedgeCascadeM1: 1.0,
+  hedgeCascadeM2: 1.5,
+  hedgeCascadeM3: 2.0,
+  hedgeCascadePullbackPips: 3,
   pipSize: 0.0001,
   profitExtEnabled: true,
   profitExtPips: 5,
@@ -2079,6 +2094,153 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
             print(f"[HEDGE] Ошибка: {e}")
     return None, 0.0, 0, 0.0
 
+async def cascade_hedge_monitor(client, original_direction, original_bet, entry_price, expiry_sec, started_at):
+    """
+    🛡 КАСКАДНЫЙ ХЕДЖ — 3 уровня страховки в цикле основной сделки.
+
+    Принцип:
+      • Хедж-1 (X)     — открывается СРАЗУ с основной (отдельно, перед запуском этого монитора)
+      • Хедж-2 (1.5X)  — открывается ПОСЛЕ 1/2 экспирации, в момент коррекции цены (откат N пипсов от пика)
+                         направление: ПРОТИВОПОЛОЖНОЕ основной
+      • Хедж-3 (2X)    — открывается при ПЕРВОМ пересечении страйка ценой (в любой момент жизни сделки)
+                         направление: СОВПАДАЕТ с основной | срабатывает только 1 раз
+
+    Все хеджи имеют ту же экспирацию что осталась у основной (заканчиваются вместе).
+
+    Возвращает: list[(order_id, bet, level, balance_before)] — открытые хедж-ордера
+    """
+    opened_hedges = []
+    if not ${cfg.hedgeCascadeEnabled ? "True" : "False"}:
+        return opened_hedges
+    if entry_price <= 0:
+        print("[CASCADE] ⛔ entry_price=0 — каскад НЕ запущен")
+        return opened_hedges
+
+    M2_MULT       = ${cfg.hedgeCascadeM2 ?? 1.5}
+    M3_MULT       = ${cfg.hedgeCascadeM3 ?? 2.0}
+    PULLBACK_PIPS = ${cfg.hedgeCascadePullbackPips ?? 3}
+    CHECK_EVERY   = max(1, ${cfg.hedgeCheckInterval} // 2 if ${cfg.hedgeCheckInterval} > 1 else 1)
+
+    _asset_key_c = (_resolved_asset or ASSET)
+    _pip_size_map_c = {
+        "USDJPY": 0.01, "USDJPY_otc": 0.01,
+        "GBPJPY": 0.01, "GBPJPY_otc": 0.01, "EURJPY": 0.01, "EURJPY_otc": 0.01,
+        "AUDJPY": 0.01, "AUDJPY_otc": 0.01, "CADJPY": 0.01, "CADJPY_otc": 0.01,
+        "CHFJPY": 0.01, "CHFJPY_otc": 0.01, "NZDJPY": 0.01, "NZDJPY_otc": 0.01,
+        "BTCUSD": 1.0, "BTCUSD_otc": 1.0, "ETHUSD": 1.0, "ETHUSD_otc": 1.0,
+        "XAUUSD": 0.1, "XAUUSD_otc": 0.1, "XAGUSD": 0.01, "XAGUSD_otc": 0.01,
+        "SP500": 0.1, "SP500_otc": 0.1, "NASUSD": 0.1, "DJI30": 1.0,
+    }
+    PIP_SIZE_C = _pip_size_map_c.get(_asset_key_c, 0.0001)
+
+    h2_opened = False
+    h3_opened = False
+    peak_abs_distance = 0.0
+    peak_price = entry_price
+
+    print(f"[CASCADE] 🛡 Старт мониторинга | основная={original_direction} {original_bet} | страйк={entry_price} | pip={PIP_SIZE_C} | откат={PULLBACK_PIPS} пип")
+
+    while True:
+        await asyncio.sleep(CHECK_EVERY)
+        try:
+            elapsed = asyncio.get_event_loop().time() - started_at
+        except Exception:
+            elapsed = 0
+        remaining = int(expiry_sec - elapsed)
+        if remaining <= 5:
+            print(f"[CASCADE] ⏱ Конец цикла основной сделки (осталось {remaining}с). Каскад завершён.")
+            break
+
+        try:
+            _cands = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=${cfg.candleTimeframe ?? 60}, count=1)
+            if not _cands:
+                continue
+            _c = _cands[-1]
+            if hasattr(_c, 'close'):
+                current_price = float(_c.close)
+            elif isinstance(_c, dict):
+                current_price = float(_c.get('close', _c.get('c', 0)))
+            else:
+                current_price = float(_c[3] if len(_c) > 3 else _c[1])
+            if current_price <= 0:
+                continue
+        except Exception as _ce:
+            print(f"[CASCADE] Ошибка получения цены: {_ce}")
+            continue
+
+        cur_abs_distance = abs(current_price - entry_price)
+        if cur_abs_distance > peak_abs_distance:
+            peak_abs_distance = cur_abs_distance
+            peak_price = current_price
+
+        pips_from_entry = round(cur_abs_distance / PIP_SIZE_C, 1)
+        pips_from_peak  = round(abs(peak_price - current_price) / PIP_SIZE_C, 1)
+        time_ratio = elapsed / expiry_sec if expiry_sec > 0 else 0
+
+        # ХЕДЖ-3: первое пересечение страйка | направление = основной | 2X | 1 раз
+        if not h3_opened:
+            crossed = False
+            if original_direction == "CALL" and current_price < entry_price:
+                crossed = True
+            elif original_direction == "PUT" and current_price > entry_price:
+                crossed = True
+            if crossed:
+                h3_bet = round(original_bet * M3_MULT, 2)
+                h3_dir = original_direction
+                print(f"[CASCADE] 🎯 ХЕДЖ-3 ТРИГГЕР: цена {current_price} пересекла страйк {entry_price} ({pips_from_entry} пип)")
+                print(f"[CASCADE]    направление={h3_dir} | размер={h3_bet} (×{M3_MULT}) | осталось {remaining}с")
+                try:
+                    _bal_h3, _ = await get_balance(client)
+                    if h3_bet > _bal_h3:
+                        print(f"[CASCADE] ⛔ ХЕДЖ-3 отменён: ставка {h3_bet} > баланс {_bal_h3}")
+                        tg_info(f"⛔ <b>[CASCADE] Хедж-3 отменён</b>\\nНе хватает баланса: {_bal_h3:.2f} < {h3_bet:.2f}")
+                        h3_opened = True
+                    else:
+                        _dv3 = OrderDirection.CALL if h3_dir == "CALL" else OrderDirection.PUT
+                        _ord3 = await client.place_order(asset=(_resolved_asset or ASSET), amount=h3_bet, direction=_dv3, duration=remaining)
+                        _oid3 = getattr(_ord3, 'order_id', None) if _ord3 else None
+                        if _oid3:
+                            opened_hedges.append((_oid3, h3_bet, "H3", _bal_h3))
+                            print(f"[CASCADE] ✅ ХЕДЖ-3 открыт ID={_oid3}")
+                            tg(f"🎯 <b>[CASCADE Хедж-3]</b> {h3_dir} | {h3_bet} | пересечение страйка ({pips_from_entry} пип) | осталось {remaining}с")
+                        h3_opened = True
+                except Exception as _e3:
+                    print(f"[CASCADE] ❌ Ошибка хедж-3: {_e3}")
+                    h3_opened = True
+
+        # ХЕДЖ-2: после 1/2 экспирации, коррекция от пика | направление противоположное | 1.5X | 1 раз
+        if not h2_opened and time_ratio >= 0.5:
+            if peak_abs_distance > 0 and pips_from_peak >= PULLBACK_PIPS:
+                h2_bet = round(original_bet * M2_MULT, 2)
+                h2_dir = "PUT" if original_direction == "CALL" else "CALL"
+                print(f"[CASCADE] 🔄 ХЕДЖ-2 ТРИГГЕР: коррекция {pips_from_peak} пип от пика (пик отклонения {round(peak_abs_distance/PIP_SIZE_C, 1)} пип)")
+                print(f"[CASCADE]    направление={h2_dir} (против основной) | размер={h2_bet} (×{M2_MULT}) | осталось {remaining}с")
+                try:
+                    _bal_h2, _ = await get_balance(client)
+                    if h2_bet > _bal_h2:
+                        print(f"[CASCADE] ⛔ ХЕДЖ-2 отменён: ставка {h2_bet} > баланс {_bal_h2}")
+                        tg_info(f"⛔ <b>[CASCADE] Хедж-2 отменён</b>\\nНе хватает баланса: {_bal_h2:.2f} < {h2_bet:.2f}")
+                        h2_opened = True
+                    else:
+                        _dv2 = OrderDirection.CALL if h2_dir == "CALL" else OrderDirection.PUT
+                        _ord2 = await client.place_order(asset=(_resolved_asset or ASSET), amount=h2_bet, direction=_dv2, duration=remaining)
+                        _oid2 = getattr(_ord2, 'order_id', None) if _ord2 else None
+                        if _oid2:
+                            opened_hedges.append((_oid2, h2_bet, "H2", _bal_h2))
+                            print(f"[CASCADE] ✅ ХЕДЖ-2 открыт ID={_oid2}")
+                            tg(f"🔄 <b>[CASCADE Хедж-2]</b> {h2_dir} | {h2_bet} | коррекция {pips_from_peak} пип | осталось {remaining}с")
+                        h2_opened = True
+                except Exception as _e2:
+                    print(f"[CASCADE] ❌ Ошибка хедж-2: {_e2}")
+                    h2_opened = True
+
+        if h2_opened and h3_opened:
+            print(f"[CASCADE] ✅ Все уровни каскада отработали. Жду конца основной.")
+            break
+
+    print(f"[CASCADE] 🏁 Мониторинг завершён | открыто хеджей: {len(opened_hedges)}")
+    return opened_hedges
+
 async def profit_extension_monitor(client, original_direction, original_bet, entry_price, expiry_sec):
     """
     Мониторинг прибыльной позиции для расширения прибыли.
@@ -2346,6 +2508,20 @@ async def main():
         f"━━━━━━━━━━━━━━━━━━━━\\n"
         f"⏳ Ожидаю сигналы..."
     )
+
+    # ===== ПРЕДСТАРТОВОЕ УВЕДОМЛЕНИЕ: команда /force готова к использованию =====
+    print(f"[PRESTART] 🚀 Бот {BOT_NAME} запущен. До прогрева доступна команда /force {BOT_NAME}")
+    try:
+        tg_info(
+            f"🚀 <b>[{BOT_NAME}] Бот запущен</b>\\n"
+            f"━━━━━━━━━━━━━━━━━━━━\\n"
+            f"⏳ Сейчас начнётся прогрев (~2 минуты)\\n\\n"
+            f"💡 <b>Можешь форснуть сделку прямо сейчас:</b>\\n"
+            f"<code>/force {BOT_NAME}</code>\\n\\n"
+            f"<i>Скопируй и отправь команду — бот возьмёт сделку без ожидания сигнала</i>"
+        )
+    except Exception as _pe:
+        print(f"[PRESTART] Не удалось отправить уведомление: {_pe}")
 
     # ===== ФАЗА РАЗОГРЕВА: ждём закрытия 2 свежих 1-минутных свечей перед первой сделкой =====
     import time as _time_warmup
@@ -2816,6 +2992,38 @@ async def main():
                     except Exception as e2:
                         print(f"[ENTRY_PRICE] Fallback ошибка: {e2}")
                 print(f"[ENTRY_PRICE] entry_price={entry_price}")
+
+                # ===== 🛡 КАСКАДНЫЙ ХЕДЖ — стартуем сразу с основной (НЕ ждём 60с) =====
+                cascade_hedge1_info = None  # для записи результата хеджа-1
+                cascade_task = None
+                cascade_started_at = asyncio.get_event_loop().time()
+                if order_id and ${cfg.hedgeCascadeEnabled ? "True" : "False"} and entry_price > 0:
+                    # ХЕДЖ-1: сразу с основной, противоположное направление, та же экспирация, размер X
+                    _h1_mult = ${cfg.hedgeCascadeM1 ?? 1.0}
+                    _h1_bet = round(bet * _h1_mult, 2)
+                    _h1_dir = "PUT" if signal == "CALL" else "CALL"
+                    print(f"[CASCADE] 🛡 ХЕДЖ-1 (сразу с основной): {_h1_dir} | {_h1_bet} (×{_h1_mult}) | экспирация {EXPIRY_SEC}с")
+                    try:
+                        _bal_h1, _ = await get_balance(client)
+                        if _h1_bet > _bal_h1:
+                            print(f"[CASCADE] ⛔ ХЕДЖ-1 отменён: ставка {_h1_bet} > баланс {_bal_h1}")
+                            tg_info(f"⛔ <b>[CASCADE] Хедж-1 отменён</b>\\nБаланс {_bal_h1:.2f} < {_h1_bet:.2f}")
+                        else:
+                            _dv1 = OrderDirection.CALL if _h1_dir == "CALL" else OrderDirection.PUT
+                            _ord1 = await client.place_order(asset=(_resolved_asset or ASSET), amount=_h1_bet, direction=_dv1, duration=EXPIRY_SEC)
+                            _oid1 = getattr(_ord1, 'order_id', None) if _ord1 else None
+                            if _oid1:
+                                cascade_hedge1_info = (_oid1, _h1_bet, "H1", _bal_h1)
+                                print(f"[CASCADE] ✅ ХЕДЖ-1 открыт ID={_oid1}")
+                                tg(f"🛡 <b>[CASCADE Хедж-1]</b> {_h1_dir} | {_h1_bet} | страховка против {signal} | {EXPIRY_SEC//60} мин")
+                    except Exception as _e1:
+                        print(f"[CASCADE] ❌ Ошибка хедж-1: {_e1}")
+
+                    # Запускаем мониторинг каскада параллельно (хедж-2 и хедж-3)
+                    cascade_task = asyncio.create_task(
+                        cascade_hedge_monitor(client, signal, bet, entry_price, EXPIRY_SEC, cascade_started_at)
+                    )
+
                 if order_id:
                     # Пауза 60с и обновление цены входа из свежей 1-минутной свечи
                     print(f"[ENTRY_PRICE] Пауза 60с для точного определения цены...")
@@ -2856,11 +3064,35 @@ async def main():
                         print("[WARN] entry_price=0 — хедж и расширение прибыли НЕ запущены!")
                     # Ждём основной ордер и мониторы параллельно
                     main_result_task = asyncio.create_task(check_result(client, order_id, balance_before, bet))
-                    gather_results = await asyncio.gather(main_result_task, hedge_task or asyncio.sleep(0), ext_task or asyncio.sleep(0), return_exceptions=True)
+                    gather_results = await asyncio.gather(
+                        main_result_task,
+                        hedge_task or asyncio.sleep(0),
+                        ext_task or asyncio.sleep(0),
+                        cascade_task or asyncio.sleep(0),
+                        return_exceptions=True,
+                    )
                     main_res = gather_results[0]
                     hedge_res = gather_results[1]
                     ext_res   = gather_results[2]
+                    cascade_res = gather_results[3]
                     won, profit, loss_amount = main_res if not isinstance(main_res, Exception) else (False, 0.0, bet)
+
+                    # ===== Подсчёт результатов каскадного хеджа =====
+                    cascade_orders = []
+                    if cascade_hedge1_info is not None:
+                        cascade_orders.append(cascade_hedge1_info)
+                    if cascade_task and not isinstance(cascade_res, Exception) and isinstance(cascade_res, list):
+                        cascade_orders.extend(cascade_res)
+                    for _co_id, _co_bet, _co_lvl, _co_bal in cascade_orders:
+                        try:
+                            _cw, _cp, _cl = await check_result(client, _co_id, _co_bal, _co_bet, wait_sec=10)
+                            _cmark = f"✅ +{_cp:.2f}" if _cw else f"❌ -{_cl:.2f}"
+                            print(f"[CASCADE] {_co_lvl} результат: {_cmark} (ставка {_co_bet})")
+                            tg(f"🛡 <b>[CASCADE {_co_lvl}]</b> {_cmark} {currency} | ставка {_co_bet}")
+                            profit      += _cp
+                            loss_amount += _cl
+                        except Exception as _cre:
+                            print(f"[CASCADE] Ошибка получения результата {_co_lvl}: {_cre}")
                     if hedge_task and not isinstance(hedge_res, Exception) and isinstance(hedge_res, tuple) and len(hedge_res) >= 3:
                         # Безопасная распаковка: берём первые 3 значения, остальные игнорим
                         hedge_order_id = hedge_res[0]

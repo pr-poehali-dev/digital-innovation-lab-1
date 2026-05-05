@@ -1533,19 +1533,24 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
       </Card>
 
       {/* 🛡 Каскадный хедж — НОВАЯ модель */}
-      <Card className="bg-zinc-900 border-zinc-700">
+      <Card className={`bg-zinc-900 transition-all ${config.hedgeCascadeEnabled ? "border-2 border-emerald-500/60 shadow-[0_0_20px_rgba(16,185,129,0.25)]" : "border-2 border-amber-500/40"}`}>
         <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleDetail("hedgeCascade")}>
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-space-mono text-zinc-300 flex items-center gap-2">
               🛡 Каскадный хедж (3 уровня)
               {config.hedgeCascadeEnabled ? (
-                <span className="text-[10px] bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded">ВКЛ</span>
+                <span className="text-[10px] bg-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded font-bold border border-emerald-500/40">✅ ВКЛ</span>
               ) : (
-                <span className="text-[10px] bg-zinc-700 text-zinc-500 px-2 py-0.5 rounded">ВЫКЛ</span>
+                <span className="text-[10px] bg-amber-500/30 text-amber-300 px-2 py-0.5 rounded font-bold border border-amber-500/40 animate-pulse">⚠️ ВЫКЛ — нажми чтобы включить</span>
               )}
             </CardTitle>
             <Icon name={detailOpen.hedgeCascade ? "ChevronUp" : "ChevronDown"} size={16} className="text-zinc-500" />
           </div>
+          {!config.hedgeCascadeEnabled && (
+            <p className="text-amber-400/80 font-space-mono text-[10px] mt-2">
+              💡 Без каскадного хеджа страховка хедж-1/хедж-2/хедж-3 <b>НЕ запустится</b>. Все логи [CASCADE] будут пустыми.
+            </p>
+          )}
         </CardHeader>
         {detailOpen.hedgeCascade && (
           <CardContent className="space-y-3 pt-0">

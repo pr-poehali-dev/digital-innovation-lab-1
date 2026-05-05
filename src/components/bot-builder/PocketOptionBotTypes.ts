@@ -2632,9 +2632,29 @@ async def main():
         f"🛡 <b>Активные защиты:</b>\\n"
         f"  ✅ Анти-рассинхрон API (пауза при устаревших свечах)\\n"
         f"  ✅ Часовой пояс МСК (UTC+3) в логах\\n"
+        f"  {('✅ Каскадный хедж 3 уровней (×' + str(${cfg.hedgeCascadeM1 ?? 1.0}) + '/×' + str(${cfg.hedgeCascadeM2 ?? 1.5}) + '/×' + str(${cfg.hedgeCascadeM3 ?? 2.0}) + ')') if ${cfg.hedgeCascadeEnabled ? "True" : "False"} else '⚠️ Каскадный хедж ВЫКЛЮЧЕН (вкл в настройках)'}\\n"
         f"━━━━━━━━━━━━━━━━━━━━\\n"
         f"⏳ Ожидаю сигналы..."
     )
+
+    # ===== 🛡 ЖИРНЫЙ СТАРТОВЫЙ ЛОГ ПРО КАСКАД (видно сразу при запуске) =====
+    _cascade_state_log = ${cfg.hedgeCascadeEnabled ? "True" : "False"}
+    print("=" * 60)
+    if _cascade_state_log:
+        print(f"  🛡 КАСКАДНЫЙ ХЕДЖ: ✅ ВКЛЮЧЁН")
+        print(f"     Хедж-1 (сразу, против): ×{${cfg.hedgeCascadeM1 ?? 1.0}}")
+        print(f"     Хедж-2 (после 1/2 экспир., против): ×{${cfg.hedgeCascadeM2 ?? 1.5}}")
+        print(f"     Хедж-3 (по основной, при пересеч. страйка): ×{${cfg.hedgeCascadeM3 ?? 2.0}}")
+        print(f"     Откат от пика: {${cfg.hedgeCascadePullbackPips ?? 3}} пип")
+        print(f"     Проверка цены: каждые {${cfg.hedgeCheckInterval ?? 2}} сек")
+        _max_sum = 1 + ${cfg.hedgeCascadeM1 ?? 1.0} + ${cfg.hedgeCascadeM2 ?? 1.5} + ${cfg.hedgeCascadeM3 ?? 2.0}
+        print(f"     Макс. сумма на сигнал: {_max_sum:.1f}X (т.е. {round(BASE_BET * _max_sum, 2)} {CURRENCY})")
+    else:
+        print(f"  ⚠️ КАСКАДНЫЙ ХЕДЖ: ❌ ВЫКЛЮЧЕН")
+        print(f"     Чтобы включить: открой настройки бота → раздел")
+        print(f"     '🛡 Каскадный хедж (3 уровня)' → переключи тумблер.")
+        print(f"     Без него страховка хедж-1/хедж-2/хедж-3 НЕ запустится.")
+    print("=" * 60)
 
     # ===== 🎯 СТАРТОВЫЙ ОПРОС FORCE: 4 кнопки выбора цвета 2 закрытых свечей =====
     # Если юзер нажмёт — установится _tg_force_pattern, прогрев пропустится, бот начнёт торговать СРАЗУ.
@@ -5722,9 +5742,29 @@ async def main():
         f"🛡 <b>Активные защиты:</b>\\n"
         f"  ✅ Анти-рассинхрон API (пауза при устаревших свечах)\\n"
         f"  ✅ Часовой пояс МСК (UTC+3) в логах\\n"
+        f"  {('✅ Каскадный хедж 3 уровней (×' + str(${cfg.hedgeCascadeM1 ?? 1.0}) + '/×' + str(${cfg.hedgeCascadeM2 ?? 1.5}) + '/×' + str(${cfg.hedgeCascadeM3 ?? 2.0}) + ')') if ${cfg.hedgeCascadeEnabled ? "True" : "False"} else '⚠️ Каскадный хедж ВЫКЛЮЧЕН (вкл в настройках)'}\\n"
         f"━━━━━━━━━━━━━━━━━━━━\\n"
         f"⏳ Ожидаю сигналы..."
     )
+
+    # ===== 🛡 ЖИРНЫЙ СТАРТОВЫЙ ЛОГ ПРО КАСКАД (видно сразу при запуске) =====
+    _cascade_state_log = ${cfg.hedgeCascadeEnabled ? "True" : "False"}
+    print("=" * 60)
+    if _cascade_state_log:
+        print(f"  🛡 КАСКАДНЫЙ ХЕДЖ: ✅ ВКЛЮЧЁН")
+        print(f"     Хедж-1 (сразу, против): ×{${cfg.hedgeCascadeM1 ?? 1.0}}")
+        print(f"     Хедж-2 (после 1/2 экспир., против): ×{${cfg.hedgeCascadeM2 ?? 1.5}}")
+        print(f"     Хедж-3 (по основной, при пересеч. страйка): ×{${cfg.hedgeCascadeM3 ?? 2.0}}")
+        print(f"     Откат от пика: {${cfg.hedgeCascadePullbackPips ?? 3}} пип")
+        print(f"     Проверка цены: каждые {${cfg.hedgeCheckInterval ?? 2}} сек")
+        _max_sum = 1 + ${cfg.hedgeCascadeM1 ?? 1.0} + ${cfg.hedgeCascadeM2 ?? 1.5} + ${cfg.hedgeCascadeM3 ?? 2.0}
+        print(f"     Макс. сумма на сигнал: {_max_sum:.1f}X (т.е. {round(BASE_BET * _max_sum, 2)} {CURRENCY})")
+    else:
+        print(f"  ⚠️ КАСКАДНЫЙ ХЕДЖ: ❌ ВЫКЛЮЧЕН")
+        print(f"     Чтобы включить: открой настройки бота → раздел")
+        print(f"     '🛡 Каскадный хедж (3 уровня)' → переключи тумблер.")
+        print(f"     Без него страховка хедж-1/хедж-2/хедж-3 НЕ запустится.")
+    print("=" * 60)
 
     # ===== ФАЗА РАЗОГРЕВА ПОЛНОСТЬЮ УБРАНА =====
     # ✅ НОВАЯ ЛОГИКА: бот НЕ дёргает API-историю на старте.

@@ -1189,6 +1189,27 @@ def _handle_button_click(action_str, message_id, callback_id):
         tg_delete_message(message_id)
         _tg_last_menu_id = None
         tg_show_main_menu()
+    elif action_str.startswith("startforce:"):
+        # СТАРТОВЫЙ FORCE — без подтверждения, сразу ставим паттерн и пропускаем прогрев
+        _patt = action_str.split(":", 1)[1]
+        if _patt == "skip":
+            _tg_pending_force = {"start_skip": True, "ts": __import__("time").time()}
+            tg_delete_message(message_id)
+            _tg_last_menu_id = None
+            tg(f"⏭ <b>[{BOT_NAME}]</b> Пропуск стартового опроса — обычный прогрев (~2 мин)")
+        elif _patt in ("UP_UP", "DOWN_DOWN", "UP_DOWN", "DOWN_UP"):
+            _tg_force_pattern = _patt
+            _tg_force_at = __import__("time").time()
+            _tg_pending_force = {"start_done": True, "ts": _tg_force_at}
+            tg_delete_message(message_id)
+            _tg_last_menu_id = None
+            _fmap_s = {"UP_UP": "🟢🟢 (зел-зел)", "DOWN_DOWN": "🔴🔴 (кр-кр)", "UP_DOWN": "🟢🔴 (зел-кр)", "DOWN_UP": "🔴🟢 (кр-зел)"}
+            tg(
+                f"⚡ <b>[{BOT_NAME}] СТАРТ С FORCE</b>\\n"
+                f"━━━━━━━━━━━━━━━━━━━━\\n"
+                f"🎯 Паттерн: <b>{_fmap_s.get(_patt, _patt)}</b>\\n"
+                f"🚀 Иду торговать НЕМЕДЛЕННО (без прогрева)"
+            )
     elif action_str.startswith("force:"):
         _patt = action_str.split(":", 1)[1]
         if _patt == "off":
@@ -2137,11 +2158,17 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
     h3_opened = False
     peak_abs_distance = 0.0
     peak_price = entry_price
+    _iter = 0
 
-    print(f"[CASCADE] 🛡 Старт мониторинга | основная={original_direction} {original_bet} | страйк={entry_price} | pip={PIP_SIZE_C} | откат={PULLBACK_PIPS} пип")
+    print(f"[CASCADE] 🛡 Старт мониторинга | основная={original_direction} {original_bet} | страйк={entry_price} | pip={PIP_SIZE_C} | откат={PULLBACK_PIPS} пип | проверка каждые {CHECK_EVERY}с")
+    try:
+        tg(f"🛡 <b>[CASCADE]</b> Мониторинг хедж-2/хедж-3 запущен | страйк {entry_price} | проверка {CHECK_EVERY}с")
+    except Exception as _tge:
+        print(f"[CASCADE] tg ошибка старта: {_tge}")
 
     while True:
         await asyncio.sleep(CHECK_EVERY)
+        _iter += 1
         try:
             elapsed = asyncio.get_event_loop().time() - started_at
         except Exception:
@@ -2176,6 +2203,10 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
         pips_from_entry = round(cur_abs_distance / PIP_SIZE_C, 1)
         pips_from_peak  = round(abs(peak_price - current_price) / PIP_SIZE_C, 1)
         time_ratio = elapsed / expiry_sec if expiry_sec > 0 else 0
+
+        # PULSE-лог каждые 30 итераций — чтобы видеть что монитор живой
+        if _iter % 30 == 0:
+            print(f"[CASCADE] 💓 pulse iter={_iter} | цена={current_price} | страйк={entry_price} | откл={pips_from_entry}пип | от пика={pips_from_peak}пип | прошло {round(time_ratio*100)}% | h2={h2_opened} h3={h3_opened}")
 
         # ХЕДЖ-3: первое пересечение страйка | направление = основной | 2X | 1 раз
         if not h3_opened:
@@ -2509,61 +2540,101 @@ async def main():
         f"⏳ Ожидаю сигналы..."
     )
 
-    # ===== ПРЕДСТАРТОВОЕ УВЕДОМЛЕНИЕ: команда /force готова к использованию =====
-    print(f"[PRESTART] 🚀 Бот {BOT_NAME} запущен. До прогрева доступна команда /force {BOT_NAME}")
+    # ===== 🎯 СТАРТОВЫЙ ОПРОС FORCE: 4 кнопки выбора цвета 2 закрытых свечей =====
+    # Если юзер нажмёт — установится _tg_force_pattern, прогрев пропустится, бот начнёт торговать СРАЗУ.
+    # Если за 5 минут не нажмёт — обычный прогрев (~2 мин).
+    _start_force_taken = False  # признак что стартовый force взят
+    print(f"[STARTFORCE] 🎯 Показываю стартовый опрос FORCE на 5 минут...")
     try:
-        tg_info(
-            f"🚀 <b>[{BOT_NAME}] Бот запущен</b>\\n"
+        tg_send_menu(
+            f"🎯 <b>[{BOT_NAME}] Бот запущен — выбери стартовый паттерн</b>\\n"
             f"━━━━━━━━━━━━━━━━━━━━\\n"
-            f"⏳ Сейчас начнётся прогрев (~2 минуты)\\n\\n"
-            f"💡 <b>Можешь форснуть сделку прямо сейчас:</b>\\n"
-            f"<code>/force {BOT_NAME}</code>\\n\\n"
-            f"<i>Скопируй и отправь команду — бот возьмёт сделку без ожидания сигнала</i>"
+            f"Какие были 2 последние закрытые свечи?\\n"
+            f"Бот <b>сразу начнёт торговать</b> (без прогрева)\\n\\n"
+            f"⏱ Если не нажмёшь за 5 мин — обычный прогрев",
+            [
+                [("🟢🟢 зел-зел", "startforce:UP_UP"), ("🔴🔴 кр-кр", "startforce:DOWN_DOWN")],
+                [("🟢🔴 зел-кр", "startforce:UP_DOWN"), ("🔴🟢 кр-зел", "startforce:DOWN_UP")],
+                [("⏭ Пропустить (обычный прогрев)", "startforce:skip")],
+            ],
         )
-    except Exception as _pe:
-        print(f"[PRESTART] Не удалось отправить уведомление: {_pe}")
+    except Exception as _spe:
+        print(f"[STARTFORCE] Не удалось отправить опрос: {_spe}")
 
-    # ===== ФАЗА РАЗОГРЕВА: ждём закрытия 2 свежих 1-минутных свечей перед первой сделкой =====
-    import time as _time_warmup
-    warmup_start = _time_warmup.time()
-    _now_struct = _time_warmup.localtime(warmup_start)
-    _seconds_to_next_minute = 60 - _now_struct.tm_sec
-    warmup_end = warmup_start + _seconds_to_next_minute + 60
-    _warmup_total = int(warmup_end - warmup_start)
-    print(f"[WARMUP] 🔥 Фаза разогрева: ждём закрытия 2 свежих 1-минутных свечей ({_warmup_total} сек)")
-    tg_info(f"🔥 <b>[{BOT_NAME}] Разогрев</b>\\nЖду закрытия 2 свежих 1-минутных свечей перед первой сделкой\\n⏱ Примерно {_warmup_total} сек")
-    _candles_seen = 0
-    _last_candle_minute = None
-    while _time_warmup.time() < warmup_end or _candles_seen < 2:
-        _remaining = max(0, int(warmup_end - _time_warmup.time()))
+    # Ждём ответ пользователя до 5 минут — каждую секунду опрашиваем ТГ
+    import time as _time_sf
+    _sf_start = _time_sf.time()
+    _sf_timeout = 300  # 5 минут
+    while _time_sf.time() - _sf_start < _sf_timeout:
         try:
-            _wc = await client.get_candles(asset=ASSET, timeframe=60, count=3)
-            if _wc:
-                _last = _wc[-1]
-                _t_attr = None
-                for _tk in ('time', 't', 'timestamp', 'open_time'):
-                    if hasattr(_last, _tk):
-                        try: _t_attr = float(getattr(_last, _tk)); break
-                        except: pass
-                    if isinstance(_last, dict) and _last.get(_tk):
-                        try: _t_attr = float(_last[_tk]); break
-                        except: pass
-                if _t_attr:
-                    _cur_minute = int(_t_attr // 60)
-                    if _last_candle_minute is None:
-                        _last_candle_minute = _cur_minute
-                    elif _cur_minute > _last_candle_minute:
-                        _candles_seen += 1
-                        _last_candle_minute = _cur_minute
-                        print(f"[WARMUP] ✅ Закрылась свеча #{_candles_seen} | Осталось: {max(0, 2 - _candles_seen)} свечей")
-        except Exception as _we:
-            print(f"[WARMUP] Ошибка получения свечей: {_we}")
-        if _candles_seen >= 2 and _time_warmup.time() >= warmup_end:
+            tg_poll_commands()
+        except Exception as _pe2:
+            print(f"[STARTFORCE] poll ошибка: {_pe2}")
+        # Если юзер нажал кнопку цвета — _tg_force_pattern установлен, прогрев не нужен
+        if _tg_force_pattern is not None and _tg_pending_force and isinstance(_tg_pending_force, dict) and _tg_pending_force.get("start_done"):
+            _start_force_taken = True
+            print(f"[STARTFORCE] ✅ Юзер выбрал паттерн {_tg_force_pattern} — пропускаем прогрев")
+            _tg_pending_force = None
             break
-        print(f"[WARMUP] ⏳ Жду закрытия свечей... ({_candles_seen}/2 готово, до конца разогрева {_remaining}с)")
-        await asyncio.sleep(5)
-    print(f"[WARMUP] ✅ Разогрев завершён! Бот готов к торговле.")
-    tg_info(f"✅ <b>[{BOT_NAME}] Готов к торговле</b>\\n2 свежие свечи закрылись, начинаю мониторинг сигналов")
+        # Если юзер нажал "Пропустить" — выходим в обычный прогрев
+        if _tg_pending_force and isinstance(_tg_pending_force, dict) and _tg_pending_force.get("start_skip"):
+            print(f"[STARTFORCE] ⏭ Юзер нажал 'Пропустить' — иду на обычный прогрев")
+            _tg_pending_force = None
+            break
+        await asyncio.sleep(1)
+    else:
+        print(f"[STARTFORCE] ⏱ Таймаут 5 мин — никто не ответил, иду на обычный прогрев")
+        try:
+            tg_info(f"⏱ <b>[{BOT_NAME}]</b> Таймаут стартового опроса (5 мин) — иду на обычный прогрев")
+        except Exception:
+            pass
+
+    # ===== ФАЗА РАЗОГРЕВА: пропускаем если стартовый FORCE взят =====
+    if _start_force_taken:
+        print(f"[WARMUP] ⏭ Прогрев ПРОПУЩЕН — стартовый FORCE активен ({_tg_force_pattern})")
+        tg_info(f"⏭ <b>[{BOT_NAME}]</b> Прогрев пропущен — иду торговать с FORCE паттерном")
+    else:
+        # ===== ФАЗА РАЗОГРЕВА: ждём закрытия 2 свежих 1-минутных свечей перед первой сделкой =====
+        import time as _time_warmup
+        warmup_start = _time_warmup.time()
+        _now_struct = _time_warmup.localtime(warmup_start)
+        _seconds_to_next_minute = 60 - _now_struct.tm_sec
+        warmup_end = warmup_start + _seconds_to_next_minute + 60
+        _warmup_total = int(warmup_end - warmup_start)
+        print(f"[WARMUP] 🔥 Фаза разогрева: ждём закрытия 2 свежих 1-минутных свечей ({_warmup_total} сек)")
+        tg_info(f"🔥 <b>[{BOT_NAME}] Разогрев</b>\\nЖду закрытия 2 свежих 1-минутных свечей перед первой сделкой\\n⏱ Примерно {_warmup_total} сек")
+        _candles_seen = 0
+        _last_candle_minute = None
+        while _time_warmup.time() < warmup_end or _candles_seen < 2:
+            _remaining = max(0, int(warmup_end - _time_warmup.time()))
+            try:
+                _wc = await client.get_candles(asset=ASSET, timeframe=60, count=3)
+                if _wc:
+                    _last = _wc[-1]
+                    _t_attr = None
+                    for _tk in ('time', 't', 'timestamp', 'open_time'):
+                        if hasattr(_last, _tk):
+                            try: _t_attr = float(getattr(_last, _tk)); break
+                            except: pass
+                        if isinstance(_last, dict) and _last.get(_tk):
+                            try: _t_attr = float(_last[_tk]); break
+                            except: pass
+                    if _t_attr:
+                        _cur_minute = int(_t_attr // 60)
+                        if _last_candle_minute is None:
+                            _last_candle_minute = _cur_minute
+                        elif _cur_minute > _last_candle_minute:
+                            _candles_seen += 1
+                            _last_candle_minute = _cur_minute
+                            print(f"[WARMUP] ✅ Закрылась свеча #{_candles_seen} | Осталось: {max(0, 2 - _candles_seen)} свечей")
+            except Exception as _we:
+                print(f"[WARMUP] Ошибка получения свечей: {_we}")
+            if _candles_seen >= 2 and _time_warmup.time() >= warmup_end:
+                break
+            print(f"[WARMUP] ⏳ Жду закрытия свечей... ({_candles_seen}/2 готово, до конца разогрева {_remaining}с)")
+            await asyncio.sleep(5)
+        print(f"[WARMUP] ✅ Разогрев завершён! Бот готов к торговле.")
+        tg_info(f"✅ <b>[{BOT_NAME}] Готов к торговле</b>\\n2 свежие свечи закрылись, начинаю мониторинг сигналов")
     # 🎮 Стартовое inline-меню (управление через кнопки)
     try:
         tg_show_main_menu()
@@ -2994,35 +3065,85 @@ async def main():
                 print(f"[ENTRY_PRICE] entry_price={entry_price}")
 
                 # ===== 🛡 КАСКАДНЫЙ ХЕДЖ — стартуем сразу с основной (НЕ ждём 60с) =====
-                cascade_hedge1_info = None  # для записи результата хеджа-1
+                cascade_hedge1_info = None
                 cascade_task = None
+                cascade_h1_task = None  # хедж-1 теперь тоже неблокирующий
                 cascade_started_at = asyncio.get_event_loop().time()
-                if order_id and ${cfg.hedgeCascadeEnabled ? "True" : "False"} and entry_price > 0:
+                _cascade_enabled_runtime = ${cfg.hedgeCascadeEnabled ? "True" : "False"}
+                print(f"[CASCADE] 🔍 проверка: enabled={_cascade_enabled_runtime} | order_id={order_id} | entry_price={entry_price}")
+                if order_id and _cascade_enabled_runtime and entry_price > 0:
+                    print(f"[CASCADE] 🚀 ВКЛЮЧЁН — стартую каскад страховки")
                     # ХЕДЖ-1: сразу с основной, противоположное направление, та же экспирация, размер X
                     _h1_mult = ${cfg.hedgeCascadeM1 ?? 1.0}
-                    _h1_bet = round(bet * _h1_mult, 2)
-                    _h1_dir = "PUT" if signal == "CALL" else "CALL"
-                    print(f"[CASCADE] 🛡 ХЕДЖ-1 (сразу с основной): {_h1_dir} | {_h1_bet} (×{_h1_mult}) | экспирация {EXPIRY_SEC}с")
-                    try:
-                        _bal_h1, _ = await get_balance(client)
-                        if _h1_bet > _bal_h1:
-                            print(f"[CASCADE] ⛔ ХЕДЖ-1 отменён: ставка {_h1_bet} > баланс {_bal_h1}")
-                            tg_info(f"⛔ <b>[CASCADE] Хедж-1 отменён</b>\\nБаланс {_bal_h1:.2f} < {_h1_bet:.2f}")
-                        else:
-                            _dv1 = OrderDirection.CALL if _h1_dir == "CALL" else OrderDirection.PUT
-                            _ord1 = await client.place_order(asset=(_resolved_asset or ASSET), amount=_h1_bet, direction=_dv1, duration=EXPIRY_SEC)
-                            _oid1 = getattr(_ord1, 'order_id', None) if _ord1 else None
-                            if _oid1:
-                                cascade_hedge1_info = (_oid1, _h1_bet, "H1", _bal_h1)
-                                print(f"[CASCADE] ✅ ХЕДЖ-1 открыт ID={_oid1}")
-                                tg(f"🛡 <b>[CASCADE Хедж-1]</b> {_h1_dir} | {_h1_bet} | страховка против {signal} | {EXPIRY_SEC//60} мин")
-                    except Exception as _e1:
-                        print(f"[CASCADE] ❌ Ошибка хедж-1: {_e1}")
+                    _h1_bet  = round(bet * _h1_mult, 2)
+                    _h1_dir  = "PUT" if signal == "CALL" else "CALL"
 
-                    # Запускаем мониторинг каскада параллельно (хедж-2 и хедж-3)
-                    cascade_task = asyncio.create_task(
-                        cascade_hedge_monitor(client, signal, bet, entry_price, EXPIRY_SEC, cascade_started_at)
-                    )
+                    async def _open_hedge1():
+                        """Хедж-1 в отдельной таске — не блокирует основной поток."""
+                        try:
+                            print(f"[CASCADE] 🛡 ХЕДЖ-1 ЗАПУСК: {_h1_dir} | {_h1_bet} (×{_h1_mult}) | экспирация {EXPIRY_SEC}с")
+                            _bal_h1, _ = await get_balance(client)
+                            print(f"[CASCADE] 🛡 ХЕДЖ-1: баланс={_bal_h1}")
+                            if _h1_bet > _bal_h1:
+                                print(f"[CASCADE] ⛔ ХЕДЖ-1 отменён: ставка {_h1_bet} > баланс {_bal_h1}")
+                                try:
+                                    tg(f"⛔ <b>[CASCADE Хедж-1 отменён]</b>\\nБаланс {_bal_h1:.2f} < {_h1_bet:.2f}")
+                                except Exception:
+                                    pass
+                                return None
+                            _dv1 = OrderDirection.CALL if _h1_dir == "CALL" else OrderDirection.PUT
+                            print(f"[CASCADE] 🛡 ХЕДЖ-1: вызываю place_order...")
+                            _ord1 = await asyncio.wait_for(
+                                client.place_order(asset=(_resolved_asset or ASSET), amount=_h1_bet, direction=_dv1, duration=EXPIRY_SEC),
+                                timeout=15,
+                            )
+                            _oid1 = getattr(_ord1, 'order_id', None) if _ord1 else None
+                            print(f"[CASCADE] 🛡 ХЕДЖ-1: place_order вернул order_id={_oid1}")
+                            if _oid1:
+                                try:
+                                    tg(f"🛡 <b>[CASCADE Хедж-1]</b> {_h1_dir} | {_h1_bet} | страховка против {signal} | {EXPIRY_SEC//60} мин")
+                                except Exception as _te1:
+                                    print(f"[CASCADE] tg ошибка: {_te1}")
+                                return (_oid1, _h1_bet, "H1", _bal_h1)
+                            return None
+                        except asyncio.TimeoutError:
+                            print(f"[CASCADE] ⏱ ХЕДЖ-1 ТАЙМАУТ 15с — брокер не ответил, пропуск")
+                            try: tg(f"⏱ <b>[CASCADE Хедж-1]</b> Таймаут — брокер не ответил")
+                            except: pass
+                            return None
+                        except Exception as _eh1:
+                            import traceback as _tb1
+                            print(f"[CASCADE] ❌ ХЕДЖ-1 КРИТ. ОШИБКА: {_eh1}")
+                            print(_tb1.format_exc())
+                            try: tg(f"❌ <b>[CASCADE Хедж-1]</b> Ошибка: {_eh1}")
+                            except: pass
+                            return None
+
+                    # Запускаем хедж-1 как НЕБЛОКИРУЮЩУЮ таску
+                    cascade_h1_task = asyncio.create_task(_open_hedge1())
+                    print(f"[CASCADE] 🛡 ХЕДЖ-1: задача создана (неблокирующая)")
+
+                    # Обёртка для каскад-монитора с traceback на любую ошибку
+                    async def _safe_cascade():
+                        try:
+                            return await cascade_hedge_monitor(client, signal, bet, entry_price, EXPIRY_SEC, cascade_started_at)
+                        except Exception as _ec:
+                            import traceback as _tbc
+                            print(f"[CASCADE] ❌ МОНИТОР КРИТ. ОШИБКА: {_ec}")
+                            print(_tbc.format_exc())
+                            try: tg(f"❌ <b>[CASCADE Монитор]</b> Ошибка: {_ec}")
+                            except: pass
+                            return []
+
+                    cascade_task = asyncio.create_task(_safe_cascade())
+                    print(f"[CASCADE] 🛡 МОНИТОР: задача создана (хедж-2/хедж-3)")
+                else:
+                    if not _cascade_enabled_runtime:
+                        print(f"[CASCADE] ⏭ ВЫКЛЮЧЕН в настройках")
+                    elif entry_price <= 0:
+                        print(f"[CASCADE] ⛔ entry_price={entry_price} — каскад НЕ запущен")
+                    elif not order_id:
+                        print(f"[CASCADE] ⛔ order_id отсутствует — каскад НЕ запущен")
 
                 if order_id:
                     # Пауза 60с и обновление цены входа из свежей 1-минутной свечи
@@ -3069,13 +3190,22 @@ async def main():
                         hedge_task or asyncio.sleep(0),
                         ext_task or asyncio.sleep(0),
                         cascade_task or asyncio.sleep(0),
+                        cascade_h1_task or asyncio.sleep(0),
                         return_exceptions=True,
                     )
                     main_res = gather_results[0]
                     hedge_res = gather_results[1]
                     ext_res   = gather_results[2]
                     cascade_res = gather_results[3]
+                    cascade_h1_res = gather_results[4]
                     won, profit, loss_amount = main_res if not isinstance(main_res, Exception) else (False, 0.0, bet)
+
+                    # Сохраняем результат хедж-1 (если открылся)
+                    if cascade_h1_task and not isinstance(cascade_h1_res, Exception) and cascade_h1_res:
+                        cascade_hedge1_info = cascade_h1_res
+                        print(f"[CASCADE] ✅ ХЕДЖ-1 итог: {cascade_h1_res}")
+                    elif cascade_h1_task and isinstance(cascade_h1_res, Exception):
+                        print(f"[CASCADE] ❌ ХЕДЖ-1 завершился с ошибкой: {cascade_h1_res}")
 
                     # ===== Подсчёт результатов каскадного хеджа =====
                     cascade_orders = []
@@ -3083,6 +3213,7 @@ async def main():
                         cascade_orders.append(cascade_hedge1_info)
                     if cascade_task and not isinstance(cascade_res, Exception) and isinstance(cascade_res, list):
                         cascade_orders.extend(cascade_res)
+                    print(f"[CASCADE] 📊 Итого хеджей открыто: {len(cascade_orders)}")
                     for _co_id, _co_bet, _co_lvl, _co_bal in cascade_orders:
                         try:
                             _cw, _cp, _cl = await check_result(client, _co_id, _co_bal, _co_bet, wait_sec=10)
@@ -3835,6 +3966,27 @@ def _handle_button_click(action_str, message_id, callback_id):
         tg_delete_message(message_id)
         _tg_last_menu_id = None
         tg_show_main_menu()
+    elif action_str.startswith("startforce:"):
+        # СТАРТОВЫЙ FORCE — без подтверждения, сразу ставим паттерн и пропускаем прогрев
+        _patt = action_str.split(":", 1)[1]
+        if _patt == "skip":
+            _tg_pending_force = {"start_skip": True, "ts": __import__("time").time()}
+            tg_delete_message(message_id)
+            _tg_last_menu_id = None
+            tg(f"⏭ <b>[{BOT_NAME}]</b> Пропуск стартового опроса — обычный прогрев (~2 мин)")
+        elif _patt in ("UP_UP", "DOWN_DOWN", "UP_DOWN", "DOWN_UP"):
+            _tg_force_pattern = _patt
+            _tg_force_at = __import__("time").time()
+            _tg_pending_force = {"start_done": True, "ts": _tg_force_at}
+            tg_delete_message(message_id)
+            _tg_last_menu_id = None
+            _fmap_s = {"UP_UP": "🟢🟢 (зел-зел)", "DOWN_DOWN": "🔴🔴 (кр-кр)", "UP_DOWN": "🟢🔴 (зел-кр)", "DOWN_UP": "🔴🟢 (кр-зел)"}
+            tg(
+                f"⚡ <b>[{BOT_NAME}] СТАРТ С FORCE</b>\\n"
+                f"━━━━━━━━━━━━━━━━━━━━\\n"
+                f"🎯 Паттерн: <b>{_fmap_s.get(_patt, _patt)}</b>\\n"
+                f"🚀 Иду торговать НЕМЕДЛЕННО (без прогрева)"
+            )
     elif action_str.startswith("force:"):
         _patt = action_str.split(":", 1)[1]
         if _patt == "off":

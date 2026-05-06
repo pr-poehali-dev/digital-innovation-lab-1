@@ -2339,9 +2339,13 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
         if not h2_opened and time_ratio >= 0.5:
             if peak_abs_distance > 0 and pips_from_peak >= PULLBACK_PIPS:
                 h2_bet = round(original_bet * M2_MULT, 2)
-                h2_dir = "PUT" if original_direction == "CALL" else "CALL"
+                # 🎯 НОВАЯ ЛОГИКА: направление зависит от ПОЗИЦИИ цены относительно страйка
+                # цена НИЖЕ страйка → CALL (ставим что отскочит вверх)
+                # цена ВЫШЕ страйка → PUT  (ставим что отскочит вниз)
+                h2_dir = "CALL" if current_price < entry_price else "PUT"
+                _h2_pos = "ниже страйка" if current_price < entry_price else "выше страйка"
                 print(f"[CASCADE] 🔄 ХЕДЖ-2 ТРИГГЕР: коррекция {pips_from_peak} пип от пика (пик отклонения {round(peak_abs_distance/PIP_SIZE_C, 1)} пип)")
-                print(f"[CASCADE]    направление={h2_dir} (против основной) | размер={h2_bet} (×{M2_MULT}) | осталось {remaining}с")
+                print(f"[CASCADE]    цена={current_price} {_h2_pos} {entry_price} → {h2_dir} | размер={h2_bet} (×{M2_MULT}) | осталось {remaining}с")
                 try:
                     _bal_h2, _ = await get_balance(client)
                     if h2_bet > _bal_h2:
@@ -5726,9 +5730,13 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
         if not h2_opened and time_ratio >= 0.5:
             if peak_abs_distance > 0 and pips_from_peak >= PULLBACK_PIPS:
                 h2_bet = round(original_bet * M2_MULT, 2)
-                h2_dir = "PUT" if original_direction == "CALL" else "CALL"
+                # 🎯 НОВАЯ ЛОГИКА: направление зависит от ПОЗИЦИИ цены относительно страйка
+                # цена НИЖЕ страйка → CALL (ставим что отскочит вверх)
+                # цена ВЫШЕ страйка → PUT  (ставим что отскочит вниз)
+                h2_dir = "CALL" if current_price < entry_price else "PUT"
+                _h2_pos = "ниже страйка" if current_price < entry_price else "выше страйка"
                 print(f"[CASCADE] 🔄 ХЕДЖ-2 ТРИГГЕР: коррекция {pips_from_peak} пип от пика (пик отклонения {round(peak_abs_distance/PIP_SIZE_C, 1)} пип)")
-                print(f"[CASCADE]    направление={h2_dir} (против основной) | размер={h2_bet} (×{M2_MULT}) | осталось {remaining}с")
+                print(f"[CASCADE]    цена={current_price} {_h2_pos} {entry_price} → {h2_dir} | размер={h2_bet} (×{M2_MULT}) | осталось {remaining}с")
                 try:
                     _bal_h2, _ = await get_balance(client)
                     if h2_bet > _bal_h2:

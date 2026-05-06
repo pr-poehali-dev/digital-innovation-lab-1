@@ -2252,6 +2252,7 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
 
     h2_opened = False
     h3_opened = False
+    h2_open_price = None  # 🎯 цена в момент открытия H2 — нужна для логики H3
     peak_abs_distance = 0.0
     peak_price = entry_price
     _iter = 0
@@ -2304,18 +2305,25 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
         if _iter % 30 == 0:
             print(f"[CASCADE] 💓 pulse iter={_iter} | цена={current_price} | страйк={entry_price} | откл={pips_from_entry}пип | от пика={pips_from_peak}пип | прошло {round(time_ratio*100)}% | h2={h2_opened} h3={h3_opened}")
 
-        # ХЕДЖ-3: первое пересечение страйка | направление = основной | 2X | 1 раз
-        if not h3_opened:
-            crossed = False
-            if original_direction == "CALL" and current_price < entry_price:
-                crossed = True
-            elif original_direction == "PUT" and current_price > entry_price:
-                crossed = True
-            if crossed:
+        # ХЕДЖ-3: подтверждение тренда после H2 | направление = основной | 2X | 1 раз
+        # 🎯 НОВАЯ ЛОГИКА:
+        # H2 уже открыт + тренд продолжается в сторону основной + цена УШЛА ДАЛЬШЕ относительно H2
+        # CALL осн: цена > страйка И цена > h2_open_price → H3 CALL (тренд вверх подтверждён)
+        # PUT  осн: цена < страйка И цена < h2_open_price → H3 PUT  (тренд вниз подтверждён)
+        # Иначе H3 не открывается
+        if not h3_opened and h2_opened and h2_open_price is not None:
+            h3_trigger = False
+            if original_direction == "CALL" and current_price > entry_price and current_price > h2_open_price:
+                h3_trigger = True
+                _h3_reason = f"CALL осн | цена {current_price} > страйк {entry_price} | цена > H2 ({h2_open_price})"
+            elif original_direction == "PUT" and current_price < entry_price and current_price < h2_open_price:
+                h3_trigger = True
+                _h3_reason = f"PUT осн | цена {current_price} < страйк {entry_price} | цена < H2 ({h2_open_price})"
+            if h3_trigger:
                 h3_bet = round(original_bet * M3_MULT, 2)
                 h3_dir = original_direction
-                print(f"[CASCADE] 🎯 ХЕДЖ-3 ТРИГГЕР: цена {current_price} пересекла страйк {entry_price} ({pips_from_entry} пип)")
-                print(f"[CASCADE]    направление={h3_dir} | размер={h3_bet} (×{M3_MULT}) | осталось {remaining}с")
+                print(f"[CASCADE] 🎯 ХЕДЖ-3 ТРИГГЕР (подтверждение тренда): {_h3_reason}")
+                print(f"[CASCADE]    направление={h3_dir} (по основной) | размер={h3_bet} (×{M3_MULT}) | осталось {remaining}с")
                 try:
                     _bal_h3, _ = await get_balance(client)
                     if h3_bet > _bal_h3:
@@ -2358,7 +2366,8 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
                         _oid2 = getattr(_ord2, 'order_id', None) if _ord2 else None
                         if _oid2:
                             opened_hedges.append((_oid2, h2_bet, "H2", _bal_h2))
-                            print(f"[CASCADE] ✅ ХЕДЖ-2 открыт ID={_oid2}")
+                            h2_open_price = current_price  # 🎯 запоминаем цену открытия H2 для логики H3
+                            print(f"[CASCADE] ✅ ХЕДЖ-2 открыт ID={_oid2} | цена H2={h2_open_price}")
                             tg(f"🔄 <b>[CASCADE Хедж-2]</b> {h2_dir} | {h2_bet} | коррекция {pips_from_peak} пип | осталось {remaining}с")
                         h2_opened = True
                 except Exception as _e2:
@@ -5634,6 +5643,7 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
 
     h2_opened = False
     h3_opened = False
+    h2_open_price = None  # 🎯 цена в момент открытия H2 — нужна для логики H3
     peak_abs_distance = 0.0
     peak_price = entry_price
     _iter = 0
@@ -5695,18 +5705,25 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
         if _iter % 30 == 0:
             print(f"[CASCADE] 💓 pulse iter={_iter} | цена={current_price} | страйк={entry_price} | откл={pips_from_entry}пип | от пика={pips_from_peak}пип | прошло {round(time_ratio*100)}% | h2={h2_opened} h3={h3_opened}")
 
-        # ХЕДЖ-3: первое пересечение страйка | направление = основной | 2X | 1 раз
-        if not h3_opened:
-            crossed = False
-            if original_direction == "CALL" and current_price < entry_price:
-                crossed = True
-            elif original_direction == "PUT" and current_price > entry_price:
-                crossed = True
-            if crossed:
+        # ХЕДЖ-3: подтверждение тренда после H2 | направление = основной | 2X | 1 раз
+        # 🎯 НОВАЯ ЛОГИКА:
+        # H2 уже открыт + тренд продолжается в сторону основной + цена УШЛА ДАЛЬШЕ относительно H2
+        # CALL осн: цена > страйка И цена > h2_open_price → H3 CALL (тренд вверх подтверждён)
+        # PUT  осн: цена < страйка И цена < h2_open_price → H3 PUT  (тренд вниз подтверждён)
+        # Иначе H3 не открывается
+        if not h3_opened and h2_opened and h2_open_price is not None:
+            h3_trigger = False
+            if original_direction == "CALL" and current_price > entry_price and current_price > h2_open_price:
+                h3_trigger = True
+                _h3_reason = f"CALL осн | цена {current_price} > страйк {entry_price} | цена > H2 ({h2_open_price})"
+            elif original_direction == "PUT" and current_price < entry_price and current_price < h2_open_price:
+                h3_trigger = True
+                _h3_reason = f"PUT осн | цена {current_price} < страйк {entry_price} | цена < H2 ({h2_open_price})"
+            if h3_trigger:
                 h3_bet = round(original_bet * M3_MULT, 2)
                 h3_dir = original_direction
-                print(f"[CASCADE] 🎯 ХЕДЖ-3 ТРИГГЕР: цена {current_price} пересекла страйк {entry_price} ({pips_from_entry} пип)")
-                print(f"[CASCADE]    направление={h3_dir} | размер={h3_bet} (×{M3_MULT}) | осталось {remaining}с")
+                print(f"[CASCADE] 🎯 ХЕДЖ-3 ТРИГГЕР (подтверждение тренда): {_h3_reason}")
+                print(f"[CASCADE]    направление={h3_dir} (по основной) | размер={h3_bet} (×{M3_MULT}) | осталось {remaining}с")
                 try:
                     _bal_h3, _ = await get_balance(client)
                     if h3_bet > _bal_h3:
@@ -5749,7 +5766,8 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
                         _oid2 = getattr(_ord2, 'order_id', None) if _ord2 else None
                         if _oid2:
                             opened_hedges.append((_oid2, h2_bet, "H2", _bal_h2))
-                            print(f"[CASCADE] ✅ ХЕДЖ-2 открыт ID={_oid2}")
+                            h2_open_price = current_price  # 🎯 запоминаем цену открытия H2 для логики H3
+                            print(f"[CASCADE] ✅ ХЕДЖ-2 открыт ID={_oid2} | цена H2={h2_open_price}")
                             tg(f"🔄 <b>[CASCADE Хедж-2]</b> {h2_dir} | {h2_bet} | коррекция {pips_from_peak} пип | осталось {remaining}с")
                         h2_opened = True
                 except Exception as _e2:

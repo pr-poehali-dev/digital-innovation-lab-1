@@ -1611,11 +1611,46 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                   </p>
                 </div>
 
+                {/* 🎯 МИНИМУМ ВРЕМЕНИ ДО H2 */}
+                <div className="border-t border-zinc-800 pt-3">
+                  <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                    Минимум времени до H2: <span className="text-white font-bold">{config.hedgeCascadeMinTimePercent ?? 50}%</span> от экспирации
+                  </Label>
+                  <Slider min={0} max={90} step={5} value={[config.hedgeCascadeMinTimePercent ?? 50]} onValueChange={([v]) => set({ hedgeCascadeMinTimePercent: v })} />
+                  <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
+                    {(config.hedgeCascadeMinTimePercent ?? 50) === 0 ? "⚡ Без задержки — H2 может открыться сразу" : (config.hedgeCascadeMinTimePercent ?? 50) >= 75 ? "🐢 Только в самом конце сделки" : "⚖️ Стандарт (50% = после половины экспирации)"}
+                  </p>
+                </div>
+
+                {/* 🎯 МИНИМУМ ПИК ОТ СТРАЙКА */}
+                <div>
+                  <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                    Минимум удаления от страйка: <span className="text-white font-bold">{config.hedgeCascadeMinPeakPips ?? 0} пип</span>
+                  </Label>
+                  <Slider min={0} max={50} step={1} value={[config.hedgeCascadeMinPeakPips ?? 0]} onValueChange={([v]) => set({ hedgeCascadeMinPeakPips: v })} />
+                  <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
+                    {(config.hedgeCascadeMinPeakPips ?? 0) === 0 ? "🟢 Без ограничения — любое отклонение" : `Цена должна уйти от страйка минимум на ${config.hedgeCascadeMinPeakPips} пип, иначе H2 не откроется`}
+                  </p>
+                </div>
+
+                {/* 🎯 ТОЛЬКО ЕСЛИ В ПЛЮСЕ */}
+                <div className="flex items-center justify-between bg-zinc-800/40 rounded-lg p-3">
+                  <div>
+                    <Label className="text-zinc-300 font-space-mono text-xs">
+                      H2 только если основная В ПЛЮСЕ
+                    </Label>
+                    <p className="text-zinc-600 font-space-mono text-[10px] mt-0.5">
+                      {config.hedgeCascadeRequireProfit ? "✅ ВКЛ — H2 откроется только если цена ушла В нашу сторону" : "❌ ВЫКЛ — H2 открывается при любом отклонении"}
+                    </p>
+                  </div>
+                  <Switch checked={config.hedgeCascadeRequireProfit ?? false} onCheckedChange={(v) => set({ hedgeCascadeRequireProfit: v })} />
+                </div>
+
                 {/* Сводка */}
                 <div className="bg-zinc-800/50 rounded-lg p-3 space-y-1 font-space-mono text-[10px]">
                   <p className="text-zinc-300 font-bold mb-1">Сводка по каскаду (X = размер основной):</p>
                   <p className="text-zinc-400">🛡 <span className="text-purple-300">Хедж-1:</span> ×{config.hedgeCascadeM1?.toFixed(1) ?? "1.5"}X — сразу, ПРОТИВ основной</p>
-                  <p className="text-zinc-400">🔄 <span className="text-purple-300">Хедж-2:</span> ×{config.hedgeCascadeM2?.toFixed(1) ?? "1.5"}X — на 1/2, ПРОТИВ, ждёт откат {config.hedgeCascadePullbackPips ?? 3} пип</p>
+                  <p className="text-zinc-400">🔄 <span className="text-purple-300">Хедж-2:</span> ×{config.hedgeCascadeM2?.toFixed(1) ?? "1.5"}X — после {config.hedgeCascadeMinTimePercent ?? 50}%, ПРОТИВ, откат {config.hedgeCascadePullbackPips ?? 3} пип{(config.hedgeCascadeMinPeakPips ?? 0) > 0 ? `, пик ≥ ${config.hedgeCascadeMinPeakPips} пип` : ""}{config.hedgeCascadeRequireProfit ? ", только в плюсе" : ""}</p>
                   <p className="text-zinc-400">🎯 <span className="text-purple-300">Хедж-3:</span> ×{config.hedgeCascadeM3?.toFixed(1) ?? "2.0"}X — ПО основной, при пересечении страйка</p>
                   <p className="text-zinc-400 mt-1">⏱ Все хеджи имеют ту же экспирацию — заканчиваются с основной</p>
                   <p className="text-zinc-400">💰 <span className="text-purple-300">Макс. сумма на сигнал:</span> X × (1 + {config.hedgeCascadeM1?.toFixed(1) ?? "1.5"} + {config.hedgeCascadeM2?.toFixed(1) ?? "1.5"} + {config.hedgeCascadeM3?.toFixed(1) ?? "2.0"}) = <span className="text-white">{(1 + (config.hedgeCascadeM1 ?? 1.5) + (config.hedgeCascadeM2 ?? 1.5) + (config.hedgeCascadeM3 ?? 2.0)).toFixed(1)}X</span></p>

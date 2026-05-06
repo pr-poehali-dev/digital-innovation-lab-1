@@ -63,6 +63,12 @@ export interface POBotConfig {
   hedgeCascadeM3?: number
   /** Откат цены от пика в пипсах для детекции момента коррекции (хедж-2) */
   hedgeCascadePullbackPips?: number
+  /** Минимум % экспирации до момента, когда H2 разрешён (по умолчанию 50%) */
+  hedgeCascadeMinTimePercent?: number
+  /** Минимум удаления цены от страйка в пипсах для триггера H2 (по умолчанию 0 — без ограничения) */
+  hedgeCascadeMinPeakPips?: number
+  /** Открывать H2 только если основная сделка В ПЛЮСЕ (цена ушла В сторону основной) */
+  hedgeCascadeRequireProfit?: boolean
   pipSize: number
   profitExtEnabled: boolean
   profitExtPips: number
@@ -2236,6 +2242,10 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
     M2_MULT       = ${cfg.hedgeCascadeM2 ?? 1.5}
     M3_MULT       = ${cfg.hedgeCascadeM3 ?? 2.0}
     PULLBACK_PIPS = ${cfg.hedgeCascadePullbackPips ?? 3}
+    # 🎯 НОВЫЕ ПАРАМЕТРЫ H2:
+    MIN_TIME_PCT     = ${cfg.hedgeCascadeMinTimePercent ?? 50} / 100.0  # минимум % экспирации до H2
+    MIN_PEAK_PIPS    = ${cfg.hedgeCascadeMinPeakPips ?? 0}              # минимум пип от страйка для триггера
+    REQUIRE_PROFIT   = ${cfg.hedgeCascadeRequireProfit ? "True" : "False"}  # H2 только если основная В ПЛЮСЕ
     CHECK_EVERY   = max(1, ${cfg.hedgeCheckInterval} // 2 if ${cfg.hedgeCheckInterval} > 1 else 1)
 
     _asset_key_c = (_resolved_asset or ASSET)
@@ -2343,9 +2353,15 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
                     print(f"[CASCADE] ❌ Ошибка хедж-3: {_e3}")
                     h3_opened = True
 
-        # ХЕДЖ-2: после 1/2 экспирации, коррекция от пика | направление противоположное | 1.5X | 1 раз
-        if not h2_opened and time_ratio >= 0.5:
-            if peak_abs_distance > 0 and pips_from_peak >= PULLBACK_PIPS:
+        # ХЕДЖ-2: коррекция от пика | направление противоположное | 1.5X | 1 раз
+        # 🎯 ПРОВЕРКИ: время >= MIN_TIME_PCT, пик >= MIN_PEAK_PIPS, в плюсе (если REQUIRE_PROFIT)
+        if not h2_opened and time_ratio >= MIN_TIME_PCT:
+            _peak_pips = round(peak_abs_distance / PIP_SIZE_C, 1)
+            _peak_ok   = _peak_pips >= MIN_PEAK_PIPS
+            _in_profit = (original_direction == "CALL" and peak_price > entry_price) or \
+                         (original_direction == "PUT"  and peak_price < entry_price)
+            _profit_ok = (not REQUIRE_PROFIT) or _in_profit
+            if peak_abs_distance > 0 and pips_from_peak >= PULLBACK_PIPS and _peak_ok and _profit_ok:
                 h2_bet = round(original_bet * M2_MULT, 2)
                 # 🎯 НОВАЯ ЛОГИКА: направление зависит от ПОЗИЦИИ цены относительно страйка
                 # цена НИЖЕ страйка → CALL (ставим что отскочит вверх)
@@ -5627,6 +5643,10 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
     M2_MULT       = ${cfg.hedgeCascadeM2 ?? 1.5}
     M3_MULT       = ${cfg.hedgeCascadeM3 ?? 2.0}
     PULLBACK_PIPS = ${cfg.hedgeCascadePullbackPips ?? 3}
+    # 🎯 НОВЫЕ ПАРАМЕТРЫ H2:
+    MIN_TIME_PCT     = ${cfg.hedgeCascadeMinTimePercent ?? 50} / 100.0  # минимум % экспирации до H2
+    MIN_PEAK_PIPS    = ${cfg.hedgeCascadeMinPeakPips ?? 0}              # минимум пип от страйка для триггера
+    REQUIRE_PROFIT   = ${cfg.hedgeCascadeRequireProfit ? "True" : "False"}  # H2 только если основная В ПЛЮСЕ
     CHECK_EVERY   = max(1, ${cfg.hedgeCheckInterval} // 2 if ${cfg.hedgeCheckInterval} > 1 else 1)
 
     _asset_key_c = (_resolved_asset or ASSET)
@@ -5743,9 +5763,15 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
                     print(f"[CASCADE] ❌ Ошибка хедж-3: {_e3}")
                     h3_opened = True
 
-        # ХЕДЖ-2: после 1/2 экспирации, коррекция от пика | направление противоположное | 1.5X | 1 раз
-        if not h2_opened and time_ratio >= 0.5:
-            if peak_abs_distance > 0 and pips_from_peak >= PULLBACK_PIPS:
+        # ХЕДЖ-2: коррекция от пика | направление противоположное | 1.5X | 1 раз
+        # 🎯 ПРОВЕРКИ: время >= MIN_TIME_PCT, пик >= MIN_PEAK_PIPS, в плюсе (если REQUIRE_PROFIT)
+        if not h2_opened and time_ratio >= MIN_TIME_PCT:
+            _peak_pips = round(peak_abs_distance / PIP_SIZE_C, 1)
+            _peak_ok   = _peak_pips >= MIN_PEAK_PIPS
+            _in_profit = (original_direction == "CALL" and peak_price > entry_price) or \
+                         (original_direction == "PUT"  and peak_price < entry_price)
+            _profit_ok = (not REQUIRE_PROFIT) or _in_profit
+            if peak_abs_distance > 0 and pips_from_peak >= PULLBACK_PIPS and _peak_ok and _profit_ok:
                 h2_bet = round(original_bet * M2_MULT, 2)
                 # 🎯 НОВАЯ ЛОГИКА: направление зависит от ПОЗИЦИИ цены относительно страйка
                 # цена НИЖЕ страйка → CALL (ставим что отскочит вверх)

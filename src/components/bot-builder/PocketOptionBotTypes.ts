@@ -1141,7 +1141,7 @@ def _send_diag_report():
         except Exception as _te_d:
             _tasks_d = f"ошибка: {_te_d}"
         # Каскад настройки
-        _cascade_settings_d = f"H1×{${cfg.hedgeCascadeM1 ?? 1.0}} H2×{${cfg.hedgeCascadeM2 ?? 1.5}} H3×{${cfg.hedgeCascadeM3 ?? 2.0}} | откат {${cfg.hedgePullbackPips ?? 5}} пип | проверка {${cfg.hedgeCheckInterval ?? 2}}с"
+        _cascade_settings_d = f"H1×{${cfg.hedgeCascadeM1 ?? 1.5}} H2×{${cfg.hedgeCascadeM2 ?? 1.5}} H3×{${cfg.hedgeCascadeM3 ?? 2.0}} | откат {${cfg.hedgePullbackPips ?? 5}} пип | проверка {${cfg.hedgeCheckInterval ?? 2}}с"
         _cascade_on_d = "✅ ВКЛ" if ${cfg.hedgeCascadeEnabled ? "True" : "False"} else "❌ выкл"
         # Последние 5 сделок
         _last5_d = ""
@@ -2647,7 +2647,7 @@ async def main():
         f"🛡 <b>Активные защиты:</b>\\n"
         f"  ✅ Анти-рассинхрон API (пауза при устаревших свечах)\\n"
         f"  ✅ Часовой пояс МСК (UTC+3) в логах\\n"
-        f"  {('✅ Каскадный хедж 3 уровней (×' + str(${cfg.hedgeCascadeM1 ?? 1.0}) + '/×' + str(${cfg.hedgeCascadeM2 ?? 1.5}) + '/×' + str(${cfg.hedgeCascadeM3 ?? 2.0}) + ')') if ${cfg.hedgeCascadeEnabled ? "True" : "False"} else '⚠️ Каскадный хедж ВЫКЛЮЧЕН (вкл в настройках)'}\\n"
+        f"  {('✅ Каскадный хедж 3 уровней (×' + str(${cfg.hedgeCascadeM1 ?? 1.5}) + '/×' + str(${cfg.hedgeCascadeM2 ?? 1.5}) + '/×' + str(${cfg.hedgeCascadeM3 ?? 2.0}) + ')') if ${cfg.hedgeCascadeEnabled ? "True" : "False"} else '⚠️ Каскадный хедж ВЫКЛЮЧЕН (вкл в настройках)'}\\n"
         f"━━━━━━━━━━━━━━━━━━━━\\n"
         f"⏳ Ожидаю сигналы..."
     )
@@ -2657,12 +2657,12 @@ async def main():
     print("=" * 60)
     if _cascade_state_log:
         print(f"  🛡 КАСКАДНЫЙ ХЕДЖ: ✅ ВКЛЮЧЁН")
-        print(f"     Хедж-1 (сразу, против): ×{${cfg.hedgeCascadeM1 ?? 1.0}}")
+        print(f"     Хедж-1 (сразу, против): ×{${cfg.hedgeCascadeM1 ?? 1.5}}")
         print(f"     Хедж-2 (после 1/2 экспир., против): ×{${cfg.hedgeCascadeM2 ?? 1.5}}")
         print(f"     Хедж-3 (по основной, при пересеч. страйка): ×{${cfg.hedgeCascadeM3 ?? 2.0}}")
         print(f"     Откат от пика: {${cfg.hedgeCascadePullbackPips ?? 3}} пип")
         print(f"     Проверка цены: каждые {${cfg.hedgeCheckInterval ?? 2}} сек")
-        _max_sum = 1 + ${cfg.hedgeCascadeM1 ?? 1.0} + ${cfg.hedgeCascadeM2 ?? 1.5} + ${cfg.hedgeCascadeM3 ?? 2.0}
+        _max_sum = 1 + ${cfg.hedgeCascadeM1 ?? 1.5} + ${cfg.hedgeCascadeM2 ?? 1.5} + ${cfg.hedgeCascadeM3 ?? 2.0}
         print(f"     Макс. сумма на сигнал: {_max_sum:.1f}X (т.е. {round(BASE_BET * _max_sum, 2)} {CURRENCY})")
     else:
         print(f"  ⚠️ КАСКАДНЫЙ ХЕДЖ: ❌ ВЫКЛЮЧЕН")
@@ -3207,7 +3207,7 @@ async def main():
                 if order_id and _cascade_enabled_runtime and entry_price > 0:
                     print(f"[CASCADE] 🚀 ВКЛЮЧЁН — стартую каскад страховки")
                     # ХЕДЖ-1: сразу с основной, противоположное направление, та же экспирация, размер X
-                    _h1_mult = ${cfg.hedgeCascadeM1 ?? 1.0}
+                    _h1_mult = ${cfg.hedgeCascadeM1 ?? 1.5}
                     _h1_bet  = round(bet * _h1_mult, 2)
                     _h1_dir  = "PUT" if signal == "CALL" else "CALL"
 
@@ -4051,7 +4051,7 @@ def _send_diag_report():
         except Exception as _te_d:
             _tasks_d = f"ошибка: {_te_d}"
         # Каскад настройки
-        _cascade_settings_d = f"H1×{${cfg.hedgeCascadeM1 ?? 1.0}} H2×{${cfg.hedgeCascadeM2 ?? 1.5}} H3×{${cfg.hedgeCascadeM3 ?? 2.0}} | откат {${cfg.hedgePullbackPips ?? 5}} пип | проверка {${cfg.hedgeCheckInterval ?? 2}}с"
+        _cascade_settings_d = f"H1×{${cfg.hedgeCascadeM1 ?? 1.5}} H2×{${cfg.hedgeCascadeM2 ?? 1.5}} H3×{${cfg.hedgeCascadeM3 ?? 2.0}} | откат {${cfg.hedgePullbackPips ?? 5}} пип | проверка {${cfg.hedgeCheckInterval ?? 2}}с"
         _cascade_on_d = "✅ ВКЛ" if ${cfg.hedgeCascadeEnabled ? "True" : "False"} else "❌ выкл"
         # Последние 5 сделок
         _last5_d = ""
@@ -5940,7 +5940,7 @@ async def main():
         f"🛡 <b>Активные защиты:</b>\\n"
         f"  ✅ Анти-рассинхрон API (пауза при устаревших свечах)\\n"
         f"  ✅ Часовой пояс МСК (UTC+3) в логах\\n"
-        f"  {('✅ Каскадный хедж 3 уровней (×' + str(${cfg.hedgeCascadeM1 ?? 1.0}) + '/×' + str(${cfg.hedgeCascadeM2 ?? 1.5}) + '/×' + str(${cfg.hedgeCascadeM3 ?? 2.0}) + ')') if ${cfg.hedgeCascadeEnabled ? "True" : "False"} else '⚠️ Каскадный хедж ВЫКЛЮЧЕН (вкл в настройках)'}\\n"
+        f"  {('✅ Каскадный хедж 3 уровней (×' + str(${cfg.hedgeCascadeM1 ?? 1.5}) + '/×' + str(${cfg.hedgeCascadeM2 ?? 1.5}) + '/×' + str(${cfg.hedgeCascadeM3 ?? 2.0}) + ')') if ${cfg.hedgeCascadeEnabled ? "True" : "False"} else '⚠️ Каскадный хедж ВЫКЛЮЧЕН (вкл в настройках)'}\\n"
         f"━━━━━━━━━━━━━━━━━━━━\\n"
         f"⏳ Ожидаю сигналы..."
     )
@@ -5950,12 +5950,12 @@ async def main():
     print("=" * 60)
     if _cascade_state_log:
         print(f"  🛡 КАСКАДНЫЙ ХЕДЖ: ✅ ВКЛЮЧЁН")
-        print(f"     Хедж-1 (сразу, против): ×{${cfg.hedgeCascadeM1 ?? 1.0}}")
+        print(f"     Хедж-1 (сразу, против): ×{${cfg.hedgeCascadeM1 ?? 1.5}}")
         print(f"     Хедж-2 (после 1/2 экспир., против): ×{${cfg.hedgeCascadeM2 ?? 1.5}}")
         print(f"     Хедж-3 (по основной, при пересеч. страйка): ×{${cfg.hedgeCascadeM3 ?? 2.0}}")
         print(f"     Откат от пика: {${cfg.hedgeCascadePullbackPips ?? 3}} пип")
         print(f"     Проверка цены: каждые {${cfg.hedgeCheckInterval ?? 2}} сек")
-        _max_sum = 1 + ${cfg.hedgeCascadeM1 ?? 1.0} + ${cfg.hedgeCascadeM2 ?? 1.5} + ${cfg.hedgeCascadeM3 ?? 2.0}
+        _max_sum = 1 + ${cfg.hedgeCascadeM1 ?? 1.5} + ${cfg.hedgeCascadeM2 ?? 1.5} + ${cfg.hedgeCascadeM3 ?? 2.0}
         print(f"     Макс. сумма на сигнал: {_max_sum:.1f}X (т.е. {round(BASE_BET * _max_sum, 2)} {CURRENCY})")
     else:
         print(f"  ⚠️ КАСКАДНЫЙ ХЕДЖ: ❌ ВЫКЛЮЧЕН")
@@ -6402,7 +6402,7 @@ async def main():
                 if order_id and _cascade_enabled_runtime and entry_price > 0:
                     print(f"[CASCADE] 🚀 ВКЛЮЧЁН — стартую каскад страховки")
                     # ХЕДЖ-1: сразу с основной, противоположное направление, та же экспирация, размер ×M1
-                    _h1_mult = ${cfg.hedgeCascadeM1 ?? 1.0}
+                    _h1_mult = ${cfg.hedgeCascadeM1 ?? 1.5}
                     _h1_bet  = round(bet * _h1_mult, 2)
                     _h1_dir  = "PUT" if signal == "CALL" else "CALL"
 

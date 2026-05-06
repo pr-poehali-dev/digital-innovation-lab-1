@@ -5654,9 +5654,14 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
 
         try:
             current_price = 0.0
-            if _live_buf and _live_buf.last_price > 0:
-                current_price = float(_live_buf.last_price)
-            else:
+            # Сначала пробуем живой буфер (если доступен глобально)
+            try:
+                if _live_buf and _live_buf.last_price > 0:
+                    current_price = float(_live_buf.last_price)
+            except NameError:
+                pass
+            # Fallback на свечи если буфер недоступен
+            if current_price <= 0:
                 _cands = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=${cfg.candleTimeframe ?? 60}, count=1)
                 if not _cands:
                     continue

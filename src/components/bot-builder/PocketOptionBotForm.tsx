@@ -1651,7 +1651,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                   <p className="text-zinc-300 font-bold mb-1">Сводка по каскаду (X = размер основной):</p>
                   <p className="text-zinc-400">🛡 <span className="text-purple-300">Хедж-1:</span> ×{config.hedgeCascadeM1?.toFixed(1) ?? "1.5"}X — сразу, ПРОТИВ основной</p>
                   <p className="text-zinc-400">🔄 <span className="text-purple-300">Хедж-2:</span> ×{config.hedgeCascadeM2?.toFixed(1) ?? "1.5"}X — после {config.hedgeCascadeMinTimePercent ?? 50}%, ПРОТИВ, откат {config.hedgeCascadePullbackPips ?? 3} пип{(config.hedgeCascadeMinPeakPips ?? 0) > 0 ? `, пик ≥ ${config.hedgeCascadeMinPeakPips} пип` : ""}{config.hedgeCascadeRequireProfit ? ", только в плюсе" : ""}</p>
-                  <p className="text-zinc-400">🎯 <span className="text-purple-300">Хедж-3:</span> ×{config.hedgeCascadeM3?.toFixed(1) ?? "2.0"}X — ПО основной, при пересечении страйка</p>
+                  <p className="text-zinc-400">🎯 <span className="text-purple-300">Хедж-3:</span> ×{config.hedgeCascadeM3?.toFixed(1) ?? "2.0"}X — ВМЕСТЕ с H2, в <b>противоположную</b> сторону</p>
                   <p className="text-zinc-400 mt-1">⏱ Все хеджи имеют ту же экспирацию — заканчиваются с основной</p>
                   <p className="text-zinc-400">💰 <span className="text-purple-300">Макс. сумма на сигнал:</span> X × (1 + {config.hedgeCascadeM1?.toFixed(1) ?? "1.5"} + {config.hedgeCascadeM2?.toFixed(1) ?? "1.5"} + {config.hedgeCascadeM3?.toFixed(1) ?? "2.0"}) = <span className="text-white">{(1 + (config.hedgeCascadeM1 ?? 1.5) + (config.hedgeCascadeM2 ?? 1.5) + (config.hedgeCascadeM3 ?? 2.0)).toFixed(1)}X</span></p>
                 </div>

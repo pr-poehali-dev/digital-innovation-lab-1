@@ -3357,16 +3357,46 @@ async def main():
                     if cascade_task and not isinstance(cascade_res, Exception) and isinstance(cascade_res, list):
                         cascade_orders.extend(cascade_res)
                     print(f"[CASCADE] 📊 Итого хеджей открыто: {len(cascade_orders)}")
+                    # 🎯 СВОДКА КАСКАДА: собираем все результаты и шлём ОДНО сообщение
+                    _cascade_summary_lines = []
+                    _cascade_total_pl = 0.0
+                    _cascade_wins_cnt = 0
+                    _cascade_loss_cnt = 0
+                    _cascade_total_bet = 0.0
                     for _co_id, _co_bet, _co_lvl, _co_bal in cascade_orders:
                         try:
                             _cw, _cp, _cl = await check_result(client, _co_id, _co_bal, _co_bet, wait_sec=10)
                             _cmark = f"✅ +{_cp:.2f}" if _cw else f"❌ -{_cl:.2f}"
+                            _cpl = _cp - _cl  # P&L для этого хеджа
                             print(f"[CASCADE] {_co_lvl} результат: {_cmark} (ставка {_co_bet})")
-                            tg(f"🛡 <b>[CASCADE {_co_lvl}]</b> {_cmark} {currency} | ставка {_co_bet}")
+                            _cascade_summary_lines.append(
+                                f"{'✅' if _cw else '❌'} <b>{_co_lvl}</b>: ставка {_co_bet:.2f} → {_cpl:+.2f} {currency}"
+                            )
+                            _cascade_total_pl += _cpl
+                            _cascade_total_bet += _co_bet
+                            if _cw: _cascade_wins_cnt += 1
+                            else:   _cascade_loss_cnt += 1
                             profit      += _cp
                             loss_amount += _cl
                         except Exception as _cre:
                             print(f"[CASCADE] Ошибка получения результата {_co_lvl}: {_cre}")
+                            _cascade_summary_lines.append(f"⚠️ <b>{_co_lvl}</b>: ошибка получения результата")
+                    # Шлём ОБЩУЮ сводку каскада в ТГ (если хотя бы 1 хедж был открыт)
+                    if cascade_orders:
+                        _cascade_emoji = "🟢" if _cascade_total_pl > 0 else ("🔴" if _cascade_total_pl < 0 else "⚪")
+                        _cascade_status = "В ПЛЮСЕ" if _cascade_total_pl > 0 else ("В МИНУСЕ" if _cascade_total_pl < 0 else "В НОЛЬ")
+                        try:
+                            tg(
+                                f"{_cascade_emoji} <b>📊 СВОДКА КАСКАДА — {_cascade_status}</b>\\n"
+                                f"━━━━━━━━━━━━━━━━━━━━\\n"
+                                + "\\n".join(_cascade_summary_lines) + "\\n"
+                                f"━━━━━━━━━━━━━━━━━━━━\\n"
+                                f"🎯 Хеджей: <b>{len(cascade_orders)}</b> (✅ {_cascade_wins_cnt} / ❌ {_cascade_loss_cnt})\\n"
+                                f"💰 Ставки в каскаде: <b>{_cascade_total_bet:.2f} {currency}</b>\\n"
+                                f"💵 Итог каскада: <b>{_cascade_total_pl:+.2f} {currency}</b>"
+                            )
+                        except Exception as _cs_e:
+                            print(f"[CASCADE] Ошибка отправки сводки: {_cs_e}")
                     if hedge_task and not isinstance(hedge_res, Exception) and isinstance(hedge_res, tuple) and len(hedge_res) >= 3:
                         # Безопасная распаковка: берём первые 3 значения, остальные игнорим
                         hedge_order_id = hedge_res[0]

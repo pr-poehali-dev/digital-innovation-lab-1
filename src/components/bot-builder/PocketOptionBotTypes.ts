@@ -2605,6 +2605,8 @@ async def main():
     print(f"  Счёт: {account_type}")
     print(f"  Актив: {ASSET} | Экспирация: {EXPIRY_SEC//60} мин")
     print(f"  Баланс: {round(balance, 2)} {CURRENCY} | TP: {TAKE_PROFIT} {CURRENCY} | SL: {STOP_LOSS} {CURRENCY}")
+    # 🆔 Version stamp — чтобы юзер видел что код СВЕЖИЙ (а не старый bot1.py с компа)
+    print(f"  🆔 BUILD: cascade-fix-v3 | каскад_код_внутри={'ДА' if ${cfg.hedgeCascadeEnabled ? "True" : "False"} else 'ВЫКЛ'}")
     print("=" * 50 + "\\n")
     tg(
         f"🤖 <b>{BOT_NAME} запущен</b>\\n"
@@ -5401,6 +5403,10 @@ async def get_balance(client):
 async def hedge_monitor(client, original_direction, original_bet, entry_price, expiry_sec):
     """Хеджирование при уходе цены против позиции."""
     if not ${cfg.hedgeEnabled ? "True" : "False"}:
+        return None, 0.0, 0, 0.0
+    # 🛡 ЕСЛИ ВКЛЮЧЁН КАСКАДНЫЙ ХЕДЖ — старый ATR-хедж НЕ запускается (чтобы не дублировать страховку)
+    if ${cfg.hedgeCascadeEnabled ? "True" : "False"}:
+        print(f"[HEDGE] ⏭ ATR-хедж пропущен — активен каскадный хедж (3 уровня)")
         return None, 0.0, 0, 0.0
     _pip_map = {
         "EURUSD": 8, "GBPUSD": 10, "USDJPY": 150, "USDCHF": 9, "USDCAD": 9, "AUDUSD": 9, "NZDUSD": 9,

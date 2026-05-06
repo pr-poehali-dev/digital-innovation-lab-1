@@ -1572,9 +1572,9 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                   <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
                     Хедж-1 (открывается СРАЗУ): <span className="text-white font-bold">×{config.hedgeCascadeM1?.toFixed(1) ?? "1.5"}</span> от ставки
                   </Label>
-                  <Slider min={0.1} max={3} step={0.1} value={[config.hedgeCascadeM1 ?? 1.5]} onValueChange={([v]) => set({ hedgeCascadeM1: v })} />
+                  <Slider min={0} max={3} step={0.1} value={[config.hedgeCascadeM1 ?? 1.5]} onValueChange={([v]) => set({ hedgeCascadeM1: v })} />
                   <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
-                    Открывается мгновенно с основной, <b>противоположное направление</b>, та же экспирация
+                    {(config.hedgeCascadeM1 ?? 1.5) === 0 ? "🚫 ОТКЛЮЧЁН — Хедж-1 не открывается" : <>Открывается мгновенно с основной, <b>противоположное направление</b>, та же экспирация</>}
                   </p>
                 </div>
 

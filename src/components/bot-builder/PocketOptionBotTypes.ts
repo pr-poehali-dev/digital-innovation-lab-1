@@ -3268,9 +3268,14 @@ async def main():
                             except: pass
                             return None
 
-                    # Запускаем хедж-1 как НЕБЛОКИРУЮЩУЮ таску
-                    cascade_h1_task = asyncio.create_task(_open_hedge1())
-                    print(f"[CASCADE] 🛡 ХЕДЖ-1: задача создана (неблокирующая)")
+                    # 🚫 Если множитель = 0 → ХЕДЖ-1 ОТКЛЮЧЁН пользователем
+                    if _h1_mult <= 0 or _h1_bet <= 0:
+                        print(f"[CASCADE] 🚫 ХЕДЖ-1 ОТКЛЮЧЁН (множитель={_h1_mult}) — пропускаем")
+                        cascade_h1_task = None
+                    else:
+                        # Запускаем хедж-1 как НЕБЛОКИРУЮЩУЮ таску
+                        cascade_h1_task = asyncio.create_task(_open_hedge1())
+                        print(f"[CASCADE] 🛡 ХЕДЖ-1: задача создана (неблокирующая)")
 
                     # Обёртка для каскад-монитора с traceback на любую ошибку
                     async def _safe_cascade():
@@ -6473,9 +6478,14 @@ async def main():
                             except: pass
                             return None
 
-                    # Запускаем хедж-1 как НЕБЛОКИРУЮЩУЮ таску
-                    cascade_h1_task = asyncio.create_task(_open_hedge1())
-                    print(f"[CASCADE] 🛡 ХЕДЖ-1: задача создана (неблокирующая)")
+                    # 🚫 Если множитель = 0 → ХЕДЖ-1 ОТКЛЮЧЁН пользователем
+                    if _h1_mult <= 0 or _h1_bet <= 0:
+                        print(f"[CASCADE] 🚫 ХЕДЖ-1 ОТКЛЮЧЁН (множитель={_h1_mult}) — пропускаем")
+                        cascade_h1_task = None
+                    else:
+                        # Запускаем хедж-1 как НЕБЛОКИРУЮЩУЮ таску
+                        cascade_h1_task = asyncio.create_task(_open_hedge1())
+                        print(f"[CASCADE] 🛡 ХЕДЖ-1: задача создана (неблокирующая)")
 
                     try:
                         cascade_started_at = asyncio.get_event_loop().time()

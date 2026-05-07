@@ -1020,6 +1020,60 @@ def calc_pct_move(price_a, price_b):
     except Exception:
         return 0.0
 
+def tg_send_report_file(date_str=None, caption=None):
+    """Отправляет JSONL-отчёт за день как документ в Telegram"""
+    if not TG_ENABLED:
+        return False
+    import urllib.request, json as _j, base64 as _b64, time as _t
+    if date_str is None:
+        date_str = datetime.now().strftime("%Y-%m-%d")
+    _file = os.path.join(_REPORTS_DIR, f"trades_{date_str}.jsonl")
+    if not os.path.exists(_file):
+        try: tg(f"📭 Отчёт за {date_str} ещё не создан (нет сделок).")
+        except: pass
+        return False
+    try:
+        with open(_file, "rb") as _f:
+            _bytes = _f.read()
+        if len(_bytes) == 0:
+            tg(f"📭 Файл отчёта за {date_str} пуст.")
+            return False
+        _b64s = _b64.b64encode(_bytes).decode()
+        # Подсчёт строк своего бота для caption
+        _lines = _bytes.decode("utf-8", errors="ignore").split("\\n")
+        _my_lines = sum(1 for _l in _lines if _l and ('"bot": "' + BOT_NAME + '"') in _l)
+        if not caption:
+            caption = (
+                f"📊 <b>[{BOT_NAME}] Отчёт {date_str}</b>\\n"
+                f"Размер: {len(_bytes)} байт | Записей бота: {_my_lines}\\n"
+                f"<i>Перетащи в /bot-report для анализа</i>"
+            )
+        _payload = _j.dumps({
+            "token": TG_TOKEN, "chat_id": TG_CHAT_ID,
+            "action": "document",
+            "file_b64": _b64s,
+            "file_name": f"trades_{date_str}.jsonl",
+            "caption": caption,
+        }).encode()
+        _url = "https://functions.poehali.dev/fb70e0a6-b6c1-49e2-b148-c37dab50f024"
+        _req = urllib.request.Request(_url, data=_payload, headers={"Content-Type": "application/json"}, method="POST")
+        for _att in range(1, 4):
+            try:
+                _r = urllib.request.urlopen(_req, timeout=60)
+                _resp = _j.loads(_r.read().decode())
+                if _resp.get("ok"):
+                    print(f"[REPORT] ✅ Файл отчёта {date_str} отправлен в TG")
+                    return True
+                print(f"[REPORT] ⚠️ TG err: {_resp.get('error')}")
+                if _att < 3: _t.sleep(3)
+            except Exception as _e:
+                print(f"[REPORT] retry {_att}: {_e}")
+                if _att < 3: _t.sleep(3)
+        return False
+    except Exception as _e:
+        print(f"[REPORT] ❌ Ошибка отправки файла: {_e}")
+        return False
+
 # ===== ID последнего меню (чтобы не плодить и удалять старые) =====
 _tg_last_menu_id = None
 # Состояние подтверждения FORCE: { "pattern": "UP_UP", "ts": time }, либо None
@@ -1453,7 +1507,12 @@ def tg_poll_commands():
             for_me = (target == _bot_name_lower or target == "all" or target == "")
             if cmd == "/stop" and for_me:
                 _tg_stopped = True
-                tg(f"🛑 <b>[{BOT_NAME}] остановлен</b>")
+                tg(f"🛑 <b>[{BOT_NAME}] остановлен</b>\\n📤 Отправляю отчёт за день...")
+                try:
+                    import threading as _thr
+                    _thr.Thread(target=tg_send_report_file, daemon=True).start()
+                except Exception as _se:
+                    print(f"[REPORT] auto-send err: {_se}")
             elif cmd == "/diag" and for_me:
                 _send_diag_report()
             elif cmd == "/pause" and for_me:
@@ -1569,6 +1628,15 @@ def tg_poll_commands():
                         )
                 except Exception as _re:
                     tg(f"❌ <b>Ошибка отчёта:</b> {_re}")
+            elif cmd == "/sendreport" and for_me:
+                # Отправить JSONL-файл отчёта в TG
+                _date = val if val else datetime.now().strftime("%Y-%m-%d")
+                tg(f"📤 <b>[{BOT_NAME}]</b> Отправляю файл отчёта за {_date}...")
+                try:
+                    import threading as _thr
+                    _thr.Thread(target=tg_send_report_file, args=(_date,), daemon=True).start()
+                except Exception as _se:
+                    tg(f"❌ Ошибка: {_se}")
             elif cmd == "/settp" and for_me:
                 try:
                     TAKE_PROFIT = float(val)
@@ -4209,6 +4277,60 @@ def calc_pct_move(price_a, price_b):
     except Exception:
         return 0.0
 
+def tg_send_report_file(date_str=None, caption=None):
+    """Отправляет JSONL-отчёт за день как документ в Telegram"""
+    if not TG_ENABLED:
+        return False
+    import urllib.request, json as _j, base64 as _b64, time as _t
+    if date_str is None:
+        date_str = datetime.now().strftime("%Y-%m-%d")
+    _file = os.path.join(_REPORTS_DIR, f"trades_{date_str}.jsonl")
+    if not os.path.exists(_file):
+        try: tg(f"📭 Отчёт за {date_str} ещё не создан (нет сделок).")
+        except: pass
+        return False
+    try:
+        with open(_file, "rb") as _f:
+            _bytes = _f.read()
+        if len(_bytes) == 0:
+            tg(f"📭 Файл отчёта за {date_str} пуст.")
+            return False
+        _b64s = _b64.b64encode(_bytes).decode()
+        # Подсчёт строк своего бота для caption
+        _lines = _bytes.decode("utf-8", errors="ignore").split("\\n")
+        _my_lines = sum(1 for _l in _lines if _l and ('"bot": "' + BOT_NAME + '"') in _l)
+        if not caption:
+            caption = (
+                f"📊 <b>[{BOT_NAME}] Отчёт {date_str}</b>\\n"
+                f"Размер: {len(_bytes)} байт | Записей бота: {_my_lines}\\n"
+                f"<i>Перетащи в /bot-report для анализа</i>"
+            )
+        _payload = _j.dumps({
+            "token": TG_TOKEN, "chat_id": TG_CHAT_ID,
+            "action": "document",
+            "file_b64": _b64s,
+            "file_name": f"trades_{date_str}.jsonl",
+            "caption": caption,
+        }).encode()
+        _url = "https://functions.poehali.dev/fb70e0a6-b6c1-49e2-b148-c37dab50f024"
+        _req = urllib.request.Request(_url, data=_payload, headers={"Content-Type": "application/json"}, method="POST")
+        for _att in range(1, 4):
+            try:
+                _r = urllib.request.urlopen(_req, timeout=60)
+                _resp = _j.loads(_r.read().decode())
+                if _resp.get("ok"):
+                    print(f"[REPORT] ✅ Файл отчёта {date_str} отправлен в TG")
+                    return True
+                print(f"[REPORT] ⚠️ TG err: {_resp.get('error')}")
+                if _att < 3: _t.sleep(3)
+            except Exception as _e:
+                print(f"[REPORT] retry {_att}: {_e}")
+                if _att < 3: _t.sleep(3)
+        return False
+    except Exception as _e:
+        print(f"[REPORT] ❌ Ошибка отправки файла: {_e}")
+        return False
+
 # ===== ID последнего меню (чтобы не плодить и удалять старые) =====
 _tg_last_menu_id = None
 # Состояние подтверждения FORCE: { "pattern": "UP_UP", "ts": time }, либо None
@@ -4642,7 +4764,12 @@ def tg_poll_commands():
             for_me = (target == _bot_name_lower or target == "all" or target == "")
             if cmd == "/stop" and for_me:
                 _tg_stopped = True
-                tg(f"🛑 <b>[{BOT_NAME}] остановлен</b>")
+                tg(f"🛑 <b>[{BOT_NAME}] остановлен</b>\\n📤 Отправляю отчёт за день...")
+                try:
+                    import threading as _thr
+                    _thr.Thread(target=tg_send_report_file, daemon=True).start()
+                except Exception as _se:
+                    print(f"[REPORT] auto-send err: {_se}")
             elif cmd == "/diag" and for_me:
                 _send_diag_report()
             elif cmd == "/pause" and for_me:
@@ -4758,6 +4885,15 @@ def tg_poll_commands():
                         )
                 except Exception as _re:
                     tg(f"❌ <b>Ошибка отчёта:</b> {_re}")
+            elif cmd == "/sendreport" and for_me:
+                # Отправить JSONL-файл отчёта в TG
+                _date = val if val else datetime.now().strftime("%Y-%m-%d")
+                tg(f"📤 <b>[{BOT_NAME}]</b> Отправляю файл отчёта за {_date}...")
+                try:
+                    import threading as _thr
+                    _thr.Thread(target=tg_send_report_file, args=(_date,), daemon=True).start()
+                except Exception as _se:
+                    tg(f"❌ Ошибка: {_se}")
             elif cmd == "/settp" and for_me:
                 try:
                     TAKE_PROFIT = float(val)

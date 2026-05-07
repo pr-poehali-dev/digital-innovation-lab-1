@@ -65,6 +65,52 @@ def handler(event: dict, context) -> dict:
     has_markup = body.get("reply_markup") is not None
     in_msg_id = body.get("message_id")
 
+    if action == "document":
+        # Отправка документа (файла) — base64 в file_b64, имя в file_name
+        import base64
+        file_b64 = body.get("file_b64", "")
+        file_name = str(body.get("file_name", "report.txt")).strip()
+        caption = str(body.get("caption", "")).strip()
+        if not file_b64:
+            _log(req_id, f"❌ DOC_NO_FILE chat={masked}")
+            return {"statusCode": 400, "headers": cors, "body": json.dumps({"ok": False, "error": "file_b64 required"})}
+        try:
+            file_bytes = base64.b64decode(file_b64)
+        except Exception as e:
+            _log(req_id, f"❌ DOC_BAD_B64: {e}")
+            return {"statusCode": 400, "headers": cors, "body": json.dumps({"ok": False, "error": f"bad base64: {e}"})}
+        # multipart/form-data вручную
+        boundary = "----py" + str(int(time.time() * 1000))
+        body_parts = []
+        def _add_field(name, value):
+            body_parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n{value}\r\n".encode())
+        _add_field("chat_id", chat_id)
+        if caption:
+            _add_field("caption", caption)
+            _add_field("parse_mode", "HTML")
+        body_parts.append(
+            f"--{boundary}\r\nContent-Disposition: form-data; name=\"document\"; filename=\"{file_name}\"\r\nContent-Type: application/octet-stream\r\n\r\n".encode()
+            + file_bytes + b"\r\n"
+        )
+        body_parts.append(f"--{boundary}--\r\n".encode())
+        data = b"".join(body_parts)
+        url = f"https://api.telegram.org/bot{token}/sendDocument"
+        _log(req_id, f"➡️  DOC chat={masked} name={file_name} size={len(file_bytes)}b")
+        try:
+            req = urllib.request.Request(url, data=data, method="POST", headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
+            resp = urllib.request.urlopen(req, timeout=30)
+            result = json.loads(resp.read().decode())
+            ok = bool(result.get("ok", False))
+            elapsed_ms = int((time.time() - t0) * 1000)
+            if ok:
+                _log(req_id, f"✅ DOC_OK chat={masked} elapsed={elapsed_ms}ms")
+                return {"statusCode": 200, "headers": cors, "body": json.dumps({"ok": True, "message_id": result.get("result", {}).get("message_id")})}
+            _log(req_id, f"⚠️  DOC_ERR chat={masked} err={result.get('description')}")
+            return {"statusCode": 200, "headers": cors, "body": json.dumps({"ok": False, "error": result.get("description", "tg error")})}
+        except Exception as e:
+            _log(req_id, f"💥 DOC_FAIL chat={masked} err={e}")
+            return {"statusCode": 200, "headers": cors, "body": json.dumps({"ok": False, "error": str(e)})}
+
     if action == "delete":
         if not in_msg_id:
             _log(req_id, f"❌ DELETE_NO_MSG_ID chat={masked}")

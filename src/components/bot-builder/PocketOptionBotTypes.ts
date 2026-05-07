@@ -3682,10 +3682,20 @@ def signal_support_resistance(prices, candles):
 
   const combineLogic = cfg.comboLogic === "AND"
     ? `
+def _safe_strategy_call(fn, prices, candles):
+    """Безопасный вызов стратегии — ошибки не валят бота"""
+    try:
+        return fn(prices, candles)
+    except Exception as _se:
+        import traceback as _tbs
+        print(f"[STRATEGY] ⚠️ Ошибка в {getattr(fn, '__name__', '?')}: {_se}")
+        print(_tbs.format_exc())
+        return None, f"⚠️err:{getattr(fn, '__name__', '?')}"
+
 def get_combined_signal(prices, candles):
     """Комбо AND — большинство стратегий должны совпасть"""
     fns = [${callLines.map(l => l.replace(/\(.*\)/, '')).join(", ")}]
-    results = [f(prices, candles) for f in fns]
+    results = [_safe_strategy_call(f, prices, candles) for f in fns]
     signals = [(s, i) for s, i in results if s is not None]
     majority = (${selected.length} // 2) + 1
     calls = [(s, i) for s, i in signals if s == "CALL"]
@@ -3699,10 +3709,20 @@ def get_combined_signal(prices, candles):
     all_info = " | ".join(i for _, i in signals if i)
     return None, all_info  # Нет большинства`
     : `
+def _safe_strategy_call(fn, prices, candles):
+    """Безопасный вызов стратегии — ошибки не валят бота"""
+    try:
+        return fn(prices, candles)
+    except Exception as _se:
+        import traceback as _tbs
+        print(f"[STRATEGY] ⚠️ Ошибка в {getattr(fn, '__name__', '?')}: {_se}")
+        print(_tbs.format_exc())
+        return None, f"⚠️err:{getattr(fn, '__name__', '?')}"
+
 def get_combined_signal(prices, candles):
     """Комбо OR — достаточно хотя бы одного сигнала"""
     fns = [${callLines.map(l => l.replace(/\(.*\)/, '')).join(", ")}]
-    results = [f(prices, candles) for f in fns]
+    results = [_safe_strategy_call(f, prices, candles) for f in fns]
     signals = [(s, i) for s, i in results if s is not None]
     if not signals:
         all_info = " | ".join(i for _, i in results if i)

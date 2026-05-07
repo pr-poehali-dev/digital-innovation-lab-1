@@ -964,6 +964,62 @@ def tg_info(text):
         return
     tg(text)
 
+# ===== СИСТЕМА ОТЧЁТНОСТИ (JSONL) =====
+import json as _json_rep
+_REPORTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reports")
+try:
+    os.makedirs(_REPORTS_DIR, exist_ok=True)
+except Exception as _re:
+    print(f"[REPORT] ⚠️ Не могу создать папку reports: {_re}")
+
+def report_log(event_type, data):
+    """Записывает событие в JSONL-файл текущего дня.
+    event_type: 'trade' | 'cascade' | 'hedge' | 'session_start' | 'session_end' | 'strategy_error'
+    """
+    try:
+        _today = datetime.now().strftime("%Y-%m-%d")
+        _file = os.path.join(_REPORTS_DIR, f"trades_{_today}.jsonl")
+        _entry = {
+            "ts": datetime.now().isoformat(timespec='seconds'),
+            "type": event_type,
+            "asset": ASSET,
+            "bot": globals().get('BOT_NAME', '?'),
+            **data
+        }
+        with open(_file, "a", encoding="utf-8") as _f:
+            _f.write(_json_rep.dumps(_entry, ensure_ascii=False, default=str) + "\\n")
+    except Exception as _re:
+        print(f"[REPORT] ⚠️ Не могу записать отчёт: {_re}")
+
+def calc_pips_distance(symbol, price_a, price_b):
+    """Расстояние между ценами в пипах (учитывает тип пары)"""
+    try:
+        _pip_div = {
+            "EURUSD": 0.0001, "GBPUSD": 0.0001, "AUDUSD": 0.0001, "NZDUSD": 0.0001,
+            "USDCHF": 0.0001, "USDCAD": 0.0001, "EURGBP": 0.0001, "EURCHF": 0.0001,
+            "EURNZD": 0.0001, "EURAUD": 0.0001, "EURCAD": 0.0001, "GBPAUD": 0.0001,
+            "GBPCAD": 0.0001, "GBPCHF": 0.0001, "GBPNZD": 0.0001, "AUDCAD": 0.0001,
+            "AUDCHF": 0.0001, "AUDNZD": 0.0001, "CADCHF": 0.0001, "NZDCAD": 0.0001,
+            "NZDCHF": 0.0001,
+            "USDJPY": 0.01, "EURJPY": 0.01, "GBPJPY": 0.01, "AUDJPY": 0.01,
+            "CHFJPY": 0.01, "CADJPY": 0.01, "NZDJPY": 0.01,
+            "XAUUSD": 0.1, "XAGUSD": 0.001,
+            "BTCUSD": 1.0, "ETHUSD": 0.1, "LTCUSD": 0.1,
+        }
+        _sym_clean = symbol.replace("_otc", "").replace("/", "").upper()
+        _pip = _pip_div.get(_sym_clean, 0.0001)
+        return round(abs(price_a - price_b) / _pip, 1)
+    except Exception:
+        return 0.0
+
+def calc_pct_move(price_a, price_b):
+    """Процентное изменение цены"""
+    try:
+        if price_a == 0: return 0.0
+        return round((price_b - price_a) / price_a * 100, 4)
+    except Exception:
+        return 0.0
+
 # ===== ID последнего меню (чтобы не плодить и удалять старые) =====
 _tg_last_menu_id = None
 # Состояние подтверждения FORCE: { "pattern": "UP_UP", "ts": time }, либо None
@@ -1447,6 +1503,72 @@ def tg_poll_commands():
                     f"{_sync_line}{_ts_line}{_last_price_line}"
                     f"{_chart_line}"
                 )
+            elif cmd == "/report" and for_me:
+                try:
+                    _today = datetime.now().strftime("%Y-%m-%d")
+                    _file = os.path.join(_REPORTS_DIR, f"trades_{_today}.jsonl")
+                    if not os.path.exists(_file):
+                        tg(f"📊 <b>[{BOT_NAME}] Отчёт за {_today}</b>\\nПока нет данных за сегодня.")
+                    else:
+                        _trades, _cascades, _hedges = [], [], []
+                        with open(_file, encoding="utf-8") as _fr:
+                            for _line in _fr:
+                                try:
+                                    _e = _json_rep.loads(_line)
+                                    if _e.get("bot") != BOT_NAME: continue
+                                    _t = _e.get("type")
+                                    if _t == "trade": _trades.append(_e)
+                                    elif _t == "cascade_summary": _cascades.append(_e)
+                                    elif _t == "hedge_open": _hedges.append(_e)
+                                except: pass
+                        _tcount = len(_trades)
+                        _twins = sum(1 for t in _trades if t.get("main_won"))
+                        _twr = round(_twins / _tcount * 100, 1) if _tcount else 0
+                        _tpnl = round(sum(t.get("total_pnl", 0) for t in _trades), 2)
+                        _troi_avg = round(sum(t.get("total_roi_pct", 0) for t in _trades) / _tcount, 1) if _tcount else 0
+                        _ccount = len(_cascades)
+                        _cwins_total = sum(c.get("wins", 0) for c in _cascades)
+                        _closs_total = sum(c.get("losses", 0) for c in _cascades)
+                        _ch_total = _cwins_total + _closs_total
+                        _cwr = round(_cwins_total / _ch_total * 100, 1) if _ch_total else 0
+                        _cpnl = round(sum(c.get("total_pnl", 0) for c in _cascades), 2)
+                        _cprofitable = sum(1 for c in _cascades if c.get("total_pnl", 0) > 0)
+                        _cprofitable_pct = round(_cprofitable / _ccount * 100, 1) if _ccount else 0
+                        _h2 = [h for h in _hedges if h.get("level") == "H2"]
+                        _h3 = [h for h in _hedges if h.get("level") == "H3"]
+                        _h2_avg_pips = round(sum(h.get("pips_from_strike", 0) for h in _h2) / len(_h2), 1) if _h2 else 0
+                        _h3_avg_pips = round(sum(h.get("pips_from_strike", 0) for h in _h3) / len(_h3), 1) if _h3 else 0
+                        _h2_avg_pct = round(sum(abs(h.get("pct_move_from_strike", 0)) for h in _h2) / len(_h2), 4) if _h2 else 0
+                        _best = max(_trades, key=lambda x: x.get("total_pnl", 0)) if _trades else None
+                        _worst = min(_trades, key=lambda x: x.get("total_pnl", 0)) if _trades else None
+                        _best_str = f"+{_best['total_pnl']:.2f} (ROI {_best.get('total_roi_pct',0):+.1f}%)" if _best else "—"
+                        _worst_str = f"{_worst['total_pnl']:.2f} (ROI {_worst.get('total_roi_pct',0):+.1f}%)" if _worst else "—"
+                        _err_lines = ""
+                        if _strategy_err_count:
+                            _err_lines = "\\n⚠️ Ошибки стратегий: " + ", ".join(f"{k}({v})" for k,v in _strategy_err_count.items())
+                        tg(
+                            f"📊 <b>[{BOT_NAME}] Отчёт за {_today}</b>\\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\\n"
+                            f"📈 <b>СДЕЛКИ:</b>\\n"
+                            f"• Всего: <b>{_tcount}</b> (✅{_twins}/❌{_tcount-_twins}) WR <b>{_twr}%</b>\\n"
+                            f"• P&L: <b>{_tpnl:+.2f} {CURRENCY}</b> | сред. ROI: <b>{_troi_avg:+.1f}%</b>\\n"
+                            f"• Лучшая: {_best_str}\\n"
+                            f"• Худшая: {_worst_str}\\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\\n"
+                            f"🛡 <b>КАСКАДЫ:</b>\\n"
+                            f"• Запусков: <b>{_ccount}</b> | прибыльных: <b>{_cprofitable}</b> ({_cprofitable_pct}%)\\n"
+                            f"• Хеджей всего: <b>{_ch_total}</b> (✅{_cwins_total}/❌{_closs_total}) WR <b>{_cwr}%</b>\\n"
+                            f"• Итог каскадов: <b>{_cpnl:+.2f} {CURRENCY}</b>\\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\\n"
+                            f"📐 <b>ПИПСЫ ХЕДЖЕЙ:</b>\\n"
+                            f"• H2 откр.: ср. <b>{_h2_avg_pips} пип</b> от страйка ({_h2_avg_pct}%)\\n"
+                            f"• H3 откр.: ср. <b>{_h3_avg_pips} пип</b> от страйка\\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\\n"
+                            f"💾 Файл: <code>reports/trades_{_today}.jsonl</code>"
+                            f"{_err_lines}"
+                        )
+                except Exception as _re:
+                    tg(f"❌ <b>Ошибка отчёта:</b> {_re}")
             elif cmd == "/settp" and for_me:
                 try:
                     TAKE_PROFIT = float(val)
@@ -2355,6 +2477,20 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
                             h2_open_price = current_price
                             print(f"[CASCADE] ✅ ХЕДЖ-2 открыт ID={_oid2} | цена H2={h2_open_price}")
                             tg(f"🔄 <b>[CASCADE Хедж-2]</b> {h2_dir} | {h2_bet} | коррекция {pips_from_peak} пип | осталось {remaining}с")
+                            try:
+                                report_log("hedge_open", {
+                                    "level": "H2", "order_id": str(_oid2), "direction": h2_dir,
+                                    "bet": h2_bet, "multiplier": M2_MULT,
+                                    "open_price": h2_open_price, "strike_price": entry_price,
+                                    "pips_from_strike": calc_pips_distance(_asset_key_c, entry_price, h2_open_price),
+                                    "pct_move_from_strike": calc_pct_move(entry_price, h2_open_price),
+                                    "pips_pullback_from_peak": pips_from_peak,
+                                    "peak_pips": round(peak_abs_distance / PIP_SIZE_C, 1),
+                                    "time_elapsed_pct": round(time_ratio * 100, 1),
+                                    "expiry_remaining_sec": remaining,
+                                    "balance_before": _bal_h2, "main_direction": original_direction,
+                                })
+                            except Exception as _rle: print(f"[REPORT] err: {_rle}")
                 except Exception as _e2:
                     print(f"[CASCADE] ❌ Ошибка хедж-2: {_e2}")
                 h2_opened = True
@@ -2375,6 +2511,21 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
                             opened_hedges.append((_oid3, h3_bet, "H3", _bal_h3))
                             print(f"[CASCADE] ✅ ХЕДЖ-3 открыт ID={_oid3} | направление {h3_dir} (против H2)")
                             tg(f"🎯 <b>[CASCADE Хедж-3]</b> {h3_dir} | {h3_bet} | вместе с H2, в противоход | осталось {remaining}с")
+                            try:
+                                report_log("hedge_open", {
+                                    "level": "H3", "order_id": str(_oid3), "direction": h3_dir,
+                                    "bet": h3_bet, "multiplier": M3_MULT,
+                                    "open_price": current_price, "strike_price": entry_price,
+                                    "pips_from_strike": calc_pips_distance(_asset_key_c, entry_price, current_price),
+                                    "pct_move_from_strike": calc_pct_move(entry_price, current_price),
+                                    "pips_pullback_from_peak": pips_from_peak,
+                                    "peak_pips": round(peak_abs_distance / PIP_SIZE_C, 1),
+                                    "time_elapsed_pct": round(time_ratio * 100, 1),
+                                    "expiry_remaining_sec": remaining,
+                                    "balance_before": _bal_h3, "main_direction": original_direction,
+                                    "paired_with": "H2",
+                                })
+                            except Exception as _rle: print(f"[REPORT] err: {_rle}")
                 except Exception as _e3:
                     print(f"[CASCADE] ❌ Ошибка хедж-3: {_e3}")
                 h3_opened = True
@@ -3359,6 +3510,7 @@ async def main():
                     print(f"[CASCADE] 📊 Итого хеджей открыто: {len(cascade_orders)}")
                     # 🎯 СВОДКА КАСКАДА: собираем все результаты и шлём ОДНО сообщение
                     _cascade_summary_lines = []
+                    _cascade_results_data = []  # для JSONL отчёта
                     _cascade_total_pl = 0.0
                     _cascade_wins_cnt = 0
                     _cascade_loss_cnt = 0
@@ -3368,10 +3520,15 @@ async def main():
                             _cw, _cp, _cl = await check_result(client, _co_id, _co_bal, _co_bet, wait_sec=10)
                             _cmark = f"✅ +{_cp:.2f}" if _cw else f"❌ -{_cl:.2f}"
                             _cpl = _cp - _cl  # P&L для этого хеджа
-                            print(f"[CASCADE] {_co_lvl} результат: {_cmark} (ставка {_co_bet})")
+                            _co_roi = round((_cpl / _co_bet * 100) if _co_bet > 0 else 0, 1)
+                            print(f"[CASCADE] {_co_lvl} результат: {_cmark} (ставка {_co_bet}) ROI={_co_roi}%")
                             _cascade_summary_lines.append(
-                                f"{'✅' if _cw else '❌'} <b>{_co_lvl}</b>: ставка {_co_bet:.2f} → {_cpl:+.2f} {currency}"
+                                f"{'✅' if _cw else '❌'} <b>{_co_lvl}</b>: ставка {_co_bet:.2f} → {_cpl:+.2f} {currency} (ROI {_co_roi:+.1f}%)"
                             )
+                            _cascade_results_data.append({
+                                "level": _co_lvl, "order_id": str(_co_id), "bet": _co_bet,
+                                "won": _cw, "profit": _cp, "loss": _cl, "pnl": _cpl, "roi_pct": _co_roi,
+                            })
                             _cascade_total_pl += _cpl
                             _cascade_total_bet += _co_bet
                             if _cw: _cascade_wins_cnt += 1
@@ -3385,18 +3542,33 @@ async def main():
                     if cascade_orders:
                         _cascade_emoji = "🟢" if _cascade_total_pl > 0 else ("🔴" if _cascade_total_pl < 0 else "⚪")
                         _cascade_status = "В ПЛЮСЕ" if _cascade_total_pl > 0 else ("В МИНУСЕ" if _cascade_total_pl < 0 else "В НОЛЬ")
+                        _cascade_total_roi = round((_cascade_total_pl / _cascade_total_bet * 100) if _cascade_total_bet > 0 else 0, 1)
+                        _cascade_wr = round((_cascade_wins_cnt / len(cascade_orders) * 100) if cascade_orders else 0, 1)
                         try:
                             tg(
                                 f"{_cascade_emoji} <b>📊 СВОДКА КАСКАДА — {_cascade_status}</b>\\n"
                                 f"━━━━━━━━━━━━━━━━━━━━\\n"
                                 + "\\n".join(_cascade_summary_lines) + "\\n"
                                 f"━━━━━━━━━━━━━━━━━━━━\\n"
-                                f"🎯 Хеджей: <b>{len(cascade_orders)}</b> (✅ {_cascade_wins_cnt} / ❌ {_cascade_loss_cnt})\\n"
+                                f"🎯 Хеджей: <b>{len(cascade_orders)}</b> (✅ {_cascade_wins_cnt} / ❌ {_cascade_loss_cnt}) | WR: <b>{_cascade_wr}%</b>\\n"
                                 f"💰 Ставки в каскаде: <b>{_cascade_total_bet:.2f} {currency}</b>\\n"
-                                f"💵 Итог каскада: <b>{_cascade_total_pl:+.2f} {currency}</b>"
+                                f"💵 Итог каскада: <b>{_cascade_total_pl:+.2f} {currency}</b> | ROI: <b>{_cascade_total_roi:+.1f}%</b>"
                             )
                         except Exception as _cs_e:
                             print(f"[CASCADE] Ошибка отправки сводки: {_cs_e}")
+                        # Запись итога каскада в отчёт
+                        try:
+                            report_log("cascade_summary", {
+                                "main_direction": signal, "main_bet": bet, "strike_price": entry_price,
+                                "hedges_count": len(cascade_orders),
+                                "wins": _cascade_wins_cnt, "losses": _cascade_loss_cnt,
+                                "win_rate_pct": _cascade_wr,
+                                "total_bet": round(_cascade_total_bet, 2),
+                                "total_pnl": round(_cascade_total_pl, 2),
+                                "total_roi_pct": _cascade_total_roi,
+                                "results": _cascade_results_data,
+                            })
+                        except Exception as _re: print(f"[REPORT] err: {_re}")
                     if hedge_task and not isinstance(hedge_res, Exception) and isinstance(hedge_res, tuple) and len(hedge_res) >= 3:
                         # Безопасная распаковка: берём первые 3 значения, остальные игнорим
                         hedge_order_id = hedge_res[0]
@@ -3431,6 +3603,38 @@ async def main():
                         "won": won,
                         "profit": profit,
                     })
+                    # 📊 ПОЛНАЯ запись сделки в JSONL для аналитики
+                    try:
+                        _trade_pnl = round(profit - loss_amount, 2)
+                        _trade_roi = round((_trade_pnl / bet * 100) if bet > 0 else 0, 1)
+                        _final_balance, _ = await get_balance(client)
+                        report_log("trade", {
+                            "order_id": str(order_id) if order_id else None,
+                            "main_direction": signal,
+                            "main_won": won,
+                            "main_bet": bet,
+                            "main_profit_currency": round(profit, 2),
+                            "main_loss_currency": round(loss_amount, 2),
+                            "strike_price": entry_price,
+                            "expiry_sec": EXPIRY_SEC,
+                            "signal_info": signal_info if 'signal_info' in dir() else "",
+                            "total_pnl": _trade_pnl,
+                            "total_roi_pct": _trade_roi,
+                            "total_profit_session": round(total_profit, 2),
+                            "trades_today": trades_today,
+                            "win_rate_pct": round(sum(1 for t in trade_log if t["won"]) / len(trade_log) * 100, 1),
+                            "cascade_used": len(cascade_orders) > 0 if 'cascade_orders' in dir() else False,
+                            "cascade_hedges_count": len(cascade_orders) if 'cascade_orders' in dir() else 0,
+                            "hedge_used": hedge_count > 0,
+                            "hedge_count": hedge_count,
+                            "ext_used": ext_count > 0,
+                            "ext_count": ext_count,
+                            "balance_before": balance_before,
+                            "balance_after": _final_balance,
+                            "current_streak": cur_streak,
+                            "martingale_step": current_bet != BASE_BET,
+                        })
+                    except Exception as _re: print(f"[REPORT] err: {_re}")
                     wins  = sum(1 for t in trade_log if t["won"])
                     wr    = wins / len(trade_log) * 100
                     # Обновляем серию
@@ -3682,15 +3886,26 @@ def signal_support_resistance(prices, candles):
 
   const combineLogic = cfg.comboLogic === "AND"
     ? `
+_strategy_err_count = {}
+_strategy_err_notified = set()
+
 def _safe_strategy_call(fn, prices, candles):
     """Безопасный вызов стратегии — ошибки не валят бота"""
+    _fname = getattr(fn, '__name__', '?')
     try:
         return fn(prices, candles)
     except Exception as _se:
         import traceback as _tbs
-        print(f"[STRATEGY] ⚠️ Ошибка в {getattr(fn, '__name__', '?')}: {_se}")
+        _strategy_err_count[_fname] = _strategy_err_count.get(_fname, 0) + 1
+        print(f"[STRATEGY] ⚠️ Ошибка в {_fname} (#{_strategy_err_count[_fname]}): {_se}")
         print(_tbs.format_exc())
-        return None, f"⚠️err:{getattr(fn, '__name__', '?')}"
+        # Шлём TG только 1 раз на каждую новую ошибку — не спамим
+        if _fname not in _strategy_err_notified:
+            _strategy_err_notified.add(_fname)
+            try:
+                tg(f"⚠️ <b>Стратегия отключена</b>\\n<code>{_fname}</code>\\nОшибка: {str(_se)[:120]}\\n<i>Бот продолжает работу с другими стратегиями</i>")
+            except: pass
+        return None, f"⚠️err:{_fname}"
 
 def get_combined_signal(prices, candles):
     """Комбо AND — большинство стратегий должны совпасть"""
@@ -3709,15 +3924,25 @@ def get_combined_signal(prices, candles):
     all_info = " | ".join(i for _, i in signals if i)
     return None, all_info  # Нет большинства`
     : `
+_strategy_err_count = {}
+_strategy_err_notified = set()
+
 def _safe_strategy_call(fn, prices, candles):
     """Безопасный вызов стратегии — ошибки не валят бота"""
+    _fname = getattr(fn, '__name__', '?')
     try:
         return fn(prices, candles)
     except Exception as _se:
         import traceback as _tbs
-        print(f"[STRATEGY] ⚠️ Ошибка в {getattr(fn, '__name__', '?')}: {_se}")
+        _strategy_err_count[_fname] = _strategy_err_count.get(_fname, 0) + 1
+        print(f"[STRATEGY] ⚠️ Ошибка в {_fname} (#{_strategy_err_count[_fname]}): {_se}")
         print(_tbs.format_exc())
-        return None, f"⚠️err:{getattr(fn, '__name__', '?')}"
+        if _fname not in _strategy_err_notified:
+            _strategy_err_notified.add(_fname)
+            try:
+                tg(f"⚠️ <b>Стратегия отключена</b>\\n<code>{_fname}</code>\\nОшибка: {str(_se)[:120]}\\n<i>Бот продолжает работу с другими стратегиями</i>")
+            except: pass
+        return None, f"⚠️err:{_fname}"
 
 def get_combined_signal(prices, candles):
     """Комбо OR — достаточно хотя бы одного сигнала"""
@@ -3927,6 +4152,62 @@ def tg_info(text):
     if _notify_mode == "bets_only":
         return
     tg(text)
+
+# ===== СИСТЕМА ОТЧЁТНОСТИ (JSONL) =====
+import json as _json_rep
+_REPORTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reports")
+try:
+    os.makedirs(_REPORTS_DIR, exist_ok=True)
+except Exception as _re:
+    print(f"[REPORT] ⚠️ Не могу создать папку reports: {_re}")
+
+def report_log(event_type, data):
+    """Записывает событие в JSONL-файл текущего дня.
+    event_type: 'trade' | 'cascade' | 'hedge' | 'session_start' | 'session_end' | 'strategy_error'
+    """
+    try:
+        _today = datetime.now().strftime("%Y-%m-%d")
+        _file = os.path.join(_REPORTS_DIR, f"trades_{_today}.jsonl")
+        _entry = {
+            "ts": datetime.now().isoformat(timespec='seconds'),
+            "type": event_type,
+            "asset": ASSET,
+            "bot": globals().get('BOT_NAME', '?'),
+            **data
+        }
+        with open(_file, "a", encoding="utf-8") as _f:
+            _f.write(_json_rep.dumps(_entry, ensure_ascii=False, default=str) + "\\n")
+    except Exception as _re:
+        print(f"[REPORT] ⚠️ Не могу записать отчёт: {_re}")
+
+def calc_pips_distance(symbol, price_a, price_b):
+    """Расстояние между ценами в пипах (учитывает тип пары)"""
+    try:
+        _pip_div = {
+            "EURUSD": 0.0001, "GBPUSD": 0.0001, "AUDUSD": 0.0001, "NZDUSD": 0.0001,
+            "USDCHF": 0.0001, "USDCAD": 0.0001, "EURGBP": 0.0001, "EURCHF": 0.0001,
+            "EURNZD": 0.0001, "EURAUD": 0.0001, "EURCAD": 0.0001, "GBPAUD": 0.0001,
+            "GBPCAD": 0.0001, "GBPCHF": 0.0001, "GBPNZD": 0.0001, "AUDCAD": 0.0001,
+            "AUDCHF": 0.0001, "AUDNZD": 0.0001, "CADCHF": 0.0001, "NZDCAD": 0.0001,
+            "NZDCHF": 0.0001,
+            "USDJPY": 0.01, "EURJPY": 0.01, "GBPJPY": 0.01, "AUDJPY": 0.01,
+            "CHFJPY": 0.01, "CADJPY": 0.01, "NZDJPY": 0.01,
+            "XAUUSD": 0.1, "XAGUSD": 0.001,
+            "BTCUSD": 1.0, "ETHUSD": 0.1, "LTCUSD": 0.1,
+        }
+        _sym_clean = symbol.replace("_otc", "").replace("/", "").upper()
+        _pip = _pip_div.get(_sym_clean, 0.0001)
+        return round(abs(price_a - price_b) / _pip, 1)
+    except Exception:
+        return 0.0
+
+def calc_pct_move(price_a, price_b):
+    """Процентное изменение цены"""
+    try:
+        if price_a == 0: return 0.0
+        return round((price_b - price_a) / price_a * 100, 4)
+    except Exception:
+        return 0.0
 
 # ===== ID последнего меню (чтобы не плодить и удалять старые) =====
 _tg_last_menu_id = None
@@ -4411,6 +4692,72 @@ def tg_poll_commands():
                     f"{_sync_line}{_ts_line}{_last_price_line}"
                     f"{_chart_line}"
                 )
+            elif cmd == "/report" and for_me:
+                try:
+                    _today = datetime.now().strftime("%Y-%m-%d")
+                    _file = os.path.join(_REPORTS_DIR, f"trades_{_today}.jsonl")
+                    if not os.path.exists(_file):
+                        tg(f"📊 <b>[{BOT_NAME}] Отчёт за {_today}</b>\\nПока нет данных за сегодня.")
+                    else:
+                        _trades, _cascades, _hedges = [], [], []
+                        with open(_file, encoding="utf-8") as _fr:
+                            for _line in _fr:
+                                try:
+                                    _e = _json_rep.loads(_line)
+                                    if _e.get("bot") != BOT_NAME: continue
+                                    _t = _e.get("type")
+                                    if _t == "trade": _trades.append(_e)
+                                    elif _t == "cascade_summary": _cascades.append(_e)
+                                    elif _t == "hedge_open": _hedges.append(_e)
+                                except: pass
+                        _tcount = len(_trades)
+                        _twins = sum(1 for t in _trades if t.get("main_won"))
+                        _twr = round(_twins / _tcount * 100, 1) if _tcount else 0
+                        _tpnl = round(sum(t.get("total_pnl", 0) for t in _trades), 2)
+                        _troi_avg = round(sum(t.get("total_roi_pct", 0) for t in _trades) / _tcount, 1) if _tcount else 0
+                        _ccount = len(_cascades)
+                        _cwins_total = sum(c.get("wins", 0) for c in _cascades)
+                        _closs_total = sum(c.get("losses", 0) for c in _cascades)
+                        _ch_total = _cwins_total + _closs_total
+                        _cwr = round(_cwins_total / _ch_total * 100, 1) if _ch_total else 0
+                        _cpnl = round(sum(c.get("total_pnl", 0) for c in _cascades), 2)
+                        _cprofitable = sum(1 for c in _cascades if c.get("total_pnl", 0) > 0)
+                        _cprofitable_pct = round(_cprofitable / _ccount * 100, 1) if _ccount else 0
+                        _h2 = [h for h in _hedges if h.get("level") == "H2"]
+                        _h3 = [h for h in _hedges if h.get("level") == "H3"]
+                        _h2_avg_pips = round(sum(h.get("pips_from_strike", 0) for h in _h2) / len(_h2), 1) if _h2 else 0
+                        _h3_avg_pips = round(sum(h.get("pips_from_strike", 0) for h in _h3) / len(_h3), 1) if _h3 else 0
+                        _h2_avg_pct = round(sum(abs(h.get("pct_move_from_strike", 0)) for h in _h2) / len(_h2), 4) if _h2 else 0
+                        _best = max(_trades, key=lambda x: x.get("total_pnl", 0)) if _trades else None
+                        _worst = min(_trades, key=lambda x: x.get("total_pnl", 0)) if _trades else None
+                        _best_str = f"+{_best['total_pnl']:.2f} (ROI {_best.get('total_roi_pct',0):+.1f}%)" if _best else "—"
+                        _worst_str = f"{_worst['total_pnl']:.2f} (ROI {_worst.get('total_roi_pct',0):+.1f}%)" if _worst else "—"
+                        _err_lines = ""
+                        if _strategy_err_count:
+                            _err_lines = "\\n⚠️ Ошибки стратегий: " + ", ".join(f"{k}({v})" for k,v in _strategy_err_count.items())
+                        tg(
+                            f"📊 <b>[{BOT_NAME}] Отчёт за {_today}</b>\\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\\n"
+                            f"📈 <b>СДЕЛКИ:</b>\\n"
+                            f"• Всего: <b>{_tcount}</b> (✅{_twins}/❌{_tcount-_twins}) WR <b>{_twr}%</b>\\n"
+                            f"• P&L: <b>{_tpnl:+.2f} {CURRENCY}</b> | сред. ROI: <b>{_troi_avg:+.1f}%</b>\\n"
+                            f"• Лучшая: {_best_str}\\n"
+                            f"• Худшая: {_worst_str}\\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\\n"
+                            f"🛡 <b>КАСКАДЫ:</b>\\n"
+                            f"• Запусков: <b>{_ccount}</b> | прибыльных: <b>{_cprofitable}</b> ({_cprofitable_pct}%)\\n"
+                            f"• Хеджей всего: <b>{_ch_total}</b> (✅{_cwins_total}/❌{_closs_total}) WR <b>{_cwr}%</b>\\n"
+                            f"• Итог каскадов: <b>{_cpnl:+.2f} {CURRENCY}</b>\\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\\n"
+                            f"📐 <b>ПИПСЫ ХЕДЖЕЙ:</b>\\n"
+                            f"• H2 откр.: ср. <b>{_h2_avg_pips} пип</b> от страйка ({_h2_avg_pct}%)\\n"
+                            f"• H3 откр.: ср. <b>{_h3_avg_pips} пип</b> от страйка\\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\\n"
+                            f"💾 Файл: <code>reports/trades_{_today}.jsonl</code>"
+                            f"{_err_lines}"
+                        )
+                except Exception as _re:
+                    tg(f"❌ <b>Ошибка отчёта:</b> {_re}")
             elif cmd == "/settp" and for_me:
                 try:
                     TAKE_PROFIT = float(val)
@@ -5809,6 +6156,20 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
                             h2_open_price = current_price
                             print(f"[CASCADE] ✅ ХЕДЖ-2 открыт ID={_oid2} | цена H2={h2_open_price}")
                             tg(f"🔄 <b>[CASCADE Хедж-2]</b> {h2_dir} | {h2_bet} | коррекция {pips_from_peak} пип | осталось {remaining}с")
+                            try:
+                                report_log("hedge_open", {
+                                    "level": "H2", "order_id": str(_oid2), "direction": h2_dir,
+                                    "bet": h2_bet, "multiplier": M2_MULT,
+                                    "open_price": h2_open_price, "strike_price": entry_price,
+                                    "pips_from_strike": calc_pips_distance(_asset_key_c, entry_price, h2_open_price),
+                                    "pct_move_from_strike": calc_pct_move(entry_price, h2_open_price),
+                                    "pips_pullback_from_peak": pips_from_peak,
+                                    "peak_pips": round(peak_abs_distance / PIP_SIZE_C, 1),
+                                    "time_elapsed_pct": round(time_ratio * 100, 1),
+                                    "expiry_remaining_sec": remaining,
+                                    "balance_before": _bal_h2, "main_direction": original_direction,
+                                })
+                            except Exception as _rle: print(f"[REPORT] err: {_rle}")
                 except Exception as _e2:
                     print(f"[CASCADE] ❌ Ошибка хедж-2: {_e2}")
                 h2_opened = True
@@ -5829,6 +6190,21 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
                             opened_hedges.append((_oid3, h3_bet, "H3", _bal_h3))
                             print(f"[CASCADE] ✅ ХЕДЖ-3 открыт ID={_oid3} | направление {h3_dir} (против H2)")
                             tg(f"🎯 <b>[CASCADE Хедж-3]</b> {h3_dir} | {h3_bet} | вместе с H2, в противоход | осталось {remaining}с")
+                            try:
+                                report_log("hedge_open", {
+                                    "level": "H3", "order_id": str(_oid3), "direction": h3_dir,
+                                    "bet": h3_bet, "multiplier": M3_MULT,
+                                    "open_price": current_price, "strike_price": entry_price,
+                                    "pips_from_strike": calc_pips_distance(_asset_key_c, entry_price, current_price),
+                                    "pct_move_from_strike": calc_pct_move(entry_price, current_price),
+                                    "pips_pullback_from_peak": pips_from_peak,
+                                    "peak_pips": round(peak_abs_distance / PIP_SIZE_C, 1),
+                                    "time_elapsed_pct": round(time_ratio * 100, 1),
+                                    "expiry_remaining_sec": remaining,
+                                    "balance_before": _bal_h3, "main_direction": original_direction,
+                                    "paired_with": "H2",
+                                })
+                            except Exception as _rle: print(f"[REPORT] err: {_rle}")
                 except Exception as _e3:
                     print(f"[CASCADE] ❌ Ошибка хедж-3: {_e3}")
                 h3_opened = True

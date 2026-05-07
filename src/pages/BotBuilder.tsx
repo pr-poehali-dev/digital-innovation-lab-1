@@ -411,6 +411,16 @@ input("Нажми Enter чтобы закрыть окно...")
                       {shareCopied ? "Скопировано!" : "Поделиться"}
                     </button>
                     <a
+                      href="/bot-report"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg border font-orbitron text-xs font-bold transition-all duration-200 bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20"
+                      title="Загрузить JSONL-отчёт бота и получить анализ с рекомендациями"
+                    >
+                      <Icon name="BarChart3" size={13} />
+                      Анализ отчёта
+                    </a>
+                    <a
                       href="/bot-landing"
                       target="_blank"
                       rel="noreferrer"

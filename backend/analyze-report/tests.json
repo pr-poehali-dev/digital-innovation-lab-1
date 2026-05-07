@@ -1,0 +1,28 @@
+{
+  "tests": [
+    {
+      "name": "OPTIONS preflight",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "Empty content",
+      "method": "POST",
+      "path": "/",
+      "body": {"content": ""},
+      "expectedStatus": 400,
+      "bodyMatcher": "partial",
+      "expectedBody": {"error": "string"}
+    },
+    {
+      "name": "Parse trades",
+      "method": "POST",
+      "path": "/",
+      "body": {"content": "{\"ts\":\"2026-05-07T10:00:00\",\"type\":\"trade\",\"asset\":\"EURUSD\",\"bot\":\"Test\",\"main_won\":true,\"main_bet\":1.0,\"total_pnl\":0.86,\"total_roi_pct\":86.0,\"cascade_used\":false}\n{\"ts\":\"2026-05-07T10:05:00\",\"type\":\"trade\",\"asset\":\"EURUSD\",\"bot\":\"Test\",\"main_won\":false,\"main_bet\":1.0,\"total_pnl\":-1.0,\"total_roi_pct\":-100.0,\"cascade_used\":true}"},
+      "expectedStatus": 200,
+      "bodyMatcher": "partial",
+      "expectedBody": {"summary": "object"}
+    }
+  ]
+}

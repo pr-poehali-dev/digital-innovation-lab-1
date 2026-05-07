@@ -14,6 +14,7 @@ import BotBuilder from "./pages/BotBuilder";
 import BotLanding from "./pages/BotLanding";
 import Admin from "./pages/Admin";
 import Strategies from "./pages/Strategies";
+import BotReport from "./pages/BotReport";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
           <Route path="/bot-builder" element={<BotBuilder />} />
           <Route path="/bot-landing" element={<BotLanding />} />
           <Route path="/strategies" element={<Strategies />} />
+          <Route path="/bot-report" element={<BotReport />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

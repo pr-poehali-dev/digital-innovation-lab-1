@@ -3644,8 +3644,8 @@ def signal_ema(prices, candles):
 def signal_candle_pattern(prices, candles):
     if not candles or len(candles) < 3:
         return None, ""
-    o1, h1, l1, c1 = candles[-2]
-    o2, h2, l2, c2 = candles[-1]
+    o1, h1, l1, c1 = candles[-2][:4]
+    o2, h2, l2, c2 = candles[-1][:4]
     body2 = abs(c2 - o2)
     low_sh = min(o2, c2) - l2
     up_sh  = h2 - max(o2, c2)

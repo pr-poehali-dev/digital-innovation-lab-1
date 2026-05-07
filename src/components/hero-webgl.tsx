@@ -1,6 +1,6 @@
 import { Canvas, extend, useFrame } from "@react-three/fiber"
 import { useAspect, useTexture } from "@react-three/drei"
-import { useMemo, useRef, useState, useEffect } from "react"
+import { useMemo, useRef, useState, useEffect, Component, type ReactNode } from "react"
 import * as THREE from "three"
 
 const TEXTUREMAP = { src: "https://i.postimg.cc/XYwvXN8D/img-4.png" }
@@ -113,6 +113,21 @@ const Scene = () => {
   )
 }
 
+// Проверка поддержки WebGL — если недоступен, рендерим CSS-fallback
+const isWebGLAvailable = (): boolean => {
+  if (typeof window === "undefined") return false
+  try {
+    const canvas = document.createElement("canvas")
+    const gl =
+      canvas.getContext("webgl2") ||
+      canvas.getContext("webgl") ||
+      canvas.getContext("experimental-webgl")
+    return !!gl
+  } catch {
+    return false
+  }
+}
+
 export const Hero3DWebGL = () => {
   const titleWords = "Trade Base".split(" ")
   const subtitle = "Структурированная база знаний о трейдинге и торговых ботах."
@@ -120,6 +135,12 @@ export const Hero3DWebGL = () => {
   const [subtitleVisible, setSubtitleVisible] = useState(false)
   const [delays, setDelays] = useState<number[]>([])
   const [subtitleDelay, setSubtitleDelay] = useState(0)
+  const [webglOk, setWebglOk] = useState(true)
+  const [webglFailed, setWebglFailed] = useState(false)
+
+  useEffect(() => {
+    setWebglOk(isWebGLAvailable())
+  }, [])
 
   useEffect(() => {
     setDelays(titleWords.map(() => Math.random() * 0.07))
@@ -175,20 +196,89 @@ export const Hero3DWebGL = () => {
         </div>
       </div>
 
+      {webglOk && !webglFailed ? (
+        <WebGLCanvasWrapper onFail={() => setWebglFailed(true)} />
+      ) : (
+        <FallbackBackground />
+      )}
+    </div>
+  )
+}
+
+// Обёртка с try-блоком для перехвата ошибок WebGL
+const WebGLCanvasWrapper = ({ onFail }: { onFail: () => void }) => {
+  return (
+    <CanvasErrorBoundary onError={onFail}>
       <Canvas
         flat
         gl={{
           antialias: true,
           alpha: false,
           powerPreference: "high-performance",
+          failIfMajorPerformanceCaveat: false,
         }}
         camera={{ position: [0, 0, 1] }}
         style={{ background: "#000000" }}
+        onCreated={({ gl }) => {
+          gl.domElement.addEventListener("webglcontextlost", (e) => {
+            e.preventDefault()
+            onFail()
+          })
+        }}
       >
         <Scene />
       </Canvas>
-    </div>
+    </CanvasErrorBoundary>
   )
 }
+
+// ErrorBoundary — ловит падения внутри Canvas и показывает fallback
+class CanvasErrorBoundary extends Component<
+  { children: ReactNode; onError: () => void },
+  { hasError: boolean }
+> {
+  constructor(props: { children: ReactNode; onError: () => void }) {
+    super(props)
+    this.state = { hasError: false }
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+  componentDidCatch() {
+    this.props.onError()
+  }
+  render() {
+    if (this.state.hasError) return null
+    return this.props.children
+  }
+}
+
+// Красивый CSS-fallback (без WebGL) — анимированный градиент с сеткой
+const FallbackBackground = () => (
+  <div className="absolute inset-0 overflow-hidden">
+    <div
+      className="absolute inset-0"
+      style={{
+        background:
+          "radial-gradient(ellipse at 20% 30%, rgba(220,38,38,0.35) 0%, transparent 50%), radial-gradient(ellipse at 80% 70%, rgba(59,130,246,0.25) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, rgba(168,85,247,0.2) 0%, transparent 60%), #000000",
+      }}
+    />
+    <div
+      className="absolute inset-0 opacity-30 animate-pulse"
+      style={{
+        backgroundImage:
+          "linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)",
+        backgroundSize: "60px 60px",
+      }}
+    />
+    <div
+      className="absolute inset-0"
+      style={{
+        background:
+          "radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.6) 100%)",
+      }}
+    />
+  </div>
+)
 
 export default Hero3DWebGL

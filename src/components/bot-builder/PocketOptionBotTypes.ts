@@ -88,6 +88,8 @@ export interface POBotConfig {
   pauseAfterLossesMinutes?: number
   safetyMaxBetPercent?: number
   safetyMinReservePercent?: number
+  /** Время автоотправки JSONL-отчёта в TG (HH:MM, по локальному времени). Пусто = выключено */
+  tgAutoReportTime?: string
 }
 
 export interface StrategyMeta {
@@ -401,6 +403,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   pauseAfterLossesMinutes: 10,
   safetyMaxBetPercent: 20,
   safetyMinReservePercent: 30,
+  tgAutoReportTime: "09:00",
 }
 
 // Helper to avoid TS template literal conflicts with Python f-strings
@@ -829,7 +832,7 @@ Pocket Option Bot — ${strategyLabel}
 import asyncio
 import os
 import builtins as _builtins
-from datetime import datetime
+from datetime import datetime, timedelta
 from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
 
 # ===== ВРЕМЯ В ЛОГАХ =====
@@ -884,6 +887,15 @@ if not SESSION_ID:
     exit(1)
 
 print(f"[INFO] SESSION_ID загружен, длина: {len(SESSION_ID)} символов")
+
+# ===== ЗАПУСК АВТО-ОТЧЁТА (фоновый поток) =====
+def _start_auto_report_bg():
+    try:
+        if "${cfg.tgAutoReportTime || ''}".strip() and ${cfg.tgEnabled ? "True" : "False"}:
+            import threading as _athr
+            _athr.Thread(target=_auto_report_scheduler, daemon=True).start()
+    except Exception as _ae:
+        print(f"[AUTOREPORT] start err: {_ae}")
 
 # ===== АВТООПРЕДЕЛЕНИЕ ДЕМО/РЕАЛ из SESSION_ID =====
 try:
@@ -1020,6 +1032,41 @@ def calc_pct_move(price_a, price_b):
     except Exception:
         return 0.0
 
+AUTO_REPORT_TIME = "${cfg.tgAutoReportTime || ''}"  # HH:MM или пусто = выкл
+
+def _auto_report_scheduler():
+    """Фоновый поток: каждый день в AUTO_REPORT_TIME отправляет в TG отчёт за ВЧЕРА"""
+    if not AUTO_REPORT_TIME or not TG_ENABLED:
+        return
+    try:
+        _hh, _mm = AUTO_REPORT_TIME.split(":")
+        _hh = int(_hh); _mm = int(_mm)
+    except Exception:
+        print(f"[AUTOREPORT] ❌ Неверный формат времени: {AUTO_REPORT_TIME}")
+        return
+    print(f"[AUTOREPORT] ⏰ Планировщик запущен: ежедневно в {AUTO_REPORT_TIME} (отчёт за вчера)")
+    import time as _t
+    _last_sent_date = None
+    while not globals().get("_tg_stopped", False):
+        try:
+            _now = datetime.now()
+            _today_str = _now.strftime("%Y-%m-%d")
+            if (_now.hour == _hh and _now.minute == _mm and _last_sent_date != _today_str):
+                _yesterday = (_now - timedelta(days=1)).strftime("%Y-%m-%d")
+                print(f"[AUTOREPORT] 🚀 Отправка отчёта за {_yesterday}")
+                _ok = tg_send_report_file(_yesterday, caption=(
+                    f"🌅 <b>[{BOT_NAME}] Автоотчёт</b>\\n"
+                    f"📅 За: {_yesterday}\\n"
+                    f"<i>Перетащи файл в /bot-report для анализа</i>"
+                ))
+                _last_sent_date = _today_str
+                if not _ok:
+                    print(f"[AUTOREPORT] ⚠️ Не удалось отправить отчёт за {_yesterday}")
+            _t.sleep(30)
+        except Exception as _e:
+            print(f"[AUTOREPORT] err: {_e}")
+            _t.sleep(60)
+
 def tg_send_report_file(date_str=None, caption=None):
     """Отправляет JSONL-отчёт за день как документ в Telegram"""
     if not TG_ENABLED:
@@ -1073,6 +1120,12 @@ def tg_send_report_file(date_str=None, caption=None):
     except Exception as _e:
         print(f"[REPORT] ❌ Ошибка отправки файла: {_e}")
         return False
+
+# Запустить планировщик автоотчётов (фоновый поток)
+try:
+    _start_auto_report_bg()
+except Exception as _se:
+    print(f"[AUTOREPORT] init err: {_se}")
 
 # ===== ID последнего меню (чтобы не плодить и удалять старые) =====
 _tg_last_menu_id = None
@@ -4086,7 +4139,7 @@ Pocket Option КОМБО-Бот
 import asyncio
 import os
 import builtins as _builtins
-from datetime import datetime
+from datetime import datetime, timedelta
 from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
 
 # ===== ВРЕМЯ В ЛОГАХ =====
@@ -4141,6 +4194,15 @@ if not SESSION_ID:
     exit(1)
 
 print(f"[INFO] SESSION_ID загружен, длина: {len(SESSION_ID)} символов")
+
+# ===== ЗАПУСК АВТО-ОТЧЁТА (фоновый поток) =====
+def _start_auto_report_bg():
+    try:
+        if "${cfg.tgAutoReportTime || ''}".strip() and ${cfg.tgEnabled ? "True" : "False"}:
+            import threading as _athr
+            _athr.Thread(target=_auto_report_scheduler, daemon=True).start()
+    except Exception as _ae:
+        print(f"[AUTOREPORT] start err: {_ae}")
 
 # ===== АВТООПРЕДЕЛЕНИЕ ДЕМО/РЕАЛ из SESSION_ID =====
 try:
@@ -4277,6 +4339,41 @@ def calc_pct_move(price_a, price_b):
     except Exception:
         return 0.0
 
+AUTO_REPORT_TIME = "${cfg.tgAutoReportTime || ''}"  # HH:MM или пусто = выкл
+
+def _auto_report_scheduler():
+    """Фоновый поток: каждый день в AUTO_REPORT_TIME отправляет в TG отчёт за ВЧЕРА"""
+    if not AUTO_REPORT_TIME or not TG_ENABLED:
+        return
+    try:
+        _hh, _mm = AUTO_REPORT_TIME.split(":")
+        _hh = int(_hh); _mm = int(_mm)
+    except Exception:
+        print(f"[AUTOREPORT] ❌ Неверный формат времени: {AUTO_REPORT_TIME}")
+        return
+    print(f"[AUTOREPORT] ⏰ Планировщик запущен: ежедневно в {AUTO_REPORT_TIME} (отчёт за вчера)")
+    import time as _t
+    _last_sent_date = None
+    while not globals().get("_tg_stopped", False):
+        try:
+            _now = datetime.now()
+            _today_str = _now.strftime("%Y-%m-%d")
+            if (_now.hour == _hh and _now.minute == _mm and _last_sent_date != _today_str):
+                _yesterday = (_now - timedelta(days=1)).strftime("%Y-%m-%d")
+                print(f"[AUTOREPORT] 🚀 Отправка отчёта за {_yesterday}")
+                _ok = tg_send_report_file(_yesterday, caption=(
+                    f"🌅 <b>[{BOT_NAME}] Автоотчёт</b>\\n"
+                    f"📅 За: {_yesterday}\\n"
+                    f"<i>Перетащи файл в /bot-report для анализа</i>"
+                ))
+                _last_sent_date = _today_str
+                if not _ok:
+                    print(f"[AUTOREPORT] ⚠️ Не удалось отправить отчёт за {_yesterday}")
+            _t.sleep(30)
+        except Exception as _e:
+            print(f"[AUTOREPORT] err: {_e}")
+            _t.sleep(60)
+
 def tg_send_report_file(date_str=None, caption=None):
     """Отправляет JSONL-отчёт за день как документ в Telegram"""
     if not TG_ENABLED:
@@ -4330,6 +4427,12 @@ def tg_send_report_file(date_str=None, caption=None):
     except Exception as _e:
         print(f"[REPORT] ❌ Ошибка отправки файла: {_e}")
         return False
+
+# Запустить планировщик автоотчётов (фоновый поток)
+try:
+    _start_auto_report_bg()
+except Exception as _se:
+    print(f"[AUTOREPORT] init err: {_se}")
 
 # ===== ID последнего меню (чтобы не плодить и удалять старые) =====
 _tg_last_menu_id = None
@@ -5354,7 +5457,7 @@ LIVE_TICK_INTERVAL = 1  # секунд между опросами цены — 
 # Все свечи которые бот ВИДЕЛ ЛИЧНО (закрытые) пишутся в свечи/YYYY-MM-DD_HH-MM-SS.csv
 # Имя файла = дата+время старта бота. Один запуск = один файл.
 import os as _os_sess
-from datetime import datetime as _dt_sess
+from datetime import datetime, timedelta as _dt_sess
 _SESSION_DIR = _os_sess.path.join(_os_sess.path.dirname(_os_sess.path.abspath(__file__)) if "__file__" in dir() else ".", "свечи")
 _SESSION_START = _dt_sess.now().strftime("%Y-%m-%d_%H-%M-%S")
 _SESSION_FILE = _os_sess.path.join(_SESSION_DIR, f"{_SESSION_START}.csv")

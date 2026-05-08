@@ -16,6 +16,7 @@ import Admin from "./pages/Admin";
 import Strategies from "./pages/Strategies";
 import BotReport from "./pages/BotReport";
 import PlatformsCompare from "./pages/PlatformsCompare";
+import Arbitrage from "./pages/Arbitrage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => (
           <Route path="/strategies" element={<Strategies />} />
           <Route path="/bot-report" element={<BotReport />} />
           <Route path="/platforms-compare" element={<PlatformsCompare />} />
+          <Route path="/arbitrage" element={<Arbitrage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

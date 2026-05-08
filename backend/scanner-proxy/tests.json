@@ -5,7 +5,15 @@
       "method": "GET",
       "path": "/?candles=10&timeframe=5",
       "expectedStatus": 200,
-      "expectedBody": {"top": []},
+      "expectedBody": {"candles": 10},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Arbitrage scan",
+      "method": "GET",
+      "path": "/?mode=arbitrage",
+      "expectedStatus": 200,
+      "expectedBody": {"source": "CoinGecko"},
       "bodyMatcher": "partial"
     }
   ]

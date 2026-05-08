@@ -1,8 +1,96 @@
 import json
 import math
+import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
+
+ARB_CACHE = {"data": None, "ts": 0}
+ARB_CACHE_TTL = 60
+
+ARB_COINS = [
+    {"id": "bitcoin", "symbol": "BTC"},
+    {"id": "ethereum", "symbol": "ETH"},
+    {"id": "solana", "symbol": "SOL"},
+    {"id": "binancecoin", "symbol": "BNB"},
+    {"id": "ripple", "symbol": "XRP"},
+]
+
+ARB_ALLOWED_EXCHANGES = {
+    "Binance", "Coinbase Exchange", "Kraken", "Bybit",
+    "OKX", "KuCoin", "Bitfinex", "Gate.io", "HTX", "Bitstamp"
+}
+
+
+def fetch_arb_tickers(coin_id):
+    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/tickers?include_exchange_logo=false&depth=false"
+    try:
+        return fetch_url(url, timeout=8).get("tickers", [])
+    except Exception:
+        return []
+
+
+def find_arb_pair(symbol, tickers):
+    prices = {}
+    for t in tickers:
+        market = (t.get("market") or {}).get("name", "")
+        target = t.get("target", "")
+        if market not in ARB_ALLOWED_EXCHANGES:
+            continue
+        if target not in ("USDT", "USD", "USDC"):
+            continue
+        last = t.get("last")
+        volume = (t.get("converted_volume") or {}).get("usd", 0)
+        if not last or last <= 0 or volume < 100000:
+            continue
+        if market not in prices or volume > prices[market]["volume"]:
+            prices[market] = {"price": float(last), "volume": volume}
+
+    if len(prices) < 2:
+        return None
+
+    items = sorted(prices.items(), key=lambda x: x[1]["price"])
+    cheap_name, cheap = items[0]
+    exp_name, exp = items[-1]
+    spread = ((exp["price"] - cheap["price"]) / cheap["price"]) * 100
+    if spread < 0.15:
+        return None
+
+    return {
+        "symbol": symbol,
+        "buy_exchange": cheap_name,
+        "buy_price": round(cheap["price"], 4),
+        "sell_exchange": exp_name,
+        "sell_price": round(exp["price"], 4),
+        "spread_pct": round(spread, 3),
+        "buy_volume": int(cheap["volume"]),
+        "sell_volume": int(exp["volume"]),
+    }
+
+
+def get_arbitrage_pairs():
+    now = time.time()
+    if ARB_CACHE["data"] and (now - ARB_CACHE["ts"]) < ARB_CACHE_TTL:
+        return ARB_CACHE["data"]
+
+    pairs = []
+    with ThreadPoolExecutor(max_workers=5) as ex:
+        futs = {ex.submit(fetch_arb_tickers, c["id"]): c for c in ARB_COINS}
+        for f in as_completed(futs, timeout=15):
+            coin = futs[f]
+            try:
+                tickers = f.result()
+                p = find_arb_pair(coin["symbol"], tickers)
+                if p:
+                    pairs.append(p)
+            except Exception:
+                pass
+
+    pairs.sort(key=lambda x: x["spread_pct"], reverse=True)
+    body = {"pairs": pairs, "updated_at": int(now), "source": "CoinGecko"}
+    ARB_CACHE["data"] = body
+    ARB_CACHE["ts"] = now
+    return body
 
 CRYPTO_PAIRS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "DOGEUSDT"]
 CRYPTO_MAP = {
@@ -147,6 +235,14 @@ def handler(event: dict, context) -> dict:
         return {"statusCode": 200, "headers": {**CORS, "Access-Control-Max-Age": "86400"}, "body": ""}
 
     params = event.get("queryStringParameters") or {}
+
+    if params.get("mode") == "arbitrage":
+        body = get_arbitrage_pairs()
+        return {
+            "statusCode": 200,
+            "headers": {**CORS, "Content-Type": "application/json"},
+            "body": json.dumps(body),
+        }
 
     # Параметры
     try:

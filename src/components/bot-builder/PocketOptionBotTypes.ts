@@ -802,11 +802,12 @@ def adjust_bet(won, profit=0.0, bet=0.0):
   }
   const assetSymbol = assetMap[cfg.asset] ?? cfg.asset.replace("/", "").replace(" (OTC)", "_otc").replace(/\s/g, "")
 
+  const _buildVersion = `v2.1-${new Date().toISOString().slice(0, 10)}`
   return (
 `#!/usr/bin/env python3
 """
 Pocket Option Bot — ${strategyLabel}
-Сгенерировано: TradeBase Bot Builder
+Сгенерировано: TradeBase Bot Builder (${_buildVersion})
 
 ════════════════════════════════════════
   КОНФИГУРАЦИЯ БОТА
@@ -4108,11 +4109,12 @@ def get_combined_signal(prices, candles):
   }
   const comboAssetSymbol = comboAssetMap[cfg.asset] ?? cfg.asset.replace("/", "").replace(" (OTC)", "_otc").replace(/\s/g, "")
 
+  const _buildVersion = `v2.1-${new Date().toISOString().slice(0, 10)}`
   return (
 `#!/usr/bin/env python3
 """
 Pocket Option КОМБО-Бот
-Сгенерировано: TradeBase Bot Builder
+Сгенерировано: TradeBase Bot Builder (${_buildVersion})
 
 ════════════════════════════════════════
   КОНФИГУРАЦИЯ БОТА

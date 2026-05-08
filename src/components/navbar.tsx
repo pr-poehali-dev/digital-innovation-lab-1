@@ -55,6 +55,9 @@ export function Navbar() {
               <a href="/bot-landing" className="font-geist text-red-400 hover:text-red-300 transition-colors duration-200 font-semibold">
                 🤖 Боты
               </a>
+              <a href="/platforms-compare" className="font-geist text-white hover:text-red-500 transition-colors duration-200">
+                Сравнение
+              </a>
               <a href="/bot-builder" className="font-geist text-white hover:text-red-500 transition-colors duration-200">
                 Конструктор
               </a>
@@ -127,6 +130,13 @@ export function Navbar() {
                 onClick={() => setIsOpen(false)}
               >
                 🤖 Боты
+              </a>
+              <a
+                href="/platforms-compare"
+                className="block px-3 py-2 font-geist text-white hover:text-red-500 transition-colors duration-200"
+                onClick={() => setIsOpen(false)}
+              >
+                Сравнение
               </a>
               <a
                 href="/bot-builder"

@@ -3,6 +3,7 @@ import { Footer } from "@/components/footer"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Icon from "@/components/ui/icon"
+import { PlatformsProfitCalculator } from "@/components/PlatformsProfitCalculator"
 
 type Platform = {
   id: string
@@ -252,6 +253,9 @@ export default function PlatformsCompare() {
               </Card>
             ))}
           </div>
+
+          {/* Profit Calculator */}
+          <PlatformsProfitCalculator />
 
           {/* Comparison Table */}
           <Card className="bg-zinc-900 border-red-500/20 mb-16">

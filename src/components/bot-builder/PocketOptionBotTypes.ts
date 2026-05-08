@@ -5459,7 +5459,7 @@ LIVE_TICK_INTERVAL = 1  # секунд между опросами цены — 
 # Все свечи которые бот ВИДЕЛ ЛИЧНО (закрытые) пишутся в свечи/YYYY-MM-DD_HH-MM-SS.csv
 # Имя файла = дата+время старта бота. Один запуск = один файл.
 import os as _os_sess
-from datetime import datetime, timedelta as _dt_sess
+from datetime import datetime as _dt_sess, timedelta as _td_sess
 _SESSION_DIR = _os_sess.path.join(_os_sess.path.dirname(_os_sess.path.abspath(__file__)) if "__file__" in dir() else ".", "свечи")
 _SESSION_START = _dt_sess.now().strftime("%Y-%m-%d_%H-%M-%S")
 _SESSION_FILE = _os_sess.path.join(_SESSION_DIR, f"{_SESSION_START}.csv")

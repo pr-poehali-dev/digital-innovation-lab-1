@@ -2451,22 +2451,25 @@ def get_trend(candles):
     return None
 
 def trend_to_signal(trend):
+    sig = None
     if TREND_MODE == "any":
         if trend in ("UP_UP", "DOWN_UP"):
-            return "CALL"
-        if trend in ("DOWN_DOWN", "UP_DOWN"):
-            return "PUT"
+            sig = "CALL"
+        elif trend in ("DOWN_DOWN", "UP_DOWN"):
+            sig = "PUT"
     elif TREND_MODE == "same":
         if trend == "UP_UP":
-            return "CALL"
-        if trend == "DOWN_DOWN":
-            return "PUT"
+            sig = "CALL"
+        elif trend == "DOWN_DOWN":
+            sig = "PUT"
     else:
         if trend == "DOWN_UP":
-            return "CALL"
-        if trend == "UP_DOWN":
-            return "PUT"
-    return None
+            sig = "CALL"
+        elif trend == "UP_DOWN":
+            sig = "PUT"
+    if sig and TREND_FOLLOW == "reverse":
+        sig = "PUT" if sig == "CALL" else "CALL"
+    return sig
 
 def check_trend_change(candles):
     global _last_trend
@@ -5824,22 +5827,25 @@ def get_trend(candles):
     return None
 
 def trend_to_signal(trend):
+    sig = None
     if TREND_MODE == "any":
         if trend in ("UP_UP", "DOWN_UP"):
-            return "CALL"
-        if trend in ("DOWN_DOWN", "UP_DOWN"):
-            return "PUT"
+            sig = "CALL"
+        elif trend in ("DOWN_DOWN", "UP_DOWN"):
+            sig = "PUT"
     elif TREND_MODE == "same":
         if trend == "UP_UP":
-            return "CALL"
-        if trend == "DOWN_DOWN":
-            return "PUT"
+            sig = "CALL"
+        elif trend == "DOWN_DOWN":
+            sig = "PUT"
     else:
         if trend == "DOWN_UP":
-            return "CALL"
-        if trend == "UP_DOWN":
-            return "PUT"
-    return None
+            sig = "CALL"
+        elif trend == "UP_DOWN":
+            sig = "PUT"
+    if sig and TREND_FOLLOW == "reverse":
+        sig = "PUT" if sig == "CALL" else "CALL"
+    return sig
 
 def check_trend_change(candles):
     global _last_trend

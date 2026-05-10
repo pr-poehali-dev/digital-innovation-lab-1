@@ -3465,9 +3465,16 @@ async def main():
                 if signal_info:
                     print(f"[SIGNAL] {signal_info}")
                 sig_line = f"📊 Сигнал: {signal_info}" if signal_info else ""
+                # Метка режима EMA (если стратегия EMA активна)
+                _ema_mode_emoji = {"cross": "⚡", "trend": "📈", "trend_with_cross": "🎯"}
+                _ema_mode_label = {"cross": "Cross — пересечение", "trend": "Trend — позиция EMA", "trend_with_cross": "Гибрид — тренд+кросс"}
+                _has_ema = ("EMA" in (signal_info or "")) or ("ema" in (signal_info or ""))
+                ema_line = f"{_ema_mode_emoji.get(EMA_MODE, '·')} Режим EMA: <b>{_ema_mode_label.get(EMA_MODE, EMA_MODE)}</b>" if (_has_ema and 'EMA_MODE' in globals()) else ""
                 tg_parts = [f"{emoji} <b>[{BOT_NAME}] Сделка открыта</b>", f"{signal} | {bet} {currency} | {ASSET} | {EXPIRY_SEC//60} мин", trend_label]
                 if sig_line:
                     tg_parts.append(sig_line)
+                if ema_line:
+                    tg_parts.append(ema_line)
                 tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")
                 # При первой сделке — добавляем инфо о синхронизации часов
                 if trades_today == 0:

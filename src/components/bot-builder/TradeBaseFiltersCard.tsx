@@ -97,7 +97,13 @@ export default function TradeBaseFiltersCard({ config, onChange }: Props) {
               onChange={(e) => set({ ma200Period: Number(e.target.value) })}
               className="bg-zinc-800 border-zinc-700 text-amber-400 font-space-mono text-xs h-7 w-20"
             />
-            <span className="text-zinc-600 text-[11px] font-space-mono">свечей (стандарт 200)</span>
+            <span className="text-zinc-600 text-[11px] font-space-mono">200 = авто</span>
+          </div>
+          <div className="bg-blue-950/30 border border-blue-500/30 rounded-md px-2 py-1.5">
+            <p className="text-blue-300 text-[11px] font-space-mono leading-relaxed">
+              🤖 <b>Авто-подбор по ТФ свечей:</b> 1m → MA50 (~50 мин), 3m → MA100 (~5 ч), 5m → MA150 (~12.5 ч), 15m+ → MA200.
+              Оставь <b>200</b> — бот сам выберет оптимум. Или задай свой период вручную.
+            </p>
           </div>
         </FilterRow>
 

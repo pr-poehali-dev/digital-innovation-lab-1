@@ -442,7 +442,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   tgAutoReportTime: "09:00",
   // === Фильтры Trade Base (выключены по умолчанию для обратной совместимости) ===
   ma200FilterEnabled: false,
-  ma200Period: 200,
+  ma200Period: 200, // 200 = "авто" — подбирается под таймфрейм (50/100/150/200)
   rsiDivergenceEnabled: false,
   rsiDivergenceLookback: 8,
   mtfFilterEnabled: false,
@@ -473,12 +473,25 @@ export function buildTradeBaseFiltersBlock(cfg: POBotConfig): string {
     cfg.volumeProxyEnabled
   if (!anyEnabled) return ""
 
+  // 🛸 Авто-подбор периода MA в зависимости от таймфрейма свечей.
+  // На быстрых ТФ ждать 200 свечей слишком долго, поэтому уменьшаем период.
+  // Логика: чем меньше ТФ — тем меньше период (но не меньше 50, иначе MA теряет смысл).
+  const tfSec = cfg.candleTimeframe ?? 60
+  let autoMaPeriod = 200
+  if (tfSec <= 60) autoMaPeriod = 50           // 1m → 50 свечей (~50 мин)
+  else if (tfSec <= 180) autoMaPeriod = 100    // 3m → 100 свечей (~5 ч)
+  else if (tfSec <= 300) autoMaPeriod = 150    // 5m → 150 свечей (~12.5 ч)
+  else autoMaPeriod = 200                      // 15m+ → классические 200
+  // Если пользователь явно задал период — уважаем его выбор
+  const finalMaPeriod = cfg.ma200Period && cfg.ma200Period !== 200 ? cfg.ma200Period : autoMaPeriod
+
   return `
 # ═══════════════════════════════════════════════════════════════════
 # TRADE BASE FILTERS — фильтры по методике учебника
+# Авто-подбор периода MA под ТФ ${tfSec}с → MA${finalMaPeriod}
 # ═══════════════════════════════════════════════════════════════════
 TB_MA200_ENABLED       = ${cfg.ma200FilterEnabled ? "True" : "False"}
-TB_MA200_PERIOD        = ${cfg.ma200Period ?? 200}
+TB_MA200_PERIOD        = ${finalMaPeriod}
 TB_RSI_DIV_ENABLED     = ${cfg.rsiDivergenceEnabled ? "True" : "False"}
 TB_RSI_DIV_LOOKBACK    = ${cfg.rsiDivergenceLookback ?? 8}
 TB_MTF_ENABLED         = ${cfg.mtfFilterEnabled ? "True" : "False"}

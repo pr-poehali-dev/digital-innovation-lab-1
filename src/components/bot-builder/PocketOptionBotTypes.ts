@@ -3502,7 +3502,9 @@ async def main():
                 )
                 break
 
-            tg_poll_commands()
+            # ⚡ Перевели в отдельный поток — раньше блокировал весь asyncio loop на 5с (timeout urllib),
+            # из-за чего buffer_updater стоял и пропускал тики цены.
+            await asyncio.to_thread(tg_poll_commands)
             if _tg_stopped:
                 print("[TG] Бот остановлен командой из Telegram")
                 break
@@ -5876,7 +5878,7 @@ async def get_candles_data(client):
 # Фоновая задача опрашивает цену раз в LIVE_TICK_INTERVAL сек и обновляет буфер.
 # Главный цикл читает буфер мгновенно, без ожиданий get_candles.
 LIVE_BUFFER_SIZE = 50
-LIVE_TICK_INTERVAL = 1  # секунд между опросами цены — чем меньше, тем точнее h/l свечи
+LIVE_TICK_INTERVAL = 0.5  # ⚡ опрос каждые 0.5с — точность h/l свечей x2 (раньше было 1с)
 
 # ===== ЗАПИСЬ ВИДЕННЫХ СВЕЧЕЙ В ФАЙЛ СЕССИИ =====
 # Все свечи которые бот ВИДЕЛ ЛИЧНО (закрытые) пишутся в свечи/YYYY-MM-DD_HH-MM-SS.csv
@@ -6168,31 +6170,33 @@ class CandleBuffer:
             _close_t = _close_dt.strftime('%H:%M:%S')
             _color = '🟢' if closed_tup[3] >= closed_tup[0] else '🔴'
             print(f"[CANDLE_BUILD] ✅ ЗАКРЫТА {_color} {_open_t}→{_close_t} UTC | o={closed_tup[0]:.5f} h={closed_tup[1]:.5f} l={closed_tup[2]:.5f} c={closed_tup[3]:.5f}")
-            # ===== СВЕРКА С ГРАФИКОМ POCKETOPTION =====
-            # Бот закрыл свою свечу — спросим у API ту же свечу и сравним.
-            # Это даёт честный лог "бот идёт в ногу с биржей".
-            try:
-                _ref = await client.get_candles(asset=_query_asset, timeframe=EXPIRY_SEC, count=2)
-                if _ref and len(_ref) >= 2:
-                    _api_closed = _ref[-2]  # последняя закрытая на бирже
-                    _api_o = float(_api_closed.open)
-                    _api_c = float(_api_closed.close)
-                    _api_color = '🟢' if _api_c >= _api_o else '🔴'
-                    _our_color = _color
-                    _close_gap = abs(_api_c - closed_tup[3]) / max(_api_c, 0.0001) * 100
-                    self.cmp_total += 1
-                    if self.cmp_price_max_gap < _close_gap:
-                        self.cmp_price_max_gap = _close_gap
-                    if _api_color == _our_color:
-                        self.cmp_match += 1
-                        _verdict = "✅ В НОГУ"
-                    else:
-                        self.cmp_color_diff += 1
-                        _verdict = "⚠️ ЦВЕТ РАЗОШЁЛСЯ"
-                    _match_pct = (self.cmp_match / self.cmp_total) * 100
-                    print(f"[SYNC_CHECK] {_verdict} | бот: {_our_color} c={closed_tup[3]:.5f} | график: {_api_color} c={_api_c:.5f} | дельта close={_close_gap:.3f}% | совпадений: {self.cmp_match}/{self.cmp_total} ({_match_pct:.0f}%)")
-            except Exception as _se:
-                print(f"[SYNC_CHECK] не удалось сверить с API: {_se}")
+            # ===== СВЕРКА С ГРАФИКОМ POCKETOPTION (раз в 10 свечей) =====
+            # ⚡ Раньше делали запрос на КАЖДОЙ закрытой свече → жрало +0.5-1.5с к каждому тику.
+            # Теперь сверяем раз в 10 свечей — этого достаточно для контроля синхронизации,
+            # а свободное время уходит на нормальные тики (h/l не пропускаются).
+            if len(self.candles) % 10 == 0:
+                try:
+                    _ref = await client.get_candles(asset=_query_asset, timeframe=EXPIRY_SEC, count=2)
+                    if _ref and len(_ref) >= 2:
+                        _api_closed = _ref[-2]  # последняя закрытая на бирже
+                        _api_o = float(_api_closed.open)
+                        _api_c = float(_api_closed.close)
+                        _api_color = '🟢' if _api_c >= _api_o else '🔴'
+                        _our_color = _color
+                        _close_gap = abs(_api_c - closed_tup[3]) / max(_api_c, 0.0001) * 100
+                        self.cmp_total += 1
+                        if self.cmp_price_max_gap < _close_gap:
+                            self.cmp_price_max_gap = _close_gap
+                        if _api_color == _our_color:
+                            self.cmp_match += 1
+                            _verdict = "✅ В НОГУ"
+                        else:
+                            self.cmp_color_diff += 1
+                            _verdict = "⚠️ ЦВЕТ РАЗОШЁЛСЯ"
+                        _match_pct = (self.cmp_match / self.cmp_total) * 100
+                        print(f"[SYNC_CHECK] {_verdict} | бот: {_our_color} c={closed_tup[3]:.5f} | график: {_api_color} c={_api_c:.5f} | дельта close={_close_gap:.3f}% | совпадений: {self.cmp_match}/{self.cmp_total} ({_match_pct:.0f}%)")
+                except Exception as _se:
+                    print(f"[SYNC_CHECK] не удалось сверить с API: {_se}")
             self.last_candle_close_dt = _close_dt
             # Записываем в файл сессии
             try:
@@ -7148,7 +7152,9 @@ async def main():
             )
             break
 
-        tg_poll_commands()
+        # ⚡ Перевели в отдельный поток — раньше блокировал весь asyncio loop на 5с (timeout urllib),
+        # из-за чего buffer_updater стоял и пропускал тики цены.
+        await asyncio.to_thread(tg_poll_commands)
         if _tg_stopped:
             print("[TG] Бот остановлен командой из Telegram")
             break

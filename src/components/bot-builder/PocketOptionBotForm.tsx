@@ -1807,7 +1807,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
               </div>
               {config.trendFollow === "reverse" && (
                 <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-3 py-2">
-                  <span className="text-orange-400 text-xs font-space-mono leading-relaxed">⚠️ Только для флета. На сильном тренде увеличивает убытки.</span>
+                  <span className="text-orange-400 text-xs font-space-mono leading-relaxed">↙ Против тренда: бот переворачивает сигнал стратегии (CALL↔PUT) и тренд для фильтра. Ставит на разворот. Подходит для флета, опасно при сильном тренде.</span>
                 </div>
               )}
               {config.trendFollow === "combo" && (
@@ -2055,7 +2055,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
               </div>
               {config.trendFollow === "reverse" && (
                 <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-3 py-2">
-                  <span className="text-orange-400 text-xs font-space-mono leading-relaxed">⚠️ Только для флета. На сильном тренде увеличивает убытки.</span>
+                  <span className="text-orange-400 text-xs font-space-mono leading-relaxed">↙ Против тренда: бот переворачивает сигнал стратегии (CALL↔PUT) и тренд для фильтра. Ставит на разворот. Подходит для флета, опасно при сильном тренде.</span>
                 </div>
               )}
               {config.trendFollow === "combo" && (
@@ -2209,7 +2209,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
               </div>
               {config.trendFollow === "reverse" && (
                 <div className="flex items-start gap-2 bg-orange-950/40 border border-orange-500/30 rounded-lg px-3 py-2">
-                  <span className="text-orange-400 text-xs font-space-mono leading-relaxed">⚠️ Только для флета. На сильном тренде увеличивает убытки.</span>
+                  <span className="text-orange-400 text-xs font-space-mono leading-relaxed">↙ Против тренда: бот переворачивает сигнал стратегии (CALL↔PUT) и тренд для фильтра. Ставит на разворот. Подходит для флета, опасно при сильном тренде.</span>
                 </div>
               )}
               {config.trendFollow === "combo" && (

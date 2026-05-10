@@ -485,15 +485,28 @@ export function buildTradeBaseFiltersBlock(cfg: POBotConfig): string {
   // Если пользователь явно задал период — уважаем его выбор
   const finalMaPeriod = cfg.ma200Period && cfg.ma200Period !== 200 ? cfg.ma200Period : autoMaPeriod
 
+  // 🛸 Авто-подбор окна поиска RSI-дивергенции под ТФ.
+  // На быстрых ТФ дивергенция ловится на коротких окнах (5-6 свечей),
+  // на медленных — нужно больше истории (10-14 свечей).
+  let autoRsiLookback = 8
+  if (tfSec <= 60) autoRsiLookback = 6        // 1m → 6 свечей (~6 мин)
+  else if (tfSec <= 180) autoRsiLookback = 8  // 3m → 8 свечей (~24 мин)
+  else if (tfSec <= 300) autoRsiLookback = 10 // 5m → 10 свечей (~50 мин)
+  else autoRsiLookback = 14                   // 15m+ → 14 свечей (классика Уайлдера)
+  // 8 = "авто" — подбирается. Любое другое значение = ручная установка
+  const finalRsiLookback = cfg.rsiDivergenceLookback && cfg.rsiDivergenceLookback !== 8
+    ? cfg.rsiDivergenceLookback
+    : autoRsiLookback
+
   return `
 # ═══════════════════════════════════════════════════════════════════
 # TRADE BASE FILTERS — фильтры по методике учебника
-# Авто-подбор периода MA под ТФ ${tfSec}с → MA${finalMaPeriod}
+# Авто-подбор: ТФ ${tfSec}с → MA${finalMaPeriod}, RSI-див окно ${finalRsiLookback}
 # ═══════════════════════════════════════════════════════════════════
 TB_MA200_ENABLED       = ${cfg.ma200FilterEnabled ? "True" : "False"}
 TB_MA200_PERIOD        = ${finalMaPeriod}
 TB_RSI_DIV_ENABLED     = ${cfg.rsiDivergenceEnabled ? "True" : "False"}
-TB_RSI_DIV_LOOKBACK    = ${cfg.rsiDivergenceLookback ?? 8}
+TB_RSI_DIV_LOOKBACK    = ${finalRsiLookback}
 TB_MTF_ENABLED         = ${cfg.mtfFilterEnabled ? "True" : "False"}
 TB_MTF_MULTIPLIER      = ${cfg.mtfMultiplier ?? 3}
 TB_CANDLE_CONFIRM      = ${cfg.candleConfirmEnabled ? "True" : "False"}

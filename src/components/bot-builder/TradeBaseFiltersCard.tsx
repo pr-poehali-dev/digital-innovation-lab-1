@@ -127,7 +127,13 @@ export default function TradeBaseFiltersCard({ config, onChange }: Props) {
               onChange={(e) => set({ rsiDivergenceLookback: Number(e.target.value) })}
               className="bg-zinc-800 border-zinc-700 text-amber-400 font-space-mono text-xs h-7 w-20"
             />
-            <span className="text-zinc-600 text-[11px] font-space-mono">свечей (5–10)</span>
+            <span className="text-zinc-600 text-[11px] font-space-mono">8 = авто</span>
+          </div>
+          <div className="bg-purple-950/30 border border-purple-500/30 rounded-md px-2 py-1.5">
+            <p className="text-purple-300 text-[11px] font-space-mono leading-relaxed">
+              🤖 <b>Авто-подбор по ТФ свечей:</b> 1m → 6 свечей, 3m → 8, 5m → 10, 15m+ → 14 (классика Уайлдера).
+              Оставь <b>8</b> — бот сам подберёт. Меньше окно = чувствительнее, больше = надёжнее.
+            </p>
           </div>
         </FilterRow>
 

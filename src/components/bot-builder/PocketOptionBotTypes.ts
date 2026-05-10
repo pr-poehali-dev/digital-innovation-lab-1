@@ -3575,17 +3575,28 @@ async def main():
                 signal_info = f"[TREND] {trend} → {trend_sig}"
 
             # ═══ TRADE BASE FILTERS — применяем фильтры по методике учебника ═══
+            # ОПТИМИЗАЦИЯ: пропускаем TB-фильтр если сигнал и так конфликтует с трендом
+            # (он всё равно будет отброшен ниже). Экономим CPU и чистим логи.
+            _tb_skip = False
+            if signal and TREND_FOLLOW != "combo" and trend_sig and signal != trend_sig:
+                _tb_skip = True  # сигнал конфликтует с трендом — TB-фильтр не нужен
             try:
                 # Обновляем данные старшего ТФ для MTF-фильтра (фоном, кэш 60с)
                 if 'tb_update_higher_tf' in globals():
-                    await tb_update_higher_tf(client, _resolved_asset or ASSET)
-                if 'apply_tradebase_filters' in globals() and signal:
+                    try:
+                        await tb_update_higher_tf(client, _resolved_asset or ASSET)
+                    except Exception:
+                        pass
+                if 'apply_tradebase_filters' in globals() and signal and not _tb_skip:
                     _filtered, _tb_lines = apply_tradebase_filters(signal, prices, candles)
                     for _ln in _tb_lines:
                         print(f"[TB-FILTER] {_ln}")
                     if _filtered is None and signal is not None:
                         signal_info = (signal_info or "") + " | TB-фильтр отменил: " + " | ".join(_tb_lines)
-                        rejected_signals += 1
+                        try:
+                            rejected_signals += 1
+                        except (NameError, UnboundLocalError):
+                            pass
                         signal = None
                     elif _tb_lines:
                         signal_info = (signal_info or "") + " | TB✓ " + " | ".join(_tb_lines)
@@ -7264,16 +7275,26 @@ async def main():
             signal_info = f"[TREND] {trend} → {trend_sig}"
 
         # ═══ TRADE BASE FILTERS — фильтры по методике учебника ═══
+        # ОПТИМИЗАЦИЯ: пропускаем TB если сигнал и так конфликтует с трендом
+        _tb_skip = False
+        if signal and TREND_FOLLOW != "combo" and trend_sig and signal != trend_sig:
+            _tb_skip = True
         try:
             if 'tb_update_higher_tf' in globals():
-                await tb_update_higher_tf(client, _resolved_asset or ASSET)
-            if 'apply_tradebase_filters' in globals() and signal:
+                try:
+                    await tb_update_higher_tf(client, _resolved_asset or ASSET)
+                except Exception:
+                    pass
+            if 'apply_tradebase_filters' in globals() and signal and not _tb_skip:
                 _filtered, _tb_lines = apply_tradebase_filters(signal, prices, candles)
                 for _ln in _tb_lines:
                     print(f"[TB-FILTER] {_ln}")
                 if _filtered is None and signal is not None:
                     signal_info = (signal_info or "") + " | TB-фильтр отменил: " + " | ".join(_tb_lines)
-                    rejected_signals += 1
+                    try:
+                        rejected_signals += 1
+                    except (NameError, UnboundLocalError):
+                        pass
                     signal = None
                 elif _tb_lines:
                     signal_info = (signal_info or "") + " | TB✓ " + " | ".join(_tb_lines)

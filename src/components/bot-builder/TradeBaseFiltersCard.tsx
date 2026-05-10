@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Icon from "@/components/ui/icon"
 import { POBotConfig } from "./PocketOptionBotTypes"
@@ -77,6 +78,109 @@ export default function TradeBaseFiltersCard({ config, onChange }: Props) {
         </p>
       </CardHeader>
       <CardContent className="space-y-2">
+        {/* 🚀 Быстрые пресеты — рекомендуемые наборы фильтров */}
+        <div className="rounded-xl border border-amber-500/30 bg-gradient-to-br from-amber-950/40 to-orange-950/30 p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <Icon name="Sparkles" size={16} className="text-amber-400" />
+            <span className="text-amber-300 font-orbitron text-sm font-semibold">Быстрые пресеты</span>
+          </div>
+          <p className="text-zinc-400 text-[11px] font-space-mono leading-relaxed">
+            Выбери готовый набор по методике Trade Base — один клик и фильтры включены.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {/* Пресет «Безопасный» */}
+            <Button
+              type="button"
+              onClick={() =>
+                set({
+                  ma200FilterEnabled: true,
+                  rsiDivergenceEnabled: true,
+                  mtfFilterEnabled: false,
+                  candleConfirmEnabled: true,
+                  srStrengthEnabled: false,
+                  volumeProxyEnabled: false,
+                })
+              }
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-space-mono text-xs h-auto py-2 px-2 flex flex-col items-start gap-0.5"
+            >
+              <span className="flex items-center gap-1">
+                <Icon name="Shield" size={12} /> ТОП-3 Безопасный
+              </span>
+              <span className="text-[10px] opacity-80 font-normal">MA200 + RSI-див + Свеча</span>
+            </Button>
+
+            {/* Пресет «Сбалансированный» */}
+            <Button
+              type="button"
+              onClick={() =>
+                set({
+                  ma200FilterEnabled: true,
+                  rsiDivergenceEnabled: true,
+                  mtfFilterEnabled: true,
+                  candleConfirmEnabled: true,
+                  srStrengthEnabled: true,
+                  volumeProxyEnabled: false,
+                })
+              }
+              className="bg-blue-600 hover:bg-blue-700 text-white font-space-mono text-xs h-auto py-2 px-2 flex flex-col items-start gap-0.5"
+            >
+              <span className="flex items-center gap-1">
+                <Icon name="Target" size={12} /> Сбалансированный
+              </span>
+              <span className="text-[10px] opacity-80 font-normal">5/6 фильтров — золотая середина</span>
+            </Button>
+
+            {/* Пресет «Снайпер» */}
+            <Button
+              type="button"
+              onClick={() =>
+                set({
+                  ma200FilterEnabled: true,
+                  rsiDivergenceEnabled: true,
+                  mtfFilterEnabled: true,
+                  candleConfirmEnabled: true,
+                  srStrengthEnabled: true,
+                  volumeProxyEnabled: true,
+                })
+              }
+              className="bg-red-600 hover:bg-red-700 text-white font-space-mono text-xs h-auto py-2 px-2 flex flex-col items-start gap-0.5"
+            >
+              <span className="flex items-center gap-1">
+                <Icon name="Crosshair" size={12} /> Снайпер
+              </span>
+              <span className="text-[10px] opacity-80 font-normal">Все 6 — макс. точность, мало сделок</span>
+            </Button>
+          </div>
+
+          {/* Кнопка «Сбросить всё» */}
+          {enabledCount > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                set({
+                  ma200FilterEnabled: false,
+                  rsiDivergenceEnabled: false,
+                  mtfFilterEnabled: false,
+                  candleConfirmEnabled: false,
+                  srStrengthEnabled: false,
+                  volumeProxyEnabled: false,
+                })
+              }
+              className="w-full border-zinc-700 bg-zinc-800/50 hover:bg-zinc-700 text-zinc-300 font-space-mono text-xs h-7"
+            >
+              <Icon name="RotateCcw" size={12} className="mr-1.5" />
+              Сбросить все фильтры
+            </Button>
+          )}
+
+          <div className="bg-amber-950/40 border border-amber-500/20 rounded-md px-2 py-1.5 mt-1">
+            <p className="text-amber-200/80 text-[10px] font-space-mono leading-relaxed">
+              💡 <b>72% юзеров</b> начинают с «Безопасного» — это рекомендация Trade Base. После 50+ сделок переходи на «Сбалансированный».
+            </p>
+          </div>
+        </div>
+
         {/* 1. MA200 */}
         <FilterRow
           enabled={!!config.ma200FilterEnabled}

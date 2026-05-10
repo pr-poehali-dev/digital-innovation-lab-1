@@ -198,7 +198,7 @@ def get_combined_signal(prices, candles):
 
 # ===== ЖИВОЙ БУФЕР =====
 LIVE_BUFFER_SIZE = 50
-LIVE_TICK_INTERVAL = 1
+LIVE_TICK_INTERVAL = 0.5  # ⚡ опрос каждые 0.5с — точность h/l свечей x2 (раньше было 1с)
 
 class CandleBuffer:
     def __init__(self):

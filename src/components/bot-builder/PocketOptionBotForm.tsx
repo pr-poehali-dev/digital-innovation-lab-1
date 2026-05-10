@@ -766,7 +766,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
             <CardTitle className="font-orbitron text-white text-base">Стратегия</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {strategies.map((key) => (
+            {strategies.filter((k) => k !== "ema_trend").map((key) => (
               <StrategyCard
                 key={key}
                 stratKey={key}
@@ -891,9 +891,9 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
               </div>
             </div>
 
-            {/* Strategy cards with checkboxes */}
+            {/* Strategy cards with checkboxes — ema_trend скрыт, режим выбирается в карточке EMA через emaMode */}
             <div className="space-y-2">
-              {strategies.filter((k) => k !== "martingale").map((key) => {
+              {strategies.filter((k) => k !== "martingale" && k !== "ema_trend").map((key) => {
                 const isActive = config.comboStrategies.includes(key)
                 return (
                   <StrategyCard
@@ -2159,6 +2159,45 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                 <Input type="number" value={config.emaSlow} onChange={(e) => set({ emaSlow: Number(e.target.value), emaTrendMode: "custom" })} className="bg-zinc-800 border-zinc-700 text-blue-400 font-space-mono text-sm" />
               </div>
             </div>
+            {/* EMA mode (cross / trend / hybrid) */}
+            <div className="space-y-2 pt-1">
+              <Label className="text-zinc-300 text-sm">Режим работы EMA</Label>
+              <p className="text-zinc-500 text-xs font-space-mono">Когда бот даёт сигнал — выбери логику</p>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => set({ emaMode: "cross" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${(config.emaMode ?? "cross") === "cross" ? "border-green-500/60 bg-green-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">⚡ Cross</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Только пересечение</span>
+                </button>
+                <button
+                  onClick={() => set({ emaMode: "trend" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${config.emaMode === "trend" ? "border-emerald-500/60 bg-emerald-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">📈 Trend</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Постоянно по тренду</span>
+                </button>
+                <button
+                  onClick={() => set({ emaMode: "trend_with_cross" })}
+                  className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${config.emaMode === "trend_with_cross" ? "border-purple-500/60 bg-purple-500/10" : "border-zinc-700 bg-zinc-800/60 hover:border-zinc-600"}`}
+                >
+                  <span className="text-sm font-medium text-zinc-200">🎯 Гибрид</span>
+                  <span className="text-xs font-space-mono text-zinc-500">Тренд + свежий кросс</span>
+                </button>
+              </div>
+              <div className="bg-zinc-950/60 border border-zinc-800 rounded-lg px-3 py-2 mt-1">
+                {(config.emaMode ?? "cross") === "cross" && (
+                  <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">⚡ <b className="text-green-400">Cross</b>: вход только в момент пересечения EMA. Мало сигналов, точные точки входа.</p>
+                )}
+                {config.emaMode === "trend" && (
+                  <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">📈 <b className="text-emerald-400">Trend</b>: сигнал на каждой свече по позиции EMA. Много сигналов, нужен фильтр тренда.</p>
+                )}
+                {config.emaMode === "trend_with_cross" && (
+                  <p className="text-zinc-400 text-xs font-space-mono leading-relaxed">🎯 <b className="text-purple-400">Гибрид</b>: торгуем по тренду, но только если в последние 5 свечей был кросс. Снайперский режим — реже, но точнее.</p>
+                )}
+              </div>
+            </div>
             {/* Trend direction */}
             <div className="space-y-2">
               <Label className="text-zinc-300 text-sm">Направление входа</Label>
@@ -2280,6 +2319,20 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                     <Label className="text-zinc-500 font-space-mono text-xs mb-1 block">Медленная EMA</Label>
                     <Input type="number" value={config.emaSlow} onChange={(e) => set({ emaSlow: Number(e.target.value), emaTrendMode: "custom" })} className="bg-zinc-800 border-zinc-700 text-blue-400 font-space-mono text-xs h-8" />
                   </div>
+                </div>
+                {/* EMA mode (cross / trend / hybrid) — комбо */}
+                <div className="space-y-1.5">
+                  <Label className="text-zinc-500 font-space-mono text-xs">Режим EMA</Label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <button onClick={() => set({ emaMode: "cross" })} className={`rounded-lg border px-2 py-1.5 text-xs font-space-mono transition-all ${(config.emaMode ?? "cross") === "cross" ? "border-green-500/60 bg-green-500/10 text-green-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>⚡ Cross</button>
+                    <button onClick={() => set({ emaMode: "trend" })} className={`rounded-lg border px-2 py-1.5 text-xs font-space-mono transition-all ${config.emaMode === "trend" ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>📈 Trend</button>
+                    <button onClick={() => set({ emaMode: "trend_with_cross" })} className={`rounded-lg border px-2 py-1.5 text-xs font-space-mono transition-all ${config.emaMode === "trend_with_cross" ? "border-purple-500/60 bg-purple-500/10 text-purple-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>🎯 Гибрид</button>
+                  </div>
+                  <p className="text-zinc-600 text-xs font-space-mono">
+                    {(config.emaMode ?? "cross") === "cross" && "Сигнал только в момент пересечения EMA"}
+                    {config.emaMode === "trend" && "Сигнал на каждой свече — по позиции EMA"}
+                    {config.emaMode === "trend_with_cross" && "Тренд + свежий кросс за последние 5 свечей (снайпер)"}
+                  </p>
                 </div>
                 <div className="grid grid-cols-3 gap-1.5">
                   <button onClick={() => set({ trendFollow: "follow" })} className={`rounded-lg border px-2 py-2 text-xs font-space-mono transition-all ${config.trendFollow === "follow" ? "border-green-500/60 bg-green-500/10 text-green-400" : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:border-zinc-600"}`}>↗ По тренду</button>

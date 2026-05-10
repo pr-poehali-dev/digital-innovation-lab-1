@@ -2,6 +2,7 @@ export type POStrategy = "rsi_reversal" | "ema_cross" | "ema_trend" | "martingal
 export type POExpiry = "1" | "2" | "3" | "5" | "15" | "30" | "45" | "60"
 export type POComboLogic = "AND" | "OR"
 export type POEmaTrendMode = "ema9_21" | "ema20_50" | "ema50_200" | "custom"
+export type POEmaMode = "cross" | "trend" | "trend_with_cross"
 
 export interface POBotConfig {
   botName: string
@@ -26,6 +27,8 @@ export interface POBotConfig {
   emaFast: number
   emaSlow: number
   emaTrendMode: POEmaTrendMode
+  /** Режим EMA: cross — только пересечение | trend — позиция fast vs slow | trend_with_cross — гибрид (вход после кросса, держим по тренду) */
+  emaMode: POEmaMode
   trendMode: "same" | "reverse" | "any"
   trendFollow: "follow" | "reverse" | "combo"
   useOTC: boolean
@@ -130,8 +133,8 @@ export const PO_STRATEGIES: Record<POStrategy, StrategyMeta> = {
     combosWith: ["ema_cross", "candle_pattern", "support_resistance"],
   },
   ema_cross: {
-    label: "EMA Пересечение",
-    description: "Сигналы по пересечению быстрой и медленной EMA",
+    label: "EMA (3 режима)",
+    description: "Cross — по пересечению | Trend — по позиции EMA | Trend+Cross — снайперский гибрид",
     color: "bg-green-500/20 border-green-500/40 text-green-400",
     risk: "Низкий",
     icon: "📈",
@@ -338,7 +341,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   botName: "КЛЕЩ",
   strategy: "rsi_reversal",
   comboMode: true,
-  comboStrategies: ["rsi_reversal", "ema_cross", "ema_trend", "support_resistance"],
+  comboStrategies: ["rsi_reversal", "ema_cross", "support_resistance"],
   comboLogic: "OR",
   asset: "EUR/USD (OTC)",
   expiry: "5",
@@ -356,6 +359,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   emaFast: 9,
   emaSlow: 21,
   emaTrendMode: "ema9_21",
+  emaMode: "cross",
   trendMode: "any",
   trendFollow: "follow",
   useOTC: true,
@@ -456,27 +460,54 @@ def calculate_ema(prices, period):
         ema.append(price * k + ema[-1] * (1 - k))
     return ema
 
+# EMA_MODE: "cross" (только пересечение) | "trend" (по позиции) | "trend_with_cross" (гибрид: тренд + свежий кросс)
+EMA_MODE = "${cfg.emaMode ?? "cross"}"
+EMA_CROSS_LOOKBACK = 5  # сколько последних свечей считать "свежим кроссом" для гибрида
+
 def get_signal(prices, candles=None):
-    """Сигнал по пересечению EMA ${cfg.emaFast} / EMA ${cfg.emaSlow}${cfg.trendFollow === "follow" ? " (по тренду)" : cfg.trendFollow === "reverse" ? " (против тренда)" : " (комбо)"}"""
+    """EMA-сигнал | режим: ${cfg.emaMode ?? "cross"} | EMA${cfg.emaFast}/${cfg.emaSlow}${cfg.trendFollow === "follow" ? " (по тренду)" : cfg.trendFollow === "reverse" ? " (против)" : " (комбо)"}"""
     prices = prices[:-1]
     if len(prices) < ${cfg.emaSlow} + 2:
         return None, ""
     ema_fast = calculate_ema(prices, ${cfg.emaFast})
     ema_slow = calculate_ema(prices, ${cfg.emaSlow})
-    cross_up = ema_fast[-1] > ema_slow[-1] and ema_fast[-2] <= ema_slow[-2]
-    cross_down = ema_fast[-1] < ema_slow[-1] and ema_fast[-2] >= ema_slow[-2]
-    info = f"EMA${cfg.emaFast}={ema_fast[-1]:.5f} / EMA${cfg.emaSlow}={ema_slow[-1]:.5f}"
+    above = ema_fast[-1] > ema_slow[-1]
+    cross_up   = above and ema_fast[-2] <= ema_slow[-2]
+    cross_down = (not above) and ema_fast[-2] >= ema_slow[-2]
+    info = f"EMA${cfg.emaFast}={ema_fast[-1]:.5f}/EMA${cfg.emaSlow}={ema_slow[-1]:.5f}"
     diff = ema_fast[-1] - ema_slow[-1]
-    print(f"[СИГНАЛ] EMA${cfg.emaFast}={ema_fast[-1]:.5f} | EMA${cfg.emaSlow}={ema_slow[-1]:.5f} | разница={diff:+.5f} | пересечение вверх: {'✅' if cross_up else '❌'} | вниз: {'✅' if cross_down else '❌'}")
-    if cross_up:
-        sig = "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}"
-        print(f"[СИГНАЛ] → {sig} (EMA пересечение вверх ↑)")
-        return sig, f"{info} (пересечение вверх ↑)"
-    if cross_down:
-        sig = "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}"
-        print(f"[СИГНАЛ] → {sig} (EMA пересечение вниз ↓)")
-        return sig, f"{info} (пересечение вниз ↓)"
-    print(f"[СИГНАЛ] → нет сигнала (пересечения не было, разница {diff:+.5f})")
+    print(f"[СИГНАЛ-EMA] режим={EMA_MODE} | {info} | Δ={diff:+.5f} | ↑кросс:{'✅' if cross_up else '❌'} ↓кросс:{'✅' if cross_down else '❌'} | позиция:{'выше' if above else 'ниже'}")
+    # ── РЕЖИМ 1: CROSS — сигнал только в момент пересечения ──
+    if EMA_MODE == "cross":
+        if cross_up:
+            sig = "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}"
+            return sig, f"{info} (пересечение вверх ↑)"
+        if cross_down:
+            sig = "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}"
+            return sig, f"{info} (пересечение вниз ↓)"
+        return None, info
+    # ── РЕЖИМ 2: TREND — сигнал постоянно по позиции EMA ──
+    if EMA_MODE == "trend":
+        if above:
+            return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", f"{info} (EMA${cfg.emaFast} > EMA${cfg.emaSlow} ↑)"
+        else:
+            return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", f"{info} (EMA${cfg.emaFast} < EMA${cfg.emaSlow} ↓)"
+    # ── РЕЖИМ 3: TREND_WITH_CROSS — гибрид: торгуем по тренду, но только если в последние N свечей был свежий кросс ──
+    if EMA_MODE == "trend_with_cross":
+        # ищем свежий кросс в направлении текущего тренда
+        recent_cross = False
+        lookback = min(EMA_CROSS_LOOKBACK, len(ema_fast) - 1)
+        for i in range(1, lookback + 1):
+            if above and ema_fast[-i-1] <= ema_slow[-i-1] and ema_fast[-i] > ema_slow[-i]:
+                recent_cross = True; break
+            if (not above) and ema_fast[-i-1] >= ema_slow[-i-1] and ema_fast[-i] < ema_slow[-i]:
+                recent_cross = True; break
+        if not recent_cross:
+            return None, f"{info} (нет свежего кросса за последние {lookback} свечей)"
+        if above:
+            return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", f"{info} (тренд↑ + свежий кросс)"
+        else:
+            return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", f"{info} (тренд↓ + свежий кросс)"
     return None, info`,
 
     ema_trend: `
@@ -489,25 +520,17 @@ def calculate_ema(prices, period):
     return ema
 
 def get_signal(prices, candles=None):
-    """EMA Тренд: CALL пока EMA${cfg.emaFast} выше EMA${cfg.emaSlow}, PUT пока ниже${cfg.trendFollow === "follow" ? " (по тренду)" : cfg.trendFollow === "reverse" ? " (против тренда)" : " (комбо)"}"""
+    """[АЛИАС] EMA Тренд → теперь режим управляется через emaMode='trend'${cfg.trendFollow === "follow" ? " (по тренду)" : cfg.trendFollow === "reverse" ? " (против)" : " (комбо)"}"""
     prices = prices[:-1]
     if len(prices) < ${cfg.emaSlow} + 1:
         return None, ""
     ema_fast = calculate_ema(prices, ${cfg.emaFast})
     ema_slow = calculate_ema(prices, ${cfg.emaSlow})
     above = ema_fast[-1] > ema_slow[-1]
-    info = f"EMA${cfg.emaFast}={ema_fast[-1]:.5f} / EMA${cfg.emaSlow}={ema_slow[-1]:.5f}"
-    diff = ema_fast[-1] - ema_slow[-1]
-    direction = "выше ↑" if above else "ниже ↓"
-    print(f"[СИГНАЛ] EMA${cfg.emaFast}={ema_fast[-1]:.5f} | EMA${cfg.emaSlow}={ema_slow[-1]:.5f} | разница={diff:+.5f} | EMA${cfg.emaFast} {direction} EMA${cfg.emaSlow}")
+    info = f"EMA${cfg.emaFast}={ema_fast[-1]:.5f}/EMA${cfg.emaSlow}={ema_slow[-1]:.5f}"
     if above:
-        sig = "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}"
-        print(f"[СИГНАЛ] → {sig} (EMA${cfg.emaFast} > EMA${cfg.emaSlow})")
-        return sig, f"{info} (EMA${cfg.emaFast} > EMA${cfg.emaSlow} ↑)"
-    else:
-        sig = "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}"
-        print(f"[СИГНАЛ] → {sig} (EMA${cfg.emaFast} < EMA${cfg.emaSlow})")
-        return sig, f"{info} (EMA${cfg.emaFast} < EMA${cfg.emaSlow} ↓)"`,
+        return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", f"{info} (EMA${cfg.emaFast} > EMA${cfg.emaSlow} ↑)"
+    return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", f"{info} (EMA${cfg.emaFast} < EMA${cfg.emaSlow} ↓)"`,
 
     martingale: `
 def get_signal(prices, candles=None):
@@ -3944,7 +3967,9 @@ def signal_rsi(prices, candles):
     callLines.push("signal_rsi(prices, candles)")
   }
 
-  if (selected.includes("ema_cross")) {
+  if (selected.includes("ema_cross") || selected.includes("ema_trend")) {
+    // В комбо-режиме используется универсальная EMA-функция с тремя режимами (cross/trend/trend_with_cross),
+    // выбираемыми через cfg.emaMode. Если в combo выбраны и ema_cross и ema_trend — это эквивалентно одному signal_ema.
     fnBlocks.push(`
 def calculate_ema(prices, period):
     k = 2 / (period + 1)
@@ -3953,15 +3978,38 @@ def calculate_ema(prices, period):
         ema.append(p * k + ema[-1] * (1 - k))
     return ema
 
+# EMA_MODE: "cross" | "trend" | "trend_with_cross"
+EMA_MODE = "${cfg.emaMode ?? "cross"}"
+EMA_CROSS_LOOKBACK = 5
+
 def signal_ema(prices, candles):
     if len(prices) < ${cfg.emaSlow} + 2:
         return None, ""
     fast = calculate_ema(prices, ${cfg.emaFast})
     slow = calculate_ema(prices, ${cfg.emaSlow})
-    info = f"EMA${cfg.emaFast}={fast[-1]:.5f}/EMA${cfg.emaSlow}={slow[-1]:.5f}"
-    if fast[-1] > slow[-1] and fast[-2] <= slow[-2]: return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", f"{info}↑"
-    if fast[-1] < slow[-1] and fast[-2] >= slow[-2]: return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", f"{info}↓"
-    return None, info`)
+    above = fast[-1] > slow[-1]
+    cross_up   = above and fast[-2] <= slow[-2]
+    cross_down = (not above) and fast[-2] >= slow[-2]
+    info = f"EMA${cfg.emaFast}={fast[-1]:.5f}/EMA${cfg.emaSlow}={slow[-1]:.5f}[{EMA_MODE}]"
+    if EMA_MODE == "cross":
+        if cross_up:   return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", f"{info}↑кросс"
+        if cross_down: return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", f"{info}↓кросс"
+        return None, info
+    if EMA_MODE == "trend":
+        if above: return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", f"{info}↑тренд"
+        return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", f"{info}↓тренд"
+    # trend_with_cross — гибрид
+    recent = False
+    lb = min(EMA_CROSS_LOOKBACK, len(fast) - 1)
+    for i in range(1, lb + 1):
+        if above and fast[-i-1] <= slow[-i-1] and fast[-i] > slow[-i]:
+            recent = True; break
+        if (not above) and fast[-i-1] >= slow[-i-1] and fast[-i] < slow[-i]:
+            recent = True; break
+    if not recent:
+        return None, f"{info} (нет свежего кросса)"
+    if above: return "${cfg.trendFollow !== "reverse" ? "CALL" : "PUT"}", f"{info}↑тренд+кросс"
+    return "${cfg.trendFollow !== "reverse" ? "PUT" : "CALL"}", f"{info}↓тренд+кросс"`)
     callLines.push("signal_ema(prices, candles)")
   }
 
@@ -4034,7 +4082,7 @@ def get_combined_signal(prices, candles):
     fns = [${callLines.map(l => l.replace(/\(.*\)/, '')).join(", ")}]
     results = [_safe_strategy_call(f, prices, candles) for f in fns]
     signals = [(s, i) for s, i in results if s is not None]
-    majority = (${selected.length} // 2) + 1
+    majority = (${callLines.length} // 2) + 1
     calls = [(s, i) for s, i in signals if s == "CALL"]
     puts  = [(s, i) for s, i in signals if s == "PUT"]
     if len(calls) >= majority:

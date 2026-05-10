@@ -93,6 +93,38 @@ export interface POBotConfig {
   safetyMinReservePercent?: number
   /** Время автоотправки JSONL-отчёта в TG (HH:MM, по локальному времени). Пусто = выключено */
   tgAutoReportTime?: string
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ФИЛЬТРЫ TRADE BASE (по методике из учебника)
+  // ═══════════════════════════════════════════════════════════════════
+
+  /** MA200-фильтр (Пол Тюдор Джонс): CALL только если цена > MA200, PUT только если < MA200 */
+  ma200FilterEnabled?: boolean
+  /** Период MA для глобального фильтра (по умолчанию 200) */
+  ma200Period?: number
+
+  /** RSI-дивергенция: вход по RSI только если есть бычья/медвежья дивергенция с ценой */
+  rsiDivergenceEnabled?: boolean
+  /** Окно поиска дивергенции (свечей назад, обычно 5-10) */
+  rsiDivergenceLookback?: number
+
+  /** MTF-фильтр (Тройной экран Элдера): подтверждать сигнал старшим таймфреймом */
+  mtfFilterEnabled?: boolean
+  /** Множитель старшего ТФ относительно текущего (3 = торгуем 5m, фильтр 15m) */
+  mtfMultiplier?: number
+
+  /** Подтверждение свечных паттернов: ждать следующую свечу в направлении паттерна */
+  candleConfirmEnabled?: boolean
+
+  /** Сила уровней S/R: фильтровать только сильные (≥ N касаний) */
+  srStrengthEnabled?: boolean
+  /** Минимальное число касаний для "сильного" уровня */
+  srMinTouches?: number
+
+  /** Объём-прокси через range свечи (high-low): отбрасывать слабые свечи */
+  volumeProxyEnabled?: boolean
+  /** Минимальный множитель range относительно среднего (1.0 = равно среднему, 0.5 = вполовину) */
+  volumeProxyMinRatio?: number
 }
 
 export interface StrategyMeta {
@@ -408,10 +440,287 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   safetyMaxBetPercent: 20,
   safetyMinReservePercent: 30,
   tgAutoReportTime: "09:00",
+  // === Фильтры Trade Base (выключены по умолчанию для обратной совместимости) ===
+  ma200FilterEnabled: false,
+  ma200Period: 200,
+  rsiDivergenceEnabled: false,
+  rsiDivergenceLookback: 8,
+  mtfFilterEnabled: false,
+  mtfMultiplier: 3,
+  candleConfirmEnabled: false,
+  srStrengthEnabled: false,
+  srMinTouches: 3,
+  volumeProxyEnabled: false,
+  volumeProxyMinRatio: 0.7,
 }
 
 // Helper to avoid TS template literal conflicts with Python f-strings
 const S = "$"
+
+// ═══════════════════════════════════════════════════════════════════
+// TRADE BASE FILTERS — фильтры по методике учебника Trade Base
+// ═══════════════════════════════════════════════════════════════════
+// Возвращает Python-блок с функциями 6-ти фильтров. Если ни один
+// фильтр не включён — возвращает пустую строку (бот работает как раньше).
+// ═══════════════════════════════════════════════════════════════════
+export function buildTradeBaseFiltersBlock(cfg: POBotConfig): string {
+  const anyEnabled =
+    cfg.ma200FilterEnabled ||
+    cfg.rsiDivergenceEnabled ||
+    cfg.mtfFilterEnabled ||
+    cfg.candleConfirmEnabled ||
+    cfg.srStrengthEnabled ||
+    cfg.volumeProxyEnabled
+  if (!anyEnabled) return ""
+
+  return `
+# ═══════════════════════════════════════════════════════════════════
+# TRADE BASE FILTERS — фильтры по методике учебника
+# ═══════════════════════════════════════════════════════════════════
+TB_MA200_ENABLED       = ${cfg.ma200FilterEnabled ? "True" : "False"}
+TB_MA200_PERIOD        = ${cfg.ma200Period ?? 200}
+TB_RSI_DIV_ENABLED     = ${cfg.rsiDivergenceEnabled ? "True" : "False"}
+TB_RSI_DIV_LOOKBACK    = ${cfg.rsiDivergenceLookback ?? 8}
+TB_MTF_ENABLED         = ${cfg.mtfFilterEnabled ? "True" : "False"}
+TB_MTF_MULTIPLIER      = ${cfg.mtfMultiplier ?? 3}
+TB_CANDLE_CONFIRM      = ${cfg.candleConfirmEnabled ? "True" : "False"}
+TB_SR_STRENGTH_ENABLED = ${cfg.srStrengthEnabled ? "True" : "False"}
+TB_SR_MIN_TOUCHES      = ${cfg.srMinTouches ?? 3}
+TB_VOLUME_PROXY        = ${cfg.volumeProxyEnabled ? "True" : "False"}
+TB_VOL_MIN_RATIO       = ${cfg.volumeProxyMinRatio ?? 0.7}
+
+# Хранилище данных старшего ТФ (для MTF-фильтра) — обновляется фоном
+_tb_higher_tf_candles = []
+_tb_higher_tf_last_update = 0
+
+def _tb_calc_sma(prices, period):
+    """Простая скользящая средняя для MA200-фильтра."""
+    if len(prices) < period:
+        return None
+    return sum(prices[-period:]) / period
+
+def _tb_calc_ema(prices, period):
+    if len(prices) < period:
+        return None
+    k = 2 / (period + 1)
+    ema = prices[0]
+    for p in prices[1:]:
+        ema = p * k + ema * (1 - k)
+    return ema
+
+def tb_filter_ma200(signal, prices):
+    """Фильтр Пола Тюдора Джонса: CALL только если цена > MA200, PUT только если <.
+    Returns (allow: bool, reason: str)."""
+    if not TB_MA200_ENABLED:
+        return True, ""
+    ma = _tb_calc_sma(prices, TB_MA200_PERIOD)
+    if ma is None:
+        return True, f"MA{TB_MA200_PERIOD}=недостаточно данных, фильтр пропущен"
+    cur = prices[-1]
+    if signal == "CALL" and cur < ma:
+        return False, f"❌ MA{TB_MA200_PERIOD}={ma:.5f} > цена={cur:.5f} — CALL запрещён (медвежий рынок)"
+    if signal == "PUT" and cur > ma:
+        return False, f"❌ MA{TB_MA200_PERIOD}={ma:.5f} < цена={cur:.5f} — PUT запрещён (бычий рынок)"
+    return True, f"✅ MA{TB_MA200_PERIOD}={ma:.5f} согласуется"
+
+def _tb_calc_rsi_series(prices, period=14):
+    """Возвращает список значений RSI для построения дивергенций."""
+    if len(prices) < period + 1:
+        return []
+    rsi_values = []
+    for end in range(period, len(prices)):
+        window = prices[end - period:end + 1]
+        deltas = [window[i] - window[i-1] for i in range(1, len(window))]
+        gains = [d if d > 0 else 0 for d in deltas]
+        losses = [-d if d < 0 else 0 for d in deltas]
+        ag = sum(gains) / period
+        al = sum(losses) / period
+        if al == 0:
+            rsi_values.append(100)
+        else:
+            rs = ag / al
+            rsi_values.append(100 - (100 / (1 + rs)))
+    return rsi_values
+
+def tb_filter_rsi_divergence(signal, prices):
+    """Фильтр RSI-дивергенции (главный сигнал RSI по Trade Base).
+    Бычья (для CALL): цена ↓ новый минимум, RSI ↑ выше предыдущего минимума.
+    Медвежья (для PUT): цена ↑ новый максимум, RSI ↓ ниже предыдущего максимума."""
+    if not TB_RSI_DIV_ENABLED:
+        return True, ""
+    lookback = TB_RSI_DIV_LOOKBACK
+    if len(prices) < lookback + 15:
+        return True, "RSI-див: мало данных"
+    rsi_series = _tb_calc_rsi_series(prices, 14)
+    if len(rsi_series) < lookback + 2:
+        return True, "RSI-див: мало RSI"
+    # Берём последние lookback свечей
+    p_window = prices[-lookback:]
+    r_window = rsi_series[-lookback:]
+    if signal == "CALL":
+        # Бычья: цена сделала более низкий минимум, RSI — более высокий
+        idx_min_p = p_window.index(min(p_window))
+        idx_min_r = r_window.index(min(r_window))
+        # Сравним последний минимум цены с минимумом первой половины окна
+        half = lookback // 2
+        first_low_p = min(p_window[:half]) if half > 0 else p_window[0]
+        last_low_p  = min(p_window[half:])
+        first_low_r = min(r_window[:half]) if half > 0 else r_window[0]
+        last_low_r  = min(r_window[half:])
+        bullish_div = last_low_p < first_low_p and last_low_r > first_low_r
+        if bullish_div:
+            return True, f"✅ Бычья дивергенция RSI: цена↓ {first_low_p:.5f}→{last_low_p:.5f}, RSI↑ {first_low_r:.1f}→{last_low_r:.1f}"
+        return False, f"❌ Нет бычьей дивергенции RSI (CALL отменён)"
+    if signal == "PUT":
+        half = lookback // 2
+        first_high_p = max(p_window[:half]) if half > 0 else p_window[0]
+        last_high_p  = max(p_window[half:])
+        first_high_r = max(r_window[:half]) if half > 0 else r_window[0]
+        last_high_r  = max(r_window[half:])
+        bearish_div = last_high_p > first_high_p and last_high_r < first_high_r
+        if bearish_div:
+            return True, f"✅ Медвежья дивергенция RSI: цена↑ {first_high_p:.5f}→{last_high_p:.5f}, RSI↓ {first_high_r:.1f}→{last_high_r:.1f}"
+        return False, f"❌ Нет медвежьей дивергенции RSI (PUT отменён)"
+    return True, ""
+
+async def tb_update_higher_tf(client, asset_name):
+    """Запросить свечи старшего ТФ для MTF-фильтра. Кэшируем на 60 сек."""
+    global _tb_higher_tf_candles, _tb_higher_tf_last_update
+    if not TB_MTF_ENABLED:
+        return
+    import time as _t
+    now = _t.time()
+    if now - _tb_higher_tf_last_update < 60:
+        return  # кэш ещё свежий
+    higher_tf = EXPIRY_SEC * TB_MTF_MULTIPLIER
+    try:
+        raw = await client.get_candles(asset=asset_name, timeframe=higher_tf, count=50)
+        if raw:
+            _tb_higher_tf_candles = [(c.open, c.high, c.low, c.close) for c in raw]
+            _tb_higher_tf_last_update = now
+            print(f"[TB-MTF] Старший ТФ ({higher_tf}с) обновлён: {len(_tb_higher_tf_candles)} свечей")
+    except Exception as _me:
+        print(f"[TB-MTF] Ошибка запроса старшего ТФ: {_me}")
+
+def tb_filter_mtf(signal):
+    """MTF-фильтр Элдера: сигнал должен совпадать с трендом старшего ТФ."""
+    if not TB_MTF_ENABLED:
+        return True, ""
+    if len(_tb_higher_tf_candles) < 21:
+        return True, "MTF: данные старшего ТФ ещё не загружены"
+    closes = [c[3] for c in _tb_higher_tf_candles]
+    ema9_h  = _tb_calc_ema(closes, 9)
+    ema21_h = _tb_calc_ema(closes, 21)
+    if ema9_h is None or ema21_h is None:
+        return True, "MTF: мало EMA-данных"
+    higher_trend = "UP" if ema9_h > ema21_h else "DOWN"
+    if signal == "CALL" and higher_trend == "DOWN":
+        return False, f"❌ MTF: старший ТФ DOWN — CALL против тренда отменён"
+    if signal == "PUT" and higher_trend == "UP":
+        return False, f"❌ MTF: старший ТФ UP — PUT против тренда отменён"
+    return True, f"✅ MTF старший ТФ: {higher_trend}"
+
+def tb_filter_candle_confirm(signal, candles):
+    """Подтверждение свечного паттерна: последняя закрытая свеча должна
+    идти в направлении сигнала (для CALL — зелёная, для PUT — красная)."""
+    if not TB_CANDLE_CONFIRM:
+        return True, ""
+    if not candles or len(candles) < 2:
+        return True, "Confirm: мало свечей"
+    last = candles[-2] if len(candles) >= 2 else candles[-1]  # последняя закрытая
+    o, c = last[0], last[3]
+    is_green = c > o
+    if signal == "CALL" and not is_green:
+        return False, f"❌ Подтверждения нет: последняя свеча 🔴 (нужна 🟢 для CALL)"
+    if signal == "PUT" and is_green:
+        return False, f"❌ Подтверждения нет: последняя свеча 🟢 (нужна 🔴 для PUT)"
+    color = "🟢" if is_green else "🔴"
+    return True, f"✅ Свеча подтверждает: {color}"
+
+def tb_filter_sr_strength(prices):
+    """Сила уровней S/R: считаем сколько раз цена касалась локальных min/max.
+    Возвращаем (allow, reason). Используется как информационный фильтр —
+    если цена близка к слабому уровню, отбрасываем сигнал."""
+    if not TB_SR_STRENGTH_ENABLED:
+        return True, ""
+    if len(prices) < 50:
+        return True, "S/R-strength: мало истории"
+    cur = prices[-1]
+    threshold = cur * 0.0015  # 0.15% — зона касания
+    # Найдём все локальные минимумы/максимумы за последние 100 свечей
+    window = prices[-100:] if len(prices) >= 100 else prices
+    levels = []
+    for i in range(3, len(window) - 3):
+        # локальный минимум
+        if window[i] == min(window[i-3:i+4]):
+            levels.append(window[i])
+        # локальный максимум
+        if window[i] == max(window[i-3:i+4]):
+            levels.append(window[i])
+    # Группируем близкие уровни (если разница < threshold — это один уровень)
+    grouped = []
+    for lvl in sorted(levels):
+        placed = False
+        for g in grouped:
+            if abs(g["price"] - lvl) < threshold:
+                g["touches"] += 1
+                placed = True
+                break
+        if not placed:
+            grouped.append({"price": lvl, "touches": 1})
+    # Цена сейчас рядом с каким-то уровнем?
+    near = None
+    for g in grouped:
+        if abs(g["price"] - cur) < threshold:
+            near = g; break
+    if near is None:
+        return True, "S/R-strength: цена не у уровня"
+    if near["touches"] < TB_SR_MIN_TOUCHES:
+        return False, f"❌ Уровень {near['price']:.5f} слабый ({near['touches']} касаний < {TB_SR_MIN_TOUCHES})"
+    return True, f"✅ Сильный уровень {near['price']:.5f} ({near['touches']} касаний)"
+
+def tb_filter_volume_proxy(candles):
+    """Объём-прокси через range свечи (high-low). Если последняя свеча
+    'слабая' (range < min_ratio * среднее за 20 свечей), отбрасываем."""
+    if not TB_VOLUME_PROXY:
+        return True, ""
+    if not candles or len(candles) < 21:
+        return True, "Vol-proxy: мало свечей"
+    ranges = [c[1] - c[2] for c in candles[-21:-1]]  # последние 20 закрытых
+    avg_range = sum(ranges) / len(ranges) if ranges else 0
+    if avg_range == 0:
+        return True, "Vol-proxy: avg=0"
+    last_closed = candles[-2] if len(candles) >= 2 else candles[-1]
+    last_range = last_closed[1] - last_closed[2]
+    ratio = last_range / avg_range
+    if ratio < TB_VOL_MIN_RATIO:
+        return False, f"❌ Слабая свеча: range={last_range:.5f} ({ratio:.2f}x от среднего, нужно ≥{TB_VOL_MIN_RATIO})"
+    return True, f"✅ Range {ratio:.2f}x от среднего"
+
+def apply_tradebase_filters(signal, prices, candles):
+    """Применяет ВСЕ включённые фильтры Trade Base.
+    Возвращает (final_signal, info_lines).
+    Если хоть один фильтр запрещает — final_signal = None."""
+    info_lines = []
+    if not signal:
+        return None, info_lines
+    checks = [
+        tb_filter_ma200(signal, prices),
+        tb_filter_rsi_divergence(signal, prices),
+        tb_filter_mtf(signal),
+        tb_filter_candle_confirm(signal, candles),
+        tb_filter_sr_strength(prices),
+        tb_filter_volume_proxy(candles),
+    ]
+    for allow, reason in checks:
+        if reason:
+            info_lines.append(reason)
+        if not allow:
+            return None, info_lines
+    return signal, info_lines
+# ═══════════════════════════════════════════════════════════════════
+`
+}
 
 export function generatePOCode(cfg: POBotConfig): string {
   const strategyLabel = PO_STRATEGIES[cfg.strategy].label
@@ -2145,6 +2454,8 @@ def check_trend_change(candles):
 
 ${strategyFunctions[cfg.strategy]}
 
+${buildTradeBaseFiltersBlock(cfg)}
+
 async def try_get_candles(client, asset_name):
     """Попытка получить свечи, с авто-переподключением при обрыве"""
     for attempt in range(3):
@@ -3262,6 +3573,24 @@ async def main():
             if not signal and trend_sig and TREND_FOLLOW == "follow":
                 signal = trend_sig
                 signal_info = f"[TREND] {trend} → {trend_sig}"
+
+            # ═══ TRADE BASE FILTERS — применяем фильтры по методике учебника ═══
+            try:
+                # Обновляем данные старшего ТФ для MTF-фильтра (фоном, кэш 60с)
+                if 'tb_update_higher_tf' in globals():
+                    await tb_update_higher_tf(client, _resolved_asset or ASSET)
+                if 'apply_tradebase_filters' in globals() and signal:
+                    _filtered, _tb_lines = apply_tradebase_filters(signal, prices, candles)
+                    for _ln in _tb_lines:
+                        print(f"[TB-FILTER] {_ln}")
+                    if _filtered is None and signal is not None:
+                        signal_info = (signal_info or "") + " | TB-фильтр отменил: " + " | ".join(_tb_lines)
+                        rejected_signals += 1
+                        signal = None
+                    elif _tb_lines:
+                        signal_info = (signal_info or "") + " | TB✓ " + " | ".join(_tb_lines)
+            except Exception as _tbe:
+                print(f"[TB-FILTER] Ошибка фильтра (пропускаем): {_tbe}")
 
             # ===== СВОДНАЯ СТРОКА =====
             ts = datetime.now().strftime("%H:%M:%S")
@@ -5492,6 +5821,8 @@ ${fnBlocks.join("\n")}
 # ===== КОМБО-ЛОГИКА (${cfg.comboLogic}) =====
 ${combineLogic}
 
+${buildTradeBaseFiltersBlock(cfg)}
+
 async def get_candles_data(client):
     try:
         raw = await client.get_candles(asset=ASSET, timeframe=EXPIRY_SEC, count=100)
@@ -6931,6 +7262,23 @@ async def main():
         if not signal and trend_sig and TREND_FOLLOW == "follow":
             signal = trend_sig
             signal_info = f"[TREND] {trend} → {trend_sig}"
+
+        # ═══ TRADE BASE FILTERS — фильтры по методике учебника ═══
+        try:
+            if 'tb_update_higher_tf' in globals():
+                await tb_update_higher_tf(client, _resolved_asset or ASSET)
+            if 'apply_tradebase_filters' in globals() and signal:
+                _filtered, _tb_lines = apply_tradebase_filters(signal, prices, candles)
+                for _ln in _tb_lines:
+                    print(f"[TB-FILTER] {_ln}")
+                if _filtered is None and signal is not None:
+                    signal_info = (signal_info or "") + " | TB-фильтр отменил: " + " | ".join(_tb_lines)
+                    rejected_signals += 1
+                    signal = None
+                elif _tb_lines:
+                    signal_info = (signal_info or "") + " | TB✓ " + " | ".join(_tb_lines)
+        except Exception as _tbe:
+            print(f"[TB-FILTER] Ошибка фильтра (пропускаем): {_tbe}")
 
         if signal:
             if TRADE_DIRECTION == "call_only" and signal != "CALL":

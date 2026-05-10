@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react"
+import TradeBaseFiltersCard from "./TradeBaseFiltersCard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
@@ -2458,6 +2459,9 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
           </div>
         </CardContent>
       </Card>
+
+      {/* Фильтры Trade Base — фильтры по методике учебника */}
+      <TradeBaseFiltersCard config={config} onChange={(patch) => set(patch)} />
 
       <Card className="bg-zinc-900 border-zinc-700">
         <CardHeader className="pb-3">

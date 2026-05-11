@@ -3303,8 +3303,10 @@ async def main():
 
     # ===== 🚀 ЗАПУСК WS-СТРИМА: живые тики цены через прямой WebSocket к РО =====
     # _live_buf — буфер с last_price (обновляется стримом каждую секунду)
-    # cascade_hedge_monitor использует именно его для актуальной цены входа/мониторинга
+    # ВАЖНО: кладём в globals() — чтобы SPY-логгер, статус-команды и др. модули
+    # читали тот ЖЕ объект буфера, а не свою копию (баг "цена 0.00000")
     _live_buf = CandleBuffer()
+    globals()['_live_buf'] = _live_buf
     _stream_task = asyncio.create_task(live_stream_subscriber(_live_buf, client))
     print(f"[BUFFER] 🚀 Живой WS-стрим запущен | актив={ASSET} | тики напрямую от РО")
 
@@ -6136,247 +6138,8 @@ class CandleBuffer:
         self.ready = True  # буфер готов опрашивать цены сразу
 
     async def tick(self, client):
-        """🛑 DEPRECATED: больше не опрашивает API.
-        Все обновления цены теперь идут из WS-стрима через live_stream_subscriber.
-        Этот метод оставлен no-op для совместимости со старыми bot1.py — чтобы не портил буфер.
-        """
+        """🛑 Не используется. Все обновления цены идут из WS-стрима."""
         return
-        # Старый код полностью отключён ниже — никогда не выполняется (return выше)
-        try:
-            _query_asset = _resolved_asset or ASSET
-            raw = await client.get_candles(asset=_query_asset, timeframe=EXPIRY_SEC, count=1)
-            if not raw:
-                return
-            import time as _t_mod
-            from datetime import timedelta
-            now = _t_mod.time()
-            current = raw[-1]
-            cur_price = float(current.close)
-            # ===== ОПРЕДЕЛЯЕМ В КАКУЮ СВЕЧУ ПОПАДАЕТ ТЕКУЩИЙ ТИК =====
-            # bucket = начало свечи в которой мы сейчас живём (unix-ts округлённое вниз до EXPIRY_SEC)
-            bucket = int(now // EXPIRY_SEC) * EXPIRY_SEC
-            # ===== СЛУЧАЙ 1: первый тик за всё время =====
-            if self.live is None or self.live_bucket is None:
-                self.live_bucket = bucket
-                self.live = (cur_price, cur_price, cur_price, cur_price)  # o=h=l=c
-                self.last_price = cur_price
-                self.last_update = now
-                _utc_t = datetime.utcfromtimestamp(bucket).strftime('%H:%M:%S')
-                print(f"[CANDLE_BUILD] 🆕 СТАРТ ПЕРВОЙ СВЕЧИ {_utc_t} UTC | open={cur_price:.5f}")
-                return
-            # ===== СЛУЧАЙ 2: тик в той же свече — обновляем h/l/c =====
-            if bucket == self.live_bucket:
-                _o, _h, _l, _c = self.live
-                _h = max(_h, cur_price)
-                _l = min(_l, cur_price)
-                _c = cur_price
-                self.live = (_o, _h, _l, _c)
-                self.last_price = cur_price
-                self.last_update = now
-                return
-            # ===== СЛУЧАЙ 3: началась НОВАЯ свеча — закрываем старую и открываем новую =====
-            # Закрываем предыдущую свечу + ДОБАВЛЯЕМ ВРЕМЯ ОТКРЫТИЯ (5-й элемент)
-            # 5-tuple (o, h, l, c, bucket_ts) — анализатор get_trend умеет читать c[4]
-            closed_tup = (self.live[0], self.live[1], self.live[2], self.live[3], int(self.live_bucket))
-            # ✅ ЗАЩИТА ОТ ПЛОСКОЙ СВЕЧИ: если o=h=l=c — мы стартанули в конце окна
-            # и собрали 1 тик. Такая свеча — мусор, не считаем её "закрытой".
-            _is_flat = (closed_tup[0] == closed_tup[1] == closed_tup[2] == closed_tup[3])
-            if _is_flat:
-                _open_t_skip = datetime.utcfromtimestamp(self.live_bucket).strftime('%H:%M:%S')
-                print(f"[CANDLE_BUILD] 🚫 ПРОПУЩЕНА ПЛОСКАЯ СВЕЧА {_open_t_skip} UTC | o=h=l=c={closed_tup[0]:.5f} (мало тиков, бот стартанул в конце окна)")
-                # Открываем новую свечу с актуальной цены, не сохраняя плоскую
-                self.live_bucket = bucket
-                self.live = (cur_price, cur_price, cur_price, cur_price)
-                self.last_price = cur_price
-                self.last_update = now
-                self.sync_warn = False
-                return
-            self.candles.append(closed_tup)
-            if len(self.candles) > LIVE_BUFFER_SIZE:
-                self.candles = self.candles[-LIVE_BUFFER_SIZE:]
-            # Логируем закрытие
-            _close_dt = datetime.utcfromtimestamp(self.live_bucket + EXPIRY_SEC)
-            _open_dt = datetime.utcfromtimestamp(self.live_bucket)
-            _open_t = _open_dt.strftime('%H:%M:%S')
-            _close_t = _close_dt.strftime('%H:%M:%S')
-            _color = '🟢' if closed_tup[3] >= closed_tup[0] else '🔴'
-            print(f"[CANDLE_BUILD] ✅ ЗАКРЫТА {_color} {_open_t}→{_close_t} UTC | o={closed_tup[0]:.5f} h={closed_tup[1]:.5f} l={closed_tup[2]:.5f} c={closed_tup[3]:.5f}")
-            # ===== СВЕРКА С ГРАФИКОМ POCKETOPTION (раз в 10 свечей) =====
-            # ⚡ Раньше делали запрос на КАЖДОЙ закрытой свече → жрало +0.5-1.5с к каждому тику.
-            # Теперь сверяем раз в 10 свечей — этого достаточно для контроля синхронизации,
-            # а свободное время уходит на нормальные тики (h/l не пропускаются).
-            if len(self.candles) % 10 == 0:
-                try:
-                    _ref = await client.get_candles(asset=_query_asset, timeframe=EXPIRY_SEC, count=2)
-                    if _ref and len(_ref) >= 2:
-                        _api_closed = _ref[-2]  # последняя закрытая на бирже
-                        _api_o = float(_api_closed.open)
-                        _api_c = float(_api_closed.close)
-                        _api_color = '🟢' if _api_c >= _api_o else '🔴'
-                        _our_color = _color
-                        _close_gap = abs(_api_c - closed_tup[3]) / max(_api_c, 0.0001) * 100
-                        self.cmp_total += 1
-                        if self.cmp_price_max_gap < _close_gap:
-                            self.cmp_price_max_gap = _close_gap
-                        if _api_color == _our_color:
-                            self.cmp_match += 1
-                            _verdict = "✅ В НОГУ"
-                        else:
-                            self.cmp_color_diff += 1
-                            _verdict = "⚠️ ЦВЕТ РАЗОШЁЛСЯ"
-                        _match_pct = (self.cmp_match / self.cmp_total) * 100
-                        print(f"[SYNC_CHECK] {_verdict} | бот: {_our_color} c={closed_tup[3]:.5f} | график: {_api_color} c={_api_c:.5f} | дельта close={_close_gap:.3f}% | совпадений: {self.cmp_match}/{self.cmp_total} ({_match_pct:.0f}%)")
-                except Exception as _se:
-                    print(f"[SYNC_CHECK] не удалось сверить с API: {_se}")
-            self.last_candle_close_dt = _close_dt
-            # Записываем в файл сессии
-            try:
-                _session_save_candle((_resolved_asset or ASSET), EXPIRY_SEC, int(self.live_bucket), closed_tup[0], closed_tup[1], closed_tup[2], closed_tup[3])
-            except Exception as _se:
-                print(f"[SESSION] save error: {_se}")
-            # Записываем в общий пул
-            try:
-                _pool_push_candle((_resolved_asset or ASSET), EXPIRY_SEC, int(self.live_bucket), closed_tup[0], closed_tup[1], closed_tup[2], closed_tup[3])
-            except Exception as _pe:
-                pass
-            # Открываем новую свечу
-            self.live_bucket = bucket
-            self.live = (cur_price, cur_price, cur_price, cur_price)
-            self.last_price = cur_price
-            self.last_update = now
-            _new_open_t = datetime.utcfromtimestamp(bucket).strftime('%H:%M:%S')
-            print(f"[CANDLE_BUILD] 🆕 НОВАЯ СВЕЧА {_new_open_t} UTC | open={cur_price:.5f} | накоплено закрытых: {len(self.candles)}")
-            self.sync_warn = False
-            return
-        except Exception as e:
-            print(f"[BUFFER] tick error: {e}")
-            return
-
-    # ===== СТАРАЯ ЛОГИКА ОТКЛЮЧЕНА — оставлено для совместимости =====
-    async def _legacy_tick_unused(self, client):
-        try:
-            _query_asset = _resolved_asset or ASSET
-            raw = await client.get_candles(asset=_query_asset, timeframe=EXPIRY_SEC, count=2)
-            if not raw:
-                return
-            now = __import__("time").time()
-            closed = raw[-2] if len(raw) >= 2 else None
-            current = raw[-1]
-            cur_close = float(current.close)
-            # SANITY-CHECK: если цена скакнула >0.5% за 1 тик — это глюк API (мусор из кеша)
-            # Игнорируем такой тик, не записываем в буфер.
-            if self.last_price > 0:
-                _jump = abs(cur_close - self.last_price) / max(self.last_price, 0.0001)
-                if _jump > 0.005:
-                    print(f"[TICK_GUARD] ⚠️ ПОДОЗРИТЕЛЬНЫЙ СКАЧОК: {self.last_price:.5f} → {cur_close:.5f} ({_jump*100:.2f}%) — игнорирую тик, ставлю sync_warn")
-                    self.sync_warn = True
-                    return
-            self.last_price = cur_close
-            self.last_update = now
-            # Обновляем закрытые свечи (если появилась новая)
-            if closed is not None:
-                closed_tup = (float(closed.open), float(closed.high), float(closed.low), float(closed.close))
-                # SANITY-CHECK: новая закрытая свеча не должна сильно отличаться от текущей цены
-                _closed_close = closed_tup[3]
-                if cur_close > 0 and abs(_closed_close - cur_close) / max(cur_close, 0.0001) > 0.01:
-                    print(f"[TICK_GUARD] ⚠️ Свеча из кеша API: closed.close={_closed_close:.5f} vs live={cur_close:.5f} — пропускаю запись")
-                    self.sync_warn = True
-                    return
-                if not self.candles or self.candles[-1] != closed_tup:
-                    self.candles.append(closed_tup)
-                    if len(self.candles) > LIVE_BUFFER_SIZE:
-                        self.candles = self.candles[-LIVE_BUFFER_SIZE:]
-                    # ====== ЗАПИСЬ В ОБЩИЙ ПУЛ ======
-                    try:
-                        _t_pool = None
-                        for _tk in ('time', 't', 'timestamp', 'open_time'):
-                            _v = getattr(closed, _tk, None)
-                            if _v is None and isinstance(closed, dict):
-                                _v = closed.get(_tk)
-                            if _v is None:
-                                continue
-                            if isinstance(_v, datetime):
-                                _t_pool = _v.timestamp()
-                                break
-                            try:
-                                _num = float(_v)
-                                _t_pool = _num / 1000 if _num > 1e10 else _num
-                                break
-                            except (TypeError, ValueError):
-                                continue
-                        if _t_pool:
-                            _pool_push_candle((_resolved_asset or ASSET), EXPIRY_SEC, int(_t_pool), closed_tup[0], closed_tup[1], closed_tup[2], closed_tup[3])
-                            # ✅ ЗАПИСЬ В ФАЙЛ СЕССИИ — каждая свеча которую БОТ УВИДЕЛ ЛИЧНО
-                            _session_save_candle((_resolved_asset or ASSET), EXPIRY_SEC, int(_t_pool), closed_tup[0], closed_tup[1], closed_tup[2], closed_tup[3])
-                    except Exception as _ppe:
-                        print(f"[POOL] push from tick error: {_ppe}")
-                    try:
-                        from datetime import timedelta
-                        # ВАЖНО: работаем в UTC чтобы не зависеть от часового пояса юзера (Красноярск, Москва — без разницы)
-                        _candle_dt = None
-                        for _tk in ('time', 't', 'timestamp', 'open_time'):
-                            _v = getattr(closed, _tk, None)
-                            if _v is None and isinstance(closed, dict):
-                                _v = closed.get(_tk)
-                            if _v is None:
-                                continue
-                            if isinstance(_v, datetime):
-                                _candle_dt = _v.replace(tzinfo=None) if _v.tzinfo else _v
-                                break
-                            try:
-                                _num = float(_v)
-                                _raw_ts = _num / 1000 if _num > 1e10 else _num
-                                _candle_dt = datetime.utcfromtimestamp(_raw_ts)
-                                break
-                            except (TypeError, ValueError):
-                                continue
-                        if _candle_dt is not None:
-                            _close_dt = _candle_dt + timedelta(seconds=EXPIRY_SEC)
-                            _open_t = _candle_dt.strftime('%H:%M:%S')
-                            _close_t = _close_dt.strftime('%H:%M:%S')
-                            _now_dt = datetime.utcnow()
-                            _now_str = _now_dt.strftime('%H:%M:%S')
-                            _raw_diff = (_now_dt - _close_dt).total_seconds()
-                            # АВТО-КАЛИБРОВКА: при первой свече запоминаем разницу часов
-                            # Считаем что свеча реально только что закрылась → её "истинная задержка" = ~EXPIRY_SEC/2
-                            if self.time_shift is None:
-                                self.time_shift = _raw_diff
-                                print(f"[TIME_SYNC] 🕐 Калибровка часов выполнена ✅ (бот синхронизирован с потоком свечей)")
-                            # Корректированная задержка относительно потока свечей
-                            _diff = _raw_diff - self.time_shift
-                            # Дополнительно: если есть предыдущая свеча — считаем дельту между свечами
-                            _gap_from_prev = None
-                            if self.last_candle_close_dt is not None:
-                                _gap_from_prev = (_close_dt - self.last_candle_close_dt).total_seconds()
-                            self.last_candle_close_dt = _close_dt
-                            _em = '🟢' if closed.close >= closed.open else '🔴'
-                            _gap_str = f" | gap={_gap_from_prev:.0f}с" if _gap_from_prev is not None else ""
-                            # Красивый статус задержки вместо пугающих чисел
-                            _abs_diff = abs(_diff)
-                            if _abs_diff <= EXPIRY_SEC:
-                                _delay_str = "задержка ОК ✅"
-                            elif _abs_diff <= EXPIRY_SEC * 2:
-                                _delay_str = f"задержка {_abs_diff:.0f}с ⚠️"
-                            else:
-                                _delay_str = f"задержка {_abs_diff:.0f}с ❌ (поток встал)"
-                            print(f"[RAW_API] 🆕 СВЕЧА {_em} {_open_t}→{_close_t} UTC | {_delay_str}{_gap_str} | o={closed.open:.5f} c={closed.close:.5f}")
-                            # Свеча "устарела" только если корректированная задержка > 2× таймфрейма
-                            # ИЛИ если gap между свечами слишком большой (поток встал)
-                            _stale = _diff > EXPIRY_SEC * 2
-                            if _stale:
-                                print(f"[SYNC_WARN] ⚠️ РАССИНХРОН! Корректированная задержка {_diff:.0f}с > {EXPIRY_SEC*2}с — поток встал!")
-                                self.sync_warn = True
-                            else:
-                                self.sync_warn = False
-                        else:
-                            _em = '🟢' if closed.close >= closed.open else '🔴'
-                            print(f"[RAW_API] 🆕 НОВАЯ ЗАКРЫТАЯ {_em} (нет timestamp) | o={closed.open:.5f} c={closed.close:.5f}")
-                    except Exception as _le:
-                        print(f"[RAW_API_ERR] {_le}")
-            # Обновляем "живую" свечу
-            self.live = (float(current.open), float(current.high), float(current.low), cur_close)
-        except Exception as e:
-            pass
 
     def all_candles(self):
         """Возвращает список свечей включая текущую (для анализа в реальном времени)."""
@@ -6394,16 +6157,6 @@ class CandleBuffer:
         if self.live:
             out.append(self.live[3])
         return out
-
-async def buffer_updater(buf, client):
-    """🛑 DEPRECATED: больше НЕ опрашивает API. Цена теперь приходит из WS-стрима.
-    Эта функция оставлена no-op для совместимости со старыми bot1.py.
-    Если она запустится — просто будет спать и ничего не делать (не портит буфер).
-    """
-    print(f"[BUFFER] ℹ️ buffer_updater пропущен — используется WS-стрим напрямую")
-    while True:
-        await asyncio.sleep(60)
-
 
 async def live_stream_subscriber(buf, client):
     """🚀 LIVE TICK STREAM: ПРЯМОЙ WebSocket к Pocket Option (Socket.IO протокол).
@@ -7308,8 +7061,10 @@ async def main():
 
     # ===== 🚀 ЗАПУСК WS-СТРИМА: живые тики цены через прямой WebSocket к РО =====
     # _live_buf — буфер с last_price (обновляется стримом каждую секунду)
-    # cascade_hedge_monitor использует именно его для актуальной цены входа/мониторинга
+    # ВАЖНО: кладём в globals() — чтобы SPY-логгер, статус-команды и др. модули
+    # читали тот ЖЕ объект буфера, а не свою копию (баг "цена 0.00000")
     _live_buf = CandleBuffer()
+    globals()['_live_buf'] = _live_buf
     _stream_task = asyncio.create_task(live_stream_subscriber(_live_buf, client))
     print(f"[BUFFER] 🚀 Живой WS-стрим запущен | актив={ASSET} | тики напрямую от РО")
 

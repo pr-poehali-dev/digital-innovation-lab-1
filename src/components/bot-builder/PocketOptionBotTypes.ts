@@ -6310,13 +6310,21 @@ async def live_stream_subscriber(buf, client):
             pass
         return None
 
-    # Список регионов РО для подключения (попробуем по очереди если первый недоступен)
-    _ws_urls = [
-        "wss://api-eu.po.market/socket.io/?EIO=4&transport=websocket",
-        "wss://demo-api-eu.po.market/socket.io/?EIO=4&transport=websocket",
-        "wss://api-l.po.market/socket.io/?EIO=4&transport=websocket",
-        "wss://api-asia.po.market/socket.io/?EIO=4&transport=websocket",
-    ]
+    # Список регионов РО — РАЗНЫЙ для demo и real (это критично, иначе РО рубит коннект)
+    if IS_DEMO:
+        _ws_urls = [
+            "wss://demo-api-eu.po.market/socket.io/?EIO=4&transport=websocket",
+            "wss://try-demo-eu.po.market/socket.io/?EIO=4&transport=websocket",
+            "wss://demo-api-asia.po.market/socket.io/?EIO=4&transport=websocket",
+        ]
+        print(f"[WS] 🟡 DEMO режим — буду подключаться к demo-серверам РО")
+    else:
+        _ws_urls = [
+            "wss://api-eu.po.market/socket.io/?EIO=4&transport=websocket",
+            "wss://api-l.po.market/socket.io/?EIO=4&transport=websocket",
+            "wss://api-asia.po.market/socket.io/?EIO=4&transport=websocket",
+        ]
+        print(f"[WS] 🔴 REAL режим — буду подключаться к боевым серверам РО")
 
     _stream_state = {'ticks': 0, 'first_logged': False, 'reconnects': 0}
 
@@ -6483,17 +6491,41 @@ async def live_stream_subscriber(buf, client):
                 print(f"[WS] 🔻 Соединение закрыто: type={type(_le).__name__} code={_ec} reason={_er}")
                 raise
 
+    # 🔥 ПРОВЕРКА: isDemo в SESSION_ID должен совпадать с IS_DEMO режимом запуска
+    try:
+        import re as _re_chk
+        _m_chk = _re_chk.search('"isDemo"[ ]*:[ ]*([0-9]+)', SESSION_ID or '')
+        if _m_chk:
+            _ssid_is_demo = bool(int(_m_chk.group(1)))
+            if _ssid_is_demo != IS_DEMO:
+                print(f"[WS] ⛔ КОНФЛИКТ: запуск в режиме demo={IS_DEMO}, но в SESSION_ID isDemo={_ssid_is_demo}!")
+                print(f"[WS] ⛔ РО будет рубить коннект. Нужна сессия для {'демо' if IS_DEMO else 'реал'} счёта (с isDemo={1 if IS_DEMO else 0}).")
+                print(f"[WS] ⛔ Зайди на РО, переключись на {'ДЕМО' if IS_DEMO else 'РЕАЛЬНЫЙ'} счёт и скопируй НОВЫЙ session_id.")
+    except Exception:
+        pass
+
     # Главный цикл — переподключение с экспоненциальным бэкоффом (МИН 5 СЕК между попытками)
     _url_idx = 0
+    _silent_close_count = 0
     while True:
         _url = _ws_urls[_url_idx % len(_ws_urls)]
         try:
             await _connect_one(_url)
-            # Если _connect_one вышел БЕЗ исключения — значит сервер тихо закрыл сокет, ждём 5с
-            print(f"[WS] ⚠️ Сокет закрылся без ошибки — переподключение через 10с")
+            # Если _connect_one вышел БЕЗ исключения — значит сервер тихо закрыл сокет
+            _silent_close_count += 1
+            # Если получили >= 2 тихих закрытия подряд — это значит сервер РО отвергает наш URL/сессию
+            # Переключаемся на следующий URL чтобы попробовать другой регион
+            if _silent_close_count >= 2:
+                _url_idx += 1
+                _next_url_host = _ws_urls[_url_idx % len(_ws_urls)].split('//')[1].split('/')[0]
+                print(f"[WS] ⚠️ Сокет закрылся без ошибки {_silent_close_count} раз подряд — переключаюсь на {_next_url_host}")
+                _silent_close_count = 0
+            else:
+                print(f"[WS] ⚠️ Сокет закрылся без ошибки — переподключение через 10с (тот же URL)")
             await asyncio.sleep(10)
         except Exception as _we:
             _stream_state['reconnects'] += 1
+            _silent_close_count = 0  # ошибка ≠ тихое закрытие
             # Минимум 5с, максимум 60с — НЕ спамим РО каждую секунду
             _wait = max(5, min(60, 2 ** min(_stream_state['reconnects'], 6)))
             print(f"[WS] ❌ Соединение упало ({type(_we).__name__}): {str(_we)[:200]} | след.попытка через {_wait}с (всего {_stream_state['reconnects']})")

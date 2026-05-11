@@ -6111,53 +6111,110 @@ def _pool_get_candles(asset, tf_sec, min_count=2):
 class CandleBuffer:
     def __init__(self):
         # ✅ НОВАЯ ЛОГИКА: бот САМ строит свечи из тиков цены.
-        # Никакой истории с API, никаких "закрытых свечей из кеша".
-        # Только то, что мы УВИДЕЛИ СВОИМИ ГЛАЗАМИ.
-        self.candles = []        # список (open, high, low, close) — закрытые свечи которые МЫ ВИДЕЛИ
-        self.live = None         # текущая формирующаяся свеча (open, high, low, close)
-        self.live_bucket = None  # int — начало текущей свечи (unix-ts // EXPIRY_SEC * EXPIRY_SEC)
-        self._last_price = 0.0   # реальное хранилище цены (с префиксом — обходим property)
+        # ВАЖНО: candles / live / live_bucket / last_price — это PROPERTIES (ниже),
+        # которые синхронизируются с globals()['_live_buf']. Все экземпляры видят
+        # один и тот же поток данных — устраняет баг "два разных буфера в процессе".
+        # Реальные данные хранятся в self.__dict__ под именами с префиксом.
+        self.__dict__['_candles_data'] = []
+        self.__dict__['_live_data'] = None
+        self.__dict__['_live_bucket_data'] = None
+        self._last_price = 0.0
         self.last_update = 0.0
         self.ready = False
         self.sync_warn = False
         self.time_shift = None
         self.last_candle_close_dt = None
         # ===== СВЕРКА С ГРАФИКОМ =====
-        self.cmp_total = 0       # сколько раз сверяли
-        self.cmp_match = 0       # цвет совпал
-        self.cmp_color_diff = 0  # цвет разошёлся
-        self.cmp_price_max_gap = 0.0  # максимальное расхождение close (%)
+        self.cmp_total = 0
+        self.cmp_match = 0
+        self.cmp_color_diff = 0
+        self.cmp_price_max_gap = 0.0
 
-    @property
-    def last_price(self):
-        """🌐 ГЛОБАЛЬНОЕ ЧТЕНИЕ: если есть глобальный _live_buf — берём оттуда, иначе свой.
-        Это решает проблему: если SPY-логгер или другой модуль создал СВОЙ CandleBuffer()
-        (отдельно от того что в WS-стриме), то всё равно увидит актуальную цену.
+    def _get_master(self):
+        """Возвращает «главный» буфер из globals (куда пишет WS-стрим).
+        Если этот объект сам и есть главный — возвращает self.
         """
         try:
             _g = globals().get('_live_buf')
             if _g is not None and _g is not self:
-                _v = getattr(_g, '_last_price', 0.0)
-                if _v and _v > 0:
-                    return _v
+                return _g
         except Exception:
             pass
+        return None
+
+    @property
+    def last_price(self):
+        """🌐 Читаем актуальную цену из главного буфера (куда пишет WS-стрим)."""
+        _m = self._get_master()
+        if _m is not None:
+            _v = getattr(_m, '_last_price', 0.0)
+            if _v and _v > 0:
+                return _v
         return self._last_price
 
     @last_price.setter
     def last_price(self, value):
-        """Запись цены: пишем И в свой объект, И в глобальный _live_buf."""
+        """Запись цены — в свой объект И в главный буфер (синхронизация)."""
         try:
             self._last_price = float(value) if value else 0.0
         except (TypeError, ValueError):
             self._last_price = 0.0
-        # Дублируем в globals — на случай если SPY читает оттуда напрямую
-        try:
-            _g = globals().get('_live_buf')
-            if _g is not None and _g is not self:
-                _g._last_price = self._last_price
-        except Exception:
-            pass
+        _m = self._get_master()
+        if _m is not None:
+            _m._last_price = self._last_price
+
+    # ===== 🪞 ЗЕРКАЛЬНЫЕ ПРОКСИ: live / live_bucket / candles =====
+    # Если у нас есть главный буфер — читаем/пишем туда (так SPY/CANDLE_BUILD и WS
+    # видят ОДИН и тот же поток данных, даже если экземпляры CandleBuffer разные).
+    @property
+    def live(self):
+        _m = self._get_master()
+        if _m is not None:
+            return _m.__dict__.get('_live_data', None)
+        return self.__dict__.get('_live_data', None)
+
+    @live.setter
+    def live(self, value):
+        self.__dict__['_live_data'] = value
+        _m = self._get_master()
+        if _m is not None:
+            _m.__dict__['_live_data'] = value
+
+    @property
+    def live_bucket(self):
+        _m = self._get_master()
+        if _m is not None:
+            return _m.__dict__.get('_live_bucket_data', None)
+        return self.__dict__.get('_live_bucket_data', None)
+
+    @live_bucket.setter
+    def live_bucket(self, value):
+        self.__dict__['_live_bucket_data'] = value
+        _m = self._get_master()
+        if _m is not None:
+            _m.__dict__['_live_bucket_data'] = value
+
+    @property
+    def candles(self):
+        _m = self._get_master()
+        if _m is not None:
+            _c = _m.__dict__.get('_candles_data')
+            if _c is None:
+                _c = []
+                _m.__dict__['_candles_data'] = _c
+            return _c
+        _c = self.__dict__.get('_candles_data')
+        if _c is None:
+            _c = []
+            self.__dict__['_candles_data'] = _c
+        return _c
+
+    @candles.setter
+    def candles(self, value):
+        self.__dict__['_candles_data'] = value
+        _m = self._get_master()
+        if _m is not None:
+            _m.__dict__['_candles_data'] = value
 
     async def warmup(self, client):
         """⚠️ NO-OP: больше не загружаем историю. Бот стартует с пустого буфера и ЖДЁТ свои свечи."""

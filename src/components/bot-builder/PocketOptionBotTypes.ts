@@ -6136,12 +6136,14 @@ class CandleBuffer:
         self.ready = True  # буфер готов опрашивать цены сразу
 
     async def tick(self, client):
-        """✅ НОВАЯ ЛОГИКА: опрашиваем ТОЛЬКО текущую цену и САМИ строим свечи.
-        Никаких 'closed' свечей из API — только то, что мы видим в реальном времени.
+        """🛑 DEPRECATED: больше не опрашивает API.
+        Все обновления цены теперь идут из WS-стрима через live_stream_subscriber.
+        Этот метод оставлен no-op для совместимости со старыми bot1.py — чтобы не портил буфер.
         """
+        return
+        # Старый код полностью отключён ниже — никогда не выполняется (return выше)
         try:
             _query_asset = _resolved_asset or ASSET
-            # Берём 1 свечу — нам нужна только её current.close (= текущая цена тика)
             raw = await client.get_candles(asset=_query_asset, timeframe=EXPIRY_SEC, count=1)
             if not raw:
                 return
@@ -6394,13 +6396,13 @@ class CandleBuffer:
         return out
 
 async def buffer_updater(buf, client):
-    """Фоновая задача — каждые LIVE_TICK_INTERVAL сек обновляет буфер (резерв на случай отказа стрима)."""
+    """🛑 DEPRECATED: больше НЕ опрашивает API. Цена теперь приходит из WS-стрима.
+    Эта функция оставлена no-op для совместимости со старыми bot1.py.
+    Если она запустится — просто будет спать и ничего не делать (не портит буфер).
+    """
+    print(f"[BUFFER] ℹ️ buffer_updater пропущен — используется WS-стрим напрямую")
     while True:
-        try:
-            await buf.tick(client)
-        except Exception as e:
-            print(f"[BUFFER] tick error: {e}")
-        await asyncio.sleep(LIVE_TICK_INTERVAL)
+        await asyncio.sleep(60)
 
 
 async def live_stream_subscriber(buf, client):

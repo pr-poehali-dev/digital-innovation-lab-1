@@ -6408,6 +6408,12 @@ async def live_stream_subscriber(buf, client):
     Подключаемся напрямую к wss://api-eu.po.market — получаем настоящие тики каждую секунду.
     Каждое изменение цены сразу обновляет buf.last_price и текущую живую свечу.
     """
+    # 🛡 ЗАЩИТА ОТ ДУБЛЯ: если стрим уже запущен в этом процессе — второй вызов сразу выходит
+    if globals().get('_WS_STREAM_ACTIVE'):
+        print(f"[WS] ⚠️ Стрим уже запущен в этом процессе — второй экземпляр отменён (защита от дубля)")
+        return
+    globals()['_WS_STREAM_ACTIVE'] = True
+
     _stream_asset = _resolved_asset or ASSET
     print(f"[WS] 🎯 ПРЯМОЙ WebSocket к РО: {_stream_asset} | demo={IS_DEMO}")
 

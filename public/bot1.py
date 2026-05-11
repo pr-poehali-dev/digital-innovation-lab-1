@@ -7,8 +7,11 @@ import asyncio
 import os
 import builtins as _builtins
 import time as _time_mod
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
+
+MSK_TZ = timezone(timedelta(hours=3))
+LOCAL_TZ = timezone(timedelta(hours=4))
 
 _original_print = _builtins.print
 def _print_with_time(*args, **kwargs):
@@ -540,6 +543,36 @@ async def main():
             break
 
         await asyncio.sleep(1)
+
+        # ===== 🕵️ ШПИОН-ЛОГ: сравнение времени и цен (каждые 5 сек) =====
+        _now_ts_spy = _time_mod.time()
+        if not hasattr(_live_buf, '_last_spy_log') or (_now_ts_spy - getattr(_live_buf, '_last_spy_log', 0)) >= 5:
+            _live_buf._last_spy_log = _now_ts_spy
+            _t_local = datetime.now(LOCAL_TZ).strftime('%H:%M:%S')
+            _t_msk = datetime.now(MSK_TZ).strftime('%H:%M:%S')
+            _t_utc = datetime.now(timezone.utc).strftime('%H:%M:%S')
+            _price = _live_buf.last_price
+            _age = _now_ts_spy - _live_buf.last_update if _live_buf.last_update else -1
+            _last_candle = _live_buf.candles[-1] if _live_buf.candles else None
+            _live_tuple = _live_buf.live
+            _bucket = _live_buf.live_bucket
+            _bucket_msk = datetime.fromtimestamp(_bucket, MSK_TZ).strftime('%H:%M:%S') if _bucket else '—'
+            _bucket_utc = datetime.utcfromtimestamp(_bucket).strftime('%H:%M:%S') if _bucket else '—'
+            print(f"[🕵️ SPY] ───────────────────────────────────")
+            print(f"[🕵️ SPY] Время: МСК={_t_msk} | бот={_t_local} | UTC={_t_utc}")
+            print(f"[🕵️ SPY] Цена в буфере: {_price:.5f} | возраст: {_age:.1f}с назад")
+            if _live_tuple:
+                _o, _h, _l, _c = _live_tuple
+                print(f"[🕵️ SPY] Живая свеча: o={_o:.5f} h={_h:.5f} l={_l:.5f} c={_c:.5f}")
+                print(f"[🕵️ SPY] Начало свечи: МСК={_bucket_msk} | UTC={_bucket_utc}")
+            if _last_candle:
+                _lo, _lh, _ll, _lc, _lb = _last_candle
+                _lcol = '🟢' if _lc >= _lo else '🔴'
+                _lb_msk = datetime.fromtimestamp(_lb, MSK_TZ).strftime('%H:%M:%S')
+                print(f"[🕵️ SPY] Послед.закр.свеча: {_lcol} o={_lo:.5f} c={_lc:.5f} | МСК={_lb_msk}")
+            print(f"[🕵️ SPY] 👉 Сверь цену с РО (МСК-время). Норма: возраст < 2с, цена ±5 пипсов")
+            print(f"[🕵️ SPY] ───────────────────────────────────")
+
         if not _live_buf.ready or len(_live_buf.candles) < 2:
             _have = len(_live_buf.candles)
             _now_ts = _time_mod.time()

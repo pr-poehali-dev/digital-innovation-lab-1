@@ -6403,17 +6403,37 @@ async def live_stream_subscriber(buf, client):
     """
     _stream_asset = _resolved_asset or ASSET
     print(f"[STREAM] 🎯 Подписываюсь на live-тики: {_stream_asset}")
+
+    # ===== 🔬 РАЗВЕДКА API КЛИЕНТА (один раз при старте) =====
+    # Печатаем ВСЕ методы клиента — чтобы найти настоящее имя подписки на тики
+    _all_methods = [m for m in dir(client) if not m.startswith('_')]
+    _candidates = [m for m in _all_methods if any(kw in m.lower() for kw in ('subscribe', 'stream', 'tick', 'realtime', 'live', 'price', 'quote', 'feed', 'on_'))]
+    print(f"[STREAM] 🔬 Все методы клиента ({len(_all_methods)}): {', '.join(_all_methods)}")
+    print(f"[STREAM] 🔬 Кандидаты для стрима: {', '.join(_candidates) if _candidates else '— ничего похожего'}")
+
     _reconnect_attempts = 0
     while True:
         try:
             # Пробуем разные API подписки (для совместимости с разными версиями lib)
             _stream = None
-            if hasattr(client, 'subscribe_symbol'):
-                _stream = client.subscribe_symbol(_stream_asset)
-            elif hasattr(client, 'subscribe'):
-                _stream = client.subscribe(_stream_asset)
-            else:
-                print(f"[STREAM] ⚠️ Метод subscribe_symbol не найден — стрим недоступен, работаем только на опросе")
+            _method_used = None
+            # Расширенный список возможных имён метода
+            for _mname in ('subscribe_symbol', 'subscribe', 'start_candles_stream', 'subscribe_quotes',
+                           'stream', 'stream_quotes', 'stream_ticks', 'on_quote', 'on_tick',
+                           'get_realtime_candles', 'get_ticks', 'live_quotes', 'price_stream'):
+                if hasattr(client, _mname):
+                    try:
+                        _method = getattr(client, _mname)
+                        _stream = _method(_stream_asset)
+                        _method_used = _mname
+                        print(f"[STREAM] ✅ Нашёл метод: client.{_mname}() — пробую использовать")
+                        break
+                    except Exception as _te:
+                        print(f"[STREAM] ⚠️ client.{_mname}() кинул ошибку: {_te}")
+                        continue
+            if _stream is None:
+                print(f"[STREAM] ❌ Ни один метод подписки не сработал — работаем только на опросе get_candles()")
+                print(f"[STREAM] 💡 Скинь мне список методов из лога выше — найду правильный")
                 return
             print(f"[STREAM] ✅ Подключён к стриму, жду тиков...")
             _reconnect_attempts = 0

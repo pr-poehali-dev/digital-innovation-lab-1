@@ -6402,85 +6402,138 @@ async def live_stream_subscriber(buf, client):
     Это убирает задержку 'свеча API не обновляется внутри 3-минутного окна'.
     """
     _stream_asset = _resolved_asset or ASSET
-    print(f"[STREAM] 🎯 Подписываюсь на live-тики: {_stream_asset}")
+    print(f"[STREAM] 🎯 Подписываюсь на live-тики через add_event_callback: {_stream_asset}")
 
-    # ===== 🔬 РАЗВЕДКА API КЛИЕНТА (один раз при старте) =====
-    # Печатаем ВСЕ методы клиента — чтобы найти настоящее имя подписки на тики
-    _all_methods = [m for m in dir(client) if not m.startswith('_')]
-    _candidates = [m for m in _all_methods if any(kw in m.lower() for kw in ('subscribe', 'stream', 'tick', 'realtime', 'live', 'price', 'quote', 'feed', 'on_'))]
-    print(f"[STREAM] 🔬 Все методы клиента ({len(_all_methods)}): {', '.join(_all_methods)}")
-    print(f"[STREAM] 🔬 Кандидаты для стрима: {', '.join(_candidates) if _candidates else '— ничего похожего'}")
+    # ===== EVENT-DRIVEN ПОДПИСКА (через add_event_callback) =====
+    # Твоя версия pocketoptionapi_async использует не async-генератор, а callback-систему.
+    # Регистрируем функцию, которая будет вызываться на КАЖДОМ событии тика/цены/свечи.
+    if not hasattr(client, 'add_event_callback'):
+        print(f"[STREAM] ❌ Нет метода add_event_callback — стрим невозможен, работаем на опросе")
+        return
 
-    _reconnect_attempts = 0
-    while True:
+    _stream_state = {'ticks': 0, 'last_log_ts': 0.0, 'first_event_logged': False, 'seen_events': set()}
+
+    def _extract_price(_payload):
+        """Достаём цену из объекта/dict любой формы."""
+        if _payload is None:
+            return None
+        # Если это число — сразу
         try:
-            # Пробуем разные API подписки (для совместимости с разными версиями lib)
-            _stream = None
-            _method_used = None
-            # Расширенный список возможных имён метода
-            for _mname in ('subscribe_symbol', 'subscribe', 'start_candles_stream', 'subscribe_quotes',
-                           'stream', 'stream_quotes', 'stream_ticks', 'on_quote', 'on_tick',
-                           'get_realtime_candles', 'get_ticks', 'live_quotes', 'price_stream'):
-                if hasattr(client, _mname):
-                    try:
-                        _method = getattr(client, _mname)
-                        _stream = _method(_stream_asset)
-                        _method_used = _mname
-                        print(f"[STREAM] ✅ Нашёл метод: client.{_mname}() — пробую использовать")
-                        break
-                    except Exception as _te:
-                        print(f"[STREAM] ⚠️ client.{_mname}() кинул ошибку: {_te}")
-                        continue
-            if _stream is None:
-                print(f"[STREAM] ❌ Ни один метод подписки не сработал — работаем только на опросе get_candles()")
-                print(f"[STREAM] 💡 Скинь мне список методов из лога выше — найду правильный")
-                return
-            print(f"[STREAM] ✅ Подключён к стриму, жду тиков...")
-            _reconnect_attempts = 0
-            _tick_counter = 0
-            async for _tick_data in _stream:
-                # Достаём цену из объекта тика (разные форматы у разных версий)
-                _price = None
-                for _attr in ('close', 'price', 'last', 'c', 'value'):
-                    _v = getattr(_tick_data, _attr, None)
-                    if _v is None and isinstance(_tick_data, dict):
-                        _v = _tick_data.get(_attr)
-                    if _v is not None:
-                        try:
-                            _price = float(_v)
-                            break
-                        except (TypeError, ValueError):
-                            continue
-                if _price is None or _price <= 0:
+            _p = float(_payload)
+            if _p > 0.0001:
+                return _p
+        except (TypeError, ValueError):
+            pass
+        # Перебор полей
+        for _attr in ('close', 'price', 'last', 'c', 'value', 'bid', 'ask', 'rate'):
+            _v = None
+            if isinstance(_payload, dict):
+                _v = _payload.get(_attr)
+            else:
+                _v = getattr(_payload, _attr, None)
+            if _v is not None:
+                try:
+                    _f = float(_v)
+                    if _f > 0.0001:
+                        return _f
+                except (TypeError, ValueError):
                     continue
-                import time as _t_s
-                _now_s = _t_s.time()
-                _bucket_s = int(_now_s // EXPIRY_SEC) * EXPIRY_SEC
-                # ===== ОБНОВЛЯЕМ БУФЕР МГНОВЕННО =====
-                if buf.live is None or buf.live_bucket is None:
-                    buf.live_bucket = _bucket_s
-                    buf.live = (_price, _price, _price, _price)
-                    _utc_t = datetime.utcfromtimestamp(_bucket_s).strftime('%H:%M:%S')
-                    print(f"[STREAM] 🆕 СТАРТ ПЕРВОЙ СВЕЧИ (из стрима) {_utc_t} UTC | open={_price:.5f}")
-                elif _bucket_s == buf.live_bucket:
-                    # Тик в той же свече — обновляем h/l/c
-                    _o, _h, _l, _c = buf.live
-                    buf.live = (_o, max(_h, _price), min(_l, _price), _price)
-                else:
-                    # Свеча сменилась — buffer_updater (поллер) отработает закрытие, мы только обновляем live
-                    buf.live_bucket = _bucket_s
-                    buf.live = (_price, _price, _price, _price)
-                buf.last_price = _price
-                buf.last_update = _now_s
-                _tick_counter += 1
-                # Раз в 30 тиков — короткий лог чтоб видно было что стрим жив
-                if _tick_counter % 30 == 0:
-                    print(f"[STREAM] 💓 живой поток | тиков получено: {_tick_counter} | посл.цена: {_price:.5f}")
-        except Exception as _se:
-            _reconnect_attempts += 1
-            _wait = min(30, 2 ** _reconnect_attempts)
-            print(f"[STREAM] ❌ Ошибка стрима: {_se} | переподключение через {_wait}с (попытка {_reconnect_attempts})")
-            await asyncio.sleep(_wait)
+        return None
+
+    def _check_asset_match(_payload):
+        """Проверяем что событие про наш актив (если поле asset/symbol есть)."""
+        if _payload is None:
+            return True
+        for _ak in ('asset', 'symbol', 'pair', 'instrument'):
+            _v = None
+            if isinstance(_payload, dict):
+                _v = _payload.get(_ak)
+            else:
+                _v = getattr(_payload, _ak, None)
+            if _v:
+                return str(_v).lower() == _stream_asset.lower()
+        return True  # если поля нет — считаем что наш
+
+    def _on_event(*args, **kwargs):
+        """🔥 Универсальный коллбэк — ловит ВСЕ события, фильтрует тики/цены."""
+        import time as _t_cb
+        try:
+            # Сигнатура коллбэка может быть разной: (event_name, data), (data,), (**kwargs)
+            _event_name = kwargs.get('event') or kwargs.get('type') or ''
+            _payload = kwargs.get('data') or kwargs.get('payload')
+            if args:
+                if len(args) >= 2 and isinstance(args[0], str):
+                    _event_name = args[0]
+                    _payload = args[1]
+                elif len(args) == 1:
+                    _payload = args[0]
+            # Логируем имена событий первые 5 разных — чтоб увидеть что прилетает
+            if _event_name and _event_name not in _stream_state['seen_events']:
+                _stream_state['seen_events'].add(_event_name)
+                if len(_stream_state['seen_events']) <= 10:
+                    print(f"[STREAM] 📡 Новое событие: '{_event_name}' | пример данных: {str(_payload)[:200]}")
+            # Фильтруем актив
+            if not _check_asset_match(_payload):
+                return
+            # Достаём цену
+            _price = _extract_price(_payload)
+            if _price is None or _price <= 0:
+                return
+            _now_s = _t_cb.time()
+            _bucket_s = int(_now_s // EXPIRY_SEC) * EXPIRY_SEC
+            # Обновляем буфер мгновенно
+            if buf.live is None or buf.live_bucket is None:
+                buf.live_bucket = _bucket_s
+                buf.live = (_price, _price, _price, _price)
+                _utc_t = datetime.utcfromtimestamp(_bucket_s).strftime('%H:%M:%S')
+                print(f"[STREAM] 🆕 ПЕРВЫЙ ТИК ИЗ СТРИМА {_utc_t} UTC | event='{_event_name}' | price={_price:.5f}")
+            elif _bucket_s == buf.live_bucket:
+                _o, _h, _l, _c = buf.live
+                buf.live = (_o, max(_h, _price), min(_l, _price), _price)
+            else:
+                buf.live_bucket = _bucket_s
+                buf.live = (_price, _price, _price, _price)
+            buf.last_price = _price
+            buf.last_update = _now_s
+            _stream_state['ticks'] += 1
+            if not _stream_state['first_event_logged']:
+                _stream_state['first_event_logged'] = True
+                print(f"[STREAM] ✅ ПЕРВЫЙ ВАЛИДНЫЙ ТИК ПРИНЯТ | event='{_event_name}' | price={_price:.5f}")
+            # Каждые 30 тиков — пульс
+            if _stream_state['ticks'] % 30 == 0:
+                print(f"[STREAM] 💓 живой поток | тиков: {_stream_state['ticks']} | посл.цена: {_price:.5f}")
+        except Exception as _ce:
+            print(f"[STREAM] ❌ ошибка коллбэка: {_ce}")
+
+    # Регистрируем коллбэк на ВОЗМОЖНЫЕ имена событий
+    _registered = []
+    _event_names = ('*', 'tick', 'ticks', 'price', 'quote', 'quotes', 'update_stream',
+                    'updateStream', 'candle', 'candles', 'realtime', 'on_price', 'on_tick',
+                    'price_update', 'stream', 'symbol_update', 'data')
+    for _ename in _event_names:
+        try:
+            client.add_event_callback(_ename, _on_event)
+            _registered.append(_ename)
+        except Exception:
+            pass
+    # Если ни одно не зарегистрировалось — пробуем без имени (некоторые либы ловят всё)
+    if not _registered:
+        try:
+            client.add_event_callback(_on_event)
+            _registered.append('(без имени)')
+        except Exception as _re:
+            print(f"[STREAM] ❌ Не смог зарегистрировать коллбэк: {_re}")
+            return
+    print(f"[STREAM] ✅ Коллбэк зарегистрирован на события: {', '.join(_registered)}")
+    print(f"[STREAM] ⏳ Жду первый тик... (если за 30с ничего не придёт — событие называется по-другому)")
+
+    # Держим задачу живой + раз в 30с печатаем диагностику если тиков нет
+    _wait_start = _time_mod.time() if '_time_mod' in dir() else None
+    while True:
+        await asyncio.sleep(30)
+        if _stream_state['ticks'] == 0:
+            _seen = ', '.join(_stream_state['seen_events']) if _stream_state['seen_events'] else '— ни одного события не прилетело'
+            print(f"[STREAM] ⚠️ За 30с ни одного валидного тика. Прилетавшие события: {_seen}")
 
 
 async def place_trade(client, direction, amount):

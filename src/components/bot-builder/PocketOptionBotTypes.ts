@@ -2901,16 +2901,14 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
             break
 
         try:
-            _cands = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=${cfg.candleTimeframe ?? 60}, count=1)
-            if not _cands:
-                continue
-            _c = _cands[-1]
-            if hasattr(_c, 'close'):
-                current_price = float(_c.close)
-            elif isinstance(_c, dict):
-                current_price = float(_c.get('close', _c.get('c', 0)))
+            current_price = 0.0
+            # 🚀 ЖИВАЯ ЦЕНА ИЗ WS-СТРИМА (через переданный буфер)
+            if live_buf is not None and getattr(live_buf, 'last_price', 0) > 0:
+                current_price = float(live_buf.last_price)
             else:
-                current_price = float(_c[3] if len(_c) > 3 else _c[1])
+                # Стрим ещё не дал тиков — ждём, не делаем медленных запросов get_candles
+                await asyncio.sleep(0.5)
+                continue
             if current_price <= 0:
                 continue
         except Exception as _ce:
@@ -6383,6 +6381,14 @@ async def live_stream_subscriber(buf, client):
             print(f"[WS] ❌ Соединение упало ({type(_we).__name__}): {str(_we)[:200]} | след.попытка через {_wait}с (всего {_stream_state['reconnects']})")
             _url_idx += 1
             await asyncio.sleep(_wait)
+
+
+async def buffer_updater(buf, client):
+    """🛑 Не используется. Цена обновляется через live_stream_subscriber.
+    Функция оставлена для обратной совместимости — если где-то её ещё вызывают, она просто спит.
+    """
+    while True:
+        await asyncio.sleep(60)
 
 
 async def place_trade(client, direction, amount):

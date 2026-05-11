@@ -6467,33 +6467,57 @@ async def live_stream_subscriber(buf, client):
         except Exception:
             _hdr_param = 'extra_headers'
         _ws_kwargs[_hdr_param] = _headers
+        # 🔬 Диагностика SSID
+        _ssid_preview = (SESSION_ID[:60] + "...") if len(SESSION_ID) > 60 else SESSION_ID
+        _ssid_len = len(SESSION_ID)
+        print(f"[WS] 🔬 SSID длина={_ssid_len} начало={_ssid_preview}")
+
         async with websockets.connect(_url, **_ws_kwargs) as _ws:
-            print(f"[WS] ✅ Соединение установлено")
+            print(f"[WS] ✅ Соединение установлено — жду пакеты от сервера")
             _auth_sent = False
             _subscribed = False
             _last_msg_ts = _t_ws.time()
-            async for _raw in _ws:
-                _last_msg_ts = _t_ws.time()
-                if not isinstance(_raw, str):
-                    continue
-                # Socket.IO протокол: первая цифра = тип пакета
-                # 0 = connect, 2 = ping, 3 = pong, 40 = connect_ok, 42 = event, 4{N} = engine.io
-                if _raw.startswith("0"):
-                    # engine.io OPEN — шлём в ответ "40" чтобы открыть socket.io
-                    await _ws.send("40")
-                    continue
-                if _raw == "2":
-                    # ping — отвечаем pong
-                    await _ws.send("3")
-                    continue
-                if _raw.startswith("40"):
-                    # socket.io connected — пора авторизоваться
-                    if not _auth_sent:
-                        _auth_payload = ["auth", {"session": SESSION_ID, "isDemo": 1 if IS_DEMO else 0, "uid": 0, "platform": 1}]
-                        await _ws.send("42" + _json_ws.dumps(_auth_payload))
-                        _auth_sent = True
-                        print(f"[WS] 🔑 Отправил авторизацию (SSID, demo={IS_DEMO})")
-                    continue
+            _all_pkts_logged = 0  # счётчик залогированных пакетов для диагностики
+            try:
+                async for _raw in _ws:
+                    _last_msg_ts = _t_ws.time()
+                    if not isinstance(_raw, str):
+                        print(f"[WS] 📦 BINARY-пакет ({len(_raw)} байт) — пропускаю")
+                        continue
+                    # 🔬 ПЕЧАТАЕМ ПЕРВЫЕ 20 ВХОДЯЩИХ ПАКЕТОВ ЦЕЛИКОМ для диагностики
+                    if _all_pkts_logged < 20:
+                        _all_pkts_logged += 1
+                        print(f"[WS] 📥 RECV #{_all_pkts_logged}: {_raw[:300]}")
+                    # Socket.IO протокол: первая цифра = тип пакета
+                    # 0 = connect, 2 = ping, 3 = pong, 40 = connect_ok, 42 = event, 4{N} = engine.io
+                    if _raw.startswith("0"):
+                        # engine.io OPEN — шлём в ответ "40" чтобы открыть socket.io
+                        await _ws.send("40")
+                        print(f"[WS] ↗ SEND: 40 (engine.io upgrade)")
+                        continue
+                    if _raw == "2":
+                        # ping — отвечаем pong
+                        await _ws.send("3")
+                        continue
+                    if _raw.startswith("40"):
+                        # socket.io connected — пора авторизоваться
+                        if not _auth_sent:
+                            # ВАЖНО: РО ждёт SSID-строку как уже готовый payload (не как dict)
+                            # Сам SSID — это строка вида '42["auth",{...}]' или JSON-объект
+                            # Если SESSION_ID начинается с '42[' — отправляем как есть, иначе оборачиваем
+                            _ssid_stripped = SESSION_ID.strip()
+                            if _ssid_stripped.startswith("42[") or _ssid_stripped.startswith('["auth"'):
+                                # Уже готовая socket.io команда — отправляем как есть
+                                _to_send = _ssid_stripped if _ssid_stripped.startswith("42") else "42" + _ssid_stripped
+                                await _ws.send(_to_send)
+                                print(f"[WS] 🔑 Отправил готовый SSID-payload (len={len(_to_send)})")
+                            else:
+                                # Сырая строка — оборачиваем в auth event
+                                _auth_payload = ["auth", {"session": SESSION_ID, "isDemo": 1 if IS_DEMO else 0, "uid": 0, "platform": 1}]
+                                await _ws.send("42" + _json_ws.dumps(_auth_payload))
+                                print(f"[WS] 🔑 Отправил auth-обёртку (demo={IS_DEMO})")
+                            _auth_sent = True
+                        continue
                 if _raw.startswith("42"):
                     # event payload
                     try:
@@ -6538,17 +6562,27 @@ async def live_stream_subscriber(buf, client):
                     # Логируем неизвестные event-имена (первые 5)
                     elif _stream_state['ticks'] == 0 and _evt_name not in ('successauth', 'successupdateBalance', 'balance'):
                         print(f"[WS] 📨 event='{_evt_name}' data={str(_evt_data)[:150]}")
+            except Exception as _le:
+                # Ловим ConnectionClosed и др. — печатаем причину
+                _ec = getattr(_le, 'code', None)
+                _er = getattr(_le, 'reason', None) or getattr(_le, 'rcvd_then_sent', None)
+                print(f"[WS] 🔻 Соединение закрыто: type={type(_le).__name__} code={_ec} reason={_er} | сообщение: {str(_le)[:200]}")
+                raise
 
-    # Главный цикл — переподключение с экспоненциальным бэкоффом
+    # Главный цикл — переподключение с экспоненциальным бэкоффом (МИН 5 СЕК между попытками)
     _url_idx = 0
     while True:
         _url = _ws_urls[_url_idx % len(_ws_urls)]
         try:
             await _connect_one(_url)
+            # Если _connect_one вышел БЕЗ исключения — значит сервер тихо закрыл сокет, ждём 5с
+            print(f"[WS] ⚠️ Сокет закрылся без ошибки — переподключение через 10с")
+            await asyncio.sleep(10)
         except Exception as _we:
             _stream_state['reconnects'] += 1
-            _wait = min(60, 2 ** min(_stream_state['reconnects'], 6))
-            print(f"[WS] ❌ Соединение упало: {_we} | пробую другой регион через {_wait}с")
+            # Минимум 5с, максимум 60с — НЕ спамим РО каждую секунду
+            _wait = max(5, min(60, 2 ** min(_stream_state['reconnects'], 6)))
+            print(f"[WS] ❌ Соединение упало ({type(_we).__name__}): {str(_we)[:200]} | след.попытка через {_wait}с (всего {_stream_state['reconnects']})")
             _url_idx += 1
             await asyncio.sleep(_wait)
 

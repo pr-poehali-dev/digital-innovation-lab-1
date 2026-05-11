@@ -6387,13 +6387,80 @@ class CandleBuffer:
         return out
 
 async def buffer_updater(buf, client):
-    """Фоновая задача — каждые LIVE_TICK_INTERVAL сек обновляет буфер."""
+    """Фоновая задача — каждые LIVE_TICK_INTERVAL сек обновляет буфер (резерв на случай отказа стрима)."""
     while True:
         try:
             await buf.tick(client)
         except Exception as e:
             print(f"[BUFFER] tick error: {e}")
         await asyncio.sleep(LIVE_TICK_INTERVAL)
+
+
+async def live_stream_subscriber(buf, client):
+    """🚀 LIVE TICK STREAM: подписка на WebSocket-поток тиков от Pocket Option.
+    Каждое изменение цены сразу обновляет buf.last_price и текущую живую свечу.
+    Это убирает задержку 'свеча API не обновляется внутри 3-минутного окна'.
+    """
+    _stream_asset = _resolved_asset or ASSET
+    print(f"[STREAM] 🎯 Подписываюсь на live-тики: {_stream_asset}")
+    _reconnect_attempts = 0
+    while True:
+        try:
+            # Пробуем разные API подписки (для совместимости с разными версиями lib)
+            _stream = None
+            if hasattr(client, 'subscribe_symbol'):
+                _stream = client.subscribe_symbol(_stream_asset)
+            elif hasattr(client, 'subscribe'):
+                _stream = client.subscribe(_stream_asset)
+            else:
+                print(f"[STREAM] ⚠️ Метод subscribe_symbol не найден — стрим недоступен, работаем только на опросе")
+                return
+            print(f"[STREAM] ✅ Подключён к стриму, жду тиков...")
+            _reconnect_attempts = 0
+            _tick_counter = 0
+            async for _tick_data in _stream:
+                # Достаём цену из объекта тика (разные форматы у разных версий)
+                _price = None
+                for _attr in ('close', 'price', 'last', 'c', 'value'):
+                    _v = getattr(_tick_data, _attr, None)
+                    if _v is None and isinstance(_tick_data, dict):
+                        _v = _tick_data.get(_attr)
+                    if _v is not None:
+                        try:
+                            _price = float(_v)
+                            break
+                        except (TypeError, ValueError):
+                            continue
+                if _price is None or _price <= 0:
+                    continue
+                import time as _t_s
+                _now_s = _t_s.time()
+                _bucket_s = int(_now_s // EXPIRY_SEC) * EXPIRY_SEC
+                # ===== ОБНОВЛЯЕМ БУФЕР МГНОВЕННО =====
+                if buf.live is None or buf.live_bucket is None:
+                    buf.live_bucket = _bucket_s
+                    buf.live = (_price, _price, _price, _price)
+                    _utc_t = datetime.utcfromtimestamp(_bucket_s).strftime('%H:%M:%S')
+                    print(f"[STREAM] 🆕 СТАРТ ПЕРВОЙ СВЕЧИ (из стрима) {_utc_t} UTC | open={_price:.5f}")
+                elif _bucket_s == buf.live_bucket:
+                    # Тик в той же свече — обновляем h/l/c
+                    _o, _h, _l, _c = buf.live
+                    buf.live = (_o, max(_h, _price), min(_l, _price), _price)
+                else:
+                    # Свеча сменилась — buffer_updater (поллер) отработает закрытие, мы только обновляем live
+                    buf.live_bucket = _bucket_s
+                    buf.live = (_price, _price, _price, _price)
+                buf.last_price = _price
+                buf.last_update = _now_s
+                _tick_counter += 1
+                # Раз в 30 тиков — короткий лог чтоб видно было что стрим жив
+                if _tick_counter % 30 == 0:
+                    print(f"[STREAM] 💓 живой поток | тиков получено: {_tick_counter} | посл.цена: {_price:.5f}")
+        except Exception as _se:
+            _reconnect_attempts += 1
+            _wait = min(30, 2 ** _reconnect_attempts)
+            print(f"[STREAM] ❌ Ошибка стрима: {_se} | переподключение через {_wait}с (попытка {_reconnect_attempts})")
+            await asyncio.sleep(_wait)
 
 
 async def place_trade(client, direction, amount):
@@ -7105,6 +7172,8 @@ async def main():
     _live_buf = CandleBuffer()
     await _live_buf.warmup(client)  # просто печатает заглавный лог и ставит ready=True
     _buf_task = asyncio.create_task(buffer_updater(_live_buf, client))
+    # 🚀 LIVE STREAM: подписка на тики через WebSocket (мгновенные обновления цены)
+    _stream_task = asyncio.create_task(live_stream_subscriber(_live_buf, client))
     print(f"[BUFFER] 🚀 Живой буфер запущен (опрос каждые {LIVE_TICK_INTERVAL}с, размер {LIVE_BUFFER_SIZE} свечей)")
     tg_info(f"🚀 <b>[{BOT_NAME}] Живой буфер</b>\\nОпрос цены каждые {LIVE_TICK_INTERVAL}с | буфер {LIVE_BUFFER_SIZE} свечей\\nРешения принимаются мгновенно")
 

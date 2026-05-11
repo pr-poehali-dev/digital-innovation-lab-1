@@ -2832,7 +2832,7 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
             print(f"[HEDGE] Ошибка: {e}")
     return None, 0.0, 0, 0.0
 
-async def cascade_hedge_monitor(client, original_direction, original_bet, entry_price, expiry_sec, started_at):
+async def cascade_hedge_monitor(client, original_direction, original_bet, entry_price, expiry_sec, started_at, live_buf=None):
     """
     🛡 КАСКАДНЫЙ ХЕДЖ — 3 уровня страховки в цикле основной сделки.
 
@@ -3300,6 +3300,13 @@ async def main():
         f"━━━━━━━━━━━━━━━━━━━━\\n"
         f"⏳ Ожидаю сигналы..."
     )
+
+    # ===== 🚀 ЗАПУСК WS-СТРИМА: живые тики цены через прямой WebSocket к РО =====
+    # _live_buf — буфер с last_price (обновляется стримом каждую секунду)
+    # cascade_hedge_monitor использует именно его для актуальной цены входа/мониторинга
+    _live_buf = CandleBuffer()
+    _stream_task = asyncio.create_task(live_stream_subscriber(_live_buf, client))
+    print(f"[BUFFER] 🚀 Живой WS-стрим запущен | актив={ASSET} | тики напрямую от РО")
 
     # ===== 🛡 ЖИРНЫЙ СТАРТОВЫЙ ЛОГ ПРО КАСКАД (видно сразу при запуске) =====
     _cascade_state_log = ${cfg.hedgeCascadeEnabled ? "True" : "False"}
@@ -3951,7 +3958,7 @@ async def main():
                     # Обёртка для каскад-монитора с traceback на любую ошибку
                     async def _safe_cascade():
                         try:
-                            return await cascade_hedge_monitor(client, signal, bet, entry_price, EXPIRY_SEC, cascade_started_at)
+                            return await cascade_hedge_monitor(client, signal, bet, entry_price, EXPIRY_SEC, cascade_started_at, live_buf=_live_buf)
                         except Exception as _ec:
                             import traceback as _tbc
                             print(f"[CASCADE] ❌ МОНИТОР КРИТ. ОШИБКА: {_ec}")
@@ -6651,6 +6658,17 @@ async def place_trade(client, direction, amount):
                         break
                     except (TypeError, ValueError):
                         pass
+        # 🎯 ПОДМЕНА open_price на live-цену из стрима, если ответ РО кривой
+        # (РО иногда возвращает старую цену с расхождением 50+ пипсов от реальной)
+        try:
+            _live_buf_g = globals().get('_live_buf')
+            if _live_buf_g is not None and getattr(_live_buf_g, 'last_price', 0) > 0:
+                _live_p = float(_live_buf_g.last_price)
+                if open_price <= 0 or abs(_live_p - open_price) > 50 * PIP_SIZE_C:
+                    print(f"[TRADE] ⚠️ РО вернул open_price={open_price}, заменяю на live={_live_p:.5f} (разница > 50 пипсов)")
+                    open_price = _live_p
+        except Exception:
+            pass
         print(f"[TRADE] {direction} | {amount} | {EXPIRY_SEC//60} мин | ID: {_oid} | Цена: {open_price}", flush=True)
         return _oid, open_price
     except Exception as e:
@@ -6920,7 +6938,7 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
             print(f"[HEDGE] Ошибка: {e}")
     return None, 0.0, 0, 0.0
 
-async def cascade_hedge_monitor(client, original_direction, original_bet, entry_price, expiry_sec, started_at):
+async def cascade_hedge_monitor(client, original_direction, original_bet, entry_price, expiry_sec, started_at, live_buf=None):
     """
     🛡 КАСКАДНЫЙ ХЕДЖ — 3 уровня страховки в цикле основной сделки.
 
@@ -6990,24 +7008,13 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
 
         try:
             current_price = 0.0
-            # Сначала пробуем живой буфер (если доступен глобально)
-            try:
-                if _live_buf and _live_buf.last_price > 0:
-                    current_price = float(_live_buf.last_price)
-            except NameError:
-                pass
-            # Fallback на свечи если буфер недоступен
-            if current_price <= 0:
-                _cands = await client.get_candles(asset=(_resolved_asset or ASSET), timeframe=${cfg.candleTimeframe ?? 60}, count=1)
-                if not _cands:
-                    continue
-                _c = _cands[-1]
-                if hasattr(_c, 'close'):
-                    current_price = float(_c.close)
-                elif isinstance(_c, dict):
-                    current_price = float(_c.get('close', _c.get('c', 0)))
-                else:
-                    current_price = float(_c[3] if len(_c) > 3 else _c[1])
+            # 🚀 ЖИВАЯ ЦЕНА ИЗ WS-СТРИМА (через переданный буфер)
+            if live_buf is not None and getattr(live_buf, 'last_price', 0) > 0:
+                current_price = float(live_buf.last_price)
+            else:
+                # Стрим ещё не дал тиков — ждём, не делаем медленных запросов get_candles
+                await asyncio.sleep(0.5)
+                continue
             if current_price <= 0:
                 continue
         except Exception as _ce:
@@ -7290,6 +7297,13 @@ async def main():
         f"━━━━━━━━━━━━━━━━━━━━\\n"
         f"⏳ Ожидаю сигналы..."
     )
+
+    # ===== 🚀 ЗАПУСК WS-СТРИМА: живые тики цены через прямой WebSocket к РО =====
+    # _live_buf — буфер с last_price (обновляется стримом каждую секунду)
+    # cascade_hedge_monitor использует именно его для актуальной цены входа/мониторинга
+    _live_buf = CandleBuffer()
+    _stream_task = asyncio.create_task(live_stream_subscriber(_live_buf, client))
+    print(f"[BUFFER] 🚀 Живой WS-стрим запущен | актив={ASSET} | тики напрямую от РО")
 
     # ===== 🛡 ЖИРНЫЙ СТАРТОВЫЙ ЛОГ ПРО КАСКАД (видно сразу при запуске) =====
     _cascade_state_log = ${cfg.hedgeCascadeEnabled ? "True" : "False"}
@@ -7877,7 +7891,7 @@ async def main():
                         cascade_started_at = 0
                     async def _safe_cascade():
                         try:
-                            return await cascade_hedge_monitor(client, signal, bet, entry_price, EXPIRY_SEC, cascade_started_at)
+                            return await cascade_hedge_monitor(client, signal, bet, entry_price, EXPIRY_SEC, cascade_started_at, live_buf=_live_buf)
                         except Exception as _ec:
                             import traceback as _tbc
                             print(f"[CASCADE] ❌ МОНИТОР КРИТ. ОШИБКА: {_ec}")

@@ -1196,7 +1196,11 @@ from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
 
 # ===== ТАЙМЗОНЫ ДЛЯ ШПИОН-ЛОГА =====
 MSK_TZ = timezone(timedelta(hours=3))   # время как на Pocket Option (Москва)
-LOCAL_TZ = timezone(timedelta(hours=4)) # твоё локальное время (МСК+1)
+# Локальное время — автоматом из системы (не хардкодим!)
+LOCAL_TZ = datetime.now().astimezone().tzinfo
+_local_offset = datetime.now().astimezone().utcoffset()
+_local_hours = int(_local_offset.total_seconds() // 3600) if _local_offset else 0
+_msk_diff = _local_hours - 3  # разница с Москвой
 
 # ===== ВРЕМЯ В ЛОГАХ =====
 # Перехватываем print глобально — каждая строка лога получает префикс [HH:MM:SS]
@@ -4576,7 +4580,11 @@ from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
 
 # ===== ТАЙМЗОНЫ ДЛЯ ШПИОН-ЛОГА =====
 MSK_TZ = timezone(timedelta(hours=3))   # время как на Pocket Option (Москва)
-LOCAL_TZ = timezone(timedelta(hours=4)) # твоё локальное время (МСК+1)
+# Локальное время — автоматом из системы (не хардкодим!)
+LOCAL_TZ = datetime.now().astimezone().tzinfo
+_local_offset = datetime.now().astimezone().utcoffset()
+_local_hours = int(_local_offset.total_seconds() // 3600) if _local_offset else 0
+_msk_diff = _local_hours - 3  # разница с Москвой
 
 # ===== ВРЕМЯ В ЛОГАХ =====
 # Перехватываем print глобально — каждая строка лога получает префикс [HH:MM:SS]
@@ -7216,9 +7224,10 @@ async def main():
         _now_ts_spy = _t_spy.time()
         if not hasattr(_live_buf, '_last_spy_log') or (_now_ts_spy - getattr(_live_buf, '_last_spy_log', 0)) >= 5:
             _live_buf._last_spy_log = _now_ts_spy
-            _t_local = datetime.now(LOCAL_TZ).strftime('%H:%M:%S')
+            _t_local = datetime.now().astimezone().strftime('%H:%M:%S')
             _t_msk = datetime.now(MSK_TZ).strftime('%H:%M:%S')
             _t_utc = datetime.now(timezone.utc).strftime('%H:%M:%S')
+            _diff_label = f"МСК{_msk_diff:+d}" if _msk_diff != 0 else "МСК"
             _price = getattr(_live_buf, 'last_price', 0.0)
             _last_upd = getattr(_live_buf, 'last_update', 0.0)
             _age = _now_ts_spy - _last_upd if _last_upd else -1
@@ -7227,7 +7236,7 @@ async def main():
             _bucket = _live_buf.live_bucket
             _bucket_msk = datetime.fromtimestamp(_bucket, MSK_TZ).strftime('%H:%M:%S') if _bucket else '—'
             print(f"[🕵️ SPY] ───────── сверка с Pocket Option ─────────")
-            print(f"[🕵️ SPY] Время: МСК(РО)={_t_msk} | бот={_t_local} | UTC={_t_utc}")
+            print(f"[🕵️ SPY] Время: МСК(РО)={_t_msk} | твоё({_diff_label})={_t_local} | UTC={_t_utc}")
             if _age >= 0:
                 _age_warn = ' ⚠️ ОТСТАЁТ!' if _age > 2 else ' ✅'
                 print(f"[🕵️ SPY] Цена в буфере: {_price:.5f} | возраст: {_age:.1f}с{_age_warn}")

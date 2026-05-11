@@ -1191,8 +1191,12 @@ Pocket Option Bot — ${strategyLabel}
 import asyncio
 import os
 import builtins as _builtins
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
+
+# ===== ТАЙМЗОНЫ ДЛЯ ШПИОН-ЛОГА =====
+MSK_TZ = timezone(timedelta(hours=3))   # время как на Pocket Option (Москва)
+LOCAL_TZ = timezone(timedelta(hours=4)) # твоё локальное время (МСК+1)
 
 # ===== ВРЕМЯ В ЛОГАХ =====
 # Перехватываем print глобально — каждая строка лога получает префикс [HH:MM:SS]
@@ -4567,8 +4571,12 @@ Pocket Option КОМБО-Бот
 import asyncio
 import os
 import builtins as _builtins
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pocketoptionapi_async import AsyncPocketOptionClient, OrderDirection
+
+# ===== ТАЙМЗОНЫ ДЛЯ ШПИОН-ЛОГА =====
+MSK_TZ = timezone(timedelta(hours=3))   # время как на Pocket Option (Москва)
+LOCAL_TZ = timezone(timedelta(hours=4)) # твоё локальное время (МСК+1)
 
 # ===== ВРЕМЯ В ЛОГАХ =====
 # Перехватываем print глобально — каждая строка лога получает префикс [HH:MM:SS]
@@ -7200,6 +7208,43 @@ async def main():
         # Буфер обновляется фоновой задачей каждые LIVE_TICK_INTERVAL сек.
         # ✅ НОВАЯ ЛОГИКА: ждём минимум 2 ЗАКРЫТЫХ свечи которые мы УВИДЕЛИ САМИ.
         await asyncio.sleep(1)
+
+        # ===== 🕵️ ШПИОН-ЛОГ: сверка времени и цены с Pocket Option (каждые 5с) =====
+        # Помогает понять — отстаёт ли бот от реальной котировки РО.
+        # Открой РО рядом и сверь: цена бота vs цена на графике (правый верхний угол).
+        import time as _t_spy
+        _now_ts_spy = _t_spy.time()
+        if not hasattr(_live_buf, '_last_spy_log') or (_now_ts_spy - getattr(_live_buf, '_last_spy_log', 0)) >= 5:
+            _live_buf._last_spy_log = _now_ts_spy
+            _t_local = datetime.now(LOCAL_TZ).strftime('%H:%M:%S')
+            _t_msk = datetime.now(MSK_TZ).strftime('%H:%M:%S')
+            _t_utc = datetime.now(timezone.utc).strftime('%H:%M:%S')
+            _price = getattr(_live_buf, 'last_price', 0.0)
+            _last_upd = getattr(_live_buf, 'last_update', 0.0)
+            _age = _now_ts_spy - _last_upd if _last_upd else -1
+            _last_candle = _live_buf.candles[-1] if _live_buf.candles else None
+            _live_tuple = _live_buf.live
+            _bucket = _live_buf.live_bucket
+            _bucket_msk = datetime.fromtimestamp(_bucket, MSK_TZ).strftime('%H:%M:%S') if _bucket else '—'
+            print(f"[🕵️ SPY] ───────── сверка с Pocket Option ─────────")
+            print(f"[🕵️ SPY] Время: МСК(РО)={_t_msk} | бот={_t_local} | UTC={_t_utc}")
+            if _age >= 0:
+                _age_warn = ' ⚠️ ОТСТАЁТ!' if _age > 2 else ' ✅'
+                print(f"[🕵️ SPY] Цена в буфере: {_price:.5f} | возраст: {_age:.1f}с{_age_warn}")
+            else:
+                print(f"[🕵️ SPY] Цена в буфере: {_price:.5f} | ⏳ ещё нет тиков")
+            if _live_tuple:
+                _o, _h, _l, _c = _live_tuple
+                print(f"[🕵️ SPY] Живая свеча: o={_o:.5f} h={_h:.5f} l={_l:.5f} c={_c:.5f}")
+                print(f"[🕵️ SPY] Начало живой свечи: МСК={_bucket_msk}")
+            if _last_candle and len(_last_candle) >= 5:
+                _lo, _lh, _ll, _lc, _lb = _last_candle[0], _last_candle[1], _last_candle[2], _last_candle[3], _last_candle[4]
+                _lcol = '🟢' if _lc >= _lo else '🔴'
+                _lb_msk = datetime.fromtimestamp(_lb, MSK_TZ).strftime('%H:%M:%S')
+                print(f"[🕵️ SPY] Посл.закр.свеча: {_lcol} o={_lo:.5f} c={_lc:.5f} | МСК={_lb_msk}")
+            print(f"[🕵️ SPY] 👉 Открой РО, сверь цену. Норма: возраст<2с, цена±5 пипсов")
+            print(f"[🕵️ SPY] ────────────────────────────────────────")
+
         _MIN_OWN_CANDLES = 2
         if not _live_buf.ready or len(_live_buf.candles) < _MIN_OWN_CANDLES:
             _have = len(_live_buf.candles) if _live_buf.candles else 0

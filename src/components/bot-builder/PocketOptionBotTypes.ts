@@ -1185,7 +1185,7 @@ Pocket Option Bot — ${strategyLabel}
 ════════════════════════════════════════
 
 Установка зависимостей:
-    pip install pocketoptionapi-async websockets
+    pip install pocketoptionapi-async websockets msgpack
 """
 
 import asyncio
@@ -4569,7 +4569,7 @@ Pocket Option КОМБО-Бот
 ════════════════════════════════════════
 
 Установка зависимостей:
-    pip install pocketoptionapi-async websockets
+    pip install pocketoptionapi-async websockets msgpack
 """
 
 import asyncio
@@ -6412,6 +6412,49 @@ async def live_stream_subscriber(buf, client):
 
     import json as _json_ws
     import time as _t_ws
+    import gzip as _gzip_ws
+    import zlib as _zlib_ws
+    # MessagePack нужен для распаковки бинарных пакетов РО (Socket.IO v3+)
+    try:
+        import msgpack as _msgpack_ws
+        _HAS_MSGPACK = True
+    except ImportError:
+        _HAS_MSGPACK = False
+        print(f"[WS] ⚠️ Нет msgpack — поставь: pip install msgpack (без него бинарные тики не парсятся!)")
+
+    def _decode_binary(_buf):
+        """Универсальный декодер бинарного пакета РО.
+        РО шлёт данные в разных форматах: MessagePack, JSON (utf-8), gzip-JSON.
+        """
+        if not _buf:
+            return None
+        # 1) Пробуем MessagePack
+        if _HAS_MSGPACK:
+            try:
+                _obj = _msgpack_ws.unpackb(_buf, raw=False, strict_map_key=False)
+                return _obj
+            except Exception:
+                pass
+        # 2) Пробуем чистый JSON (utf-8)
+        try:
+            _txt = _buf.decode('utf-8', errors='ignore')
+            if _txt and (_txt[0] in '[{' or _txt.startswith('"')):
+                return _json_ws.loads(_txt)
+        except Exception:
+            pass
+        # 3) Пробуем gzip-JSON
+        try:
+            _unzipped = _gzip_ws.decompress(_buf)
+            return _json_ws.loads(_unzipped.decode('utf-8'))
+        except Exception:
+            pass
+        # 4) Пробуем zlib (raw deflate)
+        try:
+            _unzipped = _zlib_ws.decompress(_buf)
+            return _json_ws.loads(_unzipped.decode('utf-8'))
+        except Exception:
+            pass
+        return None
 
     # Список регионов РО для подключения (попробуем по очереди если первый недоступен)
     _ws_urls = [
@@ -6478,11 +6521,55 @@ async def live_stream_subscriber(buf, client):
             _subscribed = False
             _last_msg_ts = _t_ws.time()
             _all_pkts_logged = 0  # счётчик залогированных пакетов для диагностики
+            _pending_event_name = None  # имя event'а из 451-[...] для следующего BINARY пакета
+            _binary_logged = 0  # счётчик залогированных распакованных бинарников
             try:
                 async for _raw in _ws:
                     _last_msg_ts = _t_ws.time()
                     if not isinstance(_raw, str):
-                        print(f"[WS] 📦 BINARY-пакет ({len(_raw)} байт) — пропускаю")
+                        # 📦 BINARY-пакет: это данные для предыдущего "451-" event'а
+                        _decoded = _decode_binary(_raw)
+                        if _decoded is None:
+                            if _binary_logged < 3:
+                                print(f"[WS] ⚠️ BINARY не распознан ({len(_raw)} байт) | первые байты: {_raw[:50]!r}")
+                            continue
+                        _evt = _pending_event_name or '?'
+                        if _binary_logged < 5:
+                            _binary_logged += 1
+                            print(f"[WS] 🎁 BINARY[{_evt}] распакован ({len(_raw)}б): {str(_decoded)[:300]}")
+                        # 💰 Извлекаем цену из распакованных данных
+                        if _evt in ('updateStream', 'updateHistoryNewFast', 'updateHistoryNew', 'loadHistoryPeriod'):
+                            # Формат updateStream: [[asset, ts, price], ...] или {asset: [[ts, price], ...]}
+                            _items = _decoded if isinstance(_decoded, list) else None
+                            if _items:
+                                for _it in _items:
+                                    if isinstance(_it, list) and len(_it) >= 3:
+                                        _it_asset = str(_it[0]) if _it[0] else ''
+                                        if not _it_asset or _it_asset.lower() == _stream_asset.lower():
+                                            try:
+                                                _update_price(float(_it[2]))
+                                            except (TypeError, ValueError):
+                                                pass
+                                    elif isinstance(_it, dict):
+                                        _it_asset = str(_it.get('asset') or _it.get('symbol') or '')
+                                        if not _it_asset or _it_asset.lower() == _stream_asset.lower():
+                                            _p = _it.get('price') or _it.get('close') or _it.get('value') or _it.get('c')
+                                            if _p is not None:
+                                                try:
+                                                    _update_price(float(_p))
+                                                except (TypeError, ValueError):
+                                                    pass
+                            elif isinstance(_decoded, dict):
+                                # Иногда РО шлёт {asset: {candles: [[ts, o, h, l, c], ...]}}
+                                for _k, _v in _decoded.items():
+                                    if str(_k).lower() == _stream_asset.lower() and isinstance(_v, dict):
+                                        _candles = _v.get('candles') or _v.get('history') or []
+                                        if _candles and isinstance(_candles[-1], list) and len(_candles[-1]) >= 5:
+                                            try:
+                                                _update_price(float(_candles[-1][4]))  # close последней свечи
+                                            except (TypeError, ValueError):
+                                                pass
+                        _pending_event_name = None
                         continue
                     # 🔬 ПЕЧАТАЕМ ПЕРВЫЕ 20 ВХОДЯЩИХ ПАКЕТОВ ЦЕЛИКОМ для диагностики
                     if _all_pkts_logged < 20:
@@ -6517,6 +6604,26 @@ async def live_stream_subscriber(buf, client):
                                 await _ws.send("42" + _json_ws.dumps(_auth_payload))
                                 print(f"[WS] 🔑 Отправил auth-обёртку (demo={IS_DEMO})")
                             _auth_sent = True
+                        continue
+                    # BINARY EVENT (Socket.IO v3+): 45N-[имя,placeholder]
+                    # N = кол-во binary attachments, далее идут BINARY-пакеты с данными
+                    if _raw.startswith("45") and "-" in _raw[:8]:
+                        try:
+                            _dash_pos = _raw.index("-")
+                            _payload_str = _raw[_dash_pos+1:]
+                            _data = _json_ws.loads(_payload_str)
+                            if isinstance(_data, list) and len(_data) >= 1:
+                                _pending_event_name = _data[0]
+                                # Подписываемся при первом успешном event'е
+                                if _pending_event_name in ("successauth", "successupdateBalance", "balance") and not _subscribed:
+                                    _sub_payload = ["subfor", _stream_asset]
+                                    await _ws.send("42" + _json_ws.dumps(_sub_payload))
+                                    _sub2 = ["changeSymbol", {"asset": _stream_asset, "period": 60}]
+                                    await _ws.send("42" + _json_ws.dumps(_sub2))
+                                    _subscribed = True
+                                    print(f"[WS] 📡 Подписался на {_stream_asset} (после event '{_pending_event_name}')")
+                        except Exception as _be:
+                            print(f"[WS] ⚠️ Не смог распарсить 45-header: {_be} | {_raw[:100]}")
                         continue
                     if _raw.startswith("42"):
                         # event payload

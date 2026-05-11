@@ -6321,22 +6321,52 @@ async def live_stream_subscriber(buf, client):
     _stream_state = {'ticks': 0, 'first_logged': False, 'reconnects': 0}
 
     def _update_price(_price):
-        """Обновляем буфер новой ценой."""
+        """Обновляем буфер новой ценой + ЗАКРЫВАЕМ свечи при смене бакета."""
         if _price is None or _price <= 0.0001:
             return
         _now_s = _t_ws.time()
         _bucket_s = int(_now_s // EXPIRY_SEC) * EXPIRY_SEC
         if buf.live is None or buf.live_bucket is None:
+            # Самый первый тик — открываем первую свечу
             buf.live_bucket = _bucket_s
             buf.live = (_price, _price, _price, _price)
             _utc_t = datetime.utcfromtimestamp(_bucket_s).strftime('%H:%M:%S')
             print(f"[WS] 🆕 ПЕРВЫЙ ТИК {_utc_t} UTC | price={_price:.5f}")
         elif _bucket_s == buf.live_bucket:
+            # Тик внутри той же свечи — обновляем h/l/c
             _o, _h, _l, _c = buf.live
             buf.live = (_o, max(_h, _price), min(_l, _price), _price)
         else:
+            # 🔥 СВЕЧА ЗАКРЫЛАСЬ — сохраняем её в candles и открываем новую
+            _old_bucket = buf.live_bucket
+            _old_live = buf.live
+            if _old_live is not None and _old_bucket is not None:
+                _o, _h, _l, _c = _old_live
+                # Защита от плоской свечи (o=h=l=c) — пропускаем такую
+                if not (_o == _h == _l == _c):
+                    _closed_tup = (_o, _h, _l, _c, int(_old_bucket))
+                    _candles_list = list(buf.candles)  # копия чтобы не мутировать через property
+                    _candles_list.append(_closed_tup)
+                    if len(_candles_list) > LIVE_BUFFER_SIZE:
+                        _candles_list = _candles_list[-LIVE_BUFFER_SIZE:]
+                    buf.candles = _candles_list
+                    _color = '🟢' if _c >= _o else '🔴'
+                    _open_t = datetime.utcfromtimestamp(_old_bucket).strftime('%H:%M:%S')
+                    _close_t = datetime.utcfromtimestamp(_old_bucket + EXPIRY_SEC).strftime('%H:%M:%S')
+                    print(f"[CANDLE_BUILD] ✅ ЗАКРЫТА {_color} {_open_t}→{_close_t} UTC | o={_o:.5f} h={_h:.5f} l={_l:.5f} c={_c:.5f}")
+                    # Запись в сессионный файл
+                    try:
+                        _session_save_candle((_resolved_asset or ASSET), EXPIRY_SEC, int(_old_bucket), _o, _h, _l, _c)
+                    except Exception:
+                        pass
+                else:
+                    _open_t = datetime.utcfromtimestamp(_old_bucket).strftime('%H:%M:%S')
+                    print(f"[CANDLE_BUILD] 🚫 ПРОПУЩЕНА ПЛОСКАЯ СВЕЧА {_open_t} UTC | o=h=l=c={_o:.5f}")
+            # Открываем новую свечу
             buf.live_bucket = _bucket_s
             buf.live = (_price, _price, _price, _price)
+            _new_open_t = datetime.utcfromtimestamp(_bucket_s).strftime('%H:%M:%S')
+            print(f"[CANDLE_BUILD] 🆕 НОВАЯ СВЕЧА {_new_open_t} UTC | open={_price:.5f} | накоплено закрытых: {len(buf.candles)}")
         buf.last_price = _price
         buf.last_update = _now_s
         _stream_state['ticks'] += 1

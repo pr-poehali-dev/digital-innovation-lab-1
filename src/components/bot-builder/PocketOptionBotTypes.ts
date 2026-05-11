@@ -6518,50 +6518,50 @@ async def live_stream_subscriber(buf, client):
                                 print(f"[WS] 🔑 Отправил auth-обёртку (demo={IS_DEMO})")
                             _auth_sent = True
                         continue
-                if _raw.startswith("42"):
-                    # event payload
-                    try:
-                        _data = _json_ws.loads(_raw[2:])
-                    except Exception:
-                        continue
-                    if not isinstance(_data, list) or len(_data) < 2:
-                        continue
-                    _evt_name = _data[0]
-                    _evt_data = _data[1]
-                    # После авторизации подписываемся на актив
-                    if _evt_name in ("successauth", "successupdateBalance", "balance") and not _subscribed:
-                        # Шлём subscribe на наш актив
-                        _sub_payload = ["subfor", _stream_asset]
-                        await _ws.send("42" + _json_ws.dumps(_sub_payload))
-                        # Альтернативные имена подписок
-                        _sub2 = ["changeSymbol", {"asset": _stream_asset, "period": 60}]
-                        await _ws.send("42" + _json_ws.dumps(_sub2))
-                        _subscribed = True
-                        print(f"[WS] 📡 Подписался на {_stream_asset}")
-                    # Обработка тиков по разным возможным именам
-                    if _evt_name in ("updateStream", "stream-update", "tick", "price-update", "loadHistoryPeriod"):
-                        # Формат updateStream: [["EURUSD_otc", timestamp, price], ...]
-                        _items = _evt_data if isinstance(_evt_data, list) else [_evt_data]
-                        for _it in _items:
-                            if isinstance(_it, list) and len(_it) >= 3:
-                                _it_asset = str(_it[0]) if _it[0] else ''
-                                if _it_asset.lower() == _stream_asset.lower():
-                                    try:
-                                        _update_price(float(_it[2]))
-                                    except (TypeError, ValueError):
-                                        pass
-                            elif isinstance(_it, dict):
-                                _it_asset = str(_it.get('asset') or _it.get('symbol') or '')
-                                if not _it_asset or _it_asset.lower() == _stream_asset.lower():
-                                    _p = _it.get('price') or _it.get('close') or _it.get('value')
-                                    if _p is not None:
+                    if _raw.startswith("42"):
+                        # event payload
+                        try:
+                            _data = _json_ws.loads(_raw[2:])
+                        except Exception:
+                            continue
+                        if not isinstance(_data, list) or len(_data) < 2:
+                            continue
+                        _evt_name = _data[0]
+                        _evt_data = _data[1]
+                        # После авторизации подписываемся на актив
+                        if _evt_name in ("successauth", "successupdateBalance", "balance") and not _subscribed:
+                            # Шлём subscribe на наш актив
+                            _sub_payload = ["subfor", _stream_asset]
+                            await _ws.send("42" + _json_ws.dumps(_sub_payload))
+                            # Альтернативные имена подписок
+                            _sub2 = ["changeSymbol", {"asset": _stream_asset, "period": 60}]
+                            await _ws.send("42" + _json_ws.dumps(_sub2))
+                            _subscribed = True
+                            print(f"[WS] 📡 Подписался на {_stream_asset}")
+                        # Обработка тиков по разным возможным именам
+                        if _evt_name in ("updateStream", "stream-update", "tick", "price-update", "loadHistoryPeriod"):
+                            # Формат updateStream: [["EURUSD_otc", timestamp, price], ...]
+                            _items = _evt_data if isinstance(_evt_data, list) else [_evt_data]
+                            for _it in _items:
+                                if isinstance(_it, list) and len(_it) >= 3:
+                                    _it_asset = str(_it[0]) if _it[0] else ''
+                                    if _it_asset.lower() == _stream_asset.lower():
                                         try:
-                                            _update_price(float(_p))
+                                            _update_price(float(_it[2]))
                                         except (TypeError, ValueError):
                                             pass
-                    # Логируем неизвестные event-имена (первые 5)
-                    elif _stream_state['ticks'] == 0 and _evt_name not in ('successauth', 'successupdateBalance', 'balance'):
-                        print(f"[WS] 📨 event='{_evt_name}' data={str(_evt_data)[:150]}")
+                                elif isinstance(_it, dict):
+                                    _it_asset = str(_it.get('asset') or _it.get('symbol') or '')
+                                    if not _it_asset or _it_asset.lower() == _stream_asset.lower():
+                                        _p = _it.get('price') or _it.get('close') or _it.get('value')
+                                        if _p is not None:
+                                            try:
+                                                _update_price(float(_p))
+                                            except (TypeError, ValueError):
+                                                pass
+                        # Логируем неизвестные event-имена (первые 5)
+                        elif _stream_state['ticks'] == 0 and _evt_name not in ('successauth', 'successupdateBalance', 'balance'):
+                            print(f"[WS] 📨 event='{_evt_name}' data={str(_evt_data)[:150]}")
             except Exception as _le:
                 # Ловим ConnectionClosed и др. — печатаем причину
                 _ec = getattr(_le, 'code', None)

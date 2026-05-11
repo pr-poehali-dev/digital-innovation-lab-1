@@ -6458,7 +6458,16 @@ async def live_stream_subscriber(buf, client):
             ("Cache-Control", "no-cache"),
             ("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
         ]
-        async with websockets.connect(_url, additional_headers=_headers, ping_interval=20, ping_timeout=20, max_size=10_000_000) as _ws:
+        # Совместимость: новые версии websockets используют additional_headers, старые — extra_headers
+        _ws_kwargs = {'ping_interval': 20, 'ping_timeout': 20, 'max_size': 10_000_000}
+        import inspect as _inspect_ws
+        try:
+            _conn_sig = _inspect_ws.signature(websockets.connect)
+            _hdr_param = 'additional_headers' if 'additional_headers' in _conn_sig.parameters else 'extra_headers'
+        except Exception:
+            _hdr_param = 'extra_headers'
+        _ws_kwargs[_hdr_param] = _headers
+        async with websockets.connect(_url, **_ws_kwargs) as _ws:
             print(f"[WS] ✅ Соединение установлено")
             _auth_sent = False
             _subscribed = False

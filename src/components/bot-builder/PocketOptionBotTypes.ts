@@ -6116,7 +6116,7 @@ class CandleBuffer:
         self.candles = []        # список (open, high, low, close) — закрытые свечи которые МЫ ВИДЕЛИ
         self.live = None         # текущая формирующаяся свеча (open, high, low, close)
         self.live_bucket = None  # int — начало текущей свечи (unix-ts // EXPIRY_SEC * EXPIRY_SEC)
-        self.last_price = 0.0
+        self._last_price = 0.0   # реальное хранилище цены (с префиксом — обходим property)
         self.last_update = 0.0
         self.ready = False
         self.sync_warn = False
@@ -6127,6 +6127,37 @@ class CandleBuffer:
         self.cmp_match = 0       # цвет совпал
         self.cmp_color_diff = 0  # цвет разошёлся
         self.cmp_price_max_gap = 0.0  # максимальное расхождение close (%)
+
+    @property
+    def last_price(self):
+        """🌐 ГЛОБАЛЬНОЕ ЧТЕНИЕ: если есть глобальный _live_buf — берём оттуда, иначе свой.
+        Это решает проблему: если SPY-логгер или другой модуль создал СВОЙ CandleBuffer()
+        (отдельно от того что в WS-стриме), то всё равно увидит актуальную цену.
+        """
+        try:
+            _g = globals().get('_live_buf')
+            if _g is not None and _g is not self:
+                _v = getattr(_g, '_last_price', 0.0)
+                if _v and _v > 0:
+                    return _v
+        except Exception:
+            pass
+        return self._last_price
+
+    @last_price.setter
+    def last_price(self, value):
+        """Запись цены: пишем И в свой объект, И в глобальный _live_buf."""
+        try:
+            self._last_price = float(value) if value else 0.0
+        except (TypeError, ValueError):
+            self._last_price = 0.0
+        # Дублируем в globals — на случай если SPY читает оттуда напрямую
+        try:
+            _g = globals().get('_live_buf')
+            if _g is not None and _g is not self:
+                _g._last_price = self._last_price
+        except Exception:
+            pass
 
     async def warmup(self, client):
         """⚠️ NO-OP: больше не загружаем историю. Бот стартует с пустого буфера и ЖДЁТ свои свечи."""

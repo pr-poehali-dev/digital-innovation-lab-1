@@ -1416,28 +1416,45 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
 
             {config.hedgeEnabled && (
               <div className="space-y-4">
-                {/* Размер пипса */}
-                <div>
-                  <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Размер пипса</Label>
-                  <div className="flex gap-2">
-                    {[0.0001, 0.001, 0.01].map((v) => (
-                      <button key={v} type="button" onClick={() => set({ pipSize: v })}
-                        className={`flex-1 py-1.5 rounded-lg border text-xs font-space-mono transition-all ${config.pipSize === v ? "bg-purple-600/20 border-purple-500/50 text-purple-300" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}>
-                        {v}
-                      </button>
-                    ))}
-                    <input
-                      type="number"
-                      step="0.00001"
-                      min="0.00001"
-                      max="1"
-                      value={config.pipSize}
-                      onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v) && v > 0) set({ pipSize: v }); }}
-                      className="w-24 bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs font-space-mono text-white text-center focus:border-purple-500 focus:outline-none"
-                    />
+                {/* 🎯 ЕДИНЫЙ Размер пипса — используется ВЕЗДЕ (хедж, расширение прибыли, уровни) */}
+                <div className="border border-purple-500/30 bg-purple-500/5 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-purple-300 font-space-mono text-xs font-bold">🎯 Размер пипса (единая настройка)</Label>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={config.pipSizeAuto !== false}
+                        onChange={(e) => set({ pipSizeAuto: e.target.checked })}
+                        className="accent-purple-500"
+                      />
+                      <span className="text-zinc-400 font-space-mono text-[10px]">Авто по активу</span>
+                    </label>
                   </div>
-                  <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
-                    Пары с JPY (USD/JPY, EUR/JPY, GBP/JPY, AUD/JPY, CAD/JPY, CHF/JPY, NZD/JPY) → 0.01 · остальные forex → 0.0001
+                  {config.pipSizeAuto !== false ? (
+                    <div className="bg-zinc-900/60 rounded px-3 py-2 text-zinc-300 font-space-mono text-xs">
+                      ✅ Бот сам определит pip по активу: JPY → 0.01 · BTC/ETH → 1.0 · XAU → 0.1 · остальные → 0.0001
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      {[0.0001, 0.001, 0.01, 0.1, 1].map((v) => (
+                        <button key={v} type="button" onClick={() => set({ pipSize: v })}
+                          className={`flex-1 py-1.5 rounded-lg border text-xs font-space-mono transition-all ${config.pipSize === v ? "bg-purple-600/20 border-purple-500/50 text-purple-300" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}>
+                          {v}
+                        </button>
+                      ))}
+                      <input
+                        type="number"
+                        step="0.00001"
+                        min="0.00001"
+                        max="1000"
+                        value={config.pipSize}
+                        onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v) && v > 0) set({ pipSize: v }); }}
+                        className="w-24 bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs font-space-mono text-white text-center focus:border-purple-500 focus:outline-none"
+                      />
+                    </div>
+                  )}
+                  <p className="text-zinc-500 font-space-mono text-[10px] mt-2">
+                    Используется во всех модулях: хеджирование, расширение прибыли, расчёт уровней. Меняешь здесь — применяется везде.
                   </p>
                 </div>
 
@@ -1612,6 +1629,20 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                   </p>
                 </div>
 
+                {/* 🎯 НОВОЕ: Триггер Хедж-3 в пипсах */}
+                <div className="border-t border-amber-500/30 pt-3 bg-amber-500/5 -mx-4 px-4 py-3 rounded">
+                  <Label className="text-amber-300 font-space-mono text-xs mb-1.5 block">
+                    🎯 Триггер Хедж-3: <span className="text-white font-bold">{config.hedgeCascadeH3TriggerPips ?? 2} пип</span> от цены H2
+                  </Label>
+                  <Slider min={1} max={15} step={1} value={[config.hedgeCascadeH3TriggerPips ?? 2]} onValueChange={([v]) => set({ hedgeCascadeH3TriggerPips: v })} />
+                  <p className="text-zinc-500 font-space-mono text-[10px] mt-1">
+                    Хедж-3 открывается ПОСЛЕ Хедж-2: ждём, что цена пойдёт <b>в сторону основной ставки</b> на N пипсов от цены открытия H2. Совпадает с направлением основной.
+                  </p>
+                  <p className="text-amber-400/70 font-space-mono text-[10px] mt-1">
+                    ⚠️ Поле сохраняется, логика в коде бота будет включена в следующем обновлении (см. ТЗ).
+                  </p>
+                </div>
+
                 {/* 🎯 МИНИМУМ ВРЕМЕНИ ДО H2 */}
                 <div className="border-t border-zinc-800 pt-3">
                   <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
@@ -1652,7 +1683,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                   <p className="text-zinc-300 font-bold mb-1">Сводка по каскаду (X = размер основной):</p>
                   <p className="text-zinc-400">🛡 <span className="text-purple-300">Хедж-1:</span> ×{config.hedgeCascadeM1?.toFixed(1) ?? "1.5"}X — сразу, ПРОТИВ основной</p>
                   <p className="text-zinc-400">🔄 <span className="text-purple-300">Хедж-2:</span> ×{config.hedgeCascadeM2?.toFixed(1) ?? "1.5"}X — после {config.hedgeCascadeMinTimePercent ?? 50}%, ПРОТИВ, откат {config.hedgeCascadePullbackPips ?? 3} пип{(config.hedgeCascadeMinPeakPips ?? 0) > 0 ? `, пик ≥ ${config.hedgeCascadeMinPeakPips} пип` : ""}{config.hedgeCascadeRequireProfit ? ", только в плюсе" : ""}</p>
-                  <p className="text-zinc-400">🎯 <span className="text-purple-300">Хедж-3:</span> ×{config.hedgeCascadeM3?.toFixed(1) ?? "2.0"}X — ВМЕСТЕ с H2, в <b>противоположную</b> сторону</p>
+                  <p className="text-zinc-400">🎯 <span className="text-purple-300">Хедж-3:</span> ×{config.hedgeCascadeM3?.toFixed(1) ?? "2.0"}X — ПОСЛЕ H2, при откате {config.hedgeCascadeH3TriggerPips ?? 2} пип в сторону основной (направление = основная)</p>
                   <p className="text-zinc-400 mt-1">⏱ Все хеджи имеют ту же экспирацию — заканчиваются с основной</p>
                   <p className="text-zinc-400">💰 <span className="text-purple-300">Макс. сумма на сигнал:</span> X × (1 + {config.hedgeCascadeM1?.toFixed(1) ?? "1.5"} + {config.hedgeCascadeM2?.toFixed(1) ?? "1.5"} + {config.hedgeCascadeM3?.toFixed(1) ?? "2.0"}) = <span className="text-white">{(1 + (config.hedgeCascadeM1 ?? 1.5) + (config.hedgeCascadeM2 ?? 1.5) + (config.hedgeCascadeM3 ?? 2.0)).toFixed(1)}X</span></p>
                 </div>
@@ -1660,6 +1691,50 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
             )}
           </CardContent>
         )}
+      </Card>
+
+      {/* 🔥 Прогрев бота (свечи) */}
+      <Card className="bg-zinc-900 border-2 border-cyan-500/40">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-space-mono text-zinc-300 flex items-center gap-2">
+            🔥 Прогрев бота — старт без 42-минутного ожидания
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-zinc-300 font-space-mono text-xs">Прогрев историей через API РО</p>
+              <p className="text-zinc-500 font-space-mono text-[10px] mt-0.5">
+                Бот запросит готовые свечи нужного ТФ из истории РО → сделки с первой минуты, качество индикаторов полное.
+              </p>
+            </div>
+            <Switch checked={config.warmupHistoryEnabled !== false} onCheckedChange={(v) => set({ warmupHistoryEnabled: v })} />
+          </div>
+
+          <div className="flex items-center justify-between border-t border-zinc-800 pt-3">
+            <div>
+              <p className="text-zinc-300 font-space-mono text-xs">Адаптивные индикаторы (фоллбэк)</p>
+              <p className="text-zinc-500 font-space-mono text-[10px] mt-0.5">
+                Если РО не отдаст историю — торгуем с 2 свечей, период RSI/EMA уменьшается под буфер. Качество растёт по мере накопления.
+              </p>
+            </div>
+            <Switch checked={config.adaptiveIndicators !== false} onCheckedChange={(v) => set({ adaptiveIndicators: v })} />
+          </div>
+
+          <div className="bg-cyan-500/10 border border-cyan-500/30 rounded p-2.5">
+            <p className="text-cyan-300 font-space-mono text-[11px]">
+              {config.warmupHistoryEnabled !== false && config.adaptiveIndicators !== false ? (
+                <>✅ <b>Гибрид:</b> сначала пробуем историю → если не выйдет, фоллбэк на адаптивные. Старт сделок ~6 мин или сразу.</>
+              ) : config.warmupHistoryEnabled !== false ? (
+                <>📥 Только история. Если РО не отдаст свечи — будем ждать накопления по живым тикам.</>
+              ) : config.adaptiveIndicators !== false ? (
+                <>🧠 Только адаптивные индикаторы. Сделки начнутся через ~6 мин (2 свечи по 3 мин).</>
+              ) : (
+                <>⚠️ Оба режима выключены — бот ждёт стандартного буфера 14 свечей (~42 мин).</>
+              )}
+            </p>
+          </div>
+        </CardContent>
       </Card>
 
       {/* Profit Extension */}
@@ -1686,28 +1761,10 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
 
             {config.profitExtEnabled && (
               <div className="space-y-4">
-                {/* Размер пипса */}
-                <div>
-                  <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Размер пипса</Label>
-                  <div className="flex gap-2">
-                    {[0.0001, 0.001, 0.01].map((v) => (
-                      <button key={v} type="button" onClick={() => set({ pipSize: v })}
-                        className={`flex-1 py-1.5 rounded-lg border text-xs font-space-mono transition-all ${config.pipSize === v ? "bg-emerald-600/20 border-emerald-500/50 text-emerald-300" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}>
-                        {v}
-                      </button>
-                    ))}
-                    <input
-                      type="number"
-                      step="0.00001"
-                      min="0.00001"
-                      max="1"
-                      value={config.pipSize}
-                      onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v) && v > 0) set({ pipSize: v }); }}
-                      className="w-24 bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs font-space-mono text-white text-center focus:border-emerald-500 focus:outline-none"
-                    />
-                  </div>
-                  <p className="text-zinc-600 font-space-mono text-[10px] mt-1">
-                    Пары с JPY (USD/JPY, EUR/JPY, GBP/JPY, AUD/JPY, CAD/JPY, CHF/JPY, NZD/JPY) → 0.01 · остальные forex → 0.0001
+                {/* 🎯 Размер пипса берётся из единой настройки в блоке "Хеджирование" */}
+                <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-2.5">
+                  <p className="text-zinc-400 font-space-mono text-[11px]">
+                    🎯 <b>Размер пипса:</b> {config.pipSizeAuto !== false ? <span className="text-emerald-400">авто по активу</span> : <span className="text-emerald-400">{config.pipSize}</span>} · настраивается в блоке <b>«Хеджирование»</b> (единая настройка для всех модулей)
                   </p>
                 </div>
 

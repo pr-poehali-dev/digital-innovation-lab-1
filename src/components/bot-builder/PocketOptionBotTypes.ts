@@ -2753,7 +2753,12 @@ async def hedge_monitor(client, original_direction, original_bet, entry_price, e
     HEDGE_SIMPLE_PIP_THRESHOLD = ${cfg.hedgeSimplePipThreshold}
     HEDGE_POWER_MULT           = ${cfg.hedgePowerMultiplier}
     HEDGE_SIMPLE_MULT          = 1.5
-    PIP_SIZE                   = _pip_size_map.get(_asset_key, 0.0001)  # дефолт для Forex
+    # 🎯 ЕДИНЫЙ PIP_SIZE: если pipSizeAuto выкл — используем заданный пользователем, иначе авто по активу
+    if not ${cfg.pipSizeAuto !== false ? "True" : "False"}:
+        PIP_SIZE = ${cfg.pipSize ?? 0.0001}
+    else:
+        PIP_SIZE = _pip_size_map.get(_asset_key, 0.0001)  # авто-определение по активу
+    print(f"[PIP] hedge_monitor: PIP_SIZE={PIP_SIZE} (auto={'on' if ${cfg.pipSizeAuto !== false ? "True" : "False"} else 'off'})")
     check_interval = ${cfg.hedgeCheckInterval}
     print(f"[HEDGE] Инициализация | актив={_asset_key} | pip_size={PIP_SIZE} | порог={HEDGE_PIP_THRESHOLD} пип | цена входа={entry_price}")
     opposite = "PUT" if original_direction == "CALL" else "CALL"

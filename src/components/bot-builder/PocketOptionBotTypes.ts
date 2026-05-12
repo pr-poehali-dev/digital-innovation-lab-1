@@ -757,11 +757,11 @@ def apply_tradebase_filters(signal, prices, candles):
 `
 }
 
-export function generatePOCode(cfg: POBotConfig): string {
-  const strategyLabel = PO_STRATEGIES[cfg.strategy].label
-
-  const strategyFunctions: Record<POStrategy, string> = {
-    rsi_reversal: `
+// ===== УДАЛЁННЫЙ СТАРЫЙ ГЕНЕРАТОР =====
+// Функция generatePOCode (3500 строк) была дубликатом generatePOComboCode.
+// Удалена в рефакторинге 2026-05. BotBuilder.tsx вызывает только generatePOComboCode.
+// Если comboMode выключен — обёртка ниже кладёт текущую стратегию в массив comboStrategies.
+/* _LEGACY_REMOVED_CHUNK_PART1 =
 def calculate_rsi(prices, period=${cfg.rsiPeriod}):
     """RSI индикатор"""
     deltas = [prices[i] - prices[i-1] for i in range(1, len(prices))]
@@ -2871,6 +2871,7 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
     M2_MULT       = ${cfg.hedgeCascadeM2 ?? 1.5}
     M3_MULT       = ${cfg.hedgeCascadeM3 ?? 2.0}
     PULLBACK_PIPS = ${cfg.hedgeCascadePullbackPips ?? 3}
+    H3_TRIGGER_PIPS = ${cfg.hedgeCascadeH3TriggerPips ?? 2}  # 🎯 НОВАЯ ЛОГИКА H3
     # 🎯 НОВЫЕ ПАРАМЕТРЫ H2:
     MIN_TIME_PCT     = ${cfg.hedgeCascadeMinTimePercent ?? 50} / 100.0  # минимум % экспирации до H2
     MIN_PEAK_PIPS    = ${cfg.hedgeCascadeMinPeakPips ?? 0}              # минимум пип от страйка для триггера
@@ -3000,40 +3001,58 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
                     print(f"[CASCADE] ❌ Ошибка хедж-2: {_e2}")
                 h2_opened = True
 
-                # --- открываем H3 ОДНОВРЕМЕННО, противоположно H2 ---
+                # 🎯 H3 не открывается одновременно с H2 — ждём отката (логика ниже)
+                print(f"[CASCADE] ⏳ Жду триггер H3: цена должна откатиться от H2={h2_open_price} на {H3_TRIGGER_PIPS} пип в сторону {original_direction}")
+
+        # 🎯 НОВАЯ ЛОГИКА H3: открывается ПОСЛЕ H2 при откате цены в сторону основной ставки
+        # Если original_direction == CALL → ждём что цена ПОДНИМЕТСЯ выше h2_open_price на H3_TRIGGER_PIPS
+        # Если original_direction == PUT  → ждём что цена ОПУСТИТСЯ ниже h2_open_price на H3_TRIGGER_PIPS
+        # Направление H3 совпадает с original_direction (это "усиление основной ставки")
+        if h2_opened and not h3_opened and h2_open_price is not None and M3_MULT > 0:
+            if original_direction == "CALL":
+                _move_toward_main = current_price - h2_open_price
+            else:
+                _move_toward_main = h2_open_price - current_price
+            _pips_toward_main = round(_move_toward_main / PIP_SIZE_C, 1)
+            if _iter % 10 == 0:
+                print(f"[CASCADE-H3] 👀 ожидание триггера | цена={current_price} | H2_open={h2_open_price} | откат в сторону {original_direction}: {_pips_toward_main} пип / нужно {H3_TRIGGER_PIPS}")
+            if _pips_toward_main >= H3_TRIGGER_PIPS:
+                h3_dir_new = original_direction
+                h3_bet_new = round(original_bet * M3_MULT, 2)
+                print(f"[CASCADE] 🎯 ХЕДЖ-3 ТРИГГЕР: цена откатилась на {_pips_toward_main} пип в сторону {original_direction} (триггер ≥ {H3_TRIGGER_PIPS})")
                 try:
                     _bal_h3, _ = await get_balance(client)
-                    if M3_MULT <= 0 or h3_bet <= 0:
-                        print(f"[CASCADE] 🚫 ХЕДЖ-3 ОТКЛЮЧЁН (множитель={M3_MULT})")
-                    elif h3_bet > _bal_h3:
-                        print(f"[CASCADE] ⛔ ХЕДЖ-3 отменён: ставка {h3_bet} > баланс {_bal_h3}")
-                        tg_info(f"⛔ <b>[CASCADE] Хедж-3 отменён</b>\\nНе хватает баланса: {_bal_h3:.2f} < {h3_bet:.2f}")
+                    if h3_bet_new > _bal_h3:
+                        print(f"[CASCADE] ⛔ ХЕДЖ-3 отменён: ставка {h3_bet_new} > баланс {_bal_h3}")
+                        tg_info(f"⛔ <b>[CASCADE] Хедж-3 отменён</b>\\nНе хватает баланса: {_bal_h3:.2f} < {h3_bet_new:.2f}")
+                        h3_opened = True
                     else:
-                        _dv3 = OrderDirection.CALL if h3_dir == "CALL" else OrderDirection.PUT
-                        _ord3 = await client.place_order(asset=(_resolved_asset or ASSET), amount=h3_bet, direction=_dv3, duration=remaining)
+                        _dv3 = OrderDirection.CALL if h3_dir_new == "CALL" else OrderDirection.PUT
+                        _ord3 = await client.place_order(asset=(_resolved_asset or ASSET), amount=h3_bet_new, direction=_dv3, duration=remaining)
                         _oid3 = getattr(_ord3, 'order_id', None) if _ord3 else None
                         if _oid3:
-                            opened_hedges.append((_oid3, h3_bet, "H3", _bal_h3))
-                            print(f"[CASCADE] ✅ ХЕДЖ-3 открыт ID={_oid3} | направление {h3_dir} (против H2)")
-                            tg(f"🎯 <b>[CASCADE Хедж-3]</b> {h3_dir} | {h3_bet} | вместе с H2, в противоход | осталось {remaining}с")
+                            opened_hedges.append((_oid3, h3_bet_new, "H3", _bal_h3))
+                            print(f"[CASCADE] ✅ ХЕДЖ-3 открыт ID={_oid3} | направление {h3_dir_new} (= основная) | ставка {h3_bet_new} | осталось {remaining}с")
+                            tg(f"🎯 <b>[CASCADE Хедж-3]</b> {h3_dir_new} | {h3_bet_new} | откат {_pips_toward_main} пип от H2 в сторону основной | осталось {remaining}с")
                             try:
                                 report_log("hedge_open", {
-                                    "level": "H3", "order_id": str(_oid3), "direction": h3_dir,
-                                    "bet": h3_bet, "multiplier": M3_MULT,
+                                    "level": "H3", "order_id": str(_oid3), "direction": h3_dir_new,
+                                    "bet": h3_bet_new, "multiplier": M3_MULT,
                                     "open_price": current_price, "strike_price": entry_price,
+                                    "h2_open_price": h2_open_price,
+                                    "pips_from_h2": _pips_toward_main,
+                                    "trigger_pips": H3_TRIGGER_PIPS,
                                     "pips_from_strike": calc_pips_distance(_asset_key_c, entry_price, current_price),
-                                    "pct_move_from_strike": calc_pct_move(entry_price, current_price),
-                                    "pips_pullback_from_peak": pips_from_peak,
-                                    "peak_pips": round(peak_abs_distance / PIP_SIZE_C, 1),
                                     "time_elapsed_pct": round(time_ratio * 100, 1),
                                     "expiry_remaining_sec": remaining,
                                     "balance_before": _bal_h3, "main_direction": original_direction,
-                                    "paired_with": "H2",
+                                    "trigger_logic": "rebound_to_main_direction",
                                 })
                             except Exception as _rle: print(f"[REPORT] err: {_rle}")
+                        h3_opened = True
                 except Exception as _e3:
                     print(f"[CASCADE] ❌ Ошибка хедж-3: {_e3}")
-                h3_opened = True
+                    h3_opened = True
 
         if h2_opened and h3_opened:
             print(f"[CASCADE] ✅ Все уровни каскада отработали. Жду конца основной.")
@@ -3321,6 +3340,49 @@ async def main():
     globals()['_live_buf'] = _live_buf
     _stream_task = asyncio.create_task(live_stream_subscriber(_live_buf, client))
     print(f"[BUFFER] 🚀 Живой WS-стрим запущен | актив={ASSET} | тики напрямую от РО")
+
+    # ===== 🔥 ПРОГРЕВ ИСТОРИЕЙ: пробуем получить готовые свечи через API РО =====
+    # Если получится — буфер сразу полный, торгуем мгновенно.
+    # Если РО не отдаст — фоллбэк на адаптивные индикаторы (торгуем с 2 свечей, период RSI/EMA = min(буфер, стандарт)).
+    _warmup_history_enabled = ${cfg.warmupHistoryEnabled !== false ? "True" : "False"}
+    _adaptive_indicators_on = ${cfg.adaptiveIndicators !== false ? "True" : "False"}
+    _history_loaded = False
+    if _warmup_history_enabled:
+        try:
+            print(f"[WARMUP_HIST] 🔥 Пробую получить историю свечей ТФ={EXPIRY_SEC}с через API РО...")
+            _hist_raw = None
+            try:
+                _hist_raw = await client.get_candles(asset=ASSET, timeframe=EXPIRY_SEC, count=20)
+            except Exception as _hist_e:
+                print(f"[WARMUP_HIST] ⚠️ get_candles упал: {_hist_e}")
+            if _hist_raw and len(_hist_raw) >= 2:
+                _history_loaded = True
+                print(f"[WARMUP_HIST] ✅ Получено {len(_hist_raw)} свечей — буфер прогрет, торгуем сразу!")
+                tg_info(f"🔥 <b>[{BOT_NAME}] Прогрев историей УСПЕХ</b>\\nПолучено {len(_hist_raw)} свечей — торгуем с первой минуты!")
+                # Кладём историю в живой буфер через метод tick (если поддерживается) или прямо в candles
+                try:
+                    if hasattr(_live_buf, 'candles') and isinstance(_live_buf.candles, list):
+                        _live_buf.candles.clear()
+                        for _hc in _hist_raw[-15:]:
+                            _o = getattr(_hc, 'open', None) or (_hc.get('open') if isinstance(_hc, dict) else None) or _hc[0]
+                            _h = getattr(_hc, 'high', None) or (_hc.get('high') if isinstance(_hc, dict) else None) or _hc[1]
+                            _l = getattr(_hc, 'low', None)  or (_hc.get('low')  if isinstance(_hc, dict) else None) or _hc[2]
+                            _c = getattr(_hc, 'close', None)or (_hc.get('close')if isinstance(_hc, dict) else None) or _hc[3]
+                            _t = getattr(_hc, 'time', None) or (_hc.get('time') if isinstance(_hc, dict) else None) or 0
+                            _live_buf.candles.append((float(_o), float(_h), float(_l), float(_c), float(_t)))
+                        if hasattr(_live_buf, 'ready'):
+                            _live_buf.ready = True
+                        print(f"[WARMUP_HIST] ✅ В буфер загружено {len(_live_buf.candles)} свечей")
+                except Exception as _wbe:
+                    print(f"[WARMUP_HIST] ⚠️ Не смог положить историю в буфер: {_wbe} (бот будет копить через тики)")
+            else:
+                print(f"[WARMUP_HIST] ⚠️ РО не отдал историю — фоллбэк → адаптивные индикаторы.")
+        except Exception as _wh_e:
+            print(f"[WARMUP_HIST] ❌ Ошибка прогрева историей: {_wh_e}")
+
+    if not _history_loaded and _adaptive_indicators_on:
+        print(f"[ADAPTIVE] 🧠 Адаптивные индикаторы ВКЛ — торгуем с 2 свечей, период RSI/EMA = min(буфер, 14)")
+        tg_info(f"🧠 <b>[{BOT_NAME}] Адаптивный режим</b>\\nТоргуем с 2 свечей, индикаторы укорачиваются под буфер.")
 
     # ===== 🛡 ЖИРНЫЙ СТАРТОВЫЙ ЛОГ ПРО КАСКАД (видно сразу при запуске) =====
     _cascade_state_log = ${cfg.hedgeCascadeEnabled ? "True" : "False"}
@@ -4240,19 +4302,13 @@ if __name__ == "__main__":
     print("════════════════════════════════════════")
     print("  КОНФИГУРАЦИЯ БОТА")
     print("════════════════════════════════════════")
-    print(f"  Стратегия  : ${strategyLabel}")
-    print(f"  Актив      : {ASSET}")
-    print(f"  Экспирация : {EXPIRY_SEC} сек")
-    print(f"  Ставка     : {BASE_BET} {CURRENCY}")
-    print(f"  Режим      : {'ДЕМО-СЧЁТ' if IS_DEMO else 'РЕАЛЬНЫЙ СЧЁТ'}")
-    print(f"  Take Profit: {TAKE_PROFIT} {CURRENCY}")
-    print(f"  Stop Loss  : {STOP_LOSS} {CURRENCY}")
-    print(f"  Лимит/день : {DAILY_LIMIT} сделок")
-    print(f"  Режим свечей: {TREND_MODE}")
-    print("════════════════════════════════════════")
-    asyncio.run(main())
-`
-  )
+*/
+// конец мёртвого блока
+
+// generatePOCode — алиас для обратной совместимости (BotBuilder.tsx использует обёртку)
+export const generatePOCode = (cfg: POBotConfig): string => {
+  const safe = cfg.comboMode ? cfg : { ...cfg, comboMode: true, comboStrategies: [cfg.strategy], comboLogic: "OR" as const }
+  return generatePOComboCode(safe)
 }
 
 // ===== COMBO CODE GENERATOR =====
@@ -6894,6 +6950,7 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
     M2_MULT       = ${cfg.hedgeCascadeM2 ?? 1.5}
     M3_MULT       = ${cfg.hedgeCascadeM3 ?? 2.0}
     PULLBACK_PIPS = ${cfg.hedgeCascadePullbackPips ?? 3}
+    H3_TRIGGER_PIPS = ${cfg.hedgeCascadeH3TriggerPips ?? 2}  # 🎯 НОВАЯ ЛОГИКА H3
     # 🎯 НОВЫЕ ПАРАМЕТРЫ H2:
     MIN_TIME_PCT     = ${cfg.hedgeCascadeMinTimePercent ?? 50} / 100.0  # минимум % экспирации до H2
     MIN_PEAK_PIPS    = ${cfg.hedgeCascadeMinPeakPips ?? 0}              # минимум пип от страйка для триггера
@@ -7023,40 +7080,58 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
                     print(f"[CASCADE] ❌ Ошибка хедж-2: {_e2}")
                 h2_opened = True
 
-                # --- открываем H3 ОДНОВРЕМЕННО, противоположно H2 ---
+                # 🎯 H3 не открывается одновременно с H2 — ждём отката (логика ниже)
+                print(f"[CASCADE] ⏳ Жду триггер H3: цена должна откатиться от H2={h2_open_price} на {H3_TRIGGER_PIPS} пип в сторону {original_direction}")
+
+        # 🎯 НОВАЯ ЛОГИКА H3: открывается ПОСЛЕ H2 при откате цены в сторону основной ставки
+        # Если original_direction == CALL → ждём что цена ПОДНИМЕТСЯ выше h2_open_price на H3_TRIGGER_PIPS
+        # Если original_direction == PUT  → ждём что цена ОПУСТИТСЯ ниже h2_open_price на H3_TRIGGER_PIPS
+        # Направление H3 совпадает с original_direction (это "усиление основной ставки")
+        if h2_opened and not h3_opened and h2_open_price is not None and M3_MULT > 0:
+            if original_direction == "CALL":
+                _move_toward_main = current_price - h2_open_price
+            else:
+                _move_toward_main = h2_open_price - current_price
+            _pips_toward_main = round(_move_toward_main / PIP_SIZE_C, 1)
+            if _iter % 10 == 0:
+                print(f"[CASCADE-H3] 👀 ожидание триггера | цена={current_price} | H2_open={h2_open_price} | откат в сторону {original_direction}: {_pips_toward_main} пип / нужно {H3_TRIGGER_PIPS}")
+            if _pips_toward_main >= H3_TRIGGER_PIPS:
+                h3_dir_new = original_direction
+                h3_bet_new = round(original_bet * M3_MULT, 2)
+                print(f"[CASCADE] 🎯 ХЕДЖ-3 ТРИГГЕР: цена откатилась на {_pips_toward_main} пип в сторону {original_direction} (триггер ≥ {H3_TRIGGER_PIPS})")
                 try:
                     _bal_h3, _ = await get_balance(client)
-                    if M3_MULT <= 0 or h3_bet <= 0:
-                        print(f"[CASCADE] 🚫 ХЕДЖ-3 ОТКЛЮЧЁН (множитель={M3_MULT})")
-                    elif h3_bet > _bal_h3:
-                        print(f"[CASCADE] ⛔ ХЕДЖ-3 отменён: ставка {h3_bet} > баланс {_bal_h3}")
-                        tg_info(f"⛔ <b>[CASCADE] Хедж-3 отменён</b>\\nНе хватает баланса: {_bal_h3:.2f} < {h3_bet:.2f}")
+                    if h3_bet_new > _bal_h3:
+                        print(f"[CASCADE] ⛔ ХЕДЖ-3 отменён: ставка {h3_bet_new} > баланс {_bal_h3}")
+                        tg_info(f"⛔ <b>[CASCADE] Хедж-3 отменён</b>\\nНе хватает баланса: {_bal_h3:.2f} < {h3_bet_new:.2f}")
+                        h3_opened = True
                     else:
-                        _dv3 = OrderDirection.CALL if h3_dir == "CALL" else OrderDirection.PUT
-                        _ord3 = await client.place_order(asset=(_resolved_asset or ASSET), amount=h3_bet, direction=_dv3, duration=remaining)
+                        _dv3 = OrderDirection.CALL if h3_dir_new == "CALL" else OrderDirection.PUT
+                        _ord3 = await client.place_order(asset=(_resolved_asset or ASSET), amount=h3_bet_new, direction=_dv3, duration=remaining)
                         _oid3 = getattr(_ord3, 'order_id', None) if _ord3 else None
                         if _oid3:
-                            opened_hedges.append((_oid3, h3_bet, "H3", _bal_h3))
-                            print(f"[CASCADE] ✅ ХЕДЖ-3 открыт ID={_oid3} | направление {h3_dir} (против H2)")
-                            tg(f"🎯 <b>[CASCADE Хедж-3]</b> {h3_dir} | {h3_bet} | вместе с H2, в противоход | осталось {remaining}с")
+                            opened_hedges.append((_oid3, h3_bet_new, "H3", _bal_h3))
+                            print(f"[CASCADE] ✅ ХЕДЖ-3 открыт ID={_oid3} | направление {h3_dir_new} (= основная) | ставка {h3_bet_new} | осталось {remaining}с")
+                            tg(f"🎯 <b>[CASCADE Хедж-3]</b> {h3_dir_new} | {h3_bet_new} | откат {_pips_toward_main} пип от H2 в сторону основной | осталось {remaining}с")
                             try:
                                 report_log("hedge_open", {
-                                    "level": "H3", "order_id": str(_oid3), "direction": h3_dir,
-                                    "bet": h3_bet, "multiplier": M3_MULT,
+                                    "level": "H3", "order_id": str(_oid3), "direction": h3_dir_new,
+                                    "bet": h3_bet_new, "multiplier": M3_MULT,
                                     "open_price": current_price, "strike_price": entry_price,
+                                    "h2_open_price": h2_open_price,
+                                    "pips_from_h2": _pips_toward_main,
+                                    "trigger_pips": H3_TRIGGER_PIPS,
                                     "pips_from_strike": calc_pips_distance(_asset_key_c, entry_price, current_price),
-                                    "pct_move_from_strike": calc_pct_move(entry_price, current_price),
-                                    "pips_pullback_from_peak": pips_from_peak,
-                                    "peak_pips": round(peak_abs_distance / PIP_SIZE_C, 1),
                                     "time_elapsed_pct": round(time_ratio * 100, 1),
                                     "expiry_remaining_sec": remaining,
                                     "balance_before": _bal_h3, "main_direction": original_direction,
-                                    "paired_with": "H2",
+                                    "trigger_logic": "rebound_to_main_direction",
                                 })
                             except Exception as _rle: print(f"[REPORT] err: {_rle}")
+                        h3_opened = True
                 except Exception as _e3:
                     print(f"[CASCADE] ❌ Ошибка хедж-3: {_e3}")
-                h3_opened = True
+                    h3_opened = True
 
         if h2_opened and h3_opened:
             print(f"[CASCADE] ✅ Все уровни каскада отработали. Жду конца основной.")
@@ -7237,6 +7312,49 @@ async def main():
     globals()['_live_buf'] = _live_buf
     _stream_task = asyncio.create_task(live_stream_subscriber(_live_buf, client))
     print(f"[BUFFER] 🚀 Живой WS-стрим запущен | актив={ASSET} | тики напрямую от РО")
+
+    # ===== 🔥 ПРОГРЕВ ИСТОРИЕЙ: пробуем получить готовые свечи через API РО =====
+    # Если получится — буфер сразу полный, торгуем мгновенно.
+    # Если РО не отдаст — фоллбэк на адаптивные индикаторы (торгуем с 2 свечей, период RSI/EMA = min(буфер, стандарт)).
+    _warmup_history_enabled = ${cfg.warmupHistoryEnabled !== false ? "True" : "False"}
+    _adaptive_indicators_on = ${cfg.adaptiveIndicators !== false ? "True" : "False"}
+    _history_loaded = False
+    if _warmup_history_enabled:
+        try:
+            print(f"[WARMUP_HIST] 🔥 Пробую получить историю свечей ТФ={EXPIRY_SEC}с через API РО...")
+            _hist_raw = None
+            try:
+                _hist_raw = await client.get_candles(asset=ASSET, timeframe=EXPIRY_SEC, count=20)
+            except Exception as _hist_e:
+                print(f"[WARMUP_HIST] ⚠️ get_candles упал: {_hist_e}")
+            if _hist_raw and len(_hist_raw) >= 2:
+                _history_loaded = True
+                print(f"[WARMUP_HIST] ✅ Получено {len(_hist_raw)} свечей — буфер прогрет, торгуем сразу!")
+                tg_info(f"🔥 <b>[{BOT_NAME}] Прогрев историей УСПЕХ</b>\\nПолучено {len(_hist_raw)} свечей — торгуем с первой минуты!")
+                # Кладём историю в живой буфер через метод tick (если поддерживается) или прямо в candles
+                try:
+                    if hasattr(_live_buf, 'candles') and isinstance(_live_buf.candles, list):
+                        _live_buf.candles.clear()
+                        for _hc in _hist_raw[-15:]:
+                            _o = getattr(_hc, 'open', None) or (_hc.get('open') if isinstance(_hc, dict) else None) or _hc[0]
+                            _h = getattr(_hc, 'high', None) or (_hc.get('high') if isinstance(_hc, dict) else None) or _hc[1]
+                            _l = getattr(_hc, 'low', None)  or (_hc.get('low')  if isinstance(_hc, dict) else None) or _hc[2]
+                            _c = getattr(_hc, 'close', None)or (_hc.get('close')if isinstance(_hc, dict) else None) or _hc[3]
+                            _t = getattr(_hc, 'time', None) or (_hc.get('time') if isinstance(_hc, dict) else None) or 0
+                            _live_buf.candles.append((float(_o), float(_h), float(_l), float(_c), float(_t)))
+                        if hasattr(_live_buf, 'ready'):
+                            _live_buf.ready = True
+                        print(f"[WARMUP_HIST] ✅ В буфер загружено {len(_live_buf.candles)} свечей")
+                except Exception as _wbe:
+                    print(f"[WARMUP_HIST] ⚠️ Не смог положить историю в буфер: {_wbe} (бот будет копить через тики)")
+            else:
+                print(f"[WARMUP_HIST] ⚠️ РО не отдал историю — фоллбэк → адаптивные индикаторы.")
+        except Exception as _wh_e:
+            print(f"[WARMUP_HIST] ❌ Ошибка прогрева историей: {_wh_e}")
+
+    if not _history_loaded and _adaptive_indicators_on:
+        print(f"[ADAPTIVE] 🧠 Адаптивные индикаторы ВКЛ — торгуем с 2 свечей, период RSI/EMA = min(буфер, 14)")
+        tg_info(f"🧠 <b>[{BOT_NAME}] Адаптивный режим</b>\\nТоргуем с 2 свечей, индикаторы укорачиваются под буфер.")
 
     # ===== 🛡 ЖИРНЫЙ СТАРТОВЫЙ ЛОГ ПРО КАСКАД (видно сразу при запуске) =====
     _cascade_state_log = ${cfg.hedgeCascadeEnabled ? "True" : "False"}

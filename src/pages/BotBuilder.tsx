@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { BotConfig, DEFAULT_CONFIG, generateCode } from "@/components/bot-builder/BotBuilderTypes"
 import BotBuilderForm from "@/components/bot-builder/BotBuilderForm"
-import { POBotConfig, PO_DEFAULT_CONFIG, generatePOCode, generatePOComboCode } from "@/components/bot-builder/PocketOptionBotTypes"
+import { POBotConfig, PO_DEFAULT_CONFIG, generatePOComboCode } from "@/components/bot-builder/PocketOptionBotTypes"
 import PocketOptionBotForm from "@/components/bot-builder/PocketOptionBotForm"
 import TradeJournal from "@/components/bot-builder/TradeJournal"
 import Icon from "@/components/ui/icon"
@@ -111,10 +111,14 @@ export default function BotBuilder() {
   const [copied, setCopied] = useState(false)
 
   const handlePOGenerate = () => {
-    const code = poConfig.comboMode ? generatePOComboCode(poConfig) : generatePOCode(poConfig)
+    // 🎯 ЕДИНЫЙ генератор кода (комбо-режим работает и для 1 стратегии, и для нескольких).
+    // Если comboMode выключен — генератор автоматически кладёт текущую стратегию в comboStrategies.
+    const codeCfg1 = poConfig.comboMode ? poConfig : { ...poConfig, comboMode: true, comboStrategies: [poConfig.strategy], comboLogic: "OR" as const }
+    const code = generatePOComboCode(codeCfg1)
     setPoCode(code)
     if (dualMode) {
-      const code2 = poConfig2.comboMode ? generatePOComboCode(poConfig2) : generatePOCode(poConfig2)
+      const codeCfg2 = poConfig2.comboMode ? poConfig2 : { ...poConfig2, comboMode: true, comboStrategies: [poConfig2.strategy], comboLogic: "OR" as const }
+      const code2 = generatePOComboCode(codeCfg2)
       setPoCode2(code2)
     }
     setPoGenerated(true)

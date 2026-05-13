@@ -1726,41 +1726,41 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
+              onClick={() => set({ candleSource: "buffer" })}
+              className={`p-3 rounded-lg border-2 text-left transition-all ${
+                (config.candleSource ?? "buffer") === "buffer"
+                  ? "border-emerald-500 bg-emerald-500/10"
+                  : "border-zinc-700 bg-zinc-800/40 hover:border-zinc-600"
+              }`}
+            >
+              <p className="text-zinc-100 font-space-mono text-xs font-bold mb-1">🔧 Свой буфер тиков (LIVE-фид)</p>
+              <p className="text-zinc-500 font-space-mono text-[10px]">
+                Бот сам строит свечи из WebSocket-тиков РО — точные актуальные цены как на графике.
+              </p>
+              <p className="text-emerald-400 font-space-mono text-[10px] mt-1">✅ Рекомендуется для OTC</p>
+            </button>
+            <button
+              type="button"
               onClick={() => set({ candleSource: "api" })}
               className={`p-3 rounded-lg border-2 text-left transition-all ${
-                (config.candleSource ?? "api") === "api"
-                  ? "border-emerald-500 bg-emerald-500/10"
+                config.candleSource === "api"
+                  ? "border-amber-500 bg-amber-500/10"
                   : "border-zinc-700 bg-zinc-800/40 hover:border-zinc-600"
               }`}
             >
               <p className="text-zinc-100 font-space-mono text-xs font-bold mb-1">📡 API Pocket Option</p>
               <p className="text-zinc-500 font-space-mono text-[10px]">
-                Свечи берутся прямо от РО — те же что ты видишь на графике. Точность 100%.
+                Свечи берутся через get_candles(). Для OTC может отдавать устаревшие котировки.
               </p>
-              <p className="text-emerald-400 font-space-mono text-[10px] mt-1">✅ Рекомендуется</p>
-            </button>
-            <button
-              type="button"
-              onClick={() => set({ candleSource: "buffer" })}
-              className={`p-3 rounded-lg border-2 text-left transition-all ${
-                config.candleSource === "buffer"
-                  ? "border-amber-500 bg-amber-500/10"
-                  : "border-zinc-700 bg-zinc-800/40 hover:border-zinc-600"
-              }`}
-            >
-              <p className="text-zinc-100 font-space-mono text-xs font-bold mb-1">🔧 Свой буфер тиков</p>
-              <p className="text-zinc-500 font-space-mono text-[10px]">
-                Бот сам строит свечи из WebSocket-тиков. Может расходиться с графиком на 1-2 пипса.
-              </p>
-              <p className="text-amber-400 font-space-mono text-[10px] mt-1">⚠️ Старая логика</p>
+              <p className="text-amber-400 font-space-mono text-[10px] mt-1">⚠️ Глючит на OTC активах</p>
             </button>
           </div>
           <div className="bg-emerald-500/10 border border-emerald-500/30 rounded p-2.5">
             <p className="text-emerald-300 font-space-mono text-[11px]">
-              {(config.candleSource ?? "api") === "api" ? (
-                <>📡 <b>Активно: API РО.</b> Свечи бота = свечи на твоём графике. Если API не ответит — авто-фоллбэк на буфер тиков.</>
+              {(config.candleSource ?? "buffer") === "buffer" ? (
+                <>🔧 <b>Активно: буфер тиков (LIVE).</b> Бот строит свечи прямо из WebSocket-фида — самые свежие данные. Первая сделка через ~6 мин (2 закрытых свечи на ТФ 3 мин).</>
               ) : (
-                <>🔧 <b>Активно: буфер тиков.</b> Бот строит свечи сам из тиков WS. Возможны расхождения с графиком РО.</>
+                <>📡 <b>Активно: API РО.</b> ⚠️ На OTC активах может вернуть устаревшие свечи! Используй только для обычных (не OTC) активов.</>
               )}
             </p>
           </div>

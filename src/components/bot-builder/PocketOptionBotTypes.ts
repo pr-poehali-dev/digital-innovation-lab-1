@@ -434,7 +434,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   hedgeCascadeM3: 2.0,
   hedgeCascadePullbackPips: 3,
   hedgeCascadeLossTriggerPips: 1,
-  candleSource: "api",
+  candleSource: "buffer",
   pipSize: 0.0001,
   profitExtEnabled: true,
   profitExtPips: 5,

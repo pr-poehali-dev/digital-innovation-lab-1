@@ -7374,18 +7374,37 @@ async def main():
 
                     # ⚖️ ПОСТРОЧНОЕ СРАВНЕНИЕ буфер vs API
                     if _last_candle and len(_last_candle) >= 4:
-                        _do = round((_lo - _ao) / PIP_SIZE_C, 1) if PIP_SIZE_C > 0 else 0
-                        _dc = round((_lc - _ac) / PIP_SIZE_C, 1) if PIP_SIZE_C > 0 else 0
+                        # 🛡️ БЕЗОПАСНЫЙ РАСЧЁТ pip-size в SPY-скоупе (PIP_SIZE_C недоступен здесь)
+                        try:
+                            _spy_pip = float(globals().get('PIP_SIZE_C', 0)) or 0
+                        except Exception:
+                            _spy_pip = 0
+                        if _spy_pip <= 0:
+                            # Fallback: автоопределение по абс. значению цены
+                            _ref_price = abs(_lo) or abs(_ao) or 1.0
+                            if _ref_price >= 1000:      _spy_pip = 1.0      # BTC, indices
+                            elif _ref_price >= 50:      _spy_pip = 0.01     # JPY, gold
+                            elif _ref_price >= 5:       _spy_pip = 0.001
+                            else:                       _spy_pip = 0.0001   # Forex major
+                        _do = round((_lo - _ao) / _spy_pip, 1)
+                        _dc = round((_lc - _ac) / _spy_pip, 1)
                         _color_match = (_lcol == _acol)
                         _open_match  = abs(_do) <= 1.0
                         _close_match = abs(_dc) <= 1.0
                         _is_big_gap  = abs(_do) > 2 or abs(_dc) > 2
+                        # 🚨 КРИТИЧНОЕ РАСХОЖДЕНИЕ: разные активы (>50 пип) — точно не та свеча
+                        _is_wrong_asset = abs(_do) > 50 or abs(_dc) > 50
                         _verdict = "✅ СОВПАДАЮТ" if (_color_match and _open_match and _close_match) else "⚠️ РАСХОЖДЕНИЕ"
                         print(f"[🕵️ SPY] СВЕРКА: {_verdict} | цвет:{'✅' if _color_match else '❌'} | Δoper={_do:+.1f}пип | Δclose={_dc:+.1f}пип")
                         if not _color_match:
                             print(f"[🕵️ SPY] ⚠️ ЦВЕТ РАСХОДИТСЯ: буфер={_lcol} vs API={_acol} — бот может выдать неверный сигнал!")
                         if _is_big_gap:
                             print(f"[🕵️ SPY] ⚠️ БОЛЬШОЕ ОТКЛОНЕНИЕ (>2 пип) — переключи источник свечей на 'API РО' в настройках")
+                        if _is_wrong_asset:
+                            _api_asset = globals().get('_resolved_asset', None) or ASSET
+                            print(f"[🕵️ SPY] 🚨 НЕВЕРНЫЙ АКТИВ: Δ>50 пип! Буфер цена~{_lo:.5f}, API цена~{_ao:.5f}")
+                            print(f"[🕵️ SPY] 🚨 API РО отдаёт свечи актива '{_api_asset}', а WS-буфер слушает '{ASSET}' — это РАЗНЫЕ активы!")
+                            print(f"[🕵️ SPY] 💡 Проверь: 1) Имя актива в настройках. 2) Является ли OTC доступным сейчас. 3) Логи [INFO] Актив найден как: ...")
 
                         # 📱 TELEGRAM-АЛЕРТ при ПЕРВОМ серьёзном расхождении за сессию (анти-спам через globals-флаг)
                         _critical_mismatch = (not _color_match) or _is_big_gap
@@ -7402,8 +7421,14 @@ async def main():
                                 ]
                                 if not _color_match:
                                     _alert_lines.append(f"❌ <b>Цвет расходится!</b> Бот видит {_lcol}, РО показывает {_acol}")
-                                if _is_big_gap:
+                                if _is_big_gap and not _is_wrong_asset:
                                     _alert_lines.append(f"❌ <b>Большое отклонение</b> цены (&gt;2 пип)")
+                                if _is_wrong_asset:
+                                    _api_asset_tg = globals().get('_resolved_asset', None) or ASSET
+                                    _alert_lines.append(f"🚨 <b>НЕВЕРНЫЙ АКТИВ!</b> Δ&gt;50 пип")
+                                    _alert_lines.append(f"WS слушает: <code>{ASSET}</code>")
+                                    _alert_lines.append(f"API отдаёт: <code>{_api_asset_tg}</code>")
+                                    _alert_lines.append(f"➡️ Это РАЗНЫЕ активы! Проверь имя в настройках.")
                                 _alert_lines.append(f"━━━━━━━━━━━━━━━━━━━━")
                                 _alert_lines.append(f"💡 <b>Рекомендация:</b> переключи источник свечей на «API РО» в настройках бота — гарантирует совпадение с графиком.")
                                 _alert_lines.append(f"🔇 Повторных уведомлений не будет (1 раз за сессию).")

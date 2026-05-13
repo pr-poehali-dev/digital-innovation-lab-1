@@ -550,28 +550,54 @@ def _tb_calc_ema(prices, period):
     return ema
 
 def tb_filter_ma200(signal, prices):
-    """Фильтр Пола Тюдора Джонса: CALL только если цена > MA200, PUT только если <.
+    """Фильтр Пола Тюдора Джонса: CALL только если цена > MA, PUT только если <.
     Returns (allow: bool, reason: str).
-    🛡 ФИКС: если буфер ещё не накопил достаточно СВОИХ свечей (после прогрева историей),
-    MA считается на старых данных и блокирует сделки. Пропускаем фильтр пока буфер не "созреет"."""
+
+    🎯 АДАПТИВНАЯ MA (по запросу юзера):
+    — Считаем MA ТОЛЬКО по СВОИМ живым свечам (после старта WS, без прогрева).
+    — С 2-й закрытой свечи → MA2, далее MA3, MA4 ... до MA{TB_MA200_PERIOD}.
+    — Когда живых свечей ≥ TB_MA200_PERIOD → полноценная MA{TB_MA200_PERIOD}.
+    — Это даёт работающий фильтр уже через ~6 минут (на ТФ 3мин), точность растёт по мере накопления.
+    """
     if not TB_MA200_ENABLED:
         return True, ""
-    # 🛡 ГЕЙТ: пока живой стрим не положил минимум MA_PERIOD//2 СВОИХ свечей —
-    # MA считается смесью «прогрев-история + live-цена», что даёт ложные блокировки.
-    # Требуем минимум половину периода MA из живых свечей (для MA50 = 25, для MA200 = 100).
+
     _own_count = globals().get('_own_closed_candles_count', 0)
-    _min_own_for_ma = max(2, TB_MA200_PERIOD // 2)
-    if _own_count < _min_own_for_ma:
-        return True, f"MA{TB_MA200_PERIOD}=прогрев ({_own_count}/{_min_own_for_ma} своих свечей) — фильтр пропущен"
-    ma = _tb_calc_sma(prices, TB_MA200_PERIOD)
+    # Условие активации: минимум 2 ЖИВЫЕ закрытые свечи (MA из 1 свечи = сама цена, бессмысленно)
+    if _own_count < 2:
+        return True, f"MA адаптив: {_own_count}/2 живых свечей — фильтр пропущен"
+
+    # Адаптивный период: растёт от 2 до TB_MA200_PERIOD по мере накопления живых свечей
+    _adaptive_period = min(_own_count, TB_MA200_PERIOD)
+    _is_full = _adaptive_period >= TB_MA200_PERIOD
+
+    # Берём ТОЛЬКО последние _own_count свечей буфера = это и есть СВОИ живые свечи
+    # (живые добавляются в конец буфера после warmup, так что хвост = только live)
+    _buf = globals().get('_live_buf', None)
+    if _buf is None or not getattr(_buf, 'candles', None):
+        return True, f"MA адаптив: буфер недоступен — фильтр пропущен"
+    _live_candles = list(_buf.candles)[-_own_count:]
+    if len(_live_candles) < 2:
+        return True, f"MA адаптив: живых свечей <2 — фильтр пропущен"
+
+    # Извлекаем close-цены из живых свечей (свеча = (o, h, l, c, t))
+    _live_prices = [float(c[3]) for c in _live_candles if c and len(c) >= 4]
+    if len(_live_prices) < 2:
+        return True, f"MA адаптив: нет close-цен — фильтр пропущен"
+
+    # Текущая «живая» цена (если есть незакрытая свеча — берём её close, иначе последняя закрытая)
+    cur = prices[-1] if prices else _live_prices[-1]
+
+    ma = _tb_calc_sma(_live_prices, _adaptive_period)
     if ma is None:
-        return True, f"MA{TB_MA200_PERIOD}=недостаточно данных, фильтр пропущен"
-    cur = prices[-1]
+        return True, f"MA адаптив: SMA не посчитана ({len(_live_prices)} свечей) — фильтр пропущен"
+
+    _label = f"MA{_adaptive_period}" + ("" if _is_full else f" (адаптив, {_adaptive_period}/{TB_MA200_PERIOD})")
     if signal == "CALL" and cur < ma:
-        return False, f"❌ MA{TB_MA200_PERIOD}={ma:.5f} > цена={cur:.5f} — CALL запрещён (медвежий рынок)"
+        return False, f"❌ {_label}={ma:.5f} > цена={cur:.5f} — CALL запрещён (медвежий рынок)"
     if signal == "PUT" and cur > ma:
-        return False, f"❌ MA{TB_MA200_PERIOD}={ma:.5f} < цена={cur:.5f} — PUT запрещён (бычий рынок)"
-    return True, f"✅ MA{TB_MA200_PERIOD}={ma:.5f} согласуется"
+        return False, f"❌ {_label}={ma:.5f} < цена={cur:.5f} — PUT запрещён (бычий рынок)"
+    return True, f"✅ {_label}={ma:.5f} согласуется"
 
 def _tb_calc_rsi_series(prices, period=14):
     """Возвращает список значений RSI для построения дивергенций."""

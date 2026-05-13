@@ -7356,7 +7356,40 @@ async def main():
                 _lo, _lh, _ll, _lc, _lb = _last_candle[0], _last_candle[1], _last_candle[2], _last_candle[3], _last_candle[4]
                 _lcol = '🟢' if _lc >= _lo else '🔴'
                 _lb_msk = datetime.fromtimestamp(_lb, MSK_TZ).strftime('%H:%M:%S')
-                print(f"[🕵️ SPY] Посл.закр.свеча: {_lcol} o={_lo:.5f} c={_lc:.5f} | МСК={_lb_msk}")
+                print(f"[🕵️ SPY] Посл.закр.свеча (буфер): {_lcol} o={_lo:.5f} c={_lc:.5f} | МСК={_lb_msk}")
+
+            # 🎯 СВЕРКА С API POCKET OPTION — те же свечи что видишь на графике
+            try:
+                _api_c, _api_p = await get_candles_data(client)
+                if _api_c and len(_api_c) >= 2:
+                    # Последняя ЗАКРЫТАЯ свеча API (предпоследняя в списке: -1 = текущая, -2 = закрытая)
+                    _api_closed = _api_c[-2]
+                    _ao, _ah, _al, _ac = _api_closed[0], _api_closed[1], _api_closed[2], _api_closed[3]
+                    _ab = _api_closed[4] if len(_api_closed) >= 5 else 0
+                    _acol = '🟢' if _ac >= _ao else '🔴'
+                    # API РО может вернуть time в секундах или миллисекундах
+                    _ab_sec = _ab / 1000 if _ab > 1e10 else _ab
+                    _ab_msk = datetime.fromtimestamp(_ab_sec, MSK_TZ).strftime('%H:%M:%S') if _ab_sec > 0 else '—'
+                    print(f"[🕵️ SPY] Посл.закр.свеча (API РО): {_acol} o={_ao:.5f} c={_ac:.5f} | МСК={_ab_msk}")
+
+                    # ⚖️ ПОСТРОЧНОЕ СРАВНЕНИЕ буфер vs API
+                    if _last_candle and len(_last_candle) >= 4:
+                        _do = round((_lo - _ao) / PIP_SIZE_C, 1) if PIP_SIZE_C > 0 else 0
+                        _dc = round((_lc - _ac) / PIP_SIZE_C, 1) if PIP_SIZE_C > 0 else 0
+                        _color_match = (_lcol == _acol)
+                        _open_match  = abs(_do) <= 1.0
+                        _close_match = abs(_dc) <= 1.0
+                        _verdict = "✅ СОВПАДАЮТ" if (_color_match and _open_match and _close_match) else "⚠️ РАСХОЖДЕНИЕ"
+                        print(f"[🕵️ SPY] СВЕРКА: {_verdict} | цвет:{'✅' if _color_match else '❌'} | Δoper={_do:+.1f}пип | Δclose={_dc:+.1f}пип")
+                        if not _color_match:
+                            print(f"[🕵️ SPY] ⚠️ ЦВЕТ РАСХОДИТСЯ: буфер={_lcol} vs API={_acol} — бот может выдать неверный сигнал!")
+                        if abs(_do) > 2 or abs(_dc) > 2:
+                            print(f"[🕵️ SPY] ⚠️ БОЛЬШОЕ ОТКЛОНЕНИЕ (>2 пип) — переключи источник свечей на 'API РО' в настройках")
+                else:
+                    print(f"[🕵️ SPY] Сверка с API РО: ⏳ API не вернул свечи")
+            except Exception as _spy_e:
+                print(f"[🕵️ SPY] Сверка с API РО: ⚠️ ошибка: {_spy_e}")
+
             print(f"[🕵️ SPY] 👉 Открой РО, сверь цену. Норма: возраст<2с, цена±5 пипсов")
             print(f"[🕵️ SPY] ────────────────────────────────────────")
 

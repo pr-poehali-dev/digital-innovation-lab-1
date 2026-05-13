@@ -1678,11 +1678,33 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                   <Switch checked={config.hedgeCascadeRequireProfit ?? false} onCheckedChange={(v) => set({ hedgeCascadeRequireProfit: v })} />
                 </div>
 
+                {/* 🛟 СПАСАТЕЛЬНЫЙ ТРИГГЕР H2 «уход в минус» */}
+                <div className="bg-zinc-800/40 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-zinc-300 font-space-mono text-xs">
+                      🛟 Спасательный триггер H2 (уход в минус)
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      value={config.hedgeCascadeLossTriggerPips ?? 1}
+                      onChange={(e) => set({ hedgeCascadeLossTriggerPips: parseFloat(e.target.value) || 0 })}
+                      className="w-20 h-8 text-xs bg-zinc-900 border-zinc-700 font-space-mono text-center"
+                    />
+                  </div>
+                  <p className="text-zinc-600 font-space-mono text-[10px]">
+                    {(config.hedgeCascadeLossTriggerPips ?? 1) > 0
+                      ? `✅ Открывать H2 СРАЗУ если основная в минусе ≥ ${config.hedgeCascadeLossTriggerPips ?? 1} пип (не дожидаясь пика+отката)`
+                      : "❌ ВЫКЛ — H2 только по классической логике «пик + откат»"}
+                  </p>
+                </div>
+
                 {/* Сводка */}
                 <div className="bg-zinc-800/50 rounded-lg p-3 space-y-1 font-space-mono text-[10px]">
                   <p className="text-zinc-300 font-bold mb-1">Сводка по каскаду (X = размер основной):</p>
                   <p className="text-zinc-400">🛡 <span className="text-purple-300">Хедж-1:</span> ×{config.hedgeCascadeM1?.toFixed(1) ?? "1.5"}X — сразу, ПРОТИВ основной</p>
-                  <p className="text-zinc-400">🔄 <span className="text-purple-300">Хедж-2:</span> ×{config.hedgeCascadeM2?.toFixed(1) ?? "1.5"}X — после {config.hedgeCascadeMinTimePercent ?? 50}%, ПРОТИВ, откат {config.hedgeCascadePullbackPips ?? 3} пип{(config.hedgeCascadeMinPeakPips ?? 0) > 0 ? `, пик ≥ ${config.hedgeCascadeMinPeakPips} пип` : ""}{config.hedgeCascadeRequireProfit ? ", только в плюсе" : ""}</p>
+                  <p className="text-zinc-400">🔄 <span className="text-purple-300">Хедж-2:</span> ×{config.hedgeCascadeM2?.toFixed(1) ?? "1.5"}X — после {config.hedgeCascadeMinTimePercent ?? 50}%, ПРОТИВ, откат {config.hedgeCascadePullbackPips ?? 3} пип{(config.hedgeCascadeMinPeakPips ?? 0) > 0 ? `, пик ≥ ${config.hedgeCascadeMinPeakPips} пип` : ""}{config.hedgeCascadeRequireProfit ? ", только в плюсе" : ""}{(config.hedgeCascadeLossTriggerPips ?? 1) > 0 ? ` ИЛИ минус ≥ ${config.hedgeCascadeLossTriggerPips ?? 1} пип 🛟` : ""}</p>
                   <p className="text-zinc-400">🎯 <span className="text-purple-300">Хедж-3:</span> ×{config.hedgeCascadeM3?.toFixed(1) ?? "2.0"}X — ПОСЛЕ H2, при откате {config.hedgeCascadeH3TriggerPips ?? 2} пип в сторону основной (направление = основная)</p>
                   <p className="text-zinc-400 mt-1">⏱ Все хеджи имеют ту же экспирацию — заканчиваются с основной</p>
                   <p className="text-zinc-400">💰 <span className="text-purple-300">Макс. сумма на сигнал:</span> X × (1 + {config.hedgeCascadeM1?.toFixed(1) ?? "1.5"} + {config.hedgeCascadeM2?.toFixed(1) ?? "1.5"} + {config.hedgeCascadeM3?.toFixed(1) ?? "2.0"}) = <span className="text-white">{(1 + (config.hedgeCascadeM1 ?? 1.5) + (config.hedgeCascadeM2 ?? 1.5) + (config.hedgeCascadeM3 ?? 2.0)).toFixed(1)}X</span></p>

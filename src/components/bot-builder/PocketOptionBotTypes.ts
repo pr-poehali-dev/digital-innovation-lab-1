@@ -72,6 +72,8 @@ export interface POBotConfig {
   hedgeCascadeMinPeakPips?: number
   /** Открывать H2 только если основная сделка В ПЛЮСЕ (цена ушла В сторону основной) */
   hedgeCascadeRequireProfit?: boolean
+  /** 🛟 Спасательный триггер H2 «уход в минус»: если основная проигрывает на ≥N пип — открыть H2 СРАЗУ (не дожидаясь пика+отката). 0 = выключено. По умолчанию 1 пип. */
+  hedgeCascadeLossTriggerPips?: number
   /** Триггер Хедж-3 в пипсах: цена должна откатиться от цены открытия Хедж-2 в сторону основного сигнала на N пипсов (по умолчанию 2) */
   hedgeCascadeH3TriggerPips?: number
   /** Размер пипса — единая настройка для всего бота (хедж/расширение прибыли/уровни) */
@@ -429,6 +431,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   hedgeCascadeM2: 1.5,
   hedgeCascadeM3: 2.0,
   hedgeCascadePullbackPips: 3,
+  hedgeCascadeLossTriggerPips: 1,
   pipSize: 0.0001,
   profitExtEnabled: true,
   profitExtPips: 5,
@@ -2652,6 +2655,11 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
     MIN_TIME_PCT     = ${cfg.hedgeCascadeMinTimePercent ?? 50} / 100.0  # минимум % экспирации до H2
     MIN_PEAK_PIPS    = ${cfg.hedgeCascadeMinPeakPips ?? 0}              # минимум пип от страйка для триггера
     REQUIRE_PROFIT   = ${cfg.hedgeCascadeRequireProfit ? "True" : "False"}  # H2 только если основная В ПЛЮСЕ
+    # 🛟 СПАСАТЕЛЬНЫЙ ТРИГГЕР H2 «уход в минус»:
+    #   Если основная сделка уже проигрывает на >= LOSS_TRIGGER_PIPS пип — открываем хедж СРАЗУ
+    #   (не дожидаясь классической логики «пик + откат»). Помогает в кейсах когда цена идёт против сразу.
+    #   0 = выключен. Дефолт 1 пип = очень чувствительный.
+    LOSS_TRIGGER_PIPS = ${cfg.hedgeCascadeLossTriggerPips ?? 1}
     CHECK_EVERY   = max(1, ${cfg.hedgeCheckInterval} // 2 if ${cfg.hedgeCheckInterval} > 1 else 1)
 
     _asset_key_c = (_resolved_asset or ASSET)
@@ -2715,11 +2723,21 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
         pips_from_peak  = round(abs(peak_price - current_price) / PIP_SIZE_C, 1)
         time_ratio = elapsed / expiry_sec if expiry_sec > 0 else 0
 
-        # PULSE-лог каждые 30 итераций — чтобы видеть что монитор живой
-        if _iter % 30 == 0:
-            print(f"[CASCADE] 💓 pulse iter={_iter} | цена={current_price} | страйк={entry_price} | откл={pips_from_entry}пип | от пика={pips_from_peak}пип | прошло {round(time_ratio*100)}% | h2={h2_opened} h3={h3_opened}")
+        # 📉 СИГНАЛЬНОЕ отклонение от страйка (со знаком: + = в нашу сторону, − = против)
+        # Для CALL «в плюсе» = цена выше страйка; для PUT — ниже.
+        if original_direction == "CALL":
+            _signed_pips_vs_entry = round((current_price - entry_price) / PIP_SIZE_C, 1)
+        else:
+            _signed_pips_vs_entry = round((entry_price - current_price) / PIP_SIZE_C, 1)
+        # «В минусе на X пип» — насколько основная сделка проигрывает прямо сейчас
+        _pips_in_minus = max(0.0, -_signed_pips_vs_entry)
 
-        # ХЕДЖ-2 + ХЕДЖ-3: открываются ОДНОВРЕМЕННО на коррекции от пика
+        # PULSE-лог каждые 30 итераций — чтобы видеть что монитор живой + диагностика h2-готовности
+        if _iter % 30 == 0:
+            _h2_diag = f"откат≥{PULLBACK_PIPS}:{'✅' if pips_from_peak >= PULLBACK_PIPS else '❌'} | в-минусе≥{LOSS_TRIGGER_PIPS}:{'✅' if _pips_in_minus >= LOSS_TRIGGER_PIPS else '❌'}"
+            print(f"[CASCADE] 💓 pulse iter={_iter} | цена={current_price} | страйк={entry_price} | откл={_signed_pips_vs_entry:+.1f}пип | от пика={pips_from_peak}пип | прошло {round(time_ratio*100)}% | h2={h2_opened} h3={h3_opened} | h2-готов: {_h2_diag}")
+
+        # ХЕДЖ-2 + ХЕДЖ-3: открываются ОДНОВРЕМЕННО на коррекции от пика ИЛИ при уходе основной в минус
         # 🎯 ЛОГИКА H2 (ставим на возврат к страйку):
         #   цена ВЫШЕ страйка → H2 = PUT
         #   цена НИЖЕ страйка → H2 = CALL
@@ -2730,7 +2748,13 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
             _in_profit = (original_direction == "CALL" and peak_price > entry_price) or \
                          (original_direction == "PUT"  and peak_price < entry_price)
             _profit_ok = (not REQUIRE_PROFIT) or _in_profit
-            if peak_abs_distance > 0 and pips_from_peak >= PULLBACK_PIPS and _peak_ok and _profit_ok:
+            # 🔥 ИЛИ-ЛОГИКА триггера:
+            #   (A) Классика «откат от пика»: цена ушла в плюс на ≥MIN_PEAK_PIPS, потом откат от пика ≥PULLBACK_PIPS
+            #   (B) Спасение «уход в минус»: основная ушла В МИНУС на ≥LOSS_TRIGGER_PIPS пип — страхуемся сразу
+            _trigger_pullback = peak_abs_distance > 0 and pips_from_peak >= PULLBACK_PIPS and _peak_ok and _profit_ok
+            _trigger_loss     = _pips_in_minus >= LOSS_TRIGGER_PIPS
+            _trigger_reason = "откат от пика" if _trigger_pullback else (f"уход в минус {_pips_in_minus} пип" if _trigger_loss else "")
+            if _trigger_pullback or _trigger_loss:
                 # H2: правило по позиции цены (выше страйка → PUT, ниже → CALL)
                 h2_dir = "PUT" if current_price > entry_price else "CALL"
                 # H3: всегда противоположно H2
@@ -2738,7 +2762,7 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
                 h2_bet = round(original_bet * M2_MULT, 2)
                 h3_bet = round(original_bet * M3_MULT, 2)
                 _h2_pos = "выше страйка" if current_price > entry_price else "ниже страйка"
-                print(f"[CASCADE] 🔄 ХЕДЖ-2+3 ТРИГГЕР: коррекция {pips_from_peak} пип от пика (пик {round(peak_abs_distance/PIP_SIZE_C, 1)} пип)")
+                print(f"[CASCADE] 🔄 ХЕДЖ-2+3 ТРИГГЕР [{_trigger_reason}]: пик={round(peak_abs_distance/PIP_SIZE_C, 1)} пип | откат={pips_from_peak} пип | основная={_signed_pips_vs_entry:+.1f} пип")
                 print(f"[CASCADE]    осн={original_direction} | цена={current_price} {_h2_pos} {entry_price}")
                 print(f"[CASCADE]    H2={h2_dir} ×{M2_MULT} ({h2_bet}) | H3={h3_dir} ×{M3_MULT} ({h3_bet}) | осталось {remaining}с")
 
@@ -6725,6 +6749,11 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
     MIN_TIME_PCT     = ${cfg.hedgeCascadeMinTimePercent ?? 50} / 100.0  # минимум % экспирации до H2
     MIN_PEAK_PIPS    = ${cfg.hedgeCascadeMinPeakPips ?? 0}              # минимум пип от страйка для триггера
     REQUIRE_PROFIT   = ${cfg.hedgeCascadeRequireProfit ? "True" : "False"}  # H2 только если основная В ПЛЮСЕ
+    # 🛟 СПАСАТЕЛЬНЫЙ ТРИГГЕР H2 «уход в минус»:
+    #   Если основная сделка уже проигрывает на >= LOSS_TRIGGER_PIPS пип — открываем хедж СРАЗУ
+    #   (не дожидаясь классической логики «пик + откат»). Помогает в кейсах когда цена идёт против сразу.
+    #   0 = выключен. Дефолт 1 пип = очень чувствительный.
+    LOSS_TRIGGER_PIPS = ${cfg.hedgeCascadeLossTriggerPips ?? 1}
     CHECK_EVERY   = max(1, ${cfg.hedgeCheckInterval} // 2 if ${cfg.hedgeCheckInterval} > 1 else 1)
 
     _asset_key_c = (_resolved_asset or ASSET)
@@ -6788,11 +6817,21 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
         pips_from_peak  = round(abs(peak_price - current_price) / PIP_SIZE_C, 1)
         time_ratio = elapsed / expiry_sec if expiry_sec > 0 else 0
 
-        # PULSE-лог каждые 30 итераций — чтобы видеть что монитор живой
-        if _iter % 30 == 0:
-            print(f"[CASCADE] 💓 pulse iter={_iter} | цена={current_price} | страйк={entry_price} | откл={pips_from_entry}пип | от пика={pips_from_peak}пип | прошло {round(time_ratio*100)}% | h2={h2_opened} h3={h3_opened}")
+        # 📉 СИГНАЛЬНОЕ отклонение от страйка (со знаком: + = в нашу сторону, − = против)
+        # Для CALL «в плюсе» = цена выше страйка; для PUT — ниже.
+        if original_direction == "CALL":
+            _signed_pips_vs_entry = round((current_price - entry_price) / PIP_SIZE_C, 1)
+        else:
+            _signed_pips_vs_entry = round((entry_price - current_price) / PIP_SIZE_C, 1)
+        # «В минусе на X пип» — насколько основная сделка проигрывает прямо сейчас
+        _pips_in_minus = max(0.0, -_signed_pips_vs_entry)
 
-        # ХЕДЖ-2 + ХЕДЖ-3: открываются ОДНОВРЕМЕННО на коррекции от пика
+        # PULSE-лог каждые 30 итераций — чтобы видеть что монитор живой + диагностика h2-готовности
+        if _iter % 30 == 0:
+            _h2_diag = f"откат≥{PULLBACK_PIPS}:{'✅' if pips_from_peak >= PULLBACK_PIPS else '❌'} | в-минусе≥{LOSS_TRIGGER_PIPS}:{'✅' if _pips_in_minus >= LOSS_TRIGGER_PIPS else '❌'}"
+            print(f"[CASCADE] 💓 pulse iter={_iter} | цена={current_price} | страйк={entry_price} | откл={_signed_pips_vs_entry:+.1f}пип | от пика={pips_from_peak}пип | прошло {round(time_ratio*100)}% | h2={h2_opened} h3={h3_opened} | h2-готов: {_h2_diag}")
+
+        # ХЕДЖ-2 + ХЕДЖ-3: открываются ОДНОВРЕМЕННО на коррекции от пика ИЛИ при уходе основной в минус
         # 🎯 ЛОГИКА H2 (ставим на возврат к страйку):
         #   цена ВЫШЕ страйка → H2 = PUT
         #   цена НИЖЕ страйка → H2 = CALL
@@ -6803,7 +6842,13 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
             _in_profit = (original_direction == "CALL" and peak_price > entry_price) or \
                          (original_direction == "PUT"  and peak_price < entry_price)
             _profit_ok = (not REQUIRE_PROFIT) or _in_profit
-            if peak_abs_distance > 0 and pips_from_peak >= PULLBACK_PIPS and _peak_ok and _profit_ok:
+            # 🔥 ИЛИ-ЛОГИКА триггера:
+            #   (A) Классика «откат от пика»: цена ушла в плюс на ≥MIN_PEAK_PIPS, потом откат от пика ≥PULLBACK_PIPS
+            #   (B) Спасение «уход в минус»: основная ушла В МИНУС на ≥LOSS_TRIGGER_PIPS пип — страхуемся сразу
+            _trigger_pullback = peak_abs_distance > 0 and pips_from_peak >= PULLBACK_PIPS and _peak_ok and _profit_ok
+            _trigger_loss     = _pips_in_minus >= LOSS_TRIGGER_PIPS
+            _trigger_reason = "откат от пика" if _trigger_pullback else (f"уход в минус {_pips_in_minus} пип" if _trigger_loss else "")
+            if _trigger_pullback or _trigger_loss:
                 # H2: правило по позиции цены (выше страйка → PUT, ниже → CALL)
                 h2_dir = "PUT" if current_price > entry_price else "CALL"
                 # H3: всегда противоположно H2
@@ -6811,7 +6856,7 @@ async def cascade_hedge_monitor(client, original_direction, original_bet, entry_
                 h2_bet = round(original_bet * M2_MULT, 2)
                 h3_bet = round(original_bet * M3_MULT, 2)
                 _h2_pos = "выше страйка" if current_price > entry_price else "ниже страйка"
-                print(f"[CASCADE] 🔄 ХЕДЖ-2+3 ТРИГГЕР: коррекция {pips_from_peak} пип от пика (пик {round(peak_abs_distance/PIP_SIZE_C, 1)} пип)")
+                print(f"[CASCADE] 🔄 ХЕДЖ-2+3 ТРИГГЕР [{_trigger_reason}]: пик={round(peak_abs_distance/PIP_SIZE_C, 1)} пип | откат={pips_from_peak} пип | основная={_signed_pips_vs_entry:+.1f} пип")
                 print(f"[CASCADE]    осн={original_direction} | цена={current_price} {_h2_pos} {entry_price}")
                 print(f"[CASCADE]    H2={h2_dir} ×{M2_MULT} ({h2_bet}) | H3={h3_dir} ×{M3_MULT} ({h3_bet}) | осталось {remaining}с")
 

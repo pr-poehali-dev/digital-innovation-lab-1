@@ -7379,12 +7379,37 @@ async def main():
                         _color_match = (_lcol == _acol)
                         _open_match  = abs(_do) <= 1.0
                         _close_match = abs(_dc) <= 1.0
+                        _is_big_gap  = abs(_do) > 2 or abs(_dc) > 2
                         _verdict = "✅ СОВПАДАЮТ" if (_color_match and _open_match and _close_match) else "⚠️ РАСХОЖДЕНИЕ"
                         print(f"[🕵️ SPY] СВЕРКА: {_verdict} | цвет:{'✅' if _color_match else '❌'} | Δoper={_do:+.1f}пип | Δclose={_dc:+.1f}пип")
                         if not _color_match:
                             print(f"[🕵️ SPY] ⚠️ ЦВЕТ РАСХОДИТСЯ: буфер={_lcol} vs API={_acol} — бот может выдать неверный сигнал!")
-                        if abs(_do) > 2 or abs(_dc) > 2:
+                        if _is_big_gap:
                             print(f"[🕵️ SPY] ⚠️ БОЛЬШОЕ ОТКЛОНЕНИЕ (>2 пип) — переключи источник свечей на 'API РО' в настройках")
+
+                        # 📱 TELEGRAM-АЛЕРТ при ПЕРВОМ серьёзном расхождении за сессию (анти-спам через globals-флаг)
+                        _critical_mismatch = (not _color_match) or _is_big_gap
+                        _already_notified = globals().get('_candle_mismatch_notified', False)
+                        if _critical_mismatch and not _already_notified:
+                            globals()['_candle_mismatch_notified'] = True
+                            try:
+                                _alert_lines = [
+                                    f"🚨 <b>[{BOT_NAME}] РАСХОЖДЕНИЕ СВЕЧЕЙ</b>",
+                                    f"━━━━━━━━━━━━━━━━━━━━",
+                                    f"📊 <b>Буфер бота:</b> {_lcol} o={_lo:.5f} c={_lc:.5f}",
+                                    f"📡 <b>API РО:</b> {_acol} o={_ao:.5f} c={_ac:.5f}",
+                                    f"📏 Δopen={_do:+.1f} пип | Δclose={_dc:+.1f} пип",
+                                ]
+                                if not _color_match:
+                                    _alert_lines.append(f"❌ <b>Цвет расходится!</b> Бот видит {_lcol}, РО показывает {_acol}")
+                                if _is_big_gap:
+                                    _alert_lines.append(f"❌ <b>Большое отклонение</b> цены (&gt;2 пип)")
+                                _alert_lines.append(f"━━━━━━━━━━━━━━━━━━━━")
+                                _alert_lines.append(f"💡 <b>Рекомендация:</b> переключи источник свечей на «API РО» в настройках бота — гарантирует совпадение с графиком.")
+                                _alert_lines.append(f"🔇 Повторных уведомлений не будет (1 раз за сессию).")
+                                tg("\\n".join(_alert_lines))
+                                print(f"[🕵️ SPY] 📱 Telegram-алерт о расхождении отправлен (1 раз за сессию)")
+                            except Exception as _tge: print(f"[🕵️ SPY] TG-алерт ошибка: {_tge}")
                 else:
                     print(f"[🕵️ SPY] Сверка с API РО: ⏳ API не вернул свечи")
             except Exception as _spy_e:

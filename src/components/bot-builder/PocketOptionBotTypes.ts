@@ -551,9 +551,18 @@ def _tb_calc_ema(prices, period):
 
 def tb_filter_ma200(signal, prices):
     """Фильтр Пола Тюдора Джонса: CALL только если цена > MA200, PUT только если <.
-    Returns (allow: bool, reason: str)."""
+    Returns (allow: bool, reason: str).
+    🛡 ФИКС: если буфер ещё не накопил достаточно СВОИХ свечей (после прогрева историей),
+    MA считается на старых данных и блокирует сделки. Пропускаем фильтр пока буфер не "созреет"."""
     if not TB_MA200_ENABLED:
         return True, ""
+    # 🛡 ГЕЙТ: пока живой стрим не положил минимум MA_PERIOD//2 СВОИХ свечей —
+    # MA считается смесью «прогрев-история + live-цена», что даёт ложные блокировки.
+    # Требуем минимум половину периода MA из живых свечей (для MA50 = 25, для MA200 = 100).
+    _own_count = globals().get('_own_closed_candles_count', 0)
+    _min_own_for_ma = max(2, TB_MA200_PERIOD // 2)
+    if _own_count < _min_own_for_ma:
+        return True, f"MA{TB_MA200_PERIOD}=прогрев ({_own_count}/{_min_own_for_ma} своих свечей) — фильтр пропущен"
     ma = _tb_calc_sma(prices, TB_MA200_PERIOD)
     if ma is None:
         return True, f"MA{TB_MA200_PERIOD}=недостаточно данных, фильтр пропущен"

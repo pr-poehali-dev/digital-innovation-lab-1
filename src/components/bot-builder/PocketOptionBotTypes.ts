@@ -3196,11 +3196,19 @@ async def main():
                 _history_loaded = True
                 print(f"[WARMUP_HIST] ✅ Получено {len(_hist_raw)} свечей — буфер прогрет, торгуем сразу!")
                 tg_info(f"🔥 <b>[{BOT_NAME}] Прогрев историей УСПЕХ</b>\\nПолучено {len(_hist_raw)} свечей — торгуем с первой минуты!")
-                # Кладём историю в живой буфер через метод tick (если поддерживается) или прямо в candles
+                # 🔥 ФИКС B: грузим ВСЕ свежие свечи (не только 15), чтобы буфер совпадал с тем что отдаёт API
+                # Сортируем по времени и берём последние LIVE_BUFFER_SIZE (по умолчанию 50)
                 try:
                     if hasattr(_live_buf, 'candles') and isinstance(_live_buf.candles, list):
                         _live_buf.candles.clear()
-                        for _hc in _hist_raw[-15:]:
+                        # Сортируем по timestamp если есть
+                        _sorted_hist = sorted(_hist_raw, key=lambda x: getattr(x, 'time', 0) or (x.get('time', 0) if isinstance(x, dict) else 0))
+                        # Берём ВСЕ закрытые свечи (исключая последнюю — она ещё открыта)
+                        _to_load = _sorted_hist[:-1] if len(_sorted_hist) > 1 else _sorted_hist
+                        # Ограничиваем размером буфера (по умолчанию 50, но не меньше 30 для индикаторов)
+                        _max_load = min(len(_to_load), 50)
+                        _to_load = _to_load[-_max_load:]
+                        for _hc in _to_load:
                             _o = getattr(_hc, 'open', None) or (_hc.get('open') if isinstance(_hc, dict) else None) or _hc[0]
                             _h = getattr(_hc, 'high', None) or (_hc.get('high') if isinstance(_hc, dict) else None) or _hc[1]
                             _l = getattr(_hc, 'low', None)  or (_hc.get('low')  if isinstance(_hc, dict) else None) or _hc[2]
@@ -3209,7 +3217,10 @@ async def main():
                             _live_buf.candles.append((float(_o), float(_h), float(_l), float(_c), float(_t)))
                         if hasattr(_live_buf, 'ready'):
                             _live_buf.ready = True
-                        print(f"[WARMUP_HIST] ✅ В буфер загружено {len(_live_buf.candles)} свечей")
+                        # 🛡 ФИКС C: помечаем что свечи в буфере — из ПРОГРЕВА (а не свои живые)
+                        globals()['_warmup_loaded_count'] = len(_live_buf.candles)
+                        globals()['_own_closed_candles_count'] = 0
+                        print(f"[WARMUP_HIST] ✅ В буфер загружено {len(_live_buf.candles)} свечей (свои живые свечи появятся через {EXPIRY_SEC}с)")
                 except Exception as _wbe:
                     print(f"[WARMUP_HIST] ⚠️ Не смог положить историю в буфер: {_wbe} (бот будет копить через тики)")
             else:
@@ -6259,10 +6270,12 @@ async def live_stream_subscriber(buf, client):
                     if len(_candles_list) > LIVE_BUFFER_SIZE:
                         _candles_list = _candles_list[-LIVE_BUFFER_SIZE:]
                     buf.candles = _candles_list
+                    # 🛡 ФИКС C: счётчик СВОИХ закрытых свечей (для гейта SPY-сверки)
+                    globals()['_own_closed_candles_count'] = globals().get('_own_closed_candles_count', 0) + 1
                     _color = '🟢' if _c >= _o else '🔴'
                     _open_t = datetime.utcfromtimestamp(_old_bucket).strftime('%H:%M:%S')
                     _close_t = datetime.utcfromtimestamp(_old_bucket + EXPIRY_SEC).strftime('%H:%M:%S')
-                    print(f"[CANDLE_BUILD] ✅ ЗАКРЫТА {_color} {_open_t}→{_close_t} UTC | o={_o:.5f} h={_h:.5f} l={_l:.5f} c={_c:.5f}")
+                    print(f"[CANDLE_BUILD] ✅ ЗАКРЫТА {_color} {_open_t}→{_close_t} UTC | o={_o:.5f} h={_h:.5f} l={_l:.5f} c={_c:.5f} | своих свечей: {globals().get('_own_closed_candles_count', 0)}")
                     # Запись в сессионный файл
                     try:
                         _session_save_candle((_resolved_asset or ASSET), EXPIRY_SEC, int(_old_bucket), _o, _h, _l, _c)
@@ -7183,11 +7196,19 @@ async def main():
                 _history_loaded = True
                 print(f"[WARMUP_HIST] ✅ Получено {len(_hist_raw)} свечей — буфер прогрет, торгуем сразу!")
                 tg_info(f"🔥 <b>[{BOT_NAME}] Прогрев историей УСПЕХ</b>\\nПолучено {len(_hist_raw)} свечей — торгуем с первой минуты!")
-                # Кладём историю в живой буфер через метод tick (если поддерживается) или прямо в candles
+                # 🔥 ФИКС B: грузим ВСЕ свежие свечи (не только 15), чтобы буфер совпадал с тем что отдаёт API
+                # Сортируем по времени и берём последние LIVE_BUFFER_SIZE (по умолчанию 50)
                 try:
                     if hasattr(_live_buf, 'candles') and isinstance(_live_buf.candles, list):
                         _live_buf.candles.clear()
-                        for _hc in _hist_raw[-15:]:
+                        # Сортируем по timestamp если есть
+                        _sorted_hist = sorted(_hist_raw, key=lambda x: getattr(x, 'time', 0) or (x.get('time', 0) if isinstance(x, dict) else 0))
+                        # Берём ВСЕ закрытые свечи (исключая последнюю — она ещё открыта)
+                        _to_load = _sorted_hist[:-1] if len(_sorted_hist) > 1 else _sorted_hist
+                        # Ограничиваем размером буфера (по умолчанию 50, но не меньше 30 для индикаторов)
+                        _max_load = min(len(_to_load), 50)
+                        _to_load = _to_load[-_max_load:]
+                        for _hc in _to_load:
                             _o = getattr(_hc, 'open', None) or (_hc.get('open') if isinstance(_hc, dict) else None) or _hc[0]
                             _h = getattr(_hc, 'high', None) or (_hc.get('high') if isinstance(_hc, dict) else None) or _hc[1]
                             _l = getattr(_hc, 'low', None)  or (_hc.get('low')  if isinstance(_hc, dict) else None) or _hc[2]
@@ -7196,7 +7217,10 @@ async def main():
                             _live_buf.candles.append((float(_o), float(_h), float(_l), float(_c), float(_t)))
                         if hasattr(_live_buf, 'ready'):
                             _live_buf.ready = True
-                        print(f"[WARMUP_HIST] ✅ В буфер загружено {len(_live_buf.candles)} свечей")
+                        # 🛡 ФИКС C: помечаем что свечи в буфере — из ПРОГРЕВА (а не свои живые)
+                        globals()['_warmup_loaded_count'] = len(_live_buf.candles)
+                        globals()['_own_closed_candles_count'] = 0
+                        print(f"[WARMUP_HIST] ✅ В буфер загружено {len(_live_buf.candles)} свечей (свои живые свечи появятся через {EXPIRY_SEC}с)")
                 except Exception as _wbe:
                     print(f"[WARMUP_HIST] ⚠️ Не смог положить историю в буфер: {_wbe} (бот будет копить через тики)")
             else:
@@ -7393,7 +7417,17 @@ async def main():
                 print(f"[🕵️ SPY] Посл.закр.свеча (буфер): {_lcol} o={_lo:.5f} c={_lc:.5f} | МСК={_lb_msk}")
 
             # 🎯 СВЕРКА С API POCKET OPTION — те же свечи что видишь на графике
+            # 🛡 ФИКС C: ждём пока буфер накопит ≥2 СВОИХ закрытых свечи (после старта WS-стрима).
+            # До этого момента в буфере лежат свечи из ПРОГРЕВА историей (могут быть устаревшие
+            # из-за разрывов / разных фидов РО), и сверка даёт ложные алерты.
+            _own_count_for_spy = globals().get('_own_closed_candles_count', 0)
+            _MIN_OWN_FOR_SPY = 2
+            _skip_api_spy = _own_count_for_spy < _MIN_OWN_FOR_SPY
+            if _skip_api_spy:
+                print(f"[🕵️ SPY] Сверка с API РО: ⏳ ждём {_MIN_OWN_FOR_SPY} своих закрытых свечей (накоплено: {_own_count_for_spy}/{_MIN_OWN_FOR_SPY}). Буфер пока на прогрев-данных, ложные алерты подавлены.")
             try:
+                if _skip_api_spy:
+                    raise StopIteration("skip_api_spy")
                 _api_c, _api_p = await get_candles_data(client)
                 if _api_c and len(_api_c) >= 2:
                     # Последняя ЗАКРЫТАЯ свеча API (предпоследняя в списке: -1 = текущая, -2 = закрытая)
@@ -7471,6 +7505,8 @@ async def main():
                             except Exception as _tge: print(f"[🕵️ SPY] TG-алерт ошибка: {_tge}")
                 else:
                     print(f"[🕵️ SPY] Сверка с API РО: ⏳ API не вернул свечи")
+            except StopIteration:
+                pass  # Гейт: пока нет своих свечей — пропускаем сверку молча
             except Exception as _spy_e:
                 print(f"[🕵️ SPY] Сверка с API РО: ⚠️ ошибка: {_spy_e}")
 

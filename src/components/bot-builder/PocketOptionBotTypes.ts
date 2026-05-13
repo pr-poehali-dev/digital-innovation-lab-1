@@ -82,6 +82,8 @@ export interface POBotConfig {
   pipSizeAuto?: boolean
   /** Использовать прогрев историей свечей через API РО (мгновенный старт). Если не получится — фоллбэк на адаптивные индикаторы */
   warmupHistoryEnabled?: boolean
+  /** 🎯 Источник свечей для анализа сигнала: "api" — прямо от Pocket Option (точно как на графике юзера), "buffer" — самопостроенные из тиков (старая логика). По умолчанию "api". */
+  candleSource?: "api" | "buffer"
   /** Адаптивные индикаторы — позволяют торговать с 2 свечей, уменьшая период RSI/EMA пропорционально буферу */
   adaptiveIndicators?: boolean
   profitExtEnabled: boolean
@@ -432,6 +434,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   hedgeCascadeM3: 2.0,
   hedgeCascadePullbackPips: 3,
   hedgeCascadeLossTriggerPips: 1,
+  candleSource: "api",
   pipSize: 0.0001,
   profitExtEnabled: true,
   profitExtPips: 5,
@@ -7404,8 +7407,28 @@ async def main():
                     _sync_guard_notified = False
             except NameError:
                 pass
-        candles = _live_buf.all_candles()
-        prices = _live_buf.prices()
+        # 🎯 ИСТОЧНИК СВЕЧЕЙ (приоритетный API РО, fallback — собственный буфер тиков)
+        # API РО гарантирует те же свечи что показаны на графике пользователю.
+        _candle_source = "${cfg.candleSource ?? "api"}"
+        candles, prices = [], []
+        if _candle_source == "api":
+            try:
+                _api_candles, _api_prices = await get_candles_data(client)
+                if _api_prices and len(_api_prices) >= 2:
+                    candles, prices = _api_candles, _api_prices
+                    # Лог источника каждые ~30 итераций (не на каждой)
+                    _src_log_counter = globals().get('_src_log_counter', 0) + 1
+                    globals()['_src_log_counter'] = _src_log_counter
+                    if _src_log_counter % 30 == 1:
+                        print(f"[CANDLE_SRC] 📡 API РО | свечей={len(candles)} | последняя cl={prices[-1]:.5f}")
+            except Exception as _ce:
+                print(f"[CANDLE_SRC] ⚠️ API ошибка: {_ce} — fallback на буфер тиков")
+        # FALLBACK на собственный буфер если API не отдал или режим = buffer
+        if not prices:
+            candles = _live_buf.all_candles()
+            prices = _live_buf.prices()
+            if _candle_source == "api" and prices:
+                print(f"[CANDLE_SRC] 🔄 FALLBACK на буфер тиков | свечей={len(candles)}")
         if not prices:
             await asyncio.sleep(2)
             continue

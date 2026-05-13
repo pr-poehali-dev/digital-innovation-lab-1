@@ -2307,10 +2307,24 @@ async def try_get_candles(client, asset_name):
     return None
 
 async def get_candles_data(client):
-    """Получение свечей с кэшем — обновляет только когда закрывается новая свеча"""
+    """Получение свечей с кэшем — обновляет только когда закрывается новая свеча.
+    🛡️ СТРОГИЙ РЕЖИМ: НЕ подменяем OTC на обычный (и наоборот) — это разные активы с разными ценами!
+    """
     global _candle_cache, _candle_asset, _last_candle_time, _resolved_asset
+    _is_otc = "_otc" in ASSET.lower()
     base = ASSET.replace("_otc", "").replace("#", "")
-    candidates = [ASSET, f"#{ASSET}", f"{base}_otc", f"#{base}_otc", base]
+    # 🚨 ВАЖНО: для OTC актива пробуем ТОЛЬКО OTC-варианты (никогда не fallback на обычный!)
+    # Для обычного актива — только обычные (никогда не fallback на OTC!).
+    # Иначе API возвращает свечи ДРУГОГО актива → бот видит чужие цены → неверные сигналы.
+    if _is_otc:
+        candidates = [ASSET, f"#{ASSET}", f"{base}_otc", f"#{base}_otc"]
+    else:
+        candidates = [ASSET, f"#{ASSET}", base, f"#{base}"]
+    # Если уже резолвили актив в этой сессии — пробуем сначала именно его (быстро)
+    if _resolved_asset and _resolved_asset not in candidates:
+        candidates = [_resolved_asset] + candidates
+    elif _resolved_asset:
+        candidates = [_resolved_asset] + [c for c in candidates if c != _resolved_asset]
     seen = []
     for name in candidates:
         if name in seen:
@@ -2320,6 +2334,26 @@ async def get_candles_data(client):
             raw = await try_get_candles(client, name)
             if not raw:
                 continue
+            # 🛡️ САНИТИ-ЧЕК: цена кандидата должна совпадать с WS-буфером (если буфер уже живой).
+            # Если расхождение > 50 пип — это ДРУГОЙ актив (например EURUSD vs EURUSD_otc) → отвергаем.
+            _ws_buf = globals().get('_live_buf', None)
+            _ws_price = float(getattr(_ws_buf, 'last_price', 0)) if _ws_buf else 0
+            if _ws_price > 0 and raw:
+                _api_last = raw[-1]
+                _api_price = float(getattr(_api_last, 'close', 0)) or 0
+                if _api_price > 0:
+                    # Авто-определение pip-size по диапазону цены
+                    _ref = abs(_ws_price)
+                    if _ref >= 1000: _check_pip = 1.0
+                    elif _ref >= 50: _check_pip = 0.01
+                    elif _ref >= 5:  _check_pip = 0.001
+                    else:            _check_pip = 0.0001
+                    _gap_pips = abs(_ws_price - _api_price) / _check_pip
+                    if _gap_pips > 50:
+                        print(f"[ASSET_GUARD] ⛔ Кандидат '{name}' отвергнут: API цена={_api_price:.5f}, WS цена={_ws_price:.5f} (Δ={_gap_pips:.0f} пип). Это другой актив!")
+                        continue
+                    else:
+                        print(f"[ASSET_GUARD] ✅ Кандидат '{name}' прошёл саните-чек: API={_api_price:.5f} vs WS={_ws_price:.5f} (Δ={_gap_pips:.1f} пип)")
             _resolved_asset = name
             if name != ASSET:
                 print(f"[INFO] Актив найден как: {name}")

@@ -6355,13 +6355,24 @@ async def live_stream_subscriber(buf, client):
         async with websockets.connect(_url, **_ws_kwargs) as _ws:
             _auth_sent = False
             _subscribed = False
+            _conn_start_ts = _t_ws.time()
             _last_msg_ts = _t_ws.time()
+            _ticks_received = 0  # счётчик тиков на этом коннекте — для лога закрытия
             _pending_event_name = None  # имя event'а из 451-[...] для следующего BINARY пакета
+            # 🛸 ПРАВКА #1: RECV-TIMEOUT — если сервер 30с молчит, рвём сами (не висим минутами)
+            _RECV_TIMEOUT = 30
             try:
-                async for _raw in _ws:
+                while True:
+                    try:
+                        _raw = await asyncio.wait_for(_ws.recv(), timeout=_RECV_TIMEOUT)
+                    except asyncio.TimeoutError:
+                        _silent_secs = int(_t_ws.time() - _last_msg_ts)
+                        print(f"[WS] ⏱ RECV-TIMEOUT: тишина {_silent_secs}с (порог {_RECV_TIMEOUT}с) — рвём принудительно")
+                        raise
                     _last_msg_ts = _t_ws.time()
                     if not isinstance(_raw, str):
                         # BINARY-пакет: это данные для предыдущего "451-" event'а
+                        _ticks_received += 1
                         _decoded = _decode_binary(_raw)
                         if _decoded is None:
                             continue
@@ -6437,7 +6448,19 @@ async def live_stream_subscriber(buf, client):
             except Exception as _le:
                 _ec = getattr(_le, 'code', None)
                 _er = getattr(_le, 'reason', None)
+                # 🛸 ПРАВКА #3: детальный лог — uptime, auth, subscribe, силенс, всего тиков
+                _uptime = int(_t_ws.time() - _conn_start_ts)
+                _silence = int(_t_ws.time() - _last_msg_ts)
+                _auth_str = "✅" if _auth_sent else "❌"
+                _sub_str = "✅" if _subscribed else "❌"
                 print(f"[WS] 🔻 Соединение закрыто: type={type(_le).__name__} code={_ec} reason={_er}")
+                print(f"[WS]    📊 uptime={_uptime}с | auth={_auth_str} | subscribe={_sub_str} | тиков={_ticks_received} | тишина={_silence}с перед обрывом")
+                if _uptime < 5:
+                    print(f"[WS]    💡 Меньше 5с — РО рубит на старте. Проверь SESSION_ID и isDemo")
+                elif not _subscribed:
+                    print(f"[WS]    💡 Не успели подписаться — РО не ответил на авторизацию. Сессия устарела?")
+                elif _silence > 25:
+                    print(f"[WS]    💡 Долгая тишина — сервер РО завис или дропнул нас по нагрузке")
                 raise
 
     # 🔥 ПРОВЕРКА: isDemo в SESSION_ID должен совпадать с IS_DEMO режимом запуска
@@ -6470,8 +6493,9 @@ async def live_stream_subscriber(buf, client):
                 print(f"[WS] ⚠️ Сокет закрылся без ошибки {_silent_close_count} раз подряд — переключаюсь на {_next_url_host}")
                 _silent_close_count = 0
             else:
-                print(f"[WS] ⚠️ Сокет закрылся без ошибки — переподключение через 10с (тот же URL)")
-            await asyncio.sleep(10)
+                print(f"[WS] ⚠️ Сокет закрылся без ошибки — переподключение через 2с (тот же URL)")
+            # 🛸 ПРАВКА #2: было 10с, стало 2с — буфер цены не успевает протухнуть
+            await asyncio.sleep(2)
         except Exception as _we:
             _stream_state['reconnects'] += 1
             _silent_close_count = 0  # ошибка ≠ тихое закрытие

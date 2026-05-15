@@ -563,9 +563,10 @@ def tb_filter_ma200(signal, prices):
         return True, ""
 
     _own_count = globals().get('_own_closed_candles_count', 0)
-    # Условие активации: минимум 2 ЖИВЫЕ закрытые свечи (MA из 1 свечи = сама цена, бессмысленно)
-    if _own_count < 2:
-        return True, f"MA адаптив: {_own_count}/2 живых свечей — фильтр пропущен"
+    # 🛸 ПРАВКА C: минимум 5 живых свечей (раньше было 2, но MA из 2-3 свечей
+    # = почти текущая цена, ловит ложные «медвежий/бычий рынок» и душит ВСЕ сигналы).
+    if _own_count < 5:
+        return True, f"MA адаптив: {_own_count}/5 живых свечей — фильтр пропущен (нужно больше истории)"
 
     # Адаптивный период: растёт от 2 до TB_MA200_PERIOD по мере накопления живых свечей
     _adaptive_period = min(_own_count, TB_MA200_PERIOD)
@@ -2372,27 +2373,28 @@ async def get_candles_data(client):
             if not raw:
                 print(f"[API_REQ] ❌ API РО вернул пусто для '{name}' — пробуем следующего кандидата")
                 continue
-            # 🛡️ САНИТИ-ЧЕК: цена кандидата должна совпадать с WS-буфером (если буфер уже живой).
-            # Если расхождение > 50 пип — это ДРУГОЙ актив (например EURUSD vs EURUSD_otc) → отвергаем.
+            # 🛡️ САНИТИ-ЧЕК (правка A): цена кандидата должна совпадать с WS-буфером.
+            # 🛸 ПОНИЖЕН порог 50→10 пип: на OTC vs обычный расхождение бывает 10-30 пип,
+            # старый порог 50 пропускал чужой актив и портил сигналы.
             _ws_buf = globals().get('_live_buf', None)
             _ws_price = float(getattr(_ws_buf, 'last_price', 0)) if _ws_buf else 0
             if _ws_price > 0 and raw:
                 _api_last = raw[-1]
                 _api_price = float(getattr(_api_last, 'close', 0)) or 0
                 if _api_price > 0:
-                    # Авто-определение pip-size по диапазону цены
                     _ref = abs(_ws_price)
                     if _ref >= 1000: _check_pip = 1.0
                     elif _ref >= 50: _check_pip = 0.01
                     elif _ref >= 5:  _check_pip = 0.001
                     else:            _check_pip = 0.0001
                     _gap_pips = abs(_ws_price - _api_price) / _check_pip
-                    if _gap_pips > 50:
-                        print(f"[ASSET_GUARD] ⛔ Кандидат '{name}' отвергнут: API цена={_api_price:.5f}, WS цена={_ws_price:.5f} (Δ={_gap_pips:.0f} пип). Это другой актив!")
+                    if _gap_pips > 10:
+                        print(f"[ASSET_GUARD] ⛔ Кандидат '{name}' отвергнут: API={_api_price:.5f}, WS={_ws_price:.5f} (Δ={_gap_pips:.1f} пип > 10). Это ДРУГОЙ актив!")
                         continue
                     else:
-                        print(f"[ASSET_GUARD] ✅ Кандидат '{name}' прошёл саните-чек: API={_api_price:.5f} vs WS={_ws_price:.5f} (Δ={_gap_pips:.1f} пип)")
+                        print(f"[ASSET_GUARD] ✅ Кандидат '{name}' OK: API={_api_price:.5f} vs WS={_ws_price:.5f} (Δ={_gap_pips:.1f} пип)")
             _resolved_asset = name
+            print(f"[ASSET_GUARD] 🎯 РЕЗОЛВНУТ актив для API: '{name}' (исходный ASSET='{ASSET}')")
             if name != ASSET:
                 print(f"[INFO] Актив найден как: {name}")
             if hasattr(raw[0], 'time'):

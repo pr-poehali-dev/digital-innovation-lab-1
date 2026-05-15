@@ -3218,55 +3218,21 @@ async def main():
     _stream_task = asyncio.create_task(live_stream_subscriber(_live_buf, client))
     print(f"[BUFFER] 🚀 Живой WS-стрим запущен | актив={ASSET} | тики напрямую от РО")
 
-    # ===== 🔥 ПРОГРЕВ ИСТОРИЕЙ: пробуем получить готовые свечи через API РО =====
-    # Если получится — буфер сразу полный, торгуем мгновенно.
-    # Если РО не отдаст — фоллбэк на адаптивные индикаторы (торгуем с 2 свечей, период RSI/EMA = min(буфер, стандарт)).
-    _warmup_history_enabled = ${cfg.warmupHistoryEnabled !== false ? "True" : "False"}
+    # ===== 🛸 WARMUP_HIST ОТКЛЮЧЁН (правка #2) =====
+    # Раньше тут грузились свечи из API РО, но они приходили с time=0 →
+    # в логах "??:??:??" и фейковая свеча "МСК=03:00:00". Бот всё равно
+    # ждал свои живые свечи, так что прогрев был бесполезен. Вырезано.
+    _warmup_history_enabled = False  # 🛸 принудительно ВЫКЛ — мусорил буфер
     _adaptive_indicators_on = ${cfg.adaptiveIndicators !== false ? "True" : "False"}
     _history_loaded = False
-    if _warmup_history_enabled:
-        try:
-            print(f"[WARMUP_HIST] 🔥 Пробую получить историю свечей ТФ={EXPIRY_SEC}с через API РО...")
-            _hist_raw = None
-            try:
-                _hist_raw = await client.get_candles(asset=ASSET, timeframe=EXPIRY_SEC, count=20)
-            except Exception as _hist_e:
-                print(f"[WARMUP_HIST] ⚠️ get_candles упал: {_hist_e}")
-            if _hist_raw and len(_hist_raw) >= 2:
-                _history_loaded = True
-                print(f"[WARMUP_HIST] ✅ Получено {len(_hist_raw)} свечей — буфер прогрет, торгуем сразу!")
-                tg_info(f"🔥 <b>[{BOT_NAME}] Прогрев историей УСПЕХ</b>\\nПолучено {len(_hist_raw)} свечей — торгуем с первой минуты!")
-                # 🔥 ФИКС B: грузим ВСЕ свежие свечи (не только 15), чтобы буфер совпадал с тем что отдаёт API
-                # Сортируем по времени и берём последние LIVE_BUFFER_SIZE (по умолчанию 50)
-                try:
-                    if hasattr(_live_buf, 'candles') and isinstance(_live_buf.candles, list):
-                        _live_buf.candles.clear()
-                        # Сортируем по timestamp если есть
-                        _sorted_hist = sorted(_hist_raw, key=lambda x: getattr(x, 'time', 0) or (x.get('time', 0) if isinstance(x, dict) else 0))
-                        # Берём ВСЕ закрытые свечи (исключая последнюю — она ещё открыта)
-                        _to_load = _sorted_hist[:-1] if len(_sorted_hist) > 1 else _sorted_hist
-                        # Ограничиваем размером буфера (по умолчанию 50, но не меньше 30 для индикаторов)
-                        _max_load = min(len(_to_load), 50)
-                        _to_load = _to_load[-_max_load:]
-                        for _hc in _to_load:
-                            _o = getattr(_hc, 'open', None) or (_hc.get('open') if isinstance(_hc, dict) else None) or _hc[0]
-                            _h = getattr(_hc, 'high', None) or (_hc.get('high') if isinstance(_hc, dict) else None) or _hc[1]
-                            _l = getattr(_hc, 'low', None)  or (_hc.get('low')  if isinstance(_hc, dict) else None) or _hc[2]
-                            _c = getattr(_hc, 'close', None)or (_hc.get('close')if isinstance(_hc, dict) else None) or _hc[3]
-                            _t = getattr(_hc, 'time', None) or (_hc.get('time') if isinstance(_hc, dict) else None) or 0
-                            _live_buf.candles.append((float(_o), float(_h), float(_l), float(_c), float(_t)))
-                        if hasattr(_live_buf, 'ready'):
-                            _live_buf.ready = True
-                        # 🛡 ФИКС C: помечаем что свечи в буфере — из ПРОГРЕВА (а не свои живые)
-                        globals()['_warmup_loaded_count'] = len(_live_buf.candles)
-                        globals()['_own_closed_candles_count'] = 0
-                        print(f"[WARMUP_HIST] ✅ В буфер загружено {len(_live_buf.candles)} свечей (свои живые свечи появятся через {EXPIRY_SEC}с)")
-                except Exception as _wbe:
-                    print(f"[WARMUP_HIST] ⚠️ Не смог положить историю в буфер: {_wbe} (бот будет копить через тики)")
-            else:
-                print(f"[WARMUP_HIST] ⚠️ РО не отдал историю — фоллбэк → адаптивные индикаторы.")
-        except Exception as _wh_e:
-            print(f"[WARMUP_HIST] ❌ Ошибка прогрева историей: {_wh_e}")
+    print(f"[WARMUP_HIST] 🛸 Прогрев историей ОТКЛЮЧЁН — ждём живые свечи (TF={EXPIRY_SEC}с)")
+    try:
+        if hasattr(_live_buf, 'candles') and isinstance(_live_buf.candles, list):
+            _live_buf.candles.clear()
+        globals()['_warmup_loaded_count'] = 0
+        globals()['_own_closed_candles_count'] = 0
+    except Exception:
+        pass
 
     if not _history_loaded and _adaptive_indicators_on:
         print(f"[ADAPTIVE] 🧠 Адаптивные индикаторы ВКЛ — торгуем с 2 свечей, период RSI/EMA = min(буфер, 14)")
@@ -7242,55 +7208,21 @@ async def main():
     _stream_task = asyncio.create_task(live_stream_subscriber(_live_buf, client))
     print(f"[BUFFER] 🚀 Живой WS-стрим запущен | актив={ASSET} | тики напрямую от РО")
 
-    # ===== 🔥 ПРОГРЕВ ИСТОРИЕЙ: пробуем получить готовые свечи через API РО =====
-    # Если получится — буфер сразу полный, торгуем мгновенно.
-    # Если РО не отдаст — фоллбэк на адаптивные индикаторы (торгуем с 2 свечей, период RSI/EMA = min(буфер, стандарт)).
-    _warmup_history_enabled = ${cfg.warmupHistoryEnabled !== false ? "True" : "False"}
+    # ===== 🛸 WARMUP_HIST ОТКЛЮЧЁН (правка #2) =====
+    # Раньше тут грузились свечи из API РО, но они приходили с time=0 →
+    # в логах "??:??:??" и фейковая свеча "МСК=03:00:00". Бот всё равно
+    # ждал свои живые свечи, так что прогрев был бесполезен. Вырезано.
+    _warmup_history_enabled = False  # 🛸 принудительно ВЫКЛ — мусорил буфер
     _adaptive_indicators_on = ${cfg.adaptiveIndicators !== false ? "True" : "False"}
     _history_loaded = False
-    if _warmup_history_enabled:
-        try:
-            print(f"[WARMUP_HIST] 🔥 Пробую получить историю свечей ТФ={EXPIRY_SEC}с через API РО...")
-            _hist_raw = None
-            try:
-                _hist_raw = await client.get_candles(asset=ASSET, timeframe=EXPIRY_SEC, count=20)
-            except Exception as _hist_e:
-                print(f"[WARMUP_HIST] ⚠️ get_candles упал: {_hist_e}")
-            if _hist_raw and len(_hist_raw) >= 2:
-                _history_loaded = True
-                print(f"[WARMUP_HIST] ✅ Получено {len(_hist_raw)} свечей — буфер прогрет, торгуем сразу!")
-                tg_info(f"🔥 <b>[{BOT_NAME}] Прогрев историей УСПЕХ</b>\\nПолучено {len(_hist_raw)} свечей — торгуем с первой минуты!")
-                # 🔥 ФИКС B: грузим ВСЕ свежие свечи (не только 15), чтобы буфер совпадал с тем что отдаёт API
-                # Сортируем по времени и берём последние LIVE_BUFFER_SIZE (по умолчанию 50)
-                try:
-                    if hasattr(_live_buf, 'candles') and isinstance(_live_buf.candles, list):
-                        _live_buf.candles.clear()
-                        # Сортируем по timestamp если есть
-                        _sorted_hist = sorted(_hist_raw, key=lambda x: getattr(x, 'time', 0) or (x.get('time', 0) if isinstance(x, dict) else 0))
-                        # Берём ВСЕ закрытые свечи (исключая последнюю — она ещё открыта)
-                        _to_load = _sorted_hist[:-1] if len(_sorted_hist) > 1 else _sorted_hist
-                        # Ограничиваем размером буфера (по умолчанию 50, но не меньше 30 для индикаторов)
-                        _max_load = min(len(_to_load), 50)
-                        _to_load = _to_load[-_max_load:]
-                        for _hc in _to_load:
-                            _o = getattr(_hc, 'open', None) or (_hc.get('open') if isinstance(_hc, dict) else None) or _hc[0]
-                            _h = getattr(_hc, 'high', None) or (_hc.get('high') if isinstance(_hc, dict) else None) or _hc[1]
-                            _l = getattr(_hc, 'low', None)  or (_hc.get('low')  if isinstance(_hc, dict) else None) or _hc[2]
-                            _c = getattr(_hc, 'close', None)or (_hc.get('close')if isinstance(_hc, dict) else None) or _hc[3]
-                            _t = getattr(_hc, 'time', None) or (_hc.get('time') if isinstance(_hc, dict) else None) or 0
-                            _live_buf.candles.append((float(_o), float(_h), float(_l), float(_c), float(_t)))
-                        if hasattr(_live_buf, 'ready'):
-                            _live_buf.ready = True
-                        # 🛡 ФИКС C: помечаем что свечи в буфере — из ПРОГРЕВА (а не свои живые)
-                        globals()['_warmup_loaded_count'] = len(_live_buf.candles)
-                        globals()['_own_closed_candles_count'] = 0
-                        print(f"[WARMUP_HIST] ✅ В буфер загружено {len(_live_buf.candles)} свечей (свои живые свечи появятся через {EXPIRY_SEC}с)")
-                except Exception as _wbe:
-                    print(f"[WARMUP_HIST] ⚠️ Не смог положить историю в буфер: {_wbe} (бот будет копить через тики)")
-            else:
-                print(f"[WARMUP_HIST] ⚠️ РО не отдал историю — фоллбэк → адаптивные индикаторы.")
-        except Exception as _wh_e:
-            print(f"[WARMUP_HIST] ❌ Ошибка прогрева историей: {_wh_e}")
+    print(f"[WARMUP_HIST] 🛸 Прогрев историей ОТКЛЮЧЁН — ждём живые свечи (TF={EXPIRY_SEC}с)")
+    try:
+        if hasattr(_live_buf, 'candles') and isinstance(_live_buf.candles, list):
+            _live_buf.candles.clear()
+        globals()['_warmup_loaded_count'] = 0
+        globals()['_own_closed_candles_count'] = 0
+    except Exception:
+        pass
 
     if not _history_loaded and _adaptive_indicators_on:
         print(f"[ADAPTIVE] 🧠 Адаптивные индикаторы ВКЛ — торгуем с 2 свечей, период RSI/EMA = min(буфер, 14)")

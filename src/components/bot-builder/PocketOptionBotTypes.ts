@@ -1116,6 +1116,25 @@ TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_C
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 TG_TRANSPORT    = "${cfg.tgTransport ?? "auto"}"  # auto | direct | proxy
 
+# 🛡 АВТО-ВЫКЛЮЧЕНИЕ TG: если 3 отправки подряд провалились — больше не пытаемся,
+# чтобы бесполезные ретраи не тормозили торговый цикл (РКН режет api.telegram.org + лимит прокси).
+TG_MAX_CONSEC_FAILS = 3
+_TG_FAIL_COUNTER = {"fails": 0, "disabled": False}
+
+def _tg_mark_success():
+    if _TG_FAIL_COUNTER["fails"] > 0:
+        print(f"[TG_API] ♻️ связь восстановлена (было фейлов подряд: {_TG_FAIL_COUNTER['fails']})")
+    _TG_FAIL_COUNTER["fails"] = 0
+
+def _tg_mark_failure(reason: str):
+    _TG_FAIL_COUNTER["fails"] += 1
+    n = _TG_FAIL_COUNTER["fails"]
+    if n >= TG_MAX_CONSEC_FAILS and not _TG_FAIL_COUNTER["disabled"]:
+        _TG_FAIL_COUNTER["disabled"] = True
+        global TG_ENABLED
+        TG_ENABLED = False
+        print(f"[TG_API] 🛑 АВТО-ВЫКЛЮЧЕНИЕ: {n} фейлов подряд (последний: {reason}). TG уведомления отключены до перезапуска бота — торговля продолжится без задержек.")
+
 def _tg_send_direct(action, text, reply_markup, message_id):
     """Прямой вызов api.telegram.org — fallback, если прокси-функция недоступна."""
     import urllib.request, urllib.parse, json
@@ -1154,6 +1173,9 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
     _t0 = time.time()
     _has_markup = reply_markup is not None
     _text_len = len(text) if text else 0
+    # 🛡 если TG уже авто-выключен после череды фейлов — не пытаемся вообще
+    if _TG_FAIL_COUNTER.get("disabled"):
+        return
     # 🎯 ВЫБОР ТРАНСПОРТА (из настроек конструктора):
     #   "direct" — сразу прямой api.telegram.org (без прокси)
     #   "proxy"  — только poehali tg-send (никаких fallback)
@@ -1171,8 +1193,10 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
                 if _result_holder is not None:
                     _result_holder.append({"ok": _ok, "message_id": _out_id})
                 if _ok:
+                    _tg_mark_success()
                     print(f"[TG_DIRECT] ✅ action={action} msg_id={message_id or '—'}→{_out_id} elapsed={_elapsed}ms (fallback)")
                 else:
+                    _tg_mark_failure(f"direct ok=false: {_resp_data.get('description', '?')}")
                     print(f"[TG_DIRECT] ⚠️ action={action} elapsed={_elapsed}ms err={_resp_data.get('description', '?')}")
                 return
             req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
@@ -1189,11 +1213,14 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
                 _ok = _resp_data.get("ok", False)
                 _out_id = _resp_data.get("message_id", "—")
                 if _ok:
+                    _tg_mark_success()
                     print(f"[TG_API] ✅ action={action} msg_id={message_id or '—'}→{_out_id} text_len={_text_len} markup={_has_markup} elapsed={_elapsed}ms")
                 else:
                     _err = _resp_data.get("error", "?")
+                    _tg_mark_failure(f"proxy ok=false: {_err}")
                     print(f"[TG_API] ⚠️  action={action} msg_id={message_id or '—'} elapsed={_elapsed}ms err={_err}")
             else:
+                _tg_mark_success()
                 print(f"[TG_API] ✅ action={action} msg_id={message_id or '—'} text_len={_text_len} markup={_has_markup} elapsed={_elapsed}ms (no body)")
             return
         except urllib.error.HTTPError as e:
@@ -1206,6 +1233,7 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
                 time.sleep(delay)
             else:
                 _elapsed = int((time.time() - _t0) * 1000)
+                _tg_mark_failure(f"HTTP {e.code}")
                 print(f"[TG_API] 💥 FAIL action={action} msg_id={message_id or '—'} elapsed={_elapsed}ms err=HTTP {e.code}")
         except Exception as e:
             if attempt < retries:
@@ -1213,11 +1241,12 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
                 time.sleep(delay)
             else:
                 _elapsed = int((time.time() - _t0) * 1000)
+                _tg_mark_failure(str(e))
                 print(f"[TG_API] 💥 FAIL action={action} msg_id={message_id or '—'} elapsed={_elapsed}ms err={e}")
 
 def tg(text):
-    """Отправка уведомления о ставке (всегда, если TG включён)"""
-    if not TG_ENABLED:
+    """Отправка уведомления о ставке (всегда, если TG включён и не было 3+ фейлов подряд)"""
+    if not TG_ENABLED or _TG_FAIL_COUNTER.get("disabled"):
         return
     import threading
     threading.Thread(target=_tg_send, args=(text,), daemon=True).start()
@@ -4681,6 +4710,25 @@ TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_C
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 TG_TRANSPORT    = "${cfg.tgTransport ?? "auto"}"  # auto | direct | proxy
 
+# 🛡 АВТО-ВЫКЛЮЧЕНИЕ TG: если 3 отправки подряд провалились — больше не пытаемся,
+# чтобы бесполезные ретраи не тормозили торговый цикл (РКН режет api.telegram.org + лимит прокси).
+TG_MAX_CONSEC_FAILS = 3
+_TG_FAIL_COUNTER = {"fails": 0, "disabled": False}
+
+def _tg_mark_success():
+    if _TG_FAIL_COUNTER["fails"] > 0:
+        print(f"[TG_API] ♻️ связь восстановлена (было фейлов подряд: {_TG_FAIL_COUNTER['fails']})")
+    _TG_FAIL_COUNTER["fails"] = 0
+
+def _tg_mark_failure(reason: str):
+    _TG_FAIL_COUNTER["fails"] += 1
+    n = _TG_FAIL_COUNTER["fails"]
+    if n >= TG_MAX_CONSEC_FAILS and not _TG_FAIL_COUNTER["disabled"]:
+        _TG_FAIL_COUNTER["disabled"] = True
+        global TG_ENABLED
+        TG_ENABLED = False
+        print(f"[TG_API] 🛑 АВТО-ВЫКЛЮЧЕНИЕ: {n} фейлов подряд (последний: {reason}). TG уведомления отключены до перезапуска бота — торговля продолжится без задержек.")
+
 def _tg_send_direct(action, text, reply_markup, message_id):
     """Прямой вызов api.telegram.org — fallback, если прокси-функция недоступна."""
     import urllib.request, urllib.parse, json
@@ -4719,6 +4767,9 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
     _t0 = time.time()
     _has_markup = reply_markup is not None
     _text_len = len(text) if text else 0
+    # 🛡 если TG уже авто-выключен после череды фейлов — не пытаемся вообще
+    if _TG_FAIL_COUNTER.get("disabled"):
+        return
     # 🎯 ВЫБОР ТРАНСПОРТА (из настроек конструктора):
     #   "direct" — сразу прямой api.telegram.org (без прокси)
     #   "proxy"  — только poehali tg-send (никаких fallback)
@@ -4736,8 +4787,10 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
                 if _result_holder is not None:
                     _result_holder.append({"ok": _ok, "message_id": _out_id})
                 if _ok:
+                    _tg_mark_success()
                     print(f"[TG_DIRECT] ✅ action={action} msg_id={message_id or '—'}→{_out_id} elapsed={_elapsed}ms (fallback)")
                 else:
+                    _tg_mark_failure(f"direct ok=false: {_resp_data.get('description', '?')}")
                     print(f"[TG_DIRECT] ⚠️ action={action} elapsed={_elapsed}ms err={_resp_data.get('description', '?')}")
                 return
             req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
@@ -4754,11 +4807,14 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
                 _ok = _resp_data.get("ok", False)
                 _out_id = _resp_data.get("message_id", "—")
                 if _ok:
+                    _tg_mark_success()
                     print(f"[TG_API] ✅ action={action} msg_id={message_id or '—'}→{_out_id} text_len={_text_len} markup={_has_markup} elapsed={_elapsed}ms")
                 else:
                     _err = _resp_data.get("error", "?")
+                    _tg_mark_failure(f"proxy ok=false: {_err}")
                     print(f"[TG_API] ⚠️  action={action} msg_id={message_id or '—'} elapsed={_elapsed}ms err={_err}")
             else:
+                _tg_mark_success()
                 print(f"[TG_API] ✅ action={action} msg_id={message_id or '—'} text_len={_text_len} markup={_has_markup} elapsed={_elapsed}ms (no body)")
             return
         except urllib.error.HTTPError as e:
@@ -4771,6 +4827,7 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
                 time.sleep(delay)
             else:
                 _elapsed = int((time.time() - _t0) * 1000)
+                _tg_mark_failure(f"HTTP {e.code}")
                 print(f"[TG_API] 💥 FAIL action={action} msg_id={message_id or '—'} elapsed={_elapsed}ms err=HTTP {e.code}")
         except Exception as e:
             if attempt < retries:
@@ -4778,11 +4835,12 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
                 time.sleep(delay)
             else:
                 _elapsed = int((time.time() - _t0) * 1000)
+                _tg_mark_failure(str(e))
                 print(f"[TG_API] 💥 FAIL action={action} msg_id={message_id or '—'} elapsed={_elapsed}ms err={e}")
 
 def tg(text):
-    """Отправка уведомления о ставке (всегда, если TG включён)"""
-    if not TG_ENABLED:
+    """Отправка уведомления о ставке (всегда, если TG включён и не было 3+ фейлов подряд)"""
+    if not TG_ENABLED or _TG_FAIL_COUNTER.get("disabled"):
         return
     import threading
     threading.Thread(target=_tg_send, args=(text,), daemon=True).start()

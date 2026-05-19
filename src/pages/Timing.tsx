@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Icon from "@/components/ui/icon"
 import { LiveSessionClock } from "@/components/LiveSessionClock"
+import { TrendPairScanner } from "@/components/TrendPairScanner"
+import { PairDeepDive } from "@/components/PairDeepDive"
 
 const sessions = [
   {
@@ -144,6 +146,12 @@ export default function Timing() {
 
           {/* Живые часы и активная сессия */}
           <LiveSessionClock />
+
+          {/* Сканер трендовых пар */}
+          <TrendPairScanner />
+
+          {/* Глубокий разбор пар */}
+          <PairDeepDive />
 
           {/* Торговые сессии */}
           <section className="mb-20">

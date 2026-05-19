@@ -1108,10 +1108,32 @@ TG_CHAT_ID = "${cfg.tgChatId}"
 TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 
+def _tg_send_direct(action, text, reply_markup, message_id):
+    """Прямой вызов api.telegram.org — fallback, если прокси-функция недоступна."""
+    import urllib.request, urllib.parse, json
+    if action == "delete":
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/deleteMessage"
+        params = {"chat_id": TG_CHAT_ID, "message_id": str(message_id)}
+    elif action == "edit":
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/editMessageText"
+        params = {"chat_id": TG_CHAT_ID, "message_id": str(message_id), "text": text or "", "parse_mode": "HTML"}
+        if reply_markup is not None:
+            params["reply_markup"] = reply_markup if isinstance(reply_markup, str) else json.dumps(reply_markup)
+    else:
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+        params = {"chat_id": TG_CHAT_ID, "text": text or "", "parse_mode": "HTML"}
+        if reply_markup is not None:
+            params["reply_markup"] = reply_markup if isinstance(reply_markup, str) else json.dumps(reply_markup)
+    data = urllib.parse.urlencode(params).encode()
+    req = urllib.request.Request(url, data=data, method="POST")
+    resp = urllib.request.urlopen(req, timeout=15)
+    return json.loads(resp.read().decode())
+
 def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message_id=None, _result_holder=None):
-    """Отправка/редактирование/удаление сообщений через прокси-функцию (без VPN).
-    Если передан _result_holder (list) — кладёт туда ответ Telegram (для получения message_id)."""
-    import urllib.request, json, time
+    """Отправка/редактирование/удаление сообщений: сначала через прокси-функцию (без VPN),
+    при 402/недоступности — fallback на прямой api.telegram.org.
+    Если передан _result_holder (list) — кладёт туда ответ Telegram."""
+    import urllib.request, urllib.error, json, time
     url = "https://functions.poehali.dev/fb70e0a6-b6c1-49e2-b148-c37dab50f024"
     payload_data = {"token": TG_TOKEN, "chat_id": TG_CHAT_ID, "action": action}
     if text is not None:
@@ -1121,12 +1143,25 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
     if message_id is not None:
         payload_data["message_id"] = message_id
     payload = json.dumps(payload_data).encode()
-    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
     _t0 = time.time()
     _has_markup = reply_markup is not None
     _text_len = len(text) if text else 0
+    _proxy_dead = False
     for attempt in range(1, retries + 1):
         try:
+            if _proxy_dead:
+                _resp_data = _tg_send_direct(action, text, reply_markup, message_id)
+                _elapsed = int((time.time() - _t0) * 1000)
+                _ok = _resp_data.get("ok", False)
+                _out_id = (_resp_data.get("result") or {}).get("message_id", "—")
+                if _result_holder is not None:
+                    _result_holder.append({"ok": _ok, "message_id": _out_id})
+                if _ok:
+                    print(f"[TG_DIRECT] ✅ action={action} msg_id={message_id or '—'}→{_out_id} elapsed={_elapsed}ms (fallback)")
+                else:
+                    print(f"[TG_DIRECT] ⚠️ action={action} elapsed={_elapsed}ms err={_resp_data.get('description', '?')}")
+                return
+            req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
             resp = urllib.request.urlopen(req, timeout=20)
             _resp_data = None
             try:
@@ -1147,6 +1182,17 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
             else:
                 print(f"[TG_API] ✅ action={action} msg_id={message_id or '—'} text_len={_text_len} markup={_has_markup} elapsed={_elapsed}ms (no body)")
             return
+        except urllib.error.HTTPError as e:
+            if e.code in (402, 403, 500, 502, 503, 504) and not _proxy_dead:
+                _proxy_dead = True
+                print(f"[TG_API] ⚠️ proxy вернул HTTP {e.code} — переключаюсь на прямой api.telegram.org")
+                continue
+            if attempt < retries:
+                print(f"[TG_API] 🔄 retry {attempt}/{retries} action={action} err=HTTP {e.code}")
+                time.sleep(delay)
+            else:
+                _elapsed = int((time.time() - _t0) * 1000)
+                print(f"[TG_API] 💥 FAIL action={action} msg_id={message_id or '—'} elapsed={_elapsed}ms err=HTTP {e.code}")
         except Exception as e:
             if attempt < retries:
                 print(f"[TG_API] 🔄 retry {attempt}/{retries} action={action} err={e}")
@@ -4620,10 +4666,32 @@ TG_CHAT_ID = "${cfg.tgChatId}"
 TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
 
+def _tg_send_direct(action, text, reply_markup, message_id):
+    """Прямой вызов api.telegram.org — fallback, если прокси-функция недоступна."""
+    import urllib.request, urllib.parse, json
+    if action == "delete":
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/deleteMessage"
+        params = {"chat_id": TG_CHAT_ID, "message_id": str(message_id)}
+    elif action == "edit":
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/editMessageText"
+        params = {"chat_id": TG_CHAT_ID, "message_id": str(message_id), "text": text or "", "parse_mode": "HTML"}
+        if reply_markup is not None:
+            params["reply_markup"] = reply_markup if isinstance(reply_markup, str) else json.dumps(reply_markup)
+    else:
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+        params = {"chat_id": TG_CHAT_ID, "text": text or "", "parse_mode": "HTML"}
+        if reply_markup is not None:
+            params["reply_markup"] = reply_markup if isinstance(reply_markup, str) else json.dumps(reply_markup)
+    data = urllib.parse.urlencode(params).encode()
+    req = urllib.request.Request(url, data=data, method="POST")
+    resp = urllib.request.urlopen(req, timeout=15)
+    return json.loads(resp.read().decode())
+
 def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message_id=None, _result_holder=None):
-    """Отправка/редактирование/удаление сообщений через прокси-функцию (без VPN).
-    Если передан _result_holder (list) — кладёт туда ответ Telegram (для получения message_id)."""
-    import urllib.request, json, time
+    """Отправка/редактирование/удаление сообщений: сначала через прокси-функцию (без VPN),
+    при 402/недоступности — fallback на прямой api.telegram.org.
+    Если передан _result_holder (list) — кладёт туда ответ Telegram."""
+    import urllib.request, urllib.error, json, time
     url = "https://functions.poehali.dev/fb70e0a6-b6c1-49e2-b148-c37dab50f024"
     payload_data = {"token": TG_TOKEN, "chat_id": TG_CHAT_ID, "action": action}
     if text is not None:
@@ -4633,12 +4701,25 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
     if message_id is not None:
         payload_data["message_id"] = message_id
     payload = json.dumps(payload_data).encode()
-    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
     _t0 = time.time()
     _has_markup = reply_markup is not None
     _text_len = len(text) if text else 0
+    _proxy_dead = False
     for attempt in range(1, retries + 1):
         try:
+            if _proxy_dead:
+                _resp_data = _tg_send_direct(action, text, reply_markup, message_id)
+                _elapsed = int((time.time() - _t0) * 1000)
+                _ok = _resp_data.get("ok", False)
+                _out_id = (_resp_data.get("result") or {}).get("message_id", "—")
+                if _result_holder is not None:
+                    _result_holder.append({"ok": _ok, "message_id": _out_id})
+                if _ok:
+                    print(f"[TG_DIRECT] ✅ action={action} msg_id={message_id or '—'}→{_out_id} elapsed={_elapsed}ms (fallback)")
+                else:
+                    print(f"[TG_DIRECT] ⚠️ action={action} elapsed={_elapsed}ms err={_resp_data.get('description', '?')}")
+                return
+            req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
             resp = urllib.request.urlopen(req, timeout=20)
             _resp_data = None
             try:
@@ -4659,6 +4740,17 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
             else:
                 print(f"[TG_API] ✅ action={action} msg_id={message_id or '—'} text_len={_text_len} markup={_has_markup} elapsed={_elapsed}ms (no body)")
             return
+        except urllib.error.HTTPError as e:
+            if e.code in (402, 403, 500, 502, 503, 504) and not _proxy_dead:
+                _proxy_dead = True
+                print(f"[TG_API] ⚠️ proxy вернул HTTP {e.code} — переключаюсь на прямой api.telegram.org")
+                continue
+            if attempt < retries:
+                print(f"[TG_API] 🔄 retry {attempt}/{retries} action={action} err=HTTP {e.code}")
+                time.sleep(delay)
+            else:
+                _elapsed = int((time.time() - _t0) * 1000)
+                print(f"[TG_API] 💥 FAIL action={action} msg_id={message_id or '—'} elapsed={_elapsed}ms err=HTTP {e.code}")
         except Exception as e:
             if attempt < retries:
                 print(f"[TG_API] 🔄 retry {attempt}/{retries} action={action} err={e}")

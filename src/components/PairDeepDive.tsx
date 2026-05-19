@@ -1,8 +1,22 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import Icon from "@/components/ui/icon"
+import func2url from "../../backend/func2url.json"
+
+interface LiveQuote {
+  symbol: string
+  price?: number
+  change_pct?: number
+  high_24h?: number
+  low_24h?: number
+  rsi?: number
+  atr?: number
+  adx?: number
+  trend?: "up" | "down" | "flat"
+  error?: string
+}
 
 interface Level {
   price: string
@@ -201,9 +215,59 @@ const dives: DeepDive[] = [
   },
 ]
 
+const SCANNER_URL = (func2url as Record<string, string>)["scanner-proxy"]
+
 export function PairDeepDive() {
   const [active, setActive] = useState<DeepDive["key"]>("eurusd-otc")
   const dive = dives.find((d) => d.key === active)!
+  const [live, setLive] = useState<LiveQuote | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    let canceled = false
+    const symbol = active === "btc-usd" ? "BTCUSDT" : "EURUSD"
+    setLoading(true)
+    fetch(`${SCANNER_URL}?mode=quote&symbol=${symbol}`)
+      .then((r) => r.json())
+      .then((data: LiveQuote) => {
+        if (!canceled) setLive(data)
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!canceled) setLoading(false)
+      })
+    return () => {
+      canceled = true
+    }
+  }, [active])
+
+  const livePrice = live?.price
+  const liveChange = live?.change_pct
+  const liveAdx = live?.adx
+  const liveRsi = live?.rsi
+  const liveAtr = live?.atr
+  const liveTrend = live?.trend
+  const hasLive = !!livePrice && !live?.error
+
+  const displayPrice = hasLive
+    ? active === "btc-usd"
+      ? livePrice!.toLocaleString("en-US", { maximumFractionDigits: 0 })
+      : livePrice!.toFixed(4)
+    : dive.currentPrice
+
+  const displayChange = hasLive
+    ? `${liveChange! >= 0 ? "+" : ""}${liveChange!.toFixed(2)}%`
+    : dive.change
+  const changePositive = hasLive ? liveChange! >= 0 : dive.changePositive
+
+  const dynamicBias =
+    hasLive && liveTrend
+      ? liveTrend === "up"
+        ? { label: "Бычий", color: "bg-green-500/20 text-green-400 border-green-500/30" }
+        : liveTrend === "down"
+        ? { label: "Медвежий", color: "bg-red-500/20 text-red-400 border-red-500/30" }
+        : { label: "Нейтральный", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" }
+      : { label: dive.bias, color: dive.biasColor }
 
   return (
     <section className="mb-20">
@@ -237,14 +301,23 @@ export function PairDeepDive() {
         <CardContent className="p-6">
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <div className="flex items-baseline gap-3 mb-2">
+              <div className="flex items-baseline gap-3 mb-2 flex-wrap">
                 <span className="font-orbitron text-3xl font-bold text-white">{dive.symbol}</span>
-                <Badge className={dive.biasColor}>{dive.bias} bias</Badge>
+                <Badge className={dynamicBias.color}>{dynamicBias.label} bias</Badge>
+                {hasLive && (
+                  <Badge className="bg-green-500/15 text-green-400 border-green-500/30 animate-pulse">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 mr-1.5 inline-block" />
+                    LIVE
+                  </Badge>
+                )}
+                {loading && !hasLive && (
+                  <Badge className="bg-zinc-700 text-gray-300 border-zinc-600">обновление…</Badge>
+                )}
               </div>
               <div className="flex items-baseline gap-3 mb-4">
-                <span className="font-mono text-4xl font-bold text-white">{dive.currentPrice}</span>
-                <span className={`font-mono text-lg ${dive.changePositive ? "text-green-400" : "text-red-400"}`}>
-                  {dive.changePositive ? "▲" : "▼"} {dive.change}
+                <span className="font-mono text-4xl font-bold text-white">{displayPrice}</span>
+                <span className={`font-mono text-lg ${changePositive ? "text-green-400" : "text-red-400"}`}>
+                  {changePositive ? "▲" : "▼"} {displayChange}
                 </span>
               </div>
               <p className="text-gray-300 text-sm leading-relaxed">{dive.summary}</p>
@@ -252,13 +325,36 @@ export function PairDeepDive() {
 
             {/* Метрики */}
             <div className="grid grid-cols-2 gap-2">
-              {dive.metrics.map((m) => (
-                <div key={m.label} className="bg-black/40 border border-zinc-800 rounded p-3">
-                  <div className="text-[10px] text-gray-500 uppercase mb-1">{m.label}</div>
-                  <div className={`font-mono text-lg font-bold ${dive.accent}`}>{m.value}</div>
-                  {m.hint && <div className="text-[10px] text-gray-500 mt-1">{m.hint}</div>}
-                </div>
-              ))}
+              {dive.metrics.map((m, idx) => {
+                let val = m.value
+                let hint = m.hint
+                let liveFlag = false
+                if (hasLive && idx === 0 && liveAdx !== undefined) {
+                  val = String(liveAdx)
+                  hint = liveAdx >= 40 ? "Сильный тренд" : liveAdx >= 25 ? "Тренд средней силы" : "Флэт / слабый тренд"
+                  liveFlag = true
+                }
+                if (hasLive && idx === 1 && liveRsi !== undefined) {
+                  val = String(liveRsi)
+                  hint = liveRsi > 70 ? "Перекупленность" : liveRsi < 30 ? "Перепроданность" : "Нейтральная зона"
+                  liveFlag = true
+                }
+                if (hasLive && idx === 2 && liveAtr !== undefined) {
+                  val = active === "btc-usd" ? `$${liveAtr.toFixed(0)}` : `${(liveAtr * 10000).toFixed(0)} pips`
+                  hint = "Средний размах за свечу"
+                  liveFlag = true
+                }
+                return (
+                  <div key={m.label} className="bg-black/40 border border-zinc-800 rounded p-3 relative">
+                    {liveFlag && (
+                      <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                    )}
+                    <div className="text-[10px] text-gray-500 uppercase mb-1">{m.label}</div>
+                    <div className={`font-mono text-lg font-bold ${dive.accent}`}>{val}</div>
+                    {hint && <div className="text-[10px] text-gray-500 mt-1">{hint}</div>}
+                  </div>
+                )
+              })}
             </div>
           </div>
         </CardContent>

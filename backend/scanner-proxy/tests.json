@@ -15,6 +15,22 @@
       "expectedStatus": 200,
       "expectedBody": {"source": "CoinGecko"},
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "Live quote BTC",
+      "method": "GET",
+      "path": "/?mode=quote&symbol=BTCUSDT",
+      "expectedStatus": 200,
+      "expectedBody": {"symbol": "BTCUSDT"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Live quote EURUSD",
+      "method": "GET",
+      "path": "/?mode=quote&symbol=EURUSD",
+      "expectedStatus": 200,
+      "expectedBody": {"symbol": "EURUSD"},
+      "bodyMatcher": "partial"
     }
   ]
 }

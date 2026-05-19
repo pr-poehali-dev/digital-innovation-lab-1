@@ -228,6 +228,129 @@ def process_forex_pair(base, quote, tf_cfg, limit, daily_rates):
         return None
 
 
+QUOTE_CACHE = {}
+QUOTE_TTL = 60
+
+
+def calc_indicators(closes, highs=None, lows=None):
+    n = len(closes)
+    if n < 15:
+        return {"rsi": 50, "atr": 0, "adx": 20, "trend": "flat"}
+
+    gains, losses = [], []
+    for i in range(1, 15):
+        diff = closes[i] - closes[i - 1]
+        gains.append(max(diff, 0))
+        losses.append(abs(min(diff, 0)))
+    avg_gain = sum(gains) / 14
+    avg_loss = sum(losses) / 14 if sum(losses) > 0 else 0.0001
+    rs = avg_gain / avg_loss
+    rsi = 100 - (100 / (1 + rs))
+
+    if highs and lows and len(highs) == n:
+        trs = []
+        for i in range(1, n):
+            tr = max(
+                highs[i] - lows[i],
+                abs(highs[i] - closes[i - 1]),
+                abs(lows[i] - closes[i - 1]),
+            )
+            trs.append(tr)
+        atr = sum(trs[-14:]) / 14
+
+        plus_dm, minus_dm = [], []
+        for i in range(1, n):
+            up = highs[i] - highs[i - 1]
+            down = lows[i - 1] - lows[i]
+            plus_dm.append(up if up > down and up > 0 else 0)
+            minus_dm.append(down if down > up and down > 0 else 0)
+        period = 14
+        if atr > 0:
+            plus_di = (sum(plus_dm[-period:]) / period) / atr * 100
+            minus_di = (sum(minus_dm[-period:]) / period) / atr * 100
+            s = plus_di + minus_di
+            adx = (abs(plus_di - minus_di) / s * 100) if s > 0 else 20
+        else:
+            adx = 20
+    else:
+        diffs = [abs(closes[i] - closes[i - 1]) for i in range(1, n)]
+        atr = sum(diffs[-14:]) / 14
+        ema_short = sum(closes[-5:]) / 5
+        ema_long = sum(closes[-20:]) / min(20, n)
+        adx = 20 + min(20, abs(ema_short - ema_long) / max(ema_long, 0.0001) * 5000)
+
+    ema_short = sum(closes[-5:]) / 5
+    ema_long = sum(closes[-20:]) / min(20, n)
+    if ema_short > ema_long * 1.0005:
+        trend = "up"
+    elif ema_short < ema_long * 0.9995:
+        trend = "down"
+    else:
+        trend = "flat"
+
+    return {
+        "rsi": round(rsi, 1),
+        "atr": round(atr, 6),
+        "adx": round(adx, 1),
+        "trend": trend,
+    }
+
+
+def get_live_quote(symbol):
+    now = time.time()
+    cached = QUOTE_CACHE.get(symbol)
+    if cached and (now - cached["ts"]) < QUOTE_TTL:
+        return cached["data"]
+
+    try:
+        if symbol in ("BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"):
+            ticker = fetch_url(f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}")
+            klines = fetch_url(
+                f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=15m&limit=50"
+            )
+            closes = [float(k[4]) for k in klines]
+            highs = [float(k[2]) for k in klines]
+            lows = [float(k[3]) for k in klines]
+            ind = calc_indicators(closes, highs, lows)
+            data = {
+                "symbol": symbol,
+                "kind": "crypto",
+                "price": float(ticker["lastPrice"]),
+                "change_pct": float(ticker["priceChangePercent"]),
+                "high_24h": float(ticker["highPrice"]),
+                "low_24h": float(ticker["lowPrice"]),
+                **ind,
+            }
+        else:
+            if "/" in symbol:
+                base, quote = symbol.split("/")
+            elif len(symbol) == 6:
+                base, quote = symbol[:3], symbol[3:]
+            else:
+                base, quote = "EUR", "USD"
+            prices = fetch_yahoo_prices(base, quote, "15m", "5d", 50)
+            if not prices or len(prices) < 15:
+                raise ValueError("not enough yahoo data")
+            ind = calc_indicators(prices)
+            price = prices[-1]
+            prev = prices[-2]
+            change_pct = (price - prev) / prev * 100 if prev else 0
+            data = {
+                "symbol": symbol,
+                "kind": "forex",
+                "price": round(price, 5),
+                "change_pct": round(change_pct, 3),
+                "high_24h": round(max(prices[-20:]), 5),
+                "low_24h": round(min(prices[-20:]), 5),
+                **ind,
+            }
+
+        QUOTE_CACHE[symbol] = {"ts": now, "data": data}
+        return data
+    except Exception as e:
+        return {"symbol": symbol, "error": str(e), "fallback": True}
+
+
 def handler(event: dict, context) -> dict:
     """Сканер трендов OTC пар: расчёт по зелёным/красным свечам с настройкой параметров."""
 
@@ -238,6 +361,15 @@ def handler(event: dict, context) -> dict:
 
     if params.get("mode") == "arbitrage":
         body = get_arbitrage_pairs()
+        return {
+            "statusCode": 200,
+            "headers": {**CORS, "Content-Type": "application/json"},
+            "body": json.dumps(body),
+        }
+
+    if params.get("mode") == "quote":
+        symbol = (params.get("symbol") or "BTCUSDT").upper()
+        body = get_live_quote(symbol)
         return {
             "statusCode": 200,
             "headers": {**CORS, "Content-Type": "application/json"},

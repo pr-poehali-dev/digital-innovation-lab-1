@@ -3,6 +3,7 @@ import { Footer } from "@/components/footer"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Icon from "@/components/ui/icon"
+import { LiveSessionClock } from "@/components/LiveSessionClock"
 
 const sessions = [
   {
@@ -140,6 +141,9 @@ export default function Timing() {
               <span className="text-yellow-400 font-semibold">BTC/USD</span>.
             </p>
           </div>
+
+          {/* Живые часы и активная сессия */}
+          <LiveSessionClock />
 
           {/* Торговые сессии */}
           <section className="mb-20">

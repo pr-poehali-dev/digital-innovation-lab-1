@@ -434,7 +434,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   hedgeCascadeM3: 2.0,
   hedgeCascadePullbackPips: 3,
   hedgeCascadeLossTriggerPips: 1,
-  candleSource: "buffer",
+  candleSource: "api",
   pipSize: 0.0001,
   profitExtEnabled: true,
   profitExtPips: 5,
@@ -7535,9 +7535,17 @@ async def main():
         # ===== 🕵️ ШПИОН-ЛОГ: сверка времени и цены с Pocket Option (каждые 5с) =====
         # Помогает понять — отстаёт ли бот от реальной котировки РО.
         # Открой РО рядом и сверь: цена бота vs цена на графике (правый верхний угол).
+        # 🎯 При candleSource=="api" анализ идёт от API РО → сверка с буфером не нужна,
+        # лишь тратит вызовы API. Выводим компактный INFO раз в 60с и всё.
         import time as _t_spy
         _now_ts_spy = _t_spy.time()
-        if not hasattr(_live_buf, '_last_spy_log') or (_now_ts_spy - getattr(_live_buf, '_last_spy_log', 0)) >= 5:
+        _spy_active = (globals().get('_candle_source_runtime', "${cfg.candleSource ?? "api"}") == "buffer")
+        if not _spy_active:
+            if not hasattr(_live_buf, '_last_api_info') or (_now_ts_spy - getattr(_live_buf, '_last_api_info', 0)) >= 60:
+                _live_buf._last_api_info = _now_ts_spy
+                _price_info = getattr(_live_buf, 'last_price', 0.0)
+                print(f"[CANDLE_SRC] 📡 API РО (источник анализа) | live-цена из буфера: {_price_info:.5f} | SPY-сверка выключена")
+        if _spy_active and (not hasattr(_live_buf, '_last_spy_log') or (_now_ts_spy - getattr(_live_buf, '_last_spy_log', 0)) >= 5):
             _live_buf._last_spy_log = _now_ts_spy
             _t_local = datetime.now().astimezone().strftime('%H:%M:%S')
             _t_msk = datetime.now(MSK_TZ).strftime('%H:%M:%S')
@@ -7714,6 +7722,7 @@ async def main():
         # 🎯 ИСТОЧНИК СВЕЧЕЙ (приоритетный API РО, fallback — собственный буфер тиков)
         # API РО гарантирует те же свечи что показаны на графике пользователю.
         _candle_source = "${cfg.candleSource ?? "api"}"
+        globals()['_candle_source_runtime'] = _candle_source
         candles, prices = [], []
         if _candle_source == "api":
             try:

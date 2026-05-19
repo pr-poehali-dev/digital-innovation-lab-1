@@ -40,6 +40,12 @@ export interface POBotConfig {
   tgEnabled: boolean
   tgProxy: string
   tgNotifyMode: "all" | "bets_only"
+  /** Способ отправки в Telegram:
+   * "auto" — сначала прокси poehali, при 402/5xx → fallback на прямой API (рекомендуется),
+   * "direct" — только напрямую api.telegram.org (нужен открытый интернет/VPN),
+   * "proxy" — только через poehali tg-send (без VPN, но зависит от лимитов платформы)
+   */
+  tgTransport?: "auto" | "direct" | "proxy"
   checkInterval: number
   payoutRate: number
   tradeDirection: "all" | "call_only" | "put_only"
@@ -416,6 +422,7 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   tgEnabled: true,
   tgNotifyMode: "all",
   tgProxy: "",
+  tgTransport: "auto",
   checkInterval: 10,
   payoutRate: 92,
   tradeDirection: "all",
@@ -1107,6 +1114,7 @@ TG_TOKEN   = "${cfg.tgToken}"
 TG_CHAT_ID = "${cfg.tgChatId}"
 TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
+TG_TRANSPORT    = "${cfg.tgTransport ?? "auto"}"  # auto | direct | proxy
 
 def _tg_send_direct(action, text, reply_markup, message_id):
     """Прямой вызов api.telegram.org — fallback, если прокси-функция недоступна."""
@@ -1146,7 +1154,13 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
     _t0 = time.time()
     _has_markup = reply_markup is not None
     _text_len = len(text) if text else 0
-    _proxy_dead = False
+    # 🎯 ВЫБОР ТРАНСПОРТА (из настроек конструктора):
+    #   "direct" — сразу прямой api.telegram.org (без прокси)
+    #   "proxy"  — только poehali tg-send (никаких fallback)
+    #   "auto"   — прокси, при 402/5xx → fallback на direct
+    _transport = globals().get('TG_TRANSPORT', 'auto')
+    _proxy_dead = (_transport == "direct")  # если direct — сразу режим прямого вызова
+    _no_fallback = (_transport == "proxy")  # если proxy — не переключаться на direct
     for attempt in range(1, retries + 1):
         try:
             if _proxy_dead:
@@ -1183,9 +1197,9 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
                 print(f"[TG_API] ✅ action={action} msg_id={message_id or '—'} text_len={_text_len} markup={_has_markup} elapsed={_elapsed}ms (no body)")
             return
         except urllib.error.HTTPError as e:
-            if e.code in (402, 403, 500, 502, 503, 504) and not _proxy_dead:
+            if e.code in (402, 403, 500, 502, 503, 504) and not _proxy_dead and not _no_fallback:
                 _proxy_dead = True
-                print(f"[TG_API] ⚠️ proxy вернул HTTP {e.code} — переключаюсь на прямой api.telegram.org")
+                print(f"[TG_API] ⚠️ proxy вернул HTTP {e.code} — переключаюсь на прямой api.telegram.org (transport=auto)")
                 continue
             if attempt < retries:
                 print(f"[TG_API] 🔄 retry {attempt}/{retries} action={action} err=HTTP {e.code}")
@@ -4665,6 +4679,7 @@ TG_TOKEN   = "${cfg.tgToken}"
 TG_CHAT_ID = "${cfg.tgChatId}"
 TG_ENABLED      = ${cfg.tgEnabled ? "True" : "False"} and bool(TG_TOKEN and TG_CHAT_ID)
 TG_NOTIFY_MODE  = "${cfg.tgNotifyMode ?? "all"}"
+TG_TRANSPORT    = "${cfg.tgTransport ?? "auto"}"  # auto | direct | proxy
 
 def _tg_send_direct(action, text, reply_markup, message_id):
     """Прямой вызов api.telegram.org — fallback, если прокси-функция недоступна."""
@@ -4704,7 +4719,13 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
     _t0 = time.time()
     _has_markup = reply_markup is not None
     _text_len = len(text) if text else 0
-    _proxy_dead = False
+    # 🎯 ВЫБОР ТРАНСПОРТА (из настроек конструктора):
+    #   "direct" — сразу прямой api.telegram.org (без прокси)
+    #   "proxy"  — только poehali tg-send (никаких fallback)
+    #   "auto"   — прокси, при 402/5xx → fallback на direct
+    _transport = globals().get('TG_TRANSPORT', 'auto')
+    _proxy_dead = (_transport == "direct")  # если direct — сразу режим прямого вызова
+    _no_fallback = (_transport == "proxy")  # если proxy — не переключаться на direct
     for attempt in range(1, retries + 1):
         try:
             if _proxy_dead:
@@ -4741,9 +4762,9 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
                 print(f"[TG_API] ✅ action={action} msg_id={message_id or '—'} text_len={_text_len} markup={_has_markup} elapsed={_elapsed}ms (no body)")
             return
         except urllib.error.HTTPError as e:
-            if e.code in (402, 403, 500, 502, 503, 504) and not _proxy_dead:
+            if e.code in (402, 403, 500, 502, 503, 504) and not _proxy_dead and not _no_fallback:
                 _proxy_dead = True
-                print(f"[TG_API] ⚠️ proxy вернул HTTP {e.code} — переключаюсь на прямой api.telegram.org")
+                print(f"[TG_API] ⚠️ proxy вернул HTTP {e.code} — переключаюсь на прямой api.telegram.org (transport=auto)")
                 continue
             if attempt < retries:
                 print(f"[TG_API] 🔄 retry {attempt}/{retries} action={action} err=HTTP {e.code}")

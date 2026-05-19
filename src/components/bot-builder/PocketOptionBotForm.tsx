@@ -2654,6 +2654,40 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                 </button>
               </div>
             </div>
+
+            <div>
+              <Label className="text-zinc-400 font-space-mono text-xs mb-2 block">Как бот отправляет в Telegram</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => set({ tgTransport: "auto" })}
+                  className={`rounded-lg px-2.5 py-2 text-xs font-space-mono border transition-all text-left ${(config.tgTransport ?? "auto") === "auto" ? "bg-green-600/20 border-green-500/50 text-green-300" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}
+                >
+                  <div className="font-bold mb-0.5">🔁 Авто</div>
+                  <div className="text-zinc-500 text-[10px]">Прокси + fallback на прямой API при 402</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => set({ tgTransport: "direct" })}
+                  className={`rounded-lg px-2.5 py-2 text-xs font-space-mono border transition-all text-left ${config.tgTransport === "direct" ? "bg-blue-600/20 border-blue-500/50 text-blue-300" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}
+                >
+                  <div className="font-bold mb-0.5">📡 Прямой</div>
+                  <div className="text-zinc-500 text-[10px]">api.telegram.org — нужен VPN если РКН</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => set({ tgTransport: "proxy" })}
+                  className={`rounded-lg px-2.5 py-2 text-xs font-space-mono border transition-all text-left ${config.tgTransport === "proxy" ? "bg-purple-600/20 border-purple-500/50 text-purple-300" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}
+                >
+                  <div className="font-bold mb-0.5">🌐 Прокси</div>
+                  <div className="text-zinc-500 text-[10px]">Только poehali tg-send (без VPN)</div>
+                </button>
+              </div>
+              <p className="text-zinc-600 font-space-mono text-[10px] mt-1.5 leading-relaxed">
+                Если в логах часто <code className="text-yellow-400">HTTP 402 Payment Required</code> — лимит прокси. Авто-режим сам переключится на прямой.
+              </p>
+            </div>
+
             {config.tgToken && config.tgChatId && (
               <div className="space-y-2">
                 <button

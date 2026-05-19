@@ -49,6 +49,9 @@ export function Navbar() {
               <a href="/strategies" className="font-geist text-white hover:text-red-500 transition-colors duration-200">
                 Стратегии
               </a>
+              <a href="/timing" className="font-geist text-orange-400 hover:text-orange-300 transition-colors duration-200 font-semibold">
+                ⏰ Тайминг
+              </a>
               <a href="/practice" className="font-geist text-white hover:text-red-500 transition-colors duration-200">
                 Практика
               </a>
@@ -119,6 +122,13 @@ export function Navbar() {
                 onClick={() => setIsOpen(false)}
               >
                 Стратегии
+              </a>
+              <a
+                href="/timing"
+                className="block px-3 py-2 font-geist text-orange-400 hover:text-orange-300 font-semibold transition-colors duration-200"
+                onClick={() => setIsOpen(false)}
+              >
+                ⏰ Тайминг
               </a>
               <a
                 href="/practice"

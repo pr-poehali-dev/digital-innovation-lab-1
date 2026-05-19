@@ -1153,10 +1153,10 @@ def _tg_send_direct(action, text, reply_markup, message_id):
             params["reply_markup"] = reply_markup if isinstance(reply_markup, str) else json.dumps(reply_markup)
     data = urllib.parse.urlencode(params).encode()
     req = urllib.request.Request(url, data=data, method="POST")
-    resp = urllib.request.urlopen(req, timeout=15)
+    resp = urllib.request.urlopen(req, timeout=5)  # короткий timeout — если direct мёртв (РКН), не блокируем торговлю
     return json.loads(resp.read().decode())
 
-def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message_id=None, _result_holder=None):
+def _tg_send(text, retries=2, delay=2, reply_markup=None, action="send", message_id=None, _result_holder=None):
     """Отправка/редактирование/удаление сообщений: сначала через прокси-функцию (без VPN),
     при 402/недоступности — fallback на прямой api.telegram.org.
     Если передан _result_holder (list) — кладёт туда ответ Telegram."""
@@ -1200,7 +1200,7 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
                     print(f"[TG_DIRECT] ⚠️ action={action} elapsed={_elapsed}ms err={_resp_data.get('description', '?')}")
                 return
             req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
-            resp = urllib.request.urlopen(req, timeout=20)
+            resp = urllib.request.urlopen(req, timeout=5)  # короткий timeout прокси: быстрый фейл → быстрый fallback/авто-выкл
             _resp_data = None
             try:
                 _resp_data = json.loads(resp.read().decode())
@@ -4747,10 +4747,10 @@ def _tg_send_direct(action, text, reply_markup, message_id):
             params["reply_markup"] = reply_markup if isinstance(reply_markup, str) else json.dumps(reply_markup)
     data = urllib.parse.urlencode(params).encode()
     req = urllib.request.Request(url, data=data, method="POST")
-    resp = urllib.request.urlopen(req, timeout=15)
+    resp = urllib.request.urlopen(req, timeout=5)  # короткий timeout — если direct мёртв (РКН), не блокируем торговлю
     return json.loads(resp.read().decode())
 
-def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message_id=None, _result_holder=None):
+def _tg_send(text, retries=2, delay=2, reply_markup=None, action="send", message_id=None, _result_holder=None):
     """Отправка/редактирование/удаление сообщений: сначала через прокси-функцию (без VPN),
     при 402/недоступности — fallback на прямой api.telegram.org.
     Если передан _result_holder (list) — кладёт туда ответ Telegram."""
@@ -4794,7 +4794,7 @@ def _tg_send(text, retries=5, delay=5, reply_markup=None, action="send", message
                     print(f"[TG_DIRECT] ⚠️ action={action} elapsed={_elapsed}ms err={_resp_data.get('description', '?')}")
                 return
             req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
-            resp = urllib.request.urlopen(req, timeout=20)
+            resp = urllib.request.urlopen(req, timeout=5)  # короткий timeout прокси: быстрый фейл → быстрый fallback/авто-выкл
             _resp_data = None
             try:
                 _resp_data = json.loads(resp.read().decode())

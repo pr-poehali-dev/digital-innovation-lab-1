@@ -3261,6 +3261,11 @@ async def main():
     print(f"  Баланс: {round(balance, 2)} {CURRENCY} | TP: {TAKE_PROFIT} {CURRENCY} | SL: {STOP_LOSS} {CURRENCY}")
     # 🆔 Version stamp — чтобы юзер видел что код СВЕЖИЙ (а не старый bot1.py с компа)
     print(f"  🆔 BUILD: cascade-fix-v3 | каскад_код_внутри={'ДА' if ${cfg.hedgeCascadeEnabled ? "True" : "False"} else 'ВЫКЛ'}")
+    # 🛡 TG-статус: показываем настройки транспорта + защиту от блокировки торговли при фейлах TG
+    if TG_ENABLED:
+        print(f"  📨 TG: транспорт={TG_TRANSPORT} | timeout=5с | retries=2 | авто-выкл после {TG_MAX_CONSEC_FAILS} фейлов подряд")
+    else:
+        print(f"  📨 TG: ОТКЛЮЧЁН (не повлияет на торговлю)")
     print("=" * 50 + "\\n")
     tg(
         f"🤖 <b>{BOT_NAME} запущен</b>\\n"
@@ -7366,6 +7371,11 @@ async def main():
     print(f"  Пейаут: {int(PAYOUT * 100)}%")
     trend_mode_label = "🟢🟢/🔴🔴 Одинаковые" if TREND_MODE == "same" else "🔴🟢/🟢🔴 Разворот"
     print(f"  Режим тренда: {trend_mode_label}")
+    # 🛡 TG-статус: показываем настройки транспорта + защиту от блокировки торговли при фейлах TG
+    if TG_ENABLED:
+        print(f"  📨 TG: транспорт={TG_TRANSPORT} | timeout=5с | retries=2 | авто-выкл после {TG_MAX_CONSEC_FAILS} фейлов подряд")
+    else:
+        print(f"  📨 TG: ОТКЛЮЧЁН (не повлияет на торговлю)")
     print("=" * 55 + "\\n")
     tg(
         f"🤖 <b>{BOT_NAME} запущен</b>\\n"

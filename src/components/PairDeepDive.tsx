@@ -14,7 +14,7 @@ export function PairDeepDive() {
   return (
     <section className="mb-20">
       <h2 className="font-orbitron text-3xl font-bold text-white mb-2 flex items-center gap-3">
-        <Icon name="Microscope" className="text-red-500" /> Разбор пар: EUR/USD OTC и BTC/USD
+        <Icon name="Microscope" className="text-red-500" /> Разбор пар: EUR/USD OTC, BTC/USD и AUD/CAD OTC
       </h2>
       <p className="text-gray-400 mb-6">
         Уровни поддержки и сопротивления, свежие новости и сценарии работы. Обновлено по последним торговым дням.

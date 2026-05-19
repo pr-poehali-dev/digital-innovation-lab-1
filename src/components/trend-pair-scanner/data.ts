@@ -1,7 +1,11 @@
+import { useEffect, useState } from "react"
+import func2url from "../../../backend/func2url.json"
+
 export interface Pair {
   symbol: string
   type: "Forex" | "OTC" | "Crypto" | "Commodity"
   session: "Asia" | "Europe" | "US" | "24/7"
+  apiSymbol?: string
   adx: number
   atrPips: number
   rsi: number
@@ -12,6 +16,17 @@ export interface Pair {
   comment: string
 }
 
+export interface LiveQuote {
+  symbol: string
+  price?: number
+  change_pct?: number
+  rsi?: number
+  atr?: number
+  adx?: number
+  trend?: "up" | "down" | "flat"
+  error?: string
+}
+
 export type FilterType = "all" | "OTC" | "Forex" | "Crypto"
 export type SortType = "trend" | "adx" | "atr"
 
@@ -20,6 +35,7 @@ export const pairs: Pair[] = [
     symbol: "EUR/USD OTC",
     type: "OTC",
     session: "24/7",
+    apiSymbol: "EURUSD",
     adx: 32,
     atrPips: 9,
     rsi: 58,
@@ -33,6 +49,7 @@ export const pairs: Pair[] = [
     symbol: "GBP/USD OTC",
     type: "OTC",
     session: "24/7",
+    apiSymbol: "GBPUSD",
     adx: 38,
     atrPips: 14,
     rsi: 64,
@@ -46,6 +63,7 @@ export const pairs: Pair[] = [
     symbol: "USD/JPY OTC",
     type: "OTC",
     session: "24/7",
+    apiSymbol: "USDJPY",
     adx: 28,
     atrPips: 11,
     rsi: 52,
@@ -59,6 +77,7 @@ export const pairs: Pair[] = [
     symbol: "AUD/CAD OTC",
     type: "OTC",
     session: "24/7",
+    apiSymbol: "AUDCAD",
     adx: 41,
     atrPips: 12,
     rsi: 67,
@@ -72,6 +91,7 @@ export const pairs: Pair[] = [
     symbol: "EUR/JPY OTC",
     type: "OTC",
     session: "24/7",
+    apiSymbol: "EURJPY",
     adx: 35,
     atrPips: 16,
     rsi: 61,
@@ -85,6 +105,7 @@ export const pairs: Pair[] = [
     symbol: "EUR/USD",
     type: "Forex",
     session: "Europe",
+    apiSymbol: "EURUSD",
     adx: 24,
     atrPips: 8,
     rsi: 55,
@@ -98,6 +119,7 @@ export const pairs: Pair[] = [
     symbol: "GBP/USD",
     type: "Forex",
     session: "Europe",
+    apiSymbol: "GBPUSD",
     adx: 31,
     atrPips: 13,
     rsi: 59,
@@ -111,6 +133,7 @@ export const pairs: Pair[] = [
     symbol: "USD/JPY",
     type: "Forex",
     session: "Asia",
+    apiSymbol: "USDJPY",
     adx: 27,
     atrPips: 10,
     rsi: 53,
@@ -124,6 +147,7 @@ export const pairs: Pair[] = [
     symbol: "BTC/USD",
     type: "Crypto",
     session: "US",
+    apiSymbol: "BTCUSDT",
     adx: 36,
     atrPips: 850,
     rsi: 62,
@@ -137,6 +161,7 @@ export const pairs: Pair[] = [
     symbol: "ETH/USD",
     type: "Crypto",
     session: "US",
+    apiSymbol: "ETHUSDT",
     adx: 33,
     atrPips: 95,
     rsi: 60,
@@ -163,6 +188,7 @@ export const pairs: Pair[] = [
     symbol: "AUD/USD",
     type: "Forex",
     session: "Asia",
+    apiSymbol: "AUDUSD",
     adx: 22,
     atrPips: 6,
     rsi: 48,
@@ -184,4 +210,102 @@ export function getScoreColor(score: number) {
   if (score >= 85) return "text-green-400 border-green-500/40"
   if (score >= 70) return "text-yellow-400 border-yellow-500/40"
   return "text-gray-400 border-zinc-700"
+}
+
+const SCANNER_URL = (func2url as Record<string, string>)["scanner-proxy"]
+const REFRESH_MS = 30_000
+
+const scannerCache: { ts: number; etag: string; data: Record<string, LiveQuote> } = {
+  ts: 0,
+  etag: "",
+  data: {},
+}
+let scannerInFlight: Promise<Record<string, LiveQuote>> | null = null
+
+async function loadScannerQuotes(symbols: string[], force = false): Promise<Record<string, LiveQuote>> {
+  const fresh = Date.now() - scannerCache.ts < REFRESH_MS
+  if (!force && fresh && Object.keys(scannerCache.data).length) return scannerCache.data
+  if (scannerInFlight) return scannerInFlight
+
+  scannerInFlight = (async () => {
+    try {
+      const headers: Record<string, string> = {}
+      if (scannerCache.etag) headers["If-None-Match"] = scannerCache.etag
+      const res = await fetch(`${SCANNER_URL}?mode=quote&symbols=${symbols.join(",")}`, { headers })
+      if (res.status === 304) {
+        scannerCache.ts = Date.now()
+        return scannerCache.data
+      }
+      const etag = res.headers.get("ETag")
+      if (etag) scannerCache.etag = etag
+      const json = await res.json()
+      scannerCache.data = json.quotes || {}
+      scannerCache.ts = Date.now()
+      return scannerCache.data
+    } finally {
+      scannerInFlight = null
+    }
+  })()
+  return scannerInFlight
+}
+
+export function useScannerQuotes() {
+  const [quotes, setQuotes] = useState<Record<string, LiveQuote>>({})
+  const [loading, setLoading] = useState(false)
+  const [lastUpdate, setLastUpdate] = useState<number>(0)
+
+  useEffect(() => {
+    let canceled = false
+    const symbolsSet = new Set<string>()
+    for (const p of pairs) {
+      if (p.apiSymbol) symbolsSet.add(p.apiSymbol)
+    }
+    const symbols = Array.from(symbolsSet)
+
+    const tick = async (force = false) => {
+      if (document.hidden) return
+      setLoading(true)
+      try {
+        const data = await loadScannerQuotes(symbols, force)
+        if (!canceled) {
+          setQuotes({ ...data })
+          setLastUpdate(scannerCache.ts)
+        }
+      } catch {
+        // ignore
+      } finally {
+        if (!canceled) setLoading(false)
+      }
+    }
+
+    tick()
+    const id = window.setInterval(() => tick(true), REFRESH_MS)
+    const onVisible = () => { if (!document.hidden) tick(true) }
+    document.addEventListener("visibilitychange", onVisible)
+
+    return () => {
+      canceled = true
+      window.clearInterval(id)
+      document.removeEventListener("visibilitychange", onVisible)
+    }
+  }, [])
+
+  return { quotes, loading, lastUpdate }
+}
+
+export function applyLiveQuote(p: Pair, q?: LiveQuote): Pair {
+  if (!q || q.error || q.price === undefined) return p
+  const adx = q.adx !== undefined ? Math.round(q.adx) : p.adx
+  const rsi = q.rsi !== undefined ? Math.round(q.rsi) : p.rsi
+  const atrPips =
+    q.atr !== undefined
+      ? p.type === "Crypto" || p.type === "Commodity"
+        ? Math.round(q.atr)
+        : Math.round(q.atr * 10000)
+      : p.atrPips
+  const emaSlope = q.trend ?? p.emaSlope
+  const trendScore = q.adx !== undefined
+    ? Math.max(0, Math.min(100, Math.round(q.adx * 1.8 + (rsi > 50 ? 10 : 0) + (emaSlope === "up" || emaSlope === "down" ? 10 : 0))))
+    : p.trendScore
+  return { ...p, adx, rsi, atrPips, emaSlope, trendScore }
 }

@@ -5,9 +5,10 @@ import { getAdxStatus, getScoreColor, type Pair } from "./data"
 
 interface Props {
   filtered: Pair[]
+  liveSymbols?: Set<string>
 }
 
-export function ScannerTable({ filtered }: Props) {
+export function ScannerTable({ filtered, liveSymbols }: Props) {
   return (
     <>
       <Card className="bg-zinc-900/50 border-zinc-800 border">
@@ -31,7 +32,12 @@ export function ScannerTable({ filtered }: Props) {
                   return (
                     <tr key={p.symbol} className="border-b border-zinc-800 hover:bg-black/30">
                       <td className="p-3">
-                        <div className="font-mono font-bold text-white">{p.symbol}</div>
+                        <div className="font-mono font-bold text-white flex items-center gap-2">
+                          {p.symbol}
+                          {liveSymbols?.has(p.symbol) && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" title="Live" />
+                          )}
+                        </div>
                         <div className="text-xs text-gray-500">{p.type} · {p.session}</div>
                       </td>
                       <td className="p-3">

@@ -12,6 +12,7 @@ import { CourseProgressSection } from "@/components/CourseProgressSection"
 import { LegendsTeaser } from "@/components/legends-teaser"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
+import { MiniSessionBadge } from "@/components/MiniSessionBadge"
 
 export default function Index() {
   return (
@@ -38,6 +39,7 @@ export default function Index() {
         <CTASection />
       </main>
       <Footer />
+      <MiniSessionBadge />
     </div>
   )
 }

@@ -622,21 +622,58 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
   const set = (patch: Partial<POBotConfig>) => onChange({ ...config, ...patch })
   const [detailOpen, setDetailOpen] = useState<Record<string, boolean>>({})
   const [tgTestState, setTgTestState] = useState<"idle" | "loading" | "ok" | "error">("idle")
+  const [tgTestVia, setTgTestVia] = useState<"" | "proxy" | "direct">("")
+
+  const sendViaProxy = async (text: string): Promise<boolean> => {
+    const res = await fetch(TG_SEND_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: config.tgToken, chat_id: config.tgChatId, text }),
+    })
+    if (!res.ok) throw new Error(`proxy HTTP ${res.status}`)
+    const data = await res.json()
+    return Boolean(data?.ok)
+  }
+
+  const sendViaDirect = async (text: string): Promise<boolean> => {
+    const url = `https://api.telegram.org/bot${config.tgToken}/sendMessage`
+    const body = new URLSearchParams({ chat_id: config.tgChatId, text, parse_mode: "HTML" })
+    const res = await fetch(url, { method: "POST", body })
+    if (!res.ok) throw new Error(`direct HTTP ${res.status}`)
+    const data = await res.json()
+    return Boolean(data?.ok)
+  }
 
   const testTgConnection = async () => {
     setTgTestState("loading")
+    setTgTestVia("")
+    const transport = config.tgTransport ?? "auto"
+    const text = `✅ <b>Проверка связи</b>\nРежим отправки: <code>${transport}</code>\nЕсли видишь это сообщение — настройки рабочие!`
     try {
-      const res = await fetch(TG_SEND_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: config.tgToken, chat_id: config.tgChatId, text: "✅ <b>Проверка связи</b>\nПодключение к боту работает!" }),
-      })
-      const data = await res.json()
-      setTgTestState(data.ok ? "ok" : "error")
+      if (transport === "direct") {
+        const ok = await sendViaDirect(text)
+        setTgTestVia("direct")
+        setTgTestState(ok ? "ok" : "error")
+      } else if (transport === "proxy") {
+        const ok = await sendViaProxy(text)
+        setTgTestVia("proxy")
+        setTgTestState(ok ? "ok" : "error")
+      } else {
+        // auto: сначала прокси, при ошибке (например 402) — fallback на direct
+        try {
+          const ok = await sendViaProxy(text)
+          setTgTestVia("proxy")
+          setTgTestState(ok ? "ok" : "error")
+        } catch {
+          const ok = await sendViaDirect(text)
+          setTgTestVia("direct")
+          setTgTestState(ok ? "ok" : "error")
+        }
+      }
     } catch {
       setTgTestState("error")
     }
-    setTimeout(() => setTgTestState("idle"), 4000)
+    setTimeout(() => { setTgTestState("idle"); setTgTestVia("") }, 6000)
   }
 
   const toggleDetail = (key: string) =>
@@ -2702,13 +2739,25 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
                 {tgTestState === "ok" && (
                   <div className="flex items-center gap-2 bg-green-950/40 border border-green-500/30 rounded-lg px-2.5 py-2">
                     <Icon name="CheckCircle" size={14} className="text-green-400" />
-                    <span className="text-green-400 text-xs font-space-mono">Сообщение отправлено — проверь Telegram!</span>
+                    <span className="text-green-400 text-xs font-space-mono">
+                      Сообщение отправлено — проверь Telegram!
+                      {tgTestVia && (
+                        <span className="ml-1 text-green-300/80">
+                          ({tgTestVia === "proxy" ? "🌐 через прокси" : "📡 напрямую"})
+                        </span>
+                      )}
+                    </span>
                   </div>
                 )}
                 {tgTestState === "error" && (
                   <div className="flex items-center gap-2 bg-red-950/40 border border-red-500/30 rounded-lg px-2.5 py-2">
                     <Icon name="XCircle" size={14} className="text-red-400" />
-                    <span className="text-red-400 text-xs font-space-mono">Ошибка — проверь токен и Chat ID</span>
+                    <span className="text-red-400 text-xs font-space-mono">
+                      Ошибка отправки
+                      {config.tgTransport === "proxy" && " через прокси — попробуй режим «Авто» или «Прямой»"}
+                      {config.tgTransport === "direct" && " напрямую — может нужен VPN, попробуй «Авто»"}
+                      {(!config.tgTransport || config.tgTransport === "auto") && " — проверь токен и Chat ID"}
+                    </span>
                   </div>
                 )}
               </div>

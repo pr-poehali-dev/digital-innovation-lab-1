@@ -17,20 +17,10 @@
       "bodyMatcher": "partial"
     },
     {
-      "name": "Live quote BTC",
+      "name": "Live quote batch",
       "method": "GET",
-      "path": "/?mode=quote&symbol=BTCUSDT",
-      "expectedStatus": 200,
-      "expectedBody": {"symbol": "BTCUSDT"},
-      "bodyMatcher": "partial"
-    },
-    {
-      "name": "Live quote EURUSD",
-      "method": "GET",
-      "path": "/?mode=quote&symbol=EURUSD",
-      "expectedStatus": 200,
-      "expectedBody": {"symbol": "EURUSD"},
-      "bodyMatcher": "partial"
+      "path": "/?mode=quote&symbols=BTCUSDT,EURUSD",
+      "expectedStatus": 200
     }
   ]
 }

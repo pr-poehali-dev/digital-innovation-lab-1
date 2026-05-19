@@ -216,28 +216,80 @@ const dives: DeepDive[] = [
 ]
 
 const SCANNER_URL = (func2url as Record<string, string>)["scanner-proxy"]
+const REFRESH_MS = 30_000
+const SYMBOLS = "BTCUSDT,EURUSD"
+
+const quotesCache: { ts: number; etag: string; data: Record<string, LiveQuote> } = {
+  ts: 0,
+  etag: "",
+  data: {},
+}
+
+let inFlight: Promise<Record<string, LiveQuote>> | null = null
+
+async function loadQuotes(force = false): Promise<Record<string, LiveQuote>> {
+  const fresh = Date.now() - quotesCache.ts < REFRESH_MS
+  if (!force && fresh && Object.keys(quotesCache.data).length) return quotesCache.data
+  if (inFlight) return inFlight
+
+  inFlight = (async () => {
+    try {
+      const headers: Record<string, string> = {}
+      if (quotesCache.etag) headers["If-None-Match"] = quotesCache.etag
+      const res = await fetch(`${SCANNER_URL}?mode=quote&symbols=${SYMBOLS}`, { headers })
+      if (res.status === 304) {
+        quotesCache.ts = Date.now()
+        return quotesCache.data
+      }
+      const etag = res.headers.get("ETag")
+      if (etag) quotesCache.etag = etag
+      const json = await res.json()
+      quotesCache.data = json.quotes || {}
+      quotesCache.ts = Date.now()
+      return quotesCache.data
+    } finally {
+      inFlight = null
+    }
+  })()
+  return inFlight
+}
 
 export function PairDeepDive() {
   const [active, setActive] = useState<DeepDive["key"]>("eurusd-otc")
   const dive = dives.find((d) => d.key === active)!
   const [live, setLive] = useState<LiveQuote | null>(null)
   const [loading, setLoading] = useState(false)
+  const [lastUpdate, setLastUpdate] = useState<number>(0)
 
   useEffect(() => {
     let canceled = false
     const symbol = active === "btc-usd" ? "BTCUSDT" : "EURUSD"
-    setLoading(true)
-    fetch(`${SCANNER_URL}?mode=quote&symbol=${symbol}`)
-      .then((r) => r.json())
-      .then((data: LiveQuote) => {
-        if (!canceled) setLive(data)
-      })
-      .catch(() => {})
-      .finally(() => {
+
+    const tick = async (force = false) => {
+      if (document.hidden) return
+      setLoading(true)
+      try {
+        const quotes = await loadQuotes(force)
+        if (!canceled && quotes[symbol]) {
+          setLive(quotes[symbol])
+          setLastUpdate(quotesCache.ts)
+        }
+      } catch {
+        // ignore
+      } finally {
         if (!canceled) setLoading(false)
-      })
+      }
+    }
+
+    tick()
+    const id = window.setInterval(() => tick(true), REFRESH_MS)
+    const onVisible = () => { if (!document.hidden) tick(true) }
+    document.addEventListener("visibilitychange", onVisible)
+
     return () => {
       canceled = true
+      window.clearInterval(id)
+      document.removeEventListener("visibilitychange", onVisible)
     }
   }, [active])
 
@@ -305,13 +357,16 @@ export function PairDeepDive() {
                 <span className="font-orbitron text-3xl font-bold text-white">{dive.symbol}</span>
                 <Badge className={dynamicBias.color}>{dynamicBias.label} bias</Badge>
                 {hasLive && (
-                  <Badge className="bg-green-500/15 text-green-400 border-green-500/30 animate-pulse">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 mr-1.5 inline-block" />
-                    LIVE
+                  <Badge className="bg-green-500/15 text-green-400 border-green-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 mr-1.5 inline-block animate-pulse" />
+                    LIVE · {lastUpdate ? new Date(lastUpdate).toLocaleTimeString("ru-RU") : "—"}
                   </Badge>
                 )}
-                {loading && !hasLive && (
-                  <Badge className="bg-zinc-700 text-gray-300 border-zinc-600">обновление…</Badge>
+                {loading && (
+                  <Badge className="bg-zinc-700/60 text-gray-300 border-zinc-600 text-[10px]">
+                    <Icon name="RefreshCw" size={10} className="mr-1 animate-spin" />
+                    обновление
+                  </Badge>
                 )}
               </div>
               <div className="flex items-baseline gap-3 mb-4">

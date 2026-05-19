@@ -229,7 +229,8 @@ def process_forex_pair(base, quote, tf_cfg, limit, daily_rates):
 
 
 QUOTE_CACHE = {}
-QUOTE_TTL = 60
+QUOTE_TTL = 120
+QUOTE_KLINES_LIMIT = 30
 
 
 def calc_indicators(closes, highs=None, lows=None):
@@ -304,10 +305,14 @@ def get_live_quote(symbol):
 
     try:
         if symbol in ("BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"):
-            ticker = fetch_url(f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}")
-            klines = fetch_url(
-                f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=15m&limit=50"
-            )
+            with ThreadPoolExecutor(max_workers=2) as ex:
+                f_t = ex.submit(fetch_url, f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}")
+                f_k = ex.submit(
+                    fetch_url,
+                    f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=15m&limit={QUOTE_KLINES_LIMIT}",
+                )
+                ticker = f_t.result(timeout=8)
+                klines = f_k.result(timeout=8)
             closes = [float(k[4]) for k in klines]
             highs = [float(k[2]) for k in klines]
             lows = [float(k[3]) for k in klines]
@@ -328,7 +333,7 @@ def get_live_quote(symbol):
                 base, quote = symbol[:3], symbol[3:]
             else:
                 base, quote = "EUR", "USD"
-            prices = fetch_yahoo_prices(base, quote, "15m", "5d", 50)
+            prices = fetch_yahoo_prices(base, quote, "15m", "5d", QUOTE_KLINES_LIMIT)
             if not prices or len(prices) < 15:
                 raise ValueError("not enough yahoo data")
             ind = calc_indicators(prices)
@@ -368,11 +373,42 @@ def handler(event: dict, context) -> dict:
         }
 
     if params.get("mode") == "quote":
-        symbol = (params.get("symbol") or "BTCUSDT").upper()
-        body = get_live_quote(symbol)
+        symbols_param = params.get("symbols") or params.get("symbol") or "BTCUSDT"
+        symbols = [s.strip().upper() for s in symbols_param.split(",") if s.strip()]
+
+        if len(symbols) > 1:
+            quotes = {}
+            with ThreadPoolExecutor(max_workers=min(len(symbols), 4)) as ex:
+                futs = {ex.submit(get_live_quote, s): s for s in symbols}
+                for f in as_completed(futs, timeout=12):
+                    sym = futs[f]
+                    try:
+                        quotes[sym] = f.result()
+                    except Exception as e:
+                        quotes[sym] = {"symbol": sym, "error": str(e), "fallback": True}
+            body = {"quotes": quotes, "ts": int(time.time())}
+        else:
+            data = get_live_quote(symbols[0])
+            body = {"quotes": {symbols[0]: data}, "ts": int(time.time())}
+
+        etag = f'W/"{hash(json.dumps(body, sort_keys=True)) & 0xffffffff:x}"'
+        client_etag = (event.get("headers") or {}).get("if-none-match") or \
+                      (event.get("headers") or {}).get("If-None-Match")
+        if client_etag == etag:
+            return {
+                "statusCode": 304,
+                "headers": {**CORS, "ETag": etag, "Cache-Control": "max-age=30"},
+                "body": "",
+            }
+
         return {
             "statusCode": 200,
-            "headers": {**CORS, "Content-Type": "application/json"},
+            "headers": {
+                **CORS,
+                "Content-Type": "application/json",
+                "ETag": etag,
+                "Cache-Control": "max-age=30",
+            },
             "body": json.dumps(body),
         }
 

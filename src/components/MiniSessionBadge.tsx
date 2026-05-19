@@ -82,11 +82,12 @@ export function MiniSessionBadge() {
 
   const current =
     sessions.find((s) => time.h >= s.startHour && time.h < s.endHour) || sessions[0]
+  const isPeak = current.name.startsWith("PEAK")
 
   return (
     <button
       onClick={() => navigate("/timing")}
-      className={`group fixed bottom-6 right-6 z-[100] bg-black/90 backdrop-blur-md border-2 border-zinc-800 hover:border-red-500/60 rounded-full px-4 py-2.5 shadow-lg ${current.glow} hover:shadow-xl transition-all duration-300 flex items-center gap-3`}
+      className={`group fixed bottom-6 right-6 z-[100] bg-black/90 backdrop-blur-md border-2 ${isPeak ? "border-red-500 animate-pulse" : "border-zinc-800"} hover:border-red-500/60 rounded-full px-4 py-2.5 shadow-lg ${current.glow} hover:shadow-xl transition-all duration-300 flex items-center gap-3`}
     >
       <Icon
         name={current.icon}

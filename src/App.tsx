@@ -19,6 +19,7 @@ import PlatformsCompare from "./pages/PlatformsCompare";
 import Arbitrage from "./pages/Arbitrage";
 import Timing from "./pages/Timing";
 import NotFound from "./pages/NotFound";
+import { SessionNotifier } from "@/components/SessionNotifier";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <SessionNotifier />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/catalog" element={<Catalog />} />

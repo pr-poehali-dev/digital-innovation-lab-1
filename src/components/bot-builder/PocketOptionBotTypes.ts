@@ -2406,6 +2406,79 @@ def check_trend_change(candles):
 
 ${strategyFunctions[cfg.strategy]}
 
+def _explain_signal(info: str, direction: str) -> str:
+    """Расшифровка технического signal_info в человекочитаемый список причин.
+    Возвращает многострочный текст с пояснениями ПОЧЕМУ открыта сделка."""
+    if not info:
+        return "• причина: данные стратегии без деталей"
+    arrow_up = "📈 ВВЕРХ (CALL)" if direction == "CALL" else "📉 ВНИЗ (PUT)"
+    parts = [p.strip() for p in info.split("|") if p.strip()]
+    lines = []
+    for p in parts:
+        low = p.lower()
+        # ─── RSI ──────────────────────────────────
+        if "rsi=" in low:
+            try:
+                _v = p.split("=")[1].replace("≤", " ").replace("≥", " ").split()[0]
+                _rsi = float(_v)
+                if _rsi <= 30:
+                    lines.append(f"• RSI {_rsi:.1f} — зона ПЕРЕПРОДАННОСТИ → ожидаем разворот вверх")
+                elif _rsi >= 70:
+                    lines.append(f"• RSI {_rsi:.1f} — зона ПЕРЕКУПЛЕННОСТИ → ожидаем разворот вниз")
+                else:
+                    lines.append(f"• RSI {_rsi:.1f} — нейтральная зона")
+            except Exception:
+                lines.append(f"• RSI: {p}")
+        # ─── EMA ──────────────────────────────────
+        elif "ema" in low and ("кросс" in low or "тренд" in low):
+            if "↑кросс" in p:
+                lines.append(f"• EMA: быстрая пересекла медленную ВВЕРХ → бычий сигнал ({p})")
+            elif "↓кросс" in p:
+                lines.append(f"• EMA: быстрая пересекла медленную ВНИЗ → медвежий сигнал ({p})")
+            elif "↑тренд" in p:
+                lines.append(f"• EMA: быстрая выше медленной → восходящий тренд ({p})")
+            elif "↓тренд" in p:
+                lines.append(f"• EMA: быстрая ниже медленной → нисходящий тренд ({p})")
+            else:
+                lines.append(f"• EMA: {p}")
+        # ─── Свечные паттерны ───────────────────
+        elif "молот" in low:
+            lines.append("• Свечной паттерн: 🔨 МОЛОТ — длинная нижняя тень → отказ от падения, разворот вверх")
+        elif "звезда" in low:
+            lines.append("• Свечной паттерн: ⭐ ПАДАЮЩАЯ ЗВЕЗДА — длинная верхняя тень → отказ от роста, разворот вниз")
+        elif "поглощение🟢" in p or "поглощение 🟢" in low:
+            lines.append("• Свечной паттерн: 🟢 БЫЧЬЕ ПОГЛОЩЕНИЕ — зелёная свеча перекрыла красную → разворот вверх")
+        elif "поглощение🔴" in p or "поглощение 🔴" in low:
+            lines.append("• Свечной паттерн: 🔴 МЕДВЕЖЬЕ ПОГЛОЩЕНИЕ — красная свеча перекрыла зелёную → разворот вниз")
+        # ─── S/R уровни ─────────────────────────
+        elif "поддержка" in low:
+            try:
+                _lvl = p.split("=")[1]
+                lines.append(f"• Цена коснулась УРОВНЯ ПОДДЕРЖКИ {_lvl} → ожидаем отбой вверх")
+            except Exception:
+                lines.append(f"• Уровень поддержки: {p}")
+        elif "сопротивление" in low:
+            try:
+                _lvl = p.split("=")[1]
+                lines.append(f"• Цена коснулась УРОВНЯ СОПРОТИВЛЕНИЯ {_lvl} → ожидаем отбой вниз")
+            except Exception:
+                lines.append(f"• Уровень сопротивления: {p}")
+        # ─── Тренд-фолбэк ───────────────────────
+        elif "[trend]" in low or "trend_sig" in low:
+            lines.append(f"• Сигнал по ТРЕНДУ старшего ТФ ({p}) — стратегии молчат, идём за трендом")
+        # ─── TradeBase фильтры ──────────────────
+        elif "tb✓" in low or "tb ✓" in low:
+            lines.append(f"• Фильтры TradeBase пройдены: {p.replace('TB✓', '').strip()}")
+        # ─── Комбо префикс ──────────────────────
+        elif low.startswith("and✅") or low.startswith("or✅"):
+            _mode = "AND (все совпали)" if low.startswith("and") else "OR (хотя бы один)"
+            lines.append(f"• Комбо-режим: {_mode}")
+        else:
+            lines.append(f"• {p}")
+    if not lines:
+        return f"• Направление: {arrow_up}\\n• Причина: {info}"
+    return f"• Направление: {arrow_up}\\n" + "\\n".join(lines)
+
 ${buildTradeBaseFiltersBlock(cfg)}
 
 async def try_get_candles(client, asset_name):
@@ -3901,15 +3974,23 @@ async def main():
                 emoji = "📈" if signal == "CALL" else "📉"
                 _tlabels = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
                 trend_label = f"Тренд: {_tlabels.get(trend, '— нет')}"
+                # ═══ 📊 ПОЧЕМУ ОТКРЫВАЕМ СДЕЛКУ — детальная расшифровка ═══
+                _why_text = _explain_signal(signal_info or "", signal)
                 if signal_info:
                     print(f"[SIGNAL] {signal_info}")
-                sig_line = f"📊 Сигнал: {signal_info}" if signal_info else ""
+                    print(f"[ПРИЧИНА ОТКРЫТИЯ СДЕЛКИ]")
+                    for _ln in _why_text.split("\\n"):
+                        print(f"  {_ln}")
+                sig_line = f"📊 <b>Сигнал (raw):</b> <code>{signal_info}</code>" if signal_info else ""
+                why_block = f"🎯 <b>ПОЧЕМУ ОТКРЫВАЕМ:</b>\\n{_why_text}" if signal_info else ""
                 # Метка режима EMA (если стратегия EMA активна)
                 _ema_mode_emoji = {"cross": "⚡", "trend": "📈", "trend_with_cross": "🎯"}
                 _ema_mode_label = {"cross": "Cross — пересечение", "trend": "Trend — позиция EMA", "trend_with_cross": "Гибрид — тренд+кросс"}
                 _has_ema = ("EMA" in (signal_info or "")) or ("ema" in (signal_info or ""))
                 ema_line = f"{_ema_mode_emoji.get(EMA_MODE, '·')} Режим EMA: <b>{_ema_mode_label.get(EMA_MODE, EMA_MODE)}</b>" if (_has_ema and 'EMA_MODE' in globals()) else ""
                 tg_parts = [f"{emoji} <b>[{BOT_NAME}] Сделка открыта</b>", f"{signal} | {bet} {currency} | {ASSET} | {EXPIRY_SEC//60} мин", trend_label]
+                if why_block:
+                    tg_parts.append(why_block)
                 if sig_line:
                     tg_parts.append(sig_line)
                 if ema_line:
@@ -6012,6 +6093,73 @@ ${fnBlocks.join("\n")}
 # ===== КОМБО-ЛОГИКА (${cfg.comboLogic}) =====
 ${combineLogic}
 
+def _explain_signal(info: str, direction: str) -> str:
+    """Расшифровка технического signal_info в человекочитаемый список причин.
+    Превращает 'AND✅ RSI=28.5≤30 | EMA9=...↑кросс | Молот🔨' в построчные пояснения."""
+    if not info:
+        return "• причина: данные стратегии без деталей"
+    arrow_up = "📈 ВВЕРХ (CALL)" if direction == "CALL" else "📉 ВНИЗ (PUT)"
+    parts = [p.strip() for p in info.split("|") if p.strip()]
+    lines = []
+    for p in parts:
+        low = p.lower()
+        if "rsi=" in low:
+            try:
+                _v = p.split("=")[1].replace("≤", " ").replace("≥", " ").split()[0]
+                _rsi = float(_v)
+                if _rsi <= 30:
+                    lines.append(f"• RSI {_rsi:.1f} — зона ПЕРЕПРОДАННОСТИ → ожидаем разворот вверх")
+                elif _rsi >= 70:
+                    lines.append(f"• RSI {_rsi:.1f} — зона ПЕРЕКУПЛЕННОСТИ → ожидаем разворот вниз")
+                else:
+                    lines.append(f"• RSI {_rsi:.1f} — нейтральная зона")
+            except Exception:
+                lines.append(f"• RSI: {p}")
+        elif "ema" in low and ("кросс" in low or "тренд" in low):
+            if "↑кросс" in p:
+                lines.append(f"• EMA: быстрая пересекла медленную ВВЕРХ → бычий сигнал ({p})")
+            elif "↓кросс" in p:
+                lines.append(f"• EMA: быстрая пересекла медленную ВНИЗ → медвежий сигнал ({p})")
+            elif "↑тренд" in p:
+                lines.append(f"• EMA: быстрая выше медленной → восходящий тренд ({p})")
+            elif "↓тренд" in p:
+                lines.append(f"• EMA: быстрая ниже медленной → нисходящий тренд ({p})")
+            else:
+                lines.append(f"• EMA: {p}")
+        elif "молот" in low:
+            lines.append("• Свечной паттерн: 🔨 МОЛОТ — длинная нижняя тень → отказ от падения, разворот вверх")
+        elif "звезда" in low:
+            lines.append("• Свечной паттерн: ⭐ ПАДАЮЩАЯ ЗВЕЗДА — длинная верхняя тень → отказ от роста, разворот вниз")
+        elif "поглощение🟢" in p or "поглощение 🟢" in low:
+            lines.append("• Свечной паттерн: 🟢 БЫЧЬЕ ПОГЛОЩЕНИЕ — зелёная свеча перекрыла красную → разворот вверх")
+        elif "поглощение🔴" in p or "поглощение 🔴" in low:
+            lines.append("• Свечной паттерн: 🔴 МЕДВЕЖЬЕ ПОГЛОЩЕНИЕ — красная свеча перекрыла зелёную → разворот вниз")
+        elif "поддержка" in low:
+            try:
+                _lvl = p.split("=")[1]
+                lines.append(f"• Цена коснулась УРОВНЯ ПОДДЕРЖКИ {_lvl} → ожидаем отбой вверх")
+            except Exception:
+                lines.append(f"• Уровень поддержки: {p}")
+        elif "сопротивление" in low:
+            try:
+                _lvl = p.split("=")[1]
+                lines.append(f"• Цена коснулась УРОВНЯ СОПРОТИВЛЕНИЯ {_lvl} → ожидаем отбой вниз")
+            except Exception:
+                lines.append(f"• Уровень сопротивления: {p}")
+        elif "[trend]" in low:
+            lines.append(f"• Сигнал по ТРЕНДУ старшего ТФ ({p}) — стратегии молчат, идём за трендом")
+        elif "tb✓" in low or "tb ✓" in low:
+            lines.append(f"• Фильтры TradeBase пройдены: {p.replace('TB✓', '').strip()}")
+        elif low.startswith("and✅"):
+            lines.append("• Комбо-режим: AND — все выбранные стратегии совпали")
+        elif low.startswith("or✅"):
+            lines.append("• Комбо-режим: OR — хотя бы одна стратегия дала сигнал")
+        else:
+            lines.append(f"• {p}")
+    if not lines:
+        return f"• Направление: {arrow_up}\\n• Причина: {info}"
+    return f"• Направление: {arrow_up}\\n" + "\\n".join(lines)
+
 ${buildTradeBaseFiltersBlock(cfg)}
 
 async def get_candles_data(client):
@@ -8079,9 +8227,17 @@ async def main():
             emoji = "📈" if signal == "CALL" else "📉"
             _tlabels2 = {"UP_UP": "🟢🟢 Два зелёных", "DOWN_DOWN": "🔴🔴 Два красных", "DOWN_UP": "🔴🟢 Разворот вверх", "UP_DOWN": "🟢🔴 Разворот вниз"}
             trend_info = _tlabels2.get(trend, "— нет тренда")
+            # ═══ 📊 ПОЧЕМУ ОТКРЫВАЕМ СДЕЛКУ — детальная расшифровка ═══
+            _why_text_combo = _explain_signal(signal_info or "", signal)
+            if signal_info:
+                print(f"[SIGNAL] {signal_info}")
+                print(f"[ПРИЧИНА ОТКРЫТИЯ СДЕЛКИ]")
+                for _ln in _why_text_combo.split("\\n"):
+                    print(f"  {_ln}")
             tg_parts = [f"{emoji} <b>[{BOT_NAME}] Комбо-сделка</b>", f"{signal} | {bet} {currency} | {ASSET}", f"Тренд: {trend_info}"]
             if signal_info:
-                tg_parts.append(f"📊 Сигнал: {signal_info}")
+                tg_parts.append(f"🎯 <b>ПОЧЕМУ ОТКРЫВАЕМ:</b>\\n{_why_text_combo}")
+                tg_parts.append(f"📊 <b>Сигнал (raw):</b> <code>{signal_info}</code>")
             tg_parts.append(f"📋 Сделок сегодня: {trades_today + 1}")
             tg("\\n".join(tg_parts))
             balance_before, _ = await get_balance(client)

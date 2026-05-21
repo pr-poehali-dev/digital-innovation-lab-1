@@ -2323,7 +2323,11 @@ _resolved_asset   = None
 def candle_color(c):
     return "UP" if c[3] >= c[0] else "DOWN"
 
+_last_trend_log_ts = 0.0
+_TREND_LOG_INTERVAL = 60  # секунд между подробными лог-блоками когда нет сигнала
+
 def get_trend(candles):
+    global _last_trend_log_ts
     closed = candles[:-1]
     if len(closed) < 2:
         return None
@@ -2355,9 +2359,16 @@ def get_trend(candles):
     bar   = "".join("🟢" if col == "UP" else "🔴" for col in colors5)
     cur_emoji = "🟢" if cur[3] >= cur[0] else "🔴"
     _times5 = " ".join(_ts_fmt(c) for c in window5)
-    print(f"[СВЕЧИ] таймфрейм={EXPIRY_SEC}с ({EXPIRY_SEC//60}мин) | {bar} (▲{ups5}/▼{downs5}) | текущая: {cur_emoji} | времена закр.: {_times5}")
-    print(f"[АНАЛИЗ] Свеча -2: {fmt(w2, e2)}")
-    print(f"[АНАЛИЗ] Свеча -1: {fmt(w3, e3)}  ← последняя закрытая")
+    # 🛸 Подробные блоки печатаем только при сигнале ИЛИ раз в 60с (анти-спам в логах)
+    _has_signal = (c2 == "UP" and c3 == "UP") or (c2 == "DOWN" and c3 == "DOWN") or (c2 == "DOWN" and c3 == "UP") or (c2 == "UP" and c3 == "DOWN")
+    import time as _t_tr
+    _now_tr = _t_tr.time()
+    _verbose = _has_signal or (_now_tr - _last_trend_log_ts >= _TREND_LOG_INTERVAL)
+    if _verbose:
+        _last_trend_log_ts = _now_tr
+        print(f"[СВЕЧИ] таймфрейм={EXPIRY_SEC}с ({EXPIRY_SEC//60}мин) | {bar} (▲{ups5}/▼{downs5}) | текущая: {cur_emoji} | времена закр.: {_times5}")
+        print(f"[АНАЛИЗ] Свеча -2: {fmt(w2, e2)}")
+        print(f"[АНАЛИЗ] Свеча -1: {fmt(w3, e3)}  ← последняя закрытая")
     if c2 == "UP" and c3 == "UP":
         print(f"[ТРЕНД]  {e2}{e3} → UP_UP (2 зелёных подряд)")
         return "UP_UP"
@@ -2370,7 +2381,8 @@ def get_trend(candles):
     if c2 == "UP" and c3 == "DOWN":
         print(f"[ТРЕНД]  {e2}{e3} → UP_DOWN (разворот вниз)")
         return "UP_DOWN"
-    print(f"[ТРЕНД]  {e2}{e3} → нет чёткого паттерна, пропуск")
+    if _verbose:
+        print(f"[ТРЕНД]  {e2}{e3} → нет чёткого паттерна, пропуск")
     return None
 
 def trend_to_signal(trend):
@@ -6003,7 +6015,11 @@ _resolved_asset   = None
 def candle_color(c):
     return "UP" if c[3] >= c[0] else "DOWN"
 
+_last_trend_log_ts = 0.0
+_TREND_LOG_INTERVAL = 60  # секунд между подробными лог-блоками когда нет сигнала
+
 def get_trend(candles):
+    global _last_trend_log_ts
     closed = candles[:-1]
     if len(closed) < 2:
         return None
@@ -6035,9 +6051,16 @@ def get_trend(candles):
     bar   = "".join("🟢" if col == "UP" else "🔴" for col in colors5)
     cur_emoji = "🟢" if cur[3] >= cur[0] else "🔴"
     _times5 = " ".join(_ts_fmt(c) for c in window5)
-    print(f"[СВЕЧИ] таймфрейм={EXPIRY_SEC}с ({EXPIRY_SEC//60}мин) | {bar} (▲{ups5}/▼{downs5}) | текущая: {cur_emoji} | времена закр.: {_times5}")
-    print(f"[АНАЛИЗ] Свеча -2: {fmt(w2, e2)}")
-    print(f"[АНАЛИЗ] Свеча -1: {fmt(w3, e3)}  ← последняя закрытая")
+    # 🛸 Подробные блоки печатаем только при сигнале ИЛИ раз в 60с (анти-спам в логах)
+    _has_signal = (c2 == "UP" and c3 == "UP") or (c2 == "DOWN" and c3 == "DOWN") or (c2 == "DOWN" and c3 == "UP") or (c2 == "UP" and c3 == "DOWN")
+    import time as _t_tr
+    _now_tr = _t_tr.time()
+    _verbose = _has_signal or (_now_tr - _last_trend_log_ts >= _TREND_LOG_INTERVAL)
+    if _verbose:
+        _last_trend_log_ts = _now_tr
+        print(f"[СВЕЧИ] таймфрейм={EXPIRY_SEC}с ({EXPIRY_SEC//60}мин) | {bar} (▲{ups5}/▼{downs5}) | текущая: {cur_emoji} | времена закр.: {_times5}")
+        print(f"[АНАЛИЗ] Свеча -2: {fmt(w2, e2)}")
+        print(f"[АНАЛИЗ] Свеча -1: {fmt(w3, e3)}  ← последняя закрытая")
     if c2 == "UP" and c3 == "UP":
         print(f"[ТРЕНД]  {e2}{e3} → UP_UP (2 зелёных подряд)")
         return "UP_UP"
@@ -6050,7 +6073,8 @@ def get_trend(candles):
     if c2 == "UP" and c3 == "DOWN":
         print(f"[ТРЕНД]  {e2}{e3} → UP_DOWN (разворот вниз)")
         return "UP_DOWN"
-    print(f"[ТРЕНД]  {e2}{e3} → нет чёткого паттерна, пропуск")
+    if _verbose:
+        print(f"[ТРЕНД]  {e2}{e3} → нет чёткого паттерна, пропуск")
     return None
 
 def trend_to_signal(trend):

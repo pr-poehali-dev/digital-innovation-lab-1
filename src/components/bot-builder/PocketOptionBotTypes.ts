@@ -6609,8 +6609,11 @@ async def live_stream_subscriber(buf, client):
             # Самый первый тик — открываем первую свечу
             buf.live_bucket = _bucket_s
             buf.live = (_price, _price, _price, _price)
+            # 🛡 ФИКС: помечаем первую свечу как НЕПОЛНУЮ (бот стартовал в середине минуты)
+            # При её закрытии она будет пропущена — цвет может быть недостоверным
+            globals()['_first_candle_partial_bucket'] = int(_bucket_s)
             _utc_t = datetime.utcfromtimestamp(_bucket_s).strftime('%H:%M:%S')
-            print(f"[WS] 🆕 ПЕРВЫЙ ТИК {_utc_t} UTC | price={_price:.5f}")
+            print(f"[WS] 🆕 ПЕРВЫЙ ТИК {_utc_t} UTC | price={_price:.5f} | ⚠️ неполная свеча — будет пропущена при закрытии")
         elif _bucket_s == buf.live_bucket:
             # Тик внутри той же свечи — обновляем h/l/c
             _o, _h, _l, _c = buf.live
@@ -6621,8 +6624,16 @@ async def live_stream_subscriber(buf, client):
             _old_live = buf.live
             if _old_live is not None and _old_bucket is not None:
                 _o, _h, _l, _c = _old_live
+                # 🛡 ФИКС: пропускаем ПЕРВУЮ неполную свечу (бот стартовал в середине её интервала)
+                _partial_bucket = globals().get('_first_candle_partial_bucket')
+                _is_partial_first = (_partial_bucket is not None and int(_old_bucket) == int(_partial_bucket))
+                if _is_partial_first:
+                    _open_t = datetime.utcfromtimestamp(_old_bucket).strftime('%H:%M:%S')
+                    _close_t = datetime.utcfromtimestamp(_old_bucket + EXPIRY_SEC).strftime('%H:%M:%S')
+                    print(f"[CANDLE_BUILD] ⏭ ПРОПУЩЕНА (неполная) {_open_t}→{_close_t} UTC | бот стартовал в середине интервала, цвет недостоверный")
+                    globals()['_first_candle_partial_bucket'] = None
                 # Защита от плоской свечи (o=h=l=c) — пропускаем такую
-                if not (_o == _h == _l == _c):
+                elif not (_o == _h == _l == _c):
                     _closed_tup = (_o, _h, _l, _c, int(_old_bucket))
                     _candles_list = list(buf.candles)  # копия чтобы не мутировать через property
                     _candles_list.append(_closed_tup)

@@ -6697,6 +6697,24 @@ async def live_stream_subscriber(buf, client):
             _pending_event_name = None  # имя event'а из 451-[...] для следующего BINARY пакета
             # 🛸 ПРАВКА #1: RECV-TIMEOUT — если сервер 30с молчит, рвём сами (не висим минутами)
             _RECV_TIMEOUT = 30
+
+            # 🛸 ФИКС WS-СТАБИЛЬНОСТИ: активный socket.io keep-alive ping "2" каждые 20с
+            # (РО игнорит низкоуровневый WS-ping, но обязан ответить "3" на socket.io ping "2")
+            async def _keepalive_ping():
+                _ping_count = 0
+                try:
+                    while True:
+                        await asyncio.sleep(20)
+                        try:
+                            await _ws.send("2")
+                            _ping_count += 1
+                            if _ping_count % 5 == 0:
+                                print(f"[WS] 💚 keep-alive ping #{_ping_count} отправлен (РО подтвердил соединение)")
+                        except Exception:
+                            return
+                except asyncio.CancelledError:
+                    return
+            _ping_task = asyncio.create_task(_keepalive_ping())
             try:
                 while True:
                     try:
@@ -6782,6 +6800,11 @@ async def live_stream_subscriber(buf, client):
                             pass
                         continue
             except Exception as _le:
+                # 🛸 ФИКС WS-СТАБИЛЬНОСТИ: отменяем keep-alive task чтобы не утекал между переподключениями
+                try:
+                    _ping_task.cancel()
+                except Exception:
+                    pass
                 _ec = getattr(_le, 'code', None)
                 _er = getattr(_le, 'reason', None)
                 # 🛸 ПРАВКА #3: детальный лог — uptime, auth, subscribe, силенс, всего тиков

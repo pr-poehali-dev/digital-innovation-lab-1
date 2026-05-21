@@ -7849,7 +7849,7 @@ async def main():
                 _live_buf._last_api_info = _now_ts_spy
                 _price_info = getattr(_live_buf, 'last_price', 0.0)
                 print(f"[CANDLE_SRC] 📡 API РО (источник анализа) | live-цена из буфера: {_price_info:.5f} | SPY-сверка выключена")
-        if _spy_active and (not hasattr(_live_buf, '_last_spy_log') or (_now_ts_spy - getattr(_live_buf, '_last_spy_log', 0)) >= 5):
+        if _spy_active and (not hasattr(_live_buf, '_last_spy_log') or (_now_ts_spy - getattr(_live_buf, '_last_spy_log', 0)) >= 60):
             _live_buf._last_spy_log = _now_ts_spy
             _t_local = datetime.now().astimezone().strftime('%H:%M:%S')
             _t_msk = datetime.now(MSK_TZ).strftime('%H:%M:%S')

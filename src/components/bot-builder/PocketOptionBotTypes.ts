@@ -6598,6 +6598,13 @@ async def live_stream_subscriber(buf, client):
         print(f"[WS] 🔴 REAL режим — буду подключаться к боевым серверам РО")
 
     _stream_state = {'ticks': 0, 'first_logged': False, 'reconnects': 0}
+    # 🛸 ФИКС WS-СТАБИЛЬНОСТИ: метрики для ежечасного отчёта в TG
+    # _ws_stream_start — глобал для подсчёта общего uptime потока
+    # _ticks_at_last_report / _reconnects_at_last_report — снимок счётчиков на момент прошлого отчёта
+    globals().setdefault('_ws_stream_start', _t_ws.time())
+    globals().setdefault('_ws_ticks_at_last_report', 0)
+    globals().setdefault('_ws_reconnects_at_last_report', 0)
+    globals()['_ws_stream_state_ref'] = _stream_state
 
     def _update_price(_price):
         """Обновляем буфер новой ценой + ЗАКРЫВАЕМ свечи при смене бакета."""
@@ -7790,6 +7797,24 @@ async def main():
             _tp_pct   = round(total_profit / TAKE_PROFIT * 100, 1) if TAKE_PROFIT > 0 else 0
             _sl_pct   = round((STOP_LOSS - abs(min(total_profit, 0))) / STOP_LOSS * 100, 1) if STOP_LOSS > 0 else 100
             _tp_bar   = "█" * int(_tp_pct / 10) + "░" * (10 - int(_tp_pct / 10))
+            # 🛸 ФИКС WS-СТАБИЛЬНОСТИ: блок с метриками потока (uptime, разрывы, тики за час)
+            _ws_state = globals().get('_ws_stream_state_ref') or {'ticks': 0, 'reconnects': 0}
+            _ws_uptime_total = int(_time.time() - globals().get('_ws_stream_start', _time.time()))
+            _ws_uptime_h = _ws_uptime_total // 3600
+            _ws_uptime_m = (_ws_uptime_total % 3600) // 60
+            _ws_ticks_now = int(_ws_state.get('ticks', 0))
+            _ws_recon_now = int(_ws_state.get('reconnects', 0))
+            _ws_ticks_period = _ws_ticks_now - int(globals().get('_ws_ticks_at_last_report', 0))
+            _ws_recon_period = _ws_recon_now - int(globals().get('_ws_reconnects_at_last_report', 0))
+            globals()['_ws_ticks_at_last_report'] = _ws_ticks_now
+            globals()['_ws_reconnects_at_last_report'] = _ws_recon_now
+            _ws_health = "🟢 отлично" if _ws_recon_period == 0 else ("🟡 нестабильно" if _ws_recon_period <= 3 else "🔴 плохо")
+            _ws_block = (
+                f"📡 <b>WebSocket</b>: {_ws_health}\\n"
+                f"  ⏱ Поток жив: {_ws_uptime_h}ч {_ws_uptime_m}м (всего разрывов: {_ws_recon_now})\\n"
+                f"  🔁 Разрывов за час: {_ws_recon_period} | 📊 тиков: {_ws_ticks_period}\\n"
+                f"━━━━━━━━━━━━━━━━━━━━\\n"
+            )
             tg(
                 f"⏰ <b>Авто-отчёт [{BOT_NAME}]</b>\\n"
                 f"━━━━━━━━━━━━━━━━━━━━\\n"
@@ -7798,6 +7823,7 @@ async def main():
                 f"🎯 Винрейт: <b>{_wr_r}%</b>"
                 f"{_hedge_str_r}{_ext_str_r}\\n"
                 f"━━━━━━━━━━━━━━━━━━━━\\n"
+                f"{_ws_block}"
                 f"🎯 До TP: <b>{_tp_left:+.2f} {CURRENCY}</b> ({_tp_pct}%)\\n"
                 f"{_tp_bar} {_tp_pct}%\\n"
                 f"🛑 До SL: <b>{_sl_left:.2f} {CURRENCY}</b> ({_sl_pct}% запаса)\\n"

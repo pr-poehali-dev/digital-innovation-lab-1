@@ -7885,9 +7885,13 @@ async def main():
             # из-за разрывов / разных фидов РО), и сверка даёт ложные алерты.
             _own_count_for_spy = globals().get('_own_closed_candles_count', 0)
             _MIN_OWN_FOR_SPY = 2
-            _skip_api_spy = _own_count_for_spy < _MIN_OWN_FOR_SPY
-            if _skip_api_spy:
+            # 🛸 ФИКС: если источник свечей = 'буфер', API-сверку не делаем (РО рубит WS, API отстаёт — алерты ложные)
+            _spy_use_api = (str(globals().get('CANDLE_SOURCE', 'buffer')).lower() == 'api')
+            _skip_api_spy = (not _spy_use_api) or (_own_count_for_spy < _MIN_OWN_FOR_SPY)
+            if _skip_api_spy and _spy_use_api:
                 print(f"[🕵️ SPY] Сверка с API РО: ⏳ ждём {_MIN_OWN_FOR_SPY} своих закрытых свечей (накоплено: {_own_count_for_spy}/{_MIN_OWN_FOR_SPY}). Буфер пока на прогрев-данных, ложные алерты подавлены.")
+            elif _skip_api_spy and not _spy_use_api:
+                print(f"[🕵️ SPY] Сверка с API: 🔇 отключена (источник = буфер). Буфер живой, бот строит свои свечи.")
             try:
                 if _skip_api_spy:
                     raise StopIteration("skip_api_spy")

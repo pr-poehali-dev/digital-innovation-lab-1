@@ -6678,7 +6678,8 @@ async def live_stream_subscriber(buf, client):
             ("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
         ]
         # Совместимость: новые версии websockets используют additional_headers, старые — extra_headers
-        _ws_kwargs = {'ping_interval': 20, 'ping_timeout': 20, 'max_size': 10_000_000}
+        # 🛸 ФИКС WS-СТАБИЛЬНОСТИ: ping_interval=15с (короче серверного idle=~30с) + close_timeout=5с (не висим при разрыве)
+        _ws_kwargs = {'ping_interval': 15, 'ping_timeout': 10, 'close_timeout': 5, 'max_size': 10_000_000}
         import inspect as _inspect_ws
         try:
             _conn_sig = _inspect_ws.signature(websockets.connect)
@@ -6834,9 +6835,15 @@ async def live_stream_subscriber(buf, client):
         except Exception as _we:
             _stream_state['reconnects'] += 1
             _silent_close_count = 0  # ошибка ≠ тихое закрытие
-            # Минимум 5с, максимум 60с — НЕ спамим РО каждую секунду
-            _wait = max(5, min(60, 2 ** min(_stream_state['reconnects'], 6)))
-            print(f"[WS] ❌ Соединение упало ({type(_we).__name__}): {str(_we)[:200]} | след.попытка через {_wait}с (всего {_stream_state['reconnects']})")
+            # 🛸 ФИКС WS-СТАБИЛЬНОСТИ: ConnectionClosedOK (1005) = норм idle-разрыв → 2с
+            # Реальные ошибки (сеть/auth) → экспонента 3→6→12→24с, максимум 30с (было 60с)
+            _err_name = type(_we).__name__
+            _is_normal_close = _err_name in ('ConnectionClosedOK', 'ConnectionClosed') and getattr(_we, 'code', None) in (None, 1000, 1005, 1006)
+            if _is_normal_close:
+                _wait = 2
+            else:
+                _wait = max(3, min(30, 3 * (2 ** min(_stream_state['reconnects'], 4))))
+            print(f"[WS] ❌ Соединение упало ({_err_name}): {str(_we)[:200]} | след.попытка через {_wait}с (всего {_stream_state['reconnects']})")
             _url_idx += 1
             await asyncio.sleep(_wait)
 

@@ -8,8 +8,7 @@ import Icon from "@/components/ui/icon"
 import { LiveSessionClock } from "@/components/LiveSessionClock"
 import { TrendPairScanner } from "@/components/TrendPairScanner"
 import { PairDeepDive } from "@/components/PairDeepDive"
-import { loadQuotes } from "@/components/pair-deep-dive/data"
-import { loadScannerQuotes, pairs } from "@/components/trend-pair-scanner/data"
+import { refreshAllLevels } from "@/lib/refresh-all-levels"
 import { toast } from "sonner"
 
 const sessions = [
@@ -140,38 +139,31 @@ export default function Timing() {
     if (refreshingRef.current) return
     refreshingRef.current = true
     setRefreshing(true)
-    const toastId = silent ? null : toast.loading("🛸 Тяну свежие котировки...")
+    const toastId = silent ? null : toast.loading("🛸 Обновляю уровни по всем парам...")
     try {
-      const scannerSymbols = Array.from(
-        new Set(pairs.map((p) => p.apiSymbol).filter((s): s is string => !!s))
-      )
-      const [deepRes, scanRes] = await Promise.allSettled([
-        loadQuotes(true),
-        loadScannerQuotes(scannerSymbols, true),
-      ])
-      const deepQuotes =
-        deepRes.status === "fulfilled" ? deepRes.value : ({} as Record<string, { error?: string; price?: number }>)
-      const scanQuotes =
-        scanRes.status === "fulfilled" ? scanRes.value : ({} as Record<string, { error?: string; price?: number }>)
-      const totalReceived =
-        Object.values(deepQuotes).filter((q) => q && !q.error && q.price !== undefined).length +
-        Object.values(scanQuotes).filter((q) => q && !q.error && q.price !== undefined).length
-      const failed = deepRes.status === "rejected" && scanRes.status === "rejected"
+      const result = await refreshAllLevels()
 
       setLastRefresh(Date.now())
       setNextRefreshIn(AUTO_REFRESH_MS / 1000)
 
-      if (failed) {
-        if (!silent && toastId)
-          toast.error("Сервер котировок временно недоступен. Уровни актуальны на май 2026.", { id: toastId })
-      } else if (totalReceived === 0) {
-        if (!silent && toastId)
-          toast.message("Котировки в кеше. Базовые уровни мая 2026 уже на странице.", { id: toastId })
-      } else {
-        if (!silent && toastId)
-          toast.success(`Готово! Обновлено ${totalReceived} котировок.`, { id: toastId })
+      if (!silent && toastId) {
+        if (result.liveCount === 0 && !result.apiReachable) {
+          toast.warning(
+            `Сервер котировок недоступен. Пересчитал уровни по дефолтам мая 2026: ${result.updated} пар.`,
+            { id: toastId }
+          )
+        } else if (result.liveCount === 0) {
+          toast.message(
+            `Без live-цен. Пересчитал уровни по дефолтам: ${result.updated} пар (включая конструктор ботов).`,
+            { id: toastId }
+          )
+        } else {
+          toast.success(
+            `Готово! Live-цены: ${result.liveCount} пар, дефолты: ${result.defaultCount}. Всего обновлено: ${result.updated}.`,
+            { id: toastId }
+          )
+        }
       }
-      window.dispatchEvent(new CustomEvent("levels:refreshed"))
     } catch (e) {
       if (!silent && toastId)
         toast.error("Ошибка при обновлении. Попробуй ещё раз.", { id: toastId })

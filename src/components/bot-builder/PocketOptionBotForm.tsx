@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react"
 import TradeBaseFiltersCard from "./TradeBaseFiltersCard"
+import SrPresetsBlock from "./SrPresetsBlock"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
@@ -2122,98 +2123,8 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
               <p className="text-zinc-600 font-space-mono text-[10px] mt-1">Имеют наивысший приоритет. Оставь пустым для автоопределения.</p>
             </div>
 
-            {/* Пресеты по паре */}
-            {(() => {
-              // Уровни актуальны на май 2026
-              const presets: Record<string, number[]> = {
-                // Forex мажоры (май 2026)
-                "EUR/USD": [1.0750,1.0800,1.0840,1.0865,1.0910,1.0950,1.1000],
-                "EUR/USD (OTC)": [1.0750,1.0800,1.0840,1.0865,1.0910,1.0950,1.1000],
-                "GBP/USD": [1.2600,1.2700,1.2800,1.2880,1.2950,1.3050,1.3150],
-                "GBP/USD (OTC)": [1.2600,1.2700,1.2800,1.2880,1.2950,1.3050,1.3150],
-                "USD/JPY": [148.0,150.0,152.0,154.0,156.0,158.0,160.0],
-                "USD/JPY (OTC)": [148.0,150.0,152.0,154.0,156.0,158.0,160.0],
-                "USD/CHF": [0.8650,0.8750,0.8850,0.8950,0.9050,0.9150],
-                "USD/CHF (OTC)": [0.8650,0.8750,0.8850,0.8950,0.9050,0.9150],
-                "USD/CAD": [1.3500,1.3600,1.3700,1.3800,1.3900,1.4000],
-                "USD/CAD (OTC)": [1.3500,1.3600,1.3700,1.3800,1.3900,1.4000],
-                "AUD/USD": [0.6350,0.6450,0.6550,0.6650,0.6750,0.6850],
-                "AUD/USD (OTC)": [0.6350,0.6450,0.6550,0.6650,0.6750,0.6850],
-                "NZD/USD": [0.5850,0.5950,0.6050,0.6150,0.6250,0.6350],
-                "NZD/USD (OTC)": [0.5850,0.5950,0.6050,0.6150,0.6250,0.6350],
-                // Forex кросс-пары (май 2026)
-                "EUR/GBP (OTC)": [0.8350,0.8450,0.8500,0.8550,0.8650],
-                "EUR/JPY (OTC)": [160.0,163.0,165.0,167.0,170.0,173.0],
-                "EUR/CHF (OTC)": [0.9350,0.9450,0.9550,0.9650,0.9750],
-                "GBP/JPY (OTC)": [188.0,191.0,194.0,197.0,200.0,203.0],
-                "GBP/CHF (OTC)": [1.1100,1.1300,1.1500,1.1700],
-                "AUD/JPY (OTC)": [96.0,98.0,100.0,102.0,104.0],
-                "AUD/CAD (OTC)": [0.9150,0.9180,0.9215,0.9245,0.9270,0.9300],
-                "CAD/JPY (OTC)": [108.0,110.0,112.0,114.0,116.0],
-                "CHF/JPY (OTC)": [168.0,170.0,172.0,174.0,176.0],
-                "NZD/JPY (OTC)": [89.0,91.0,93.0,95.0,97.0],
-                // Крипто (май 2026, бычий цикл)
-                "BTC/USD": [82000,88500,92000,94800,96000,98500,108000],
-                "BTC/USD (OTC)": [82000,88500,92000,94800,96000,98500,108000],
-                "ETH/USD": [2800,3200,3500,3700,4000,4400,4800],
-                "ETH/USD (OTC)": [2800,3200,3500,3700,4000,4400,4800],
-                "LTC/USD (OTC)": [90,105,120,135,150,165],
-                "DOT/USD (OTC)": [6,7,8,9,10,12,14],
-                "LINK/USD (OTC)": [14,17,20,23,26,30],
-                "DASH/USD": [25,30,35,40,45,50],
-                // Товары (май 2026 — золото обновило ATH)
-                "Gold": [2800,2900,3000,3100,3200,3300,3400,3500],
-                "Gold (OTC)": [2800,2900,3000,3100,3200,3300,3400,3500],
-                "Silver": [28,30,32,34,36,38,40],
-                "Silver (OTC)": [28,30,32,34,36,38,40],
-                "Brent Oil": [68,72,76,80,84,88,92],
-                "Brent Oil (OTC)": [68,72,76,80,84,88,92],
-                "WTI Oil": [64,68,72,76,80,84,88],
-                "WTI Oil (OTC)": [64,68,72,76,80,84,88],
-                "Natural Gas": [2.5,3.0,3.5,4.0,4.5,5.0],
-                "Natural Gas (OTC)": [2.5,3.0,3.5,4.0,4.5,5.0],
-                "Platinum (OTC)": [950,1000,1050,1100,1150,1200],
-                "Palladium (OTC)": [900,1000,1100,1200,1300],
-                // Индексы (май 2026)
-                "S&P 500": [5200,5400,5600,5800,6000,6200,6400],
-                "S&P 500 (OTC)": [5200,5400,5600,5800,6000,6200,6400],
-                "NASDAQ": [19000,20000,21000,22000,23000,24000],
-                "NASDAQ (OTC)": [19000,20000,21000,22000,23000,24000],
-                "Dow Jones": [41000,42000,43000,44000,45000,46000],
-                "Dow Jones (OTC)": [41000,42000,43000,44000,45000,46000],
-                "Nikkei 225": [37000,39000,40000,41000,42000,44000],
-                "Nikkei 225 (OTC)": [37000,39000,40000,41000,42000,44000],
-                "DAX": [18000,19000,20000,21000,22000,23000],
-                "DAX (OTC)": [18000,19000,20000,21000,22000,23000],
-                "FTSE 100": [7800,8000,8200,8400,8600,8800],
-                "FTSE 100 (OTC)": [7800,8000,8200,8400,8600,8800],
-                "CAC 40": [7200,7500,7800,8100,8400],
-                "CAC 40 (OTC)": [7200,7500,7800,8100,8400],
-                "AUS 200 (OTC)": [7700,7900,8100,8300,8500],
-                "EURO STOXX 50 (OTC)": [4800,5000,5200,5400,5600],
-              }
-              const levels = presets[config.asset]
-              if (!levels) return null
-              return (
-                <div className="bg-zinc-800/50 rounded-lg p-3">
-                  <p className="text-zinc-400 font-space-mono text-[10px] mb-2">📌 Типичные уровни для {config.asset}:</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {levels.map(l => (
-                      <button key={l} type="button"
-                        onClick={() => set({ srManualLevels: config.srManualLevels ? `${config.srManualLevels}, ${l}` : String(l) })}
-                        className="text-[10px] font-space-mono bg-zinc-700 hover:bg-purple-600/30 hover:border-purple-500/50 border border-zinc-600 text-zinc-300 rounded px-2 py-0.5 transition-all">
-                        +{l}
-                      </button>
-                    ))}
-                  </div>
-                  <button type="button"
-                    onClick={() => set({ srManualLevels: levels.join(", ") })}
-                    className="mt-2 text-[10px] font-space-mono text-purple-400 hover:text-purple-300 transition-colors">
-                    Добавить все →
-                  </button>
-                </div>
-              )
-            })()}
+            {/* Пресеты по паре — берутся из общего рантайм-стора, обновляются кнопкой "Обновить уровни" */}
+            <SrPresetsBlock asset={config.asset} srManualLevels={config.srManualLevels} set={set} />
 
             <div className="space-y-2">
               <Label className="text-zinc-300 text-sm">Направление входа</Label>

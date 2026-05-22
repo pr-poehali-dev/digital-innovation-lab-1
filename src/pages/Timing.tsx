@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { Badge } from "@/components/ui/badge"
@@ -127,38 +127,81 @@ const dayStrategies = [
   },
 ]
 
+const AUTO_REFRESH_MS = 5 * 60 * 1000 // 5 минут
+
 export default function Timing() {
   const [refreshing, setRefreshing] = useState(false)
   const [lastRefresh, setLastRefresh] = useState<number | null>(null)
+  const [autoRefresh, setAutoRefresh] = useState<boolean>(true)
+  const [nextRefreshIn, setNextRefreshIn] = useState<number>(AUTO_REFRESH_MS / 1000)
+  const refreshingRef = useRef(false)
 
-  const handleRefreshLevels = async () => {
-    if (refreshing) return
+  const doRefresh = async (silent: boolean) => {
+    if (refreshingRef.current) return
+    refreshingRef.current = true
     setRefreshing(true)
-    const toastId = toast.loading("🛸 Тяну свежие котировки и уровни...")
+    const toastId = silent ? null : toast.loading("🛸 Тяну свежие котировки...")
     try {
       const scannerSymbols = Array.from(
         new Set(pairs.map((p) => p.apiSymbol).filter((s): s is string => !!s))
       )
-      const [deepQuotes, scanQuotes] = await Promise.all([
+      const [deepRes, scanRes] = await Promise.allSettled([
         loadQuotes(true),
         loadScannerQuotes(scannerSymbols, true),
       ])
+      const deepQuotes =
+        deepRes.status === "fulfilled" ? deepRes.value : ({} as Record<string, { error?: string; price?: number }>)
+      const scanQuotes =
+        scanRes.status === "fulfilled" ? scanRes.value : ({} as Record<string, { error?: string; price?: number }>)
       const totalReceived =
-        Object.values(deepQuotes).filter((q) => !q?.error && q?.price !== undefined).length +
-        Object.values(scanQuotes).filter((q) => !q?.error && q?.price !== undefined).length
-      if (totalReceived === 0) {
-        toast.error("Не пришли свежие котировки. Попробуй ещё раз через минуту.", { id: toastId })
+        Object.values(deepQuotes).filter((q) => q && !q.error && q.price !== undefined).length +
+        Object.values(scanQuotes).filter((q) => q && !q.error && q.price !== undefined).length
+      const failed = deepRes.status === "rejected" && scanRes.status === "rejected"
+
+      setLastRefresh(Date.now())
+      setNextRefreshIn(AUTO_REFRESH_MS / 1000)
+
+      if (failed) {
+        if (!silent && toastId)
+          toast.error("Сервер котировок временно недоступен. Уровни актуальны на май 2026.", { id: toastId })
+      } else if (totalReceived === 0) {
+        if (!silent && toastId)
+          toast.message("Котировки в кеше. Базовые уровни мая 2026 уже на странице.", { id: toastId })
       } else {
-        setLastRefresh(Date.now())
-        toast.success(`Обновлено: ${totalReceived} котировок. Уровни актуальны.`, { id: toastId })
-        window.dispatchEvent(new CustomEvent("levels:refreshed"))
+        if (!silent && toastId)
+          toast.success(`Готово! Обновлено ${totalReceived} котировок.`, { id: toastId })
       }
+      window.dispatchEvent(new CustomEvent("levels:refreshed"))
     } catch (e) {
-      toast.error("Ошибка при обновлении. Проверь интернет.", { id: toastId })
+      if (!silent && toastId)
+        toast.error("Ошибка при обновлении. Попробуй ещё раз.", { id: toastId })
     } finally {
+      refreshingRef.current = false
       setRefreshing(false)
     }
   }
+
+  const handleRefreshLevels = () => doRefresh(false)
+
+  // Авто-обновление каждые 5 минут + обратный отсчёт
+  useEffect(() => {
+    if (!autoRefresh) return
+    const tickId = window.setInterval(() => {
+      setNextRefreshIn((s) => {
+        if (s <= 1) {
+          doRefresh(true)
+          return AUTO_REFRESH_MS / 1000
+        }
+        return s - 1
+      })
+    }, 1000)
+    return () => window.clearInterval(tickId)
+  }, [autoRefresh])
+
+  // Первое обновление при загрузке
+  useEffect(() => {
+    doRefresh(true)
+  }, [])
 
   return (
     <div className="dark min-h-screen bg-black">
@@ -183,7 +226,7 @@ export default function Timing() {
               <Button
                 onClick={handleRefreshLevels}
                 disabled={refreshing}
-                className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-semibold"
+                className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-semibold disabled:opacity-70"
                 size="lg"
               >
                 <Icon
@@ -193,11 +236,32 @@ export default function Timing() {
                 />
                 {refreshing ? "Обновляю уровни..." : "Обновить уровни сейчас"}
               </Button>
+              <Button
+                onClick={() => setAutoRefresh((v) => !v)}
+                variant="outline"
+                size="lg"
+                className={`border-2 ${autoRefresh ? "border-green-500/50 text-green-400 hover:bg-green-500/10" : "border-zinc-700 text-gray-400 hover:bg-zinc-800"}`}
+              >
+                <Icon name={autoRefresh ? "Zap" : "ZapOff"} size={16} className="mr-2" />
+                Авто: {autoRefresh ? "ВКЛ" : "ВЫКЛ"}
+              </Button>
+            </div>
+            <div className="mt-3 flex items-center justify-center gap-4 text-xs text-gray-500 flex-wrap">
               {lastRefresh && (
-                <span className="text-xs text-gray-500">
-                  Последнее обновление: {new Date(lastRefresh).toLocaleTimeString("ru-RU")}
+                <span className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                  Обновлено: {new Date(lastRefresh).toLocaleTimeString("ru-RU")}
                 </span>
               )}
+              {autoRefresh && (
+                <span className="text-gray-600">
+                  След. авто-обновление через{" "}
+                  <span className="text-orange-400 font-mono">
+                    {Math.floor(nextRefreshIn / 60)}:{String(nextRefreshIn % 60).padStart(2, "0")}
+                  </span>
+                </span>
+              )}
+              <span className="text-gray-600">Уровни актуальны на май 2026</span>
             </div>
           </div>
 

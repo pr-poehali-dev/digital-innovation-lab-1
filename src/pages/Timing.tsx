@@ -1,11 +1,16 @@
+import { useState } from "react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Icon from "@/components/ui/icon"
 import { LiveSessionClock } from "@/components/LiveSessionClock"
 import { TrendPairScanner } from "@/components/TrendPairScanner"
 import { PairDeepDive } from "@/components/PairDeepDive"
+import { loadQuotes } from "@/components/pair-deep-dive/data"
+import { loadScannerQuotes, pairs } from "@/components/trend-pair-scanner/data"
+import { toast } from "sonner"
 
 const sessions = [
   {
@@ -71,12 +76,12 @@ const btcUsdSchedule = [
 ]
 
 const correlations = [
-  { pair1: "EUR/USD", pair2: "GBP/USD", value: "+0.85", type: "Прямая", desc: "Двигаются почти синхронно. Сигнал на EUR/USD = подтверждение для GBP/USD." },
-  { pair1: "EUR/USD", pair2: "USD/CHF", value: "−0.95", type: "Обратная", desc: "Зеркало. Если EUR/USD растёт — USD/CHF падает. Используй для подтверждения." },
-  { pair1: "BTC/USD", pair2: "ETH/USD", value: "+0.92", type: "Прямая", desc: "Эфир ходит за битком. Можно ловить тот же тренд на ETH с большей волой." },
-  { pair1: "BTC/USD", pair2: "NASDAQ (US100)", value: "+0.65", type: "Прямая", desc: "Криптой управляет настроение на фонде. Растёт NASDAQ — растёт BTC." },
-  { pair1: "EUR/USD", pair2: "BTC/USD", value: "+0.30", type: "Слабая", desc: "Связи почти нет. Это плюс — можно диверсифицировать." },
-  { pair1: "EUR/USD OTC", pair2: "EUR/USD (Forex)", value: "+0.70", type: "Прямая (с задержкой)", desc: "OTC копирует Forex с лагом ~30 сек. На выходных идёт по алгоритму." },
+  { pair1: "EUR/USD", pair2: "GBP/USD", value: "+0.87", type: "Прямая", desc: "Двигаются почти синхронно (май 2026). Сигнал на EUR/USD = подтверждение для GBP/USD." },
+  { pair1: "EUR/USD", pair2: "USD/CHF", value: "−0.94", type: "Обратная", desc: "Зеркало. Если EUR/USD растёт — USD/CHF падает. Используй для подтверждения." },
+  { pair1: "BTC/USD", pair2: "ETH/USD", value: "+0.91", type: "Прямая", desc: "Эфир ходит за битком. Можно ловить тот же тренд на ETH с большей волой." },
+  { pair1: "BTC/USD", pair2: "NASDAQ (US100)", value: "+0.72", type: "Прямая", desc: "Связь усилилась с приходом ETF. Растёт NASDAQ — растёт BTC, особенно в часы открытия США." },
+  { pair1: "XAU/USD", pair2: "DXY (доллар)", value: "−0.82", type: "Обратная", desc: "Золото зеркалит доллар. Слабый DXY — растущее золото. Подтверждение трендов." },
+  { pair1: "EUR/USD OTC", pair2: "EUR/USD (Forex)", value: "+0.72", type: "Прямая (с задержкой)", desc: "OTC копирует Forex с лагом ~30-40 сек. На выходных идёт по алгоритму брокера." },
 ]
 
 const dayStrategies = [
@@ -123,13 +128,45 @@ const dayStrategies = [
 ]
 
 export default function Timing() {
+  const [refreshing, setRefreshing] = useState(false)
+  const [lastRefresh, setLastRefresh] = useState<number | null>(null)
+
+  const handleRefreshLevels = async () => {
+    if (refreshing) return
+    setRefreshing(true)
+    const toastId = toast.loading("🛸 Тяну свежие котировки и уровни...")
+    try {
+      const scannerSymbols = Array.from(
+        new Set(pairs.map((p) => p.apiSymbol).filter((s): s is string => !!s))
+      )
+      const [deepQuotes, scanQuotes] = await Promise.all([
+        loadQuotes(true),
+        loadScannerQuotes(scannerSymbols, true),
+      ])
+      const totalReceived =
+        Object.values(deepQuotes).filter((q) => !q?.error && q?.price !== undefined).length +
+        Object.values(scanQuotes).filter((q) => !q?.error && q?.price !== undefined).length
+      if (totalReceived === 0) {
+        toast.error("Не пришли свежие котировки. Попробуй ещё раз через минуту.", { id: toastId })
+      } else {
+        setLastRefresh(Date.now())
+        toast.success(`Обновлено: ${totalReceived} котировок. Уровни актуальны.`, { id: toastId })
+        window.dispatchEvent(new CustomEvent("levels:refreshed"))
+      }
+    } catch (e) {
+      toast.error("Ошибка при обновлении. Проверь интернет.", { id: toastId })
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
   return (
     <div className="dark min-h-screen bg-black">
       <Navbar />
       <main className="pt-24 pb-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Hero */}
-          <div className="text-center mb-16">
+          <div className="text-center mb-12">
             <Badge className="mb-4 bg-red-500/20 text-red-400 border-red-500/30">
               <Icon name="Clock" size={14} className="mr-1" />
               Тайминг и пары
@@ -137,11 +174,31 @@ export default function Timing() {
             <h1 className="font-orbitron text-4xl md:text-6xl font-bold text-white mb-4">
               Когда торговать <span className="text-red-500">какую пару</span>
             </h1>
-            <p className="text-gray-400 text-lg max-w-3xl mx-auto">
+            <p className="text-gray-400 text-lg max-w-3xl mx-auto mb-6">
               Сессии, корреляции, расписание по часам и стратегии под каждое время дня.
               Главный упор — на <span className="text-red-400 font-semibold">EUR/USD OTC</span> и{" "}
               <span className="text-yellow-400 font-semibold">BTC/USD</span>.
             </p>
+            <div className="flex items-center justify-center gap-3 flex-wrap">
+              <Button
+                onClick={handleRefreshLevels}
+                disabled={refreshing}
+                className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-semibold"
+                size="lg"
+              >
+                <Icon
+                  name="RefreshCw"
+                  size={18}
+                  className={`mr-2 ${refreshing ? "animate-spin" : ""}`}
+                />
+                {refreshing ? "Обновляю уровни..." : "Обновить уровни сейчас"}
+              </Button>
+              {lastRefresh && (
+                <span className="text-xs text-gray-500">
+                  Последнее обновление: {new Date(lastRefresh).toLocaleTimeString("ru-RU")}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Живые часы и активная сессия */}

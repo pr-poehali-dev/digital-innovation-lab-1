@@ -24,6 +24,7 @@ export interface RefreshResult {
  * из pair-defaults.ts (актуальные на май 2026 уровни).
  */
 export async function refreshAllLevels(): Promise<RefreshResult> {
+  console.log("[refresh-all-levels] 🛸 start")
   // 1. Собираем все API-символы из доступных источников
   const apiSymbols = new Set<string>()
   for (const p of scannerPairs) {
@@ -87,10 +88,12 @@ export async function refreshAllLevels(): Promise<RefreshResult> {
 
   setLevelsBatch(batch)
 
-  return {
+  const result = {
     updated: Object.keys(batch).length,
     liveCount,
     defaultCount,
     apiReachable,
   }
+  console.log("[refresh-all-levels] ✅ done", result)
+  return result
 }

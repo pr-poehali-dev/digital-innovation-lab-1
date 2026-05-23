@@ -23,9 +23,34 @@ export default function BotBuilder() {
   const sendTgTest = async () => {
     if (!poConfig.tgToken || !poConfig.tgChatId) return
     setTgTestStatus("sending")
+    const text = "🤖 Тест TradeBase Bot\n\nПодключение работает! Уведомления о торгах будут приходить сюда.\n\n✅ ВЫИГРЫШ +2.5 USD\n❌ ПРОИГРЫШ -1.0 USD\n🛑 Stop Loss достигнут\n✅ Take Profit достигнут"
+
+    // 1. Сначала через бэкенд-прокси (обход CORS / VPN-блока api.telegram.org)
     try {
-      const text = encodeURIComponent("🤖 Тест TradeBase Bot\n\nПодключение работает! Уведомления о торгах будут приходить сюда.\n\n✅ ВЫИГРЫШ +2.5 USD\n❌ ПРОИГРЫШ -1.0 USD\n🛑 Stop Loss достигнут\n✅ Take Profit достигнут")
-      const res = await fetch(`https://api.telegram.org/bot${poConfig.tgToken}/sendMessage?chat_id=${poConfig.tgChatId}&text=${text}&parse_mode=HTML`)
+      const proxyRes = await fetch("https://functions.poehali.dev/fb70e0a6-b6c1-49e2-b148-c37dab50f024", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: poConfig.tgToken,
+          chat_id: poConfig.tgChatId,
+          text,
+          action: "send",
+        }),
+      })
+      const data = await proxyRes.json()
+      if (data.ok) {
+        setTgTestStatus("ok")
+        setTimeout(() => setTgTestStatus("idle"), 4000)
+        return
+      }
+    } catch {
+      // если прокси упал — пробуем напрямую
+    }
+
+    // 2. Fallback: прямой GET (если у юзера есть VPN и Telegram отвечает на CORS)
+    try {
+      const encoded = encodeURIComponent(text)
+      const res = await fetch(`https://api.telegram.org/bot${poConfig.tgToken}/sendMessage?chat_id=${poConfig.tgChatId}&text=${encoded}&parse_mode=HTML`)
       const data = await res.json()
       setTgTestStatus(data.ok ? "ok" : "error")
     } catch {

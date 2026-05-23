@@ -1,3 +1,4 @@
 {
-  "scanner-proxy": "https://functions.poehali.dev/371ca5f1-ae59-4842-a669-eef3d16a149e"
+  "scanner-proxy": "https://functions.poehali.dev/371ca5f1-ae59-4842-a669-eef3d16a149e",
+  "tg-send": "https://functions.poehali.dev/fb70e0a6-b6c1-49e2-b148-c37dab50f024"
 }

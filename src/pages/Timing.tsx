@@ -136,44 +136,54 @@ export default function Timing() {
   const refreshingRef = useRef(false)
 
   const doRefresh = async (silent: boolean) => {
-    if (refreshingRef.current) return
+    console.log("[Timing] doRefresh start, silent=", silent, "refreshingRef=", refreshingRef.current)
+    if (refreshingRef.current) {
+      console.warn("[Timing] doRefresh SKIP: уже идёт обновление")
+      return
+    }
     refreshingRef.current = true
     setRefreshing(true)
-    const toastId = silent ? null : toast.loading("🛸 Обновляю уровни по всем парам...")
+    const toastId = silent ? undefined : toast.loading("🛸 Обновляю уровни по всем парам...")
     try {
       const result = await refreshAllLevels()
+      console.log("[Timing] refreshAllLevels result:", result)
 
       setLastRefresh(Date.now())
       setNextRefreshIn(AUTO_REFRESH_MS / 1000)
 
-      if (!silent && toastId) {
-        if (result.liveCount === 0 && !result.apiReachable) {
-          toast.warning(
-            `Сервер котировок недоступен. Пересчитал уровни по дефолтам мая 2026: ${result.updated} пар.`,
-            { id: toastId }
-          )
+      if (!silent) {
+        const opts = toastId ? { id: toastId } : undefined
+        if (result.updated === 0) {
+          toast.error("Ничего не обновлено. Проверь консоль (F12).", opts)
         } else if (result.liveCount === 0) {
-          toast.message(
-            `Без live-цен. Пересчитал уровни по дефолтам: ${result.updated} пар (включая конструктор ботов).`,
-            { id: toastId }
+          toast.success(
+            `Обновлено ${result.updated} пар по дефолтам мая 2026. Live-API недоступен.`,
+            opts
           )
         } else {
           toast.success(
-            `Готово! Live-цены: ${result.liveCount} пар, дефолты: ${result.defaultCount}. Всего обновлено: ${result.updated}.`,
-            { id: toastId }
+            `Готово! Live-цены: ${result.liveCount}, дефолты: ${result.defaultCount}. Всего: ${result.updated}.`,
+            opts
           )
         }
       }
     } catch (e) {
-      if (!silent && toastId)
-        toast.error("Ошибка при обновлении. Попробуй ещё раз.", { id: toastId })
+      console.error("[Timing] doRefresh ERROR:", e)
+      if (!silent) {
+        const msg = e instanceof Error ? e.message : String(e)
+        toast.error(`Ошибка: ${msg}`, toastId ? { id: toastId } : undefined)
+      }
     } finally {
       refreshingRef.current = false
       setRefreshing(false)
+      console.log("[Timing] doRefresh finished")
     }
   }
 
-  const handleRefreshLevels = () => doRefresh(false)
+  const handleRefreshLevels = () => {
+    console.log("[Timing] КНОПКА НАЖАТА")
+    void doRefresh(false)
+  }
 
   // Авто-обновление каждые 5 минут + обратный отсчёт
   useEffect(() => {
@@ -181,18 +191,21 @@ export default function Timing() {
     const tickId = window.setInterval(() => {
       setNextRefreshIn((s) => {
         if (s <= 1) {
-          doRefresh(true)
+          void doRefresh(true)
           return AUTO_REFRESH_MS / 1000
         }
         return s - 1
       })
     }, 1000)
     return () => window.clearInterval(tickId)
+     
   }, [autoRefresh])
 
-  // Первое обновление при загрузке
+  // Первое обновление при загрузке — с задержкой, чтоб не блокировать клик кнопки
   useEffect(() => {
-    doRefresh(true)
+    const t = window.setTimeout(() => void doRefresh(true), 500)
+    return () => window.clearTimeout(t)
+     
   }, [])
 
   return (

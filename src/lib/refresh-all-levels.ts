@@ -23,6 +23,17 @@ export interface RefreshResult {
  * Если апи отвечает 402 / падает — для тех пар используется дефолтная цена
  * из pair-defaults.ts (актуальные на май 2026 уровни).
  */
+/** Обёртка с таймаутом, чтоб ни один зависший fetch не блокировал refresh. */
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`${label} timeout ${ms}ms`)), ms)
+    p.then(
+      (v) => { clearTimeout(t); resolve(v) },
+      (e) => { clearTimeout(t); reject(e) }
+    )
+  })
+}
+
 export async function refreshAllLevels(): Promise<RefreshResult> {
   console.log("[refresh-all-levels] 🛸 start")
   // 1. Собираем все API-символы из доступных источников
@@ -34,11 +45,15 @@ export async function refreshAllLevels(): Promise<RefreshResult> {
     if (d.apiSymbol) apiSymbols.add(d.apiSymbol)
   }
 
-  // 2. Параллельно дёргаем оба эндпоинта (allSettled — один сбой не валит другой)
+  // 2. Параллельно дёргаем оба эндпоинта с таймаутом 8 сек (allSettled — один сбой не валит другой)
   const [deepRes, scanRes] = await Promise.allSettled([
-    loadQuotes(true),
-    loadScannerQuotes(Array.from(apiSymbols), true),
+    withTimeout(loadQuotes(true), 8000, "loadQuotes"),
+    withTimeout(loadScannerQuotes(Array.from(apiSymbols), true), 8000, "loadScannerQuotes"),
   ])
+
+  console.log("[refresh-all-levels] fetch results:", deepRes.status, scanRes.status)
+  if (deepRes.status === "rejected") console.warn("[refresh-all-levels] deep rejected:", deepRes.reason)
+  if (scanRes.status === "rejected") console.warn("[refresh-all-levels] scan rejected:", scanRes.reason)
 
   const liveQuotes: Record<string, { price?: number; error?: string }> = {}
   if (deepRes.status === "fulfilled") Object.assign(liveQuotes, deepRes.value)

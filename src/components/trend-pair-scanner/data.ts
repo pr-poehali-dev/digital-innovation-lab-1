@@ -225,28 +225,39 @@ let scannerInFlight: Promise<Record<string, LiveQuote>> | null = null
 export async function loadScannerQuotes(symbols: string[], force = false): Promise<Record<string, LiveQuote>> {
   const fresh = Date.now() - scannerCache.ts < REFRESH_MS
   if (!force && fresh && Object.keys(scannerCache.data).length) return scannerCache.data
-  if (scannerInFlight) return scannerInFlight
+  // force=true игнорит in-flight — для кнопки "Обновить уровни"
+  if (!force && scannerInFlight) return scannerInFlight
 
-  scannerInFlight = (async () => {
+  const promise = (async () => {
     try {
       const headers: Record<string, string> = {}
       if (scannerCache.etag) headers["If-None-Match"] = scannerCache.etag
-      const res = await fetch(`${SCANNER_URL}?mode=quote&symbols=${symbols.join(",")}`, { headers })
+      const ctrl = new AbortController()
+      const tid = setTimeout(() => ctrl.abort(), 7000)
+      let res: Response
+      try {
+        res = await fetch(`${SCANNER_URL}?mode=quote&symbols=${symbols.join(",")}`, { headers, signal: ctrl.signal })
+      } finally {
+        clearTimeout(tid)
+      }
       if (res.status === 304) {
         scannerCache.ts = Date.now()
         return scannerCache.data
       }
       const etag = res.headers.get("ETag")
       if (etag) scannerCache.etag = etag
-      const json = await res.json()
-      scannerCache.data = json.quotes || {}
+      const text = await res.text()
+      let json: { quotes?: Record<string, LiveQuote> } = {}
+      try { json = text ? JSON.parse(text) : {} } catch { json = {} }
+      scannerCache.data = json.quotes || scannerCache.data
       scannerCache.ts = Date.now()
       return scannerCache.data
     } finally {
-      scannerInFlight = null
+      if (scannerInFlight === promise) scannerInFlight = null
     }
   })()
-  return scannerInFlight
+  if (!force) scannerInFlight = promise
+  return promise
 }
 
 export function useScannerQuotes() {

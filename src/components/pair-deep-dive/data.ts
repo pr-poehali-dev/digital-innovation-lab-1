@@ -312,28 +312,41 @@ let inFlight: Promise<Record<string, LiveQuote>> | null = null
 export async function loadQuotes(force = false): Promise<Record<string, LiveQuote>> {
   const fresh = Date.now() - quotesCache.ts < REFRESH_MS
   if (!force && fresh && Object.keys(quotesCache.data).length) return quotesCache.data
-  if (inFlight) return inFlight
+  // force=true игнорит inFlight — новый запрос параллельно (для кнопки "Обновить")
+  if (!force && inFlight) return inFlight
 
-  inFlight = (async () => {
+  const promise = (async () => {
     try {
       const headers: Record<string, string> = {}
       if (quotesCache.etag) headers["If-None-Match"] = quotesCache.etag
-      const res = await fetch(`${SCANNER_URL}?mode=quote&symbols=${SYMBOLS}`, { headers })
+      // нативный AbortController на 7 сек — гарантия что fetch не зависнет
+      const ctrl = new AbortController()
+      const tid = setTimeout(() => ctrl.abort(), 7000)
+      let res: Response
+      try {
+        res = await fetch(`${SCANNER_URL}?mode=quote&symbols=${SYMBOLS}`, { headers, signal: ctrl.signal })
+      } finally {
+        clearTimeout(tid)
+      }
       if (res.status === 304) {
         quotesCache.ts = Date.now()
         return quotesCache.data
       }
       const etag = res.headers.get("ETag")
       if (etag) quotesCache.etag = etag
-      const json = await res.json()
-      quotesCache.data = json.quotes || {}
+      // защита от не-JSON ответов (402 "Payment Required" текстом)
+      const text = await res.text()
+      let json: { quotes?: Record<string, LiveQuote> } = {}
+      try { json = text ? JSON.parse(text) : {} } catch { json = {} }
+      quotesCache.data = json.quotes || quotesCache.data
       quotesCache.ts = Date.now()
       return quotesCache.data
     } finally {
-      inFlight = null
+      if (inFlight === promise) inFlight = null
     }
   })()
-  return inFlight
+  if (!force) inFlight = promise
+  return promise
 }
 
 export function useLiveQuote(active: DeepDive["key"]) {

@@ -20,6 +20,8 @@ import Arbitrage from "./pages/Arbitrage";
 import Timing from "./pages/Timing";
 import NotFound from "./pages/NotFound";
 import { SessionNotifier } from "@/components/SessionNotifier";
+// Авто-инициализация уровней при старте приложения (любая страница)
+import "@/lib/init-levels";
 
 const queryClient = new QueryClient();
 

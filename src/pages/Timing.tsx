@@ -251,8 +251,11 @@ export default function Timing() {
      
   }, [autoRefresh])
 
-  // Первое обновление при загрузке — с задержкой, чтоб не блокировать клик кнопки
+  // Первое обновление при загрузке:
+  // 1) сразу офлайн-пересчёт (мгновенно, без API) — уровни сразу везде актуальные
+  // 2) через 500мс пробуем live-API в фоне (если ответит — обновим поверх)
   useEffect(() => {
+    void handleOfflineRefresh()
     const t = window.setTimeout(() => void doRefresh(true), 500)
     return () => window.clearTimeout(t)
      

@@ -124,12 +124,17 @@ export function RefreshControls() {
   }, [autoRefresh])
 
   // Первое обновление при загрузке:
-  // 1) сразу офлайн-пересчёт (мгновенно, без API) — уровни сразу везде актуальные
-  // 2) через 500мс пробуем live-API в фоне (если ответит — обновим поверх)
+  // 1) офлайн-пересчёт через 100мс (мгновенно, без API) — не блокируем первый рендер
+  // 2) через 800мс пробуем live-API в фоне (если ответит — обновим поверх)
+  // init-levels.ts уже сделал базовую инициализацию при старте SPA, так что страница
+  // отрисуется СРАЗУ, а наши refresh'ы только дополняют свежими данными.
   useEffect(() => {
-    void handleOfflineRefresh()
-    const t = window.setTimeout(() => void doRefresh(true), 500)
-    return () => window.clearTimeout(t)
+    const t1 = window.setTimeout(() => { void handleOfflineRefresh() }, 100)
+    const t2 = window.setTimeout(() => void doRefresh(true), 800)
+    return () => {
+      window.clearTimeout(t1)
+      window.clearTimeout(t2)
+    }
      
   }, [])
 

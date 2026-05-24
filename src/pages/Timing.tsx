@@ -128,25 +128,45 @@ const dayStrategies = [
 
 const AUTO_REFRESH_MS = 5 * 60 * 1000 // 5 минут
 
+type DebugStep = {
+  ts: number
+  level: "info" | "ok" | "warn" | "err"
+  msg: string
+}
+
 export default function Timing() {
   const [refreshing, setRefreshing] = useState(false)
   const [lastRefresh, setLastRefresh] = useState<number | null>(null)
   const [autoRefresh, setAutoRefresh] = useState<boolean>(true)
   const [nextRefreshIn, setNextRefreshIn] = useState<number>(AUTO_REFRESH_MS / 1000)
+  const [debugOpen, setDebugOpen] = useState<boolean>(false)
+  const [debugSteps, setDebugSteps] = useState<DebugStep[]>([])
+  const [clickCounter, setClickCounter] = useState(0)
   const refreshingRef = useRef(false)
 
+  const pushStep = (level: DebugStep["level"], msg: string) => {
+    setDebugSteps((prev) => [...prev.slice(-20), { ts: Date.now(), level, msg }])
+     
+    console.log(`[Timing] ${level.toUpperCase()}: ${msg}`)
+  }
+
   const doRefresh = async (silent: boolean) => {
-    console.log("[Timing] doRefresh start, silent=", silent, "refreshingRef=", refreshingRef.current)
+    pushStep("info", `doRefresh start (silent=${silent}, busy=${refreshingRef.current})`)
     if (refreshingRef.current) {
-      console.warn("[Timing] doRefresh SKIP: уже идёт обновление")
-      return
+      pushStep("warn", "Сброс busy-флага (был залипший)")
+      refreshingRef.current = false
     }
     refreshingRef.current = true
     setRefreshing(true)
+    setDebugOpen(true)
     const toastId = silent ? undefined : toast.loading("🛸 Обновляю уровни по всем парам...")
     try {
+      pushStep("info", "Вызываю refreshAllLevels()")
       const result = await refreshAllLevels()
-      console.log("[Timing] refreshAllLevels result:", result)
+      pushStep(
+        result.updated > 0 ? "ok" : "warn",
+        `Результат: live=${result.liveCount}, defaults=${result.defaultCount}, всего=${result.updated}, api=${result.apiReachable ? "доступен" : "402/недоступен"}`
+      )
 
       setLastRefresh(Date.now())
       setNextRefreshIn(AUTO_REFRESH_MS / 1000)
@@ -154,35 +174,65 @@ export default function Timing() {
       if (!silent) {
         const opts = toastId ? { id: toastId } : undefined
         if (result.updated === 0) {
-          toast.error("Ничего не обновлено. Проверь консоль (F12).", opts)
+          toast.error("Ничего не обновлено. Открой панель отладки внизу.", opts)
         } else if (result.liveCount === 0) {
           toast.success(
-            `Обновлено ${result.updated} пар по дефолтам мая 2026. Live-API недоступен.`,
+            `Обновлено ${result.updated} пар по дефолтам мая 2026. Live-API недоступен (402).`,
             opts
           )
         } else {
           toast.success(
-            `Готово! Live-цены: ${result.liveCount}, дефолты: ${result.defaultCount}. Всего: ${result.updated}.`,
+            `Готово! Live: ${result.liveCount}, дефолты: ${result.defaultCount}. Всего: ${result.updated}.`,
             opts
           )
         }
       }
     } catch (e) {
-      console.error("[Timing] doRefresh ERROR:", e)
+      const msg = e instanceof Error ? e.message : String(e)
+      pushStep("err", `Исключение: ${msg}`)
       if (!silent) {
-        const msg = e instanceof Error ? e.message : String(e)
         toast.error(`Ошибка: ${msg}`, toastId ? { id: toastId } : undefined)
       }
     } finally {
       refreshingRef.current = false
       setRefreshing(false)
-      console.log("[Timing] doRefresh finished")
+      pushStep("info", "doRefresh finished")
     }
   }
 
   const handleRefreshLevels = () => {
-    console.log("[Timing] КНОПКА НАЖАТА")
+    setClickCounter((c) => c + 1)
+    pushStep("info", `🖱️ КНОПКА НАЖАТА (клик #${clickCounter + 1})`)
     void doRefresh(false)
+  }
+
+  // Офлайн-режим: пересчёт уровней БЕЗ обращения к API (мгновенно)
+  const handleOfflineRefresh = async () => {
+    pushStep("info", "🛸 Офлайн-пересчёт уровней из дефолтов мая 2026")
+    setRefreshing(true)
+    setDebugOpen(true)
+    try {
+      const { PAIR_DEFAULTS } = await import("@/lib/pair-defaults")
+      const { generateLevels, setLevelsBatch } = await import("@/lib/runtime-levels")
+      const batch: Record<string, { current: number; levels: number[]; updatedAt: number; source: "default" }> = {}
+      const now = Date.now()
+      for (const def of PAIR_DEFAULTS) {
+        const levels = generateLevels(def.price, def.keys[0])
+        if (!levels.length) continue
+        const meta = { current: def.price, levels, updatedAt: now, source: "default" as const }
+        for (const k of def.keys) batch[k] = meta
+      }
+      setLevelsBatch(batch)
+      setLastRefresh(Date.now())
+      pushStep("ok", `Офлайн: пересчитано ${Object.keys(batch).length} пар (мгновенно)`)
+      toast.success(`Уровни обновлены офлайн: ${Object.keys(batch).length} пар`)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      pushStep("err", `Офлайн-ошибка: ${msg}`)
+      toast.error(`Ошибка офлайн-режима: ${msg}`)
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   // Авто-обновление каждые 5 минут + обратный отсчёт
@@ -230,8 +280,7 @@ export default function Timing() {
             <div className="flex items-center justify-center gap-3 flex-wrap">
               <Button
                 onClick={handleRefreshLevels}
-                disabled={refreshing}
-                className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-semibold disabled:opacity-70"
+                className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-semibold"
                 size="lg"
               >
                 <Icon
@@ -239,7 +288,15 @@ export default function Timing() {
                   size={18}
                   className={`mr-2 ${refreshing ? "animate-spin" : ""}`}
                 />
-                {refreshing ? "Обновляю уровни..." : "Обновить уровни сейчас"}
+                {refreshing ? "Обновляю..." : "Обновить уровни (онлайн)"}
+              </Button>
+              <Button
+                onClick={handleOfflineRefresh}
+                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold"
+                size="lg"
+              >
+                <Icon name="Zap" size={18} className="mr-2" />
+                Офлайн-пересчёт (мгновенно)
               </Button>
               <Button
                 onClick={() => setAutoRefresh((v) => !v)}
@@ -250,7 +307,63 @@ export default function Timing() {
                 <Icon name={autoRefresh ? "Zap" : "ZapOff"} size={16} className="mr-2" />
                 Авто: {autoRefresh ? "ВКЛ" : "ВЫКЛ"}
               </Button>
+              <Button
+                onClick={() => setDebugOpen((v) => !v)}
+                variant="outline"
+                size="lg"
+                className="border-2 border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10"
+              >
+                <Icon name="Bug" size={16} className="mr-2" />
+                Лог ({debugSteps.length})
+              </Button>
             </div>
+
+            {/* Визуальная панель отладки — заменяет F12 для Opera */}
+            {debugOpen && (
+              <div className="mt-4 max-w-3xl mx-auto bg-zinc-950 border-2 border-yellow-500/30 rounded-lg p-4 text-left">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-mono text-yellow-400 text-sm flex items-center gap-2">
+                    <Icon name="Terminal" size={16} />
+                    Отладка кнопки · кликов: {clickCounter}
+                  </h3>
+                  <button
+                    onClick={() => setDebugSteps([])}
+                    className="text-xs text-gray-500 hover:text-gray-300"
+                  >
+                    очистить
+                  </button>
+                </div>
+                {debugSteps.length === 0 ? (
+                  <p className="text-xs text-gray-500 font-mono">
+                    Нажми «Обновить уровни» — здесь появится лог действий
+                  </p>
+                ) : (
+                  <div className="space-y-1 max-h-64 overflow-y-auto font-mono text-xs">
+                    {debugSteps.map((s, i) => {
+                      const color =
+                        s.level === "ok"
+                          ? "text-green-400"
+                          : s.level === "warn"
+                          ? "text-orange-400"
+                          : s.level === "err"
+                          ? "text-red-400"
+                          : "text-gray-300"
+                      return (
+                        <div key={i} className="flex gap-2">
+                          <span className="text-gray-600 shrink-0">
+                            {new Date(s.ts).toLocaleTimeString("ru-RU")}
+                          </span>
+                          <span className={`shrink-0 ${color}`}>
+                            {s.level === "ok" ? "✓" : s.level === "warn" ? "⚠" : s.level === "err" ? "✗" : "·"}
+                          </span>
+                          <span className={color}>{s.msg}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="mt-3 flex items-center justify-center gap-4 text-xs text-gray-500 flex-wrap">
               {lastRefresh && (
                 <span className="flex items-center gap-1.5">

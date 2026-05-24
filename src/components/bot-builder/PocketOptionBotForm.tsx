@@ -1,6 +1,8 @@
 import { useState, useMemo } from "react"
 import TradeBaseFiltersCard from "./TradeBaseFiltersCard"
 import SrPresetsBlock from "./SrPresetsBlock"
+import TelegramNotifyCard from "./TelegramNotifyCard"
+import TradeDirectionCard from "./TradeDirectionCard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
@@ -622,60 +624,6 @@ function getAutoPipSize(asset: string): number {
 export default function PocketOptionBotForm({ config, onChange, onGenerate, botIndex = 1 }: Props) {
   const set = (patch: Partial<POBotConfig>) => onChange({ ...config, ...patch })
   const [detailOpen, setDetailOpen] = useState<Record<string, boolean>>({})
-  const [tgTestState, setTgTestState] = useState<"idle" | "loading" | "ok" | "error">("idle")
-  const [tgTestVia, setTgTestVia] = useState<"" | "proxy" | "direct">("")
-
-  const sendViaProxy = async (text: string): Promise<boolean> => {
-    const res = await fetch(TG_SEND_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: config.tgToken, chat_id: config.tgChatId, text }),
-    })
-    if (!res.ok) throw new Error(`proxy HTTP ${res.status}`)
-    const data = await res.json()
-    return Boolean(data?.ok)
-  }
-
-  const sendViaDirect = async (text: string): Promise<boolean> => {
-    const url = `https://api.telegram.org/bot${config.tgToken}/sendMessage`
-    const body = new URLSearchParams({ chat_id: config.tgChatId, text, parse_mode: "HTML" })
-    const res = await fetch(url, { method: "POST", body })
-    if (!res.ok) throw new Error(`direct HTTP ${res.status}`)
-    const data = await res.json()
-    return Boolean(data?.ok)
-  }
-
-  const testTgConnection = async () => {
-    setTgTestState("loading")
-    setTgTestVia("")
-    const transport = config.tgTransport ?? "auto"
-    const text = `✅ <b>Проверка связи</b>\nРежим отправки: <code>${transport}</code>\nЕсли видишь это сообщение — настройки рабочие!`
-    try {
-      if (transport === "direct") {
-        const ok = await sendViaDirect(text)
-        setTgTestVia("direct")
-        setTgTestState(ok ? "ok" : "error")
-      } else if (transport === "proxy") {
-        const ok = await sendViaProxy(text)
-        setTgTestVia("proxy")
-        setTgTestState(ok ? "ok" : "error")
-      } else {
-        // auto: сначала прокси, при ошибке (например 402) — fallback на direct
-        try {
-          const ok = await sendViaProxy(text)
-          setTgTestVia("proxy")
-          setTgTestState(ok ? "ok" : "error")
-        } catch {
-          const ok = await sendViaDirect(text)
-          setTgTestVia("direct")
-          setTgTestState(ok ? "ok" : "error")
-        }
-      }
-    } catch {
-      setTgTestState("error")
-    }
-    setTimeout(() => { setTgTestState("idle"); setTgTestVia("") }, 6000)
-  }
 
   const toggleDetail = (key: string) =>
     setDetailOpen((prev) => ({ ...prev, [key]: !prev[key] }))
@@ -2543,146 +2491,7 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
       {/* Фильтры Trade Base — фильтры по методике учебника */}
       <TradeBaseFiltersCard config={config} onChange={(patch) => set(patch)} />
 
-      <Card className="bg-zinc-900 border-zinc-700">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="font-orbitron text-white text-sm flex items-center gap-2">
-              <Icon name="Send" size={16} className="text-blue-400" />
-              Telegram уведомления
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <span className={`text-xs font-space-mono ${!config.tgEnabled ? "text-zinc-400" : "text-zinc-600"}`}>Выкл</span>
-              <Switch checked={config.tgEnabled} onCheckedChange={(v) => set({ tgEnabled: v })} />
-              <span className={`text-xs font-space-mono ${config.tgEnabled ? "text-green-400" : "text-zinc-600"}`}>Вкл</span>
-            </div>
-          </div>
-        </CardHeader>
-        {config.tgEnabled && (
-          <CardContent className="space-y-3">
-            <div>
-              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Bot Token</Label>
-              <Input
-                type="password"
-                value={config.tgToken}
-                onChange={(e) => set({ tgToken: e.target.value })}
-                placeholder="123456:ABCdef..."
-                className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-sm"
-              />
-              <p className="text-zinc-600 font-space-mono text-xs mt-1">Получи у @BotFather в Telegram</p>
-            </div>
-            <div>
-              <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Chat ID</Label>
-              <Input
-                type="text"
-                value={config.tgChatId}
-                onChange={(e) => set({ tgChatId: e.target.value })}
-                placeholder="123456789"
-                className="bg-zinc-800 border-zinc-700 text-white font-space-mono text-sm"
-              />
-              <p className="text-zinc-600 font-space-mono text-xs mt-1">Узнай у @userinfobot</p>
-            </div>
-
-            <div>
-              <Label className="text-zinc-400 font-space-mono text-xs mb-2 block">Какие уведомления получать</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => set({ tgNotifyMode: "all" })}
-                  className={`rounded-lg px-3 py-2 text-xs font-space-mono border transition-all text-left ${(config.tgNotifyMode ?? "all") === "all" ? "bg-blue-600/20 border-blue-500/50 text-blue-300" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}
-                >
-                  <div className="font-bold mb-0.5">📡 Все события</div>
-                  <div className="text-zinc-500 text-[10px]">Запуск, тренды, ставки, реконнект</div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => set({ tgNotifyMode: "bets_only" })}
-                  className={`rounded-lg px-3 py-2 text-xs font-space-mono border transition-all text-left ${(config.tgNotifyMode ?? "all") === "bets_only" ? "bg-blue-600/20 border-blue-500/50 text-blue-300" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}
-                >
-                  <div className="font-bold mb-0.5">🎯 Только ставки</div>
-                  <div className="text-zinc-500 text-[10px]">TP/SL + результат каждой сделки</div>
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <Label className="text-zinc-400 font-space-mono text-xs mb-2 block">Как бот отправляет в Telegram</Label>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => set({ tgTransport: "auto" })}
-                  className={`rounded-lg px-2.5 py-2 text-xs font-space-mono border transition-all text-left ${(config.tgTransport ?? "auto") === "auto" ? "bg-green-600/20 border-green-500/50 text-green-300" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}
-                >
-                  <div className="font-bold mb-0.5">🔁 Авто</div>
-                  <div className="text-zinc-500 text-[10px]">Прокси + fallback на прямой API при 402</div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => set({ tgTransport: "direct" })}
-                  className={`rounded-lg px-2.5 py-2 text-xs font-space-mono border transition-all text-left ${config.tgTransport === "direct" ? "bg-blue-600/20 border-blue-500/50 text-blue-300" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}
-                >
-                  <div className="font-bold mb-0.5">📡 Прямой</div>
-                  <div className="text-zinc-500 text-[10px]">api.telegram.org — нужен VPN если РКН</div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => set({ tgTransport: "proxy" })}
-                  className={`rounded-lg px-2.5 py-2 text-xs font-space-mono border transition-all text-left ${config.tgTransport === "proxy" ? "bg-purple-600/20 border-purple-500/50 text-purple-300" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}
-                >
-                  <div className="font-bold mb-0.5">🌐 Прокси</div>
-                  <div className="text-zinc-500 text-[10px]">Только poehali tg-send (без VPN)</div>
-                </button>
-              </div>
-              <p className="text-zinc-600 font-space-mono text-[10px] mt-1.5 leading-relaxed">
-                Если в логах часто <code className="text-yellow-400">HTTP 402 Payment Required</code> — лимит прокси. Авто-режим сам переключится на прямой.
-              </p>
-            </div>
-
-            {config.tgToken && config.tgChatId && (
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={testTgConnection}
-                  disabled={tgTestState === "loading"}
-                  className="w-full flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-space-mono border transition-all bg-zinc-800 border-zinc-600 text-zinc-300 hover:border-blue-500/50 hover:text-blue-300 disabled:opacity-50"
-                >
-                  <Icon name={tgTestState === "loading" ? "Loader" : "Send"} size={13} className={tgTestState === "loading" ? "animate-spin" : ""} />
-                  {tgTestState === "loading" ? "Отправляю..." : "Проверить подключение к TG"}
-                </button>
-                {tgTestState === "ok" && (
-                  <div className="flex items-center gap-2 bg-green-950/40 border border-green-500/30 rounded-lg px-2.5 py-2">
-                    <Icon name="CheckCircle" size={14} className="text-green-400" />
-                    <span className="text-green-400 text-xs font-space-mono">
-                      Сообщение отправлено — проверь Telegram!
-                      {tgTestVia && (
-                        <span className="ml-1 text-green-300/80">
-                          ({tgTestVia === "proxy" ? "🌐 через прокси" : "📡 напрямую"})
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                )}
-                {tgTestState === "error" && (
-                  <div className="flex items-center gap-2 bg-red-950/40 border border-red-500/30 rounded-lg px-2.5 py-2">
-                    <Icon name="XCircle" size={14} className="text-red-400" />
-                    <span className="text-red-400 text-xs font-space-mono">
-                      Ошибка отправки
-                      {config.tgTransport === "proxy" && " через прокси — попробуй режим «Авто» или «Прямой»"}
-                      {config.tgTransport === "direct" && " напрямую — может нужен VPN, попробуй «Авто»"}
-                      {(!config.tgTransport || config.tgTransport === "auto") && " — проверь токен и Chat ID"}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-            {config.tgEnabled && (!config.tgToken || !config.tgChatId) && (
-              <div className="flex items-center gap-2 bg-yellow-950/40 border border-yellow-500/30 rounded-lg px-2.5 py-2">
-                <Icon name="AlertTriangle" size={14} className="text-yellow-400" />
-                <span className="text-yellow-400 text-xs font-space-mono">Заполни Token и Chat ID</span>
-              </div>
-            )}
-          </CardContent>
-        )}
-      </Card>
+      <TelegramNotifyCard config={config} set={set} />
 
       {/* Итоговая сводка перед генерацией */}
       {config.comboMode && (
@@ -2710,42 +2519,8 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
         </div>
       )}
 
-      {/* Фильтр направления сделок */}
-      <Card className="bg-zinc-900 border-zinc-700">
-        <CardHeader className="pb-2 pt-4 px-4 cursor-pointer" onClick={() => {}}>
-          <CardTitle className="text-sm font-space-mono text-zinc-200 flex items-center gap-2">
-            <span>🚦</span> Пропускать сделки
-            <span className="ml-auto text-[10px] font-normal text-red-400 bg-red-400/10 border border-red-400/20 rounded px-1.5 py-0.5">ЖЁСТКИЙ ФИЛЬТР</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-4 space-y-2">
-          <p className="text-zinc-500 text-xs font-space-mono">Бот будет исполнять только выбранный тип сделок, остальные — игнорировать</p>
-          <div className="grid grid-cols-3 gap-2">
-            {([
-              { value: "all", label: "📊 Все", desc: "CALL и PUT" },
-              { value: "call_only", label: "📈 Только CALL", desc: "Только рост" },
-              { value: "put_only", label: "📉 Только PUT", desc: "Только падение" },
-            ] as const).map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => set({ tradeDirection: opt.value })}
-                className={`rounded-lg px-2 py-2.5 text-xs font-space-mono border transition-all text-center ${(config.tradeDirection ?? "all") === opt.value ? "bg-red-600/20 border-red-500/50 text-red-300" : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}
-              >
-                <div className="font-bold mb-0.5">{opt.label}</div>
-                <div className="text-zinc-500 text-[10px]">{opt.desc}</div>
-              </button>
-            ))}
-          </div>
-          {(config.tradeDirection ?? "all") !== "all" && (
-            <div className="flex items-center gap-2 bg-red-950/40 border border-red-500/30 rounded-lg px-2.5 py-2">
-              <span className="text-red-400 text-xs">⚠️</span>
-              <span className="text-red-400 text-xs font-space-mono">
-                Бот будет пропускать {(config.tradeDirection ?? "all") === "call_only" ? "PUT" : "CALL"}-сигналы — это снизит количество сделок
-              </span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Фильтр направления сделок (CALL/PUT/Все) */}
+      <TradeDirectionCard config={config} set={set} />
 
       <Button
         onClick={onGenerate}

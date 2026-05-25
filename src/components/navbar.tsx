@@ -64,6 +64,9 @@ export function Navbar() {
               <a href="/arbitrage" className="font-geist text-green-400 hover:text-green-300 transition-colors duration-200 font-semibold">
                 💱 Арбитраж
               </a>
+              <a href="/bybit" className="font-geist text-yellow-400 hover:text-yellow-300 transition-colors duration-200 font-semibold">
+                🚀 Bybit
+              </a>
               <a href="/bot-builder" className="font-geist text-white hover:text-red-500 transition-colors duration-200">
                 Конструктор
               </a>
@@ -157,6 +160,13 @@ export function Navbar() {
                 onClick={() => setIsOpen(false)}
               >
                 💱 Арбитраж
+              </a>
+              <a
+                href="/bybit"
+                className="block px-3 py-2 font-geist text-yellow-400 hover:text-yellow-300 font-semibold transition-colors duration-200"
+                onClick={() => setIsOpen(false)}
+              >
+                🚀 Bybit
               </a>
               <a
                 href="/bot-builder"

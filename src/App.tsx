@@ -18,6 +18,7 @@ import BotReport from "./pages/BotReport";
 import PlatformsCompare from "./pages/PlatformsCompare";
 import Arbitrage from "./pages/Arbitrage";
 import Timing from "./pages/Timing";
+import Bybit from "./pages/Bybit";
 import NotFound from "./pages/NotFound";
 import { SessionNotifier } from "@/components/SessionNotifier";
 // Авто-инициализация уровней при старте приложения (любая страница)
@@ -47,6 +48,7 @@ const App = () => (
           <Route path="/platforms-compare" element={<PlatformsCompare />} />
           <Route path="/arbitrage" element={<Arbitrage />} />
           <Route path="/timing" element={<Timing />} />
+          <Route path="/bybit" element={<Bybit />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

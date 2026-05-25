@@ -65,7 +65,18 @@ export function BybitHero() {
           variant="outline"
           className="border-2 border-zinc-700 text-white hover:bg-zinc-800"
         >
-          <a href="#comparison">Сравнить с Pocket Option</a>
+          <a href="#comparison">vs Pocket Option</a>
+        </Button>
+        <Button
+          asChild
+          size="lg"
+          variant="outline"
+          className="border-2 border-orange-500/50 text-orange-400 hover:bg-orange-500/10"
+        >
+          <a href="#vs-binance">
+            <Icon name="Crown" size={18} className="mr-2" />
+            vs Binance (есть ли лучше?)
+          </a>
         </Button>
       </div>
     </section>

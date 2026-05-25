@@ -4,6 +4,7 @@ import { BybitHero } from "@/components/bybit/BybitHero"
 import { BybitBotTypes } from "@/components/bybit/BybitBotTypes"
 import { BybitApiSetup } from "@/components/bybit/BybitApiSetup"
 import { BybitVsPocket } from "@/components/bybit/BybitVsPocket"
+import { BybitVsBinance } from "@/components/bybit/BybitVsBinance"
 
 export default function Bybit() {
   return (
@@ -22,6 +23,9 @@ export default function Bybit() {
 
           {/* Большая таблица сравнения (20 критериев) + вердикты + финальный итог */}
           <BybitVsPocket />
+
+          {/* Сравнение с биржей лучше Bybit — Binance (с дисклеймером про РФ) */}
+          <BybitVsBinance />
         </div>
       </main>
       <Footer />

@@ -391,18 +391,26 @@ export const PO_EXPIRY_LABELS: Record<POExpiry, string> = {
 export const PO_DEFAULT_CONFIG: POBotConfig = {
   botName: "КЛЕЩ",
   strategy: "rsi_reversal",
+  // 🎯 Безопасные дефолты (после анализа реальных сессий с WR=17% на OR-комбо):
+  // - AND вместо OR → меньше ложных входов, выше качество сигналов
+  // - 2 стратегии вместо 3 → проще найти подтверждение, меньше "шумных" сигналов
   comboMode: true,
-  comboStrategies: ["rsi_reversal", "ema_cross", "support_resistance"],
-  comboLogic: "OR",
+  comboStrategies: ["rsi_reversal", "ema_cross"],
+  comboLogic: "AND",
   asset: "EUR/USD (OTC)",
-  expiry: "5",
-  betAmount: 80,
+  // 🎯 Экспирация 2 мин даёт каскадному хеджу время на H2/H3 (на 1 мин не успевает)
+  expiry: "2",
+  // 🎯 Ставка 1% от типичного депозита $5000 (вместо 80 = 1.6% от $5000)
+  betAmount: 50,
   betPercent: false,
-  martingaleEnabled: true,
-  martingaleMultiplier: 2.5,
-  martingaleSteps: 4,
-  takeProfitRub: 30000,
-  stopLossRub: 15000,
+  // 🎯 Мартингейл выключен по умолчанию — слишком рискован при WR<60%
+  martingaleEnabled: false,
+  martingaleMultiplier: 2.0,
+  martingaleSteps: 3,
+  // 🎯 TP/SL в реалистичных рамках (раньше было 30000/15000 = 600%/300% от типичного депозита)
+  takeProfitRub: 500,
+  stopLossRub: 250,
+  // 🎯 20 сделок/день при WR 50% — оптимально. 100 — провоцирует overtrading
   dailyLimit: 20,
   rsiPeriod: 14,
   rsiOverbought: 70,
@@ -435,12 +443,16 @@ export const PO_DEFAULT_CONFIG: POBotConfig = {
   hedgeTimeMinPercent: 30,
   hedgeTimeMaxPercent: 70,
   hedgeConfirmTicks: 2,
+  // 🛡 Каскадный хедж — выключен по умолчанию (×4.5 от ставки = опасно для новичка).
+  // Если включат вручную, безопасные параметры:
+  // - M2/M3 уменьшены (×1+×1+×1.5 = ×3.5 вместо ×4.5)
+  // - Pullback увеличен до 5 пип (3 пипа слишком чувствительно — H2/H3 срабатывают на шум)
   hedgeCascadeEnabled: false,
   hedgeCascadeM1: 1.0,
-  hedgeCascadeM2: 1.5,
-  hedgeCascadeM3: 2.0,
-  hedgeCascadePullbackPips: 3,
-  hedgeCascadeLossTriggerPips: 1,
+  hedgeCascadeM2: 1.0,
+  hedgeCascadeM3: 1.5,
+  hedgeCascadePullbackPips: 5,
+  hedgeCascadeLossTriggerPips: 2,
   candleSource: "api",
   pipSize: 0.0001,
   profitExtEnabled: true,

@@ -10,6 +10,7 @@ import BotWarmupAndProfitExtensionCards from "./BotWarmupAndProfitExtensionCards
 import IndicatorSettingsCards from "./IndicatorSettingsCards"
 import ComboIndicatorSettingsCards from "./ComboIndicatorSettingsCards"
 import StrategySelectorCards from "./StrategySelectorCards"
+import SafetyCheckBanner from "./SafetyCheckBanner"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
@@ -892,6 +893,9 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
 
       {/* Фильтр направления сделок (CALL/PUT/Все) */}
       <TradeDirectionCard config={config} set={set} />
+
+      {/* 🛡 Проверка безопасности — баннер перед запуском */}
+      <SafetyCheckBanner config={config} />
 
       <Button
         onClick={onGenerate}

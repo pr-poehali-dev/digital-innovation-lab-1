@@ -11,6 +11,7 @@ import IndicatorSettingsCards from "./IndicatorSettingsCards"
 import ComboIndicatorSettingsCards from "./ComboIndicatorSettingsCards"
 import StrategySelectorCards from "./StrategySelectorCards"
 import SafetyCheckBanner from "./SafetyCheckBanner"
+import AssetAndTimingCards from "./AssetAndTimingCards"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
@@ -765,40 +766,16 @@ export default function PocketOptionBotForm({ config, onChange, onGenerate, botI
         StrategyCard={StrategyCard}
       />
 
-      {/* Asset & Expiry */}
-      <Card className="bg-zinc-900 border-red-500/20">
-        <CardHeader className="pb-3">
-          <CardTitle className="font-orbitron text-white text-base">Актив и экспирация</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <TrendScanner onSelect={(v) => set({ asset: v, pipSize: getAutoPipSize(v) })} />
-          <AssetSelector value={config.asset} onChange={(v) => set({ asset: v, pipSize: getAutoPipSize(v) })} />
-
-          <div>
-            <Label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Экспирация опциона</Label>
-            <div className="grid grid-cols-4 gap-1.5">
-              {(["1", "2", "3", "5", "15", "30", "45", "60"] as POExpiry[]).map((exp) => (
-                <button
-                  key={exp}
-                  onClick={() => set({ expiry: exp })}
-                  className={`py-2 rounded-lg text-xs font-orbitron font-bold border transition-all
-                    ${config.expiry === exp
-                      ? "bg-red-500 border-red-500 text-white"
-                      : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"
-                    }`}
-                >
-                  {exp === "60" ? "1ч" : `${exp}м`}
-                </button>
-              ))}
-            </div>
-            <p className="text-zinc-600 text-xs font-space-mono mt-1">{PO_EXPIRY_LABELS[config.expiry]}</p>
-          </div>
-          {(() => {
-            const c = assetExpiryComment(config.asset, config.expiry, config.strategy, config.comboMode, config.comboStrategies)
-            return c ? <AIComment level={c.level} text={c.text} /> : null
-          })()}
-        </CardContent>
-      </Card>
+      {/* 🎯 Торговый актив + ⏱ Тайминг и интервалы (реорганизовано) */}
+      <AssetAndTimingCards
+        config={config}
+        set={set}
+        getAutoPipSize={getAutoPipSize}
+        TrendScanner={TrendScanner}
+        AssetSelector={AssetSelector}
+        assetExpiryComment={assetExpiryComment}
+        AIComment={AIComment}
+      />
 
       {/* Bet Management — декомпозирована в BetManagementCard */}
       <BetManagementCard

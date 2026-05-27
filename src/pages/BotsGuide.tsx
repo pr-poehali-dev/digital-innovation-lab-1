@@ -106,14 +106,22 @@ export default function BotsGuide() {
             })}
           </div>
 
-          <div className="mt-16 text-center">
+          <div className="mt-16 text-center space-y-6">
             <p className="text-gray-400 mb-4 font-space-mono">Хотите создать своего бота прямо сейчас?</p>
-            <a
-              href="/bot-builder"
-              className="inline-block bg-red-500 hover:bg-red-600 text-white font-orbitron px-8 py-3 rounded-md transition-colors"
-            >
-              Открыть конструктор ботов →
-            </a>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <a
+                href="/bot-builder"
+                className="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white font-orbitron px-6 py-3 rounded-md transition-colors"
+              >
+                📈 Pocket Option — бинарные опционы
+              </a>
+              <a
+                href="/bot-builder?tab=bybit"
+                className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-400 text-black font-orbitron px-6 py-3 rounded-md transition-colors"
+              >
+                🟠 Bybit — крипта (с пошаговой инструкцией)
+              </a>
+            </div>
           </div>
         </div>
       </main>

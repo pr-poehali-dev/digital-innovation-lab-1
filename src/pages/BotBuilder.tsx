@@ -9,12 +9,21 @@ import BotBuilderForm from "@/components/bot-builder/BotBuilderForm"
 import { POBotConfig, PO_DEFAULT_CONFIG, generatePOComboCode } from "@/components/bot-builder/PocketOptionBotTypes"
 import PocketOptionBotForm from "@/components/bot-builder/PocketOptionBotForm"
 import TradeJournal from "@/components/bot-builder/TradeJournal"
+import { BybitBotConfig, BYBIT_DEFAULT_EXTRAS, BYBIT_ASSETS, generateBybitCode } from "@/components/bot-builder/BybitBotTypes"
+import BybitConnectionGuide from "@/components/bot-builder/BybitConnectionGuide"
 import Icon from "@/components/ui/icon"
 
-type Tab = "pocket_option" | "crypto"
+type Tab = "pocket_option" | "bybit" | "crypto"
 
 export default function BotBuilder() {
-  const [tab, setTab] = useState<Tab>("pocket_option")
+  // Если ?tab=bybit / ?tab=crypto — открываем нужный таб сразу
+  const initialTab: Tab = (() => {
+    const params = new URLSearchParams(window.location.search)
+    const t = params.get("tab")
+    if (t === "bybit" || t === "crypto" || t === "pocket_option") return t as Tab
+    return "pocket_option"
+  })()
+  const [tab, setTab] = useState<Tab>(initialTab)
   const [sessionGuideOpen, setSessionGuideOpen] = useState(false)
   const [strategyGuideOpen, setStrategyGuideOpen] = useState(false)
   const [tgGuideOpen, setTgGuideOpen] = useState(false)
@@ -134,6 +143,65 @@ export default function BotBuilder() {
   const [code, setCode] = useState("")
   const [generated, setGenerated] = useState(false)
   const [copied, setCopied] = useState(false)
+
+  // ═══════ 🟠 Bybit Bot state ═══════
+  const [bybitConfig, setBybitConfig] = useState<BybitBotConfig>({
+    ...PO_DEFAULT_CONFIG,
+    ...BYBIT_DEFAULT_EXTRAS,
+    botName: "BYBIT-БОТ",
+    asset: "BTC/USDT",
+    currency: "USDT",
+    tgToken: savedTg.tgToken || PO_DEFAULT_CONFIG.tgToken,
+    tgChatId: savedTg.tgChatId || PO_DEFAULT_CONFIG.tgChatId,
+  })
+  const [bybitCode, setBybitCode] = useState("")
+  const [bybitGenerated, setBybitGenerated] = useState(false)
+  const [bybitCopied, setBybitCopied] = useState(false)
+  const bybitCodeRef = useRef<HTMLDivElement>(null)
+
+  const handleBybitGenerate = () => {
+    const cfg = bybitConfig.comboMode
+      ? bybitConfig
+      : { ...bybitConfig, comboMode: true, comboStrategies: [bybitConfig.strategy], comboLogic: "OR" as const }
+    setBybitCode(generateBybitCode(cfg))
+    setBybitGenerated(true)
+    setTimeout(() => bybitCodeRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100)
+  }
+
+  const handleBybitDownload = () => {
+    const blob = new Blob([bybitCode], { type: "text/x-python" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "bybit_bot.py"
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleBybitEnvDownload = () => {
+    const content = `# Bybit Bot — переменные окружения
+# Положи этот файл рядом с bybit_bot.py
+BYBIT_API_KEY=ВСТАВЬТЕ_API_KEY_СЮДА
+BYBIT_API_SECRET=ВСТАВЬТЕ_API_SECRET_СЮДА
+
+# Опционально — Telegram уведомления
+TG_TOKEN=${bybitConfig.tgToken || ""}
+TG_CHAT_ID=${bybitConfig.tgChatId || ""}
+`
+    const blob = new Blob([content], { type: "text/plain" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = ".env"
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleBybitCopy = () => {
+    navigator.clipboard.writeText(bybitCode)
+    setBybitCopied(true)
+    setTimeout(() => setBybitCopied(false), 2000)
+  }
 
   const handlePOGenerate = () => {
     // 🎯 ЕДИНЫЙ генератор кода (комбо-режим работает и для 1 стратегии, и для нескольких).
@@ -378,6 +446,16 @@ input("Нажми Enter чтобы закрыть окно...")
               }`}
             >
               Pocket Option
+            </button>
+            <button
+              onClick={() => setTab("bybit")}
+              className={`flex-1 py-2.5 px-4 rounded-lg font-orbitron text-sm font-bold transition-all duration-200 flex items-center justify-center gap-1.5 ${
+                tab === "bybit"
+                  ? "bg-orange-500 text-black shadow-lg shadow-orange-500/20"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              <span>🟠</span> Bybit
             </button>
             <button
               onClick={() => setTab("crypto")}
@@ -1408,6 +1486,352 @@ input("Нажми Enter чтобы закрыть окно...")
                     )}
                   </div>
                 )}
+              </div>
+            </>
+          )}
+
+          {/* 🟠 Bybit Tab */}
+          {tab === "bybit" && (
+            <>
+              {/* Info banner */}
+              <div className="mb-6 bg-gradient-to-r from-orange-950/60 to-zinc-900/60 border border-orange-500/30 rounded-xl p-4 flex flex-wrap gap-4 items-center justify-between">
+                <div>
+                  <p className="text-orange-400 font-orbitron font-bold text-sm mb-1 flex items-center gap-2">
+                    🟠 Криптобиржа Bybit — Spot & Futures
+                  </p>
+                  <p className="text-zinc-400 font-space-mono text-xs">
+                    Бот через официальный pybit. Спот (без плеча) или фьючерсы (×{bybitConfig.bybitLeverage}). RSI + EMA + MACD + Bollinger + ATR.
+                  </p>
+                </div>
+                <div className="flex gap-4 text-xs font-space-mono">
+                  <div className="text-center">
+                    <p className="text-orange-400 font-bold text-lg">12+</p>
+                    <p className="text-zinc-500">пар</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-amber-400 font-bold text-lg">{bybitConfig.bybitTpPercent}%</p>
+                    <p className="text-zinc-500">TP</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-emerald-400 font-bold text-lg">{bybitConfig.bybitTestnet ? "TEST" : "PROD"}</p>
+                    <p className="text-zinc-500">сеть</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Левая колонка: пошаговая инструкция */}
+                <div className="space-y-6">
+                  <BybitConnectionGuide />
+                </div>
+
+                {/* Правая колонка: конфигурация бота */}
+                <div className="space-y-6">
+                  <Card className="bg-zinc-900 border-orange-500/20">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="font-orbitron text-white text-base flex items-center gap-2">
+                        <Icon name="Settings" size={18} className="text-orange-400" />
+                        Настройка Bybit-бота
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {/* Имя бота */}
+                      <div>
+                        <label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Имя бота (для Telegram)</label>
+                        <input
+                          type="text"
+                          value={bybitConfig.botName}
+                          onChange={(e) => setBybitConfig((p) => ({ ...p, botName: e.target.value }))}
+                          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white font-space-mono text-sm"
+                        />
+                      </div>
+
+                      {/* Mode: Spot / Futures */}
+                      <div>
+                        <label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Режим торговли</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => setBybitConfig((p) => ({ ...p, bybitMode: "spot" }))}
+                            className={`p-3 rounded-lg border-2 text-left transition-all ${
+                              bybitConfig.bybitMode === "spot"
+                                ? "border-emerald-500 bg-emerald-500/10"
+                                : "border-zinc-700 bg-zinc-800/40 hover:border-zinc-600"
+                            }`}
+                          >
+                            <p className="text-zinc-100 font-space-mono text-xs font-bold mb-0.5">💰 Spot</p>
+                            <p className="text-zinc-500 font-space-mono text-[10px]">Покупка/продажа монет. Без плеча, безопасно.</p>
+                          </button>
+                          <button
+                            onClick={() => setBybitConfig((p) => ({ ...p, bybitMode: "futures" }))}
+                            className={`p-3 rounded-lg border-2 text-left transition-all ${
+                              bybitConfig.bybitMode === "futures"
+                                ? "border-red-500 bg-red-500/10"
+                                : "border-zinc-700 bg-zinc-800/40 hover:border-zinc-600"
+                            }`}
+                          >
+                            <p className="text-zinc-100 font-space-mono text-xs font-bold mb-0.5">⚡ Futures</p>
+                            <p className="text-zinc-500 font-space-mono text-[10px]">С плечом, можно шортить. Риск ликвидации.</p>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Testnet/Mainnet */}
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/40 border border-zinc-700">
+                        <div>
+                          <p className="text-white font-orbitron text-xs font-bold">
+                            {bybitConfig.bybitTestnet ? "🧪 TESTNET" : "🚨 MAINNET"}
+                          </p>
+                          <p className="text-zinc-500 font-space-mono text-[10px]">
+                            {bybitConfig.bybitTestnet ? "Тестовая сеть — виртуальные деньги" : "Реальная сеть — реальные деньги!"}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setBybitConfig((p) => ({ ...p, bybitTestnet: !p.bybitTestnet }))}
+                          className={`w-12 h-6 rounded-full transition-all flex items-center px-0.5 ${
+                            bybitConfig.bybitTestnet ? "bg-emerald-500" : "bg-red-500"
+                          }`}
+                        >
+                          <div className={`w-5 h-5 rounded-full bg-white transition-all ${bybitConfig.bybitTestnet ? "translate-x-0" : "translate-x-6"}`} />
+                        </button>
+                      </div>
+
+                      {/* Asset */}
+                      <div>
+                        <label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Торговая пара</label>
+                        <select
+                          value={bybitConfig.asset}
+                          onChange={(e) => setBybitConfig((p) => ({ ...p, asset: e.target.value }))}
+                          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white font-space-mono text-sm"
+                        >
+                          {BYBIT_ASSETS.map((a) => (
+                            <option key={a} value={a}>{a}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Timeframe */}
+                      <div>
+                        <label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                          Таймфрейм свечей: <span className="text-white font-bold">{bybitConfig.bybitTimeframeMin} мин</span>
+                        </label>
+                        <div className="grid grid-cols-5 gap-1.5">
+                          {([1, 3, 5, 15, 60] as const).map((tf) => (
+                            <button
+                              key={tf}
+                              onClick={() => setBybitConfig((p) => ({ ...p, bybitTimeframeMin: tf }))}
+                              className={`py-2 rounded-lg text-xs font-orbitron font-bold border transition-all ${
+                                bybitConfig.bybitTimeframeMin === tf
+                                  ? "bg-orange-500 border-orange-500 text-black"
+                                  : "bg-zinc-800 border-zinc-700 text-zinc-400"
+                              }`}
+                            >
+                              {tf === 60 ? "1ч" : `${tf}м`}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Size */}
+                      <div>
+                        <label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                          Размер сделки: <span className="text-white font-bold">{bybitConfig.betAmount} USDT</span>
+                        </label>
+                        <input
+                          type="range"
+                          min={10}
+                          max={1000}
+                          step={10}
+                          value={bybitConfig.betAmount}
+                          onChange={(e) => setBybitConfig((p) => ({ ...p, betAmount: Number(e.target.value) }))}
+                          className="w-full accent-orange-500"
+                        />
+                      </div>
+
+                      {/* TP/SL */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">🎯 Take Profit</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={bybitConfig.bybitTpPercent}
+                              onChange={(e) => setBybitConfig((p) => ({ ...p, bybitTpPercent: Number(e.target.value) }))}
+                              className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-emerald-400 font-space-mono text-sm"
+                            />
+                            <span className="text-zinc-500 text-sm">%</span>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">🛑 Stop Loss</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={bybitConfig.bybitSlPercent}
+                              onChange={(e) => setBybitConfig((p) => ({ ...p, bybitSlPercent: Number(e.target.value) }))}
+                              className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-red-400 font-space-mono text-sm"
+                            />
+                            <span className="text-zinc-500 text-sm">%</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Leverage (только для futures) */}
+                      {bybitConfig.bybitMode === "futures" && (
+                        <div className="bg-red-500/5 border border-red-500/30 rounded-lg p-3 space-y-2">
+                          <label className="text-red-300 font-space-mono text-xs flex items-center justify-between">
+                            <span>⚡ Плечо</span>
+                            <span className="font-bold">×{bybitConfig.bybitLeverage}</span>
+                          </label>
+                          <input
+                            type="range"
+                            min={1}
+                            max={50}
+                            step={1}
+                            value={bybitConfig.bybitLeverage}
+                            onChange={(e) => setBybitConfig((p) => ({ ...p, bybitLeverage: Number(e.target.value) }))}
+                            className="w-full accent-red-500"
+                          />
+                          <label className="flex items-center gap-2 text-xs text-zinc-400">
+                            <input
+                              type="checkbox"
+                              checked={bybitConfig.bybitAllowShort}
+                              onChange={(e) => setBybitConfig((p) => ({ ...p, bybitAllowShort: e.target.checked }))}
+                              className="accent-red-500"
+                            />
+                            Разрешить шорты (SELL)
+                          </label>
+                        </div>
+                      )}
+
+                      {/* Индикаторы */}
+                      <div>
+                        <p className="text-zinc-400 font-space-mono text-xs mb-2">📊 Индикаторы (комбо)</p>
+                        <div className="space-y-2">
+                          {[
+                            { key: "useRsi", label: "RSI — перекупленность/перепроданность", checked: true, disabled: true },
+                            { key: "useEma", label: "EMA-пересечение (быстрая vs медленная)", checked: true, disabled: true },
+                            { key: "bybitUseMacd", label: "MACD — гистограмма импульса", checked: bybitConfig.bybitUseMacd },
+                            { key: "bybitUseBollinger", label: "Bollinger Bands — границы канала", checked: bybitConfig.bybitUseBollinger },
+                            { key: "bybitUseAtrFilter", label: "ATR-фильтр (не торговать при низкой волатильности)", checked: bybitConfig.bybitUseAtrFilter },
+                          ].map((ind) => (
+                            <label key={ind.key} className={`flex items-center gap-2 text-xs font-space-mono ${ind.disabled ? "text-zinc-500" : "text-zinc-300 cursor-pointer"}`}>
+                              <input
+                                type="checkbox"
+                                checked={ind.checked}
+                                disabled={ind.disabled}
+                                onChange={(e) => setBybitConfig((p) => ({ ...p, [ind.key]: e.target.checked }))}
+                                className="accent-orange-500"
+                              />
+                              {ind.label}
+                              {ind.disabled && <span className="text-zinc-600 ml-1">(базовое — всегда)</span>}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Combo Logic */}
+                      <div>
+                        <label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">Логика комбо</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => setBybitConfig((p) => ({ ...p, comboLogic: "AND", comboMode: true, comboStrategies: ["rsi_reversal", "ema_cross"] }))}
+                            className={`p-2 rounded-lg border-2 text-left transition-all ${
+                              bybitConfig.comboLogic === "AND" ? "border-emerald-500 bg-emerald-500/10" : "border-zinc-700 bg-zinc-800/40"
+                            }`}
+                          >
+                            <p className="text-zinc-100 font-space-mono text-xs font-bold">AND — все согласны</p>
+                            <p className="text-zinc-500 font-space-mono text-[10px]">Меньше сигналов, выше качество</p>
+                          </button>
+                          <button
+                            onClick={() => setBybitConfig((p) => ({ ...p, comboLogic: "OR", comboMode: true, comboStrategies: ["rsi_reversal", "ema_cross"] }))}
+                            className={`p-2 rounded-lg border-2 text-left transition-all ${
+                              bybitConfig.comboLogic === "OR" ? "border-amber-500 bg-amber-500/10" : "border-zinc-700 bg-zinc-800/40"
+                            }`}
+                          >
+                            <p className="text-zinc-100 font-space-mono text-xs font-bold">OR — хоть один</p>
+                            <p className="text-zinc-500 font-space-mono text-[10px]">Больше сигналов, выше шум</p>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Daily limit */}
+                      <div>
+                        <label className="text-zinc-400 font-space-mono text-xs mb-1.5 block">
+                          Макс. сделок в день: <span className="text-white font-bold">{bybitConfig.dailyLimit}</span>
+                        </label>
+                        <input
+                          type="range"
+                          min={1}
+                          max={100}
+                          value={bybitConfig.dailyLimit}
+                          onChange={(e) => setBybitConfig((p) => ({ ...p, dailyLimit: Number(e.target.value) }))}
+                          className="w-full accent-orange-500"
+                        />
+                      </div>
+
+                      {/* Generate button */}
+                      <button
+                        onClick={handleBybitGenerate}
+                        className="w-full bg-orange-500 hover:bg-orange-400 text-black font-orbitron font-bold py-3 rounded-xl transition-all shadow-lg shadow-orange-500/20"
+                      >
+                        🟠 Сгенерировать Bybit-бот
+                      </button>
+                    </CardContent>
+                  </Card>
+
+                  {/* Сгенерированный код */}
+                  {bybitGenerated && (
+                    <Card ref={bybitCodeRef} className="bg-zinc-900 border-emerald-500/30">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="font-orbitron text-white text-base flex items-center gap-2">
+                          <Icon name="FileCode" size={18} className="text-emerald-400" />
+                          Готовый код бота
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={handleBybitDownload}
+                            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black font-orbitron text-xs font-bold px-4 py-2 rounded-lg"
+                          >
+                            <Icon name="Download" size={14} />
+                            Скачать bybit_bot.py
+                          </button>
+                          <button
+                            onClick={handleBybitEnvDownload}
+                            className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white font-orbitron text-xs font-bold px-4 py-2 rounded-lg border border-zinc-700"
+                          >
+                            <Icon name="Key" size={14} />
+                            Скачать .env-шаблон
+                          </button>
+                          <button
+                            onClick={handleBybitCopy}
+                            className={`flex items-center gap-2 font-orbitron text-xs font-bold px-4 py-2 rounded-lg border transition-all ${
+                              bybitCopied ? "bg-emerald-500/20 border-emerald-500 text-emerald-300" : "bg-zinc-800 border-zinc-700 text-white"
+                            }`}
+                          >
+                            <Icon name={bybitCopied ? "Check" : "Copy"} size={14} />
+                            {bybitCopied ? "Скопировано" : "Скопировать"}
+                          </button>
+                        </div>
+                        <pre className="bg-black border border-zinc-800 rounded-lg p-3 text-xs text-zinc-300 font-space-mono overflow-x-auto max-h-96 overflow-y-auto">
+                          {bybitCode}
+                        </pre>
+                        <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 text-xs font-space-mono text-orange-300">
+                          <p className="font-bold mb-1">🚀 Что делать дальше:</p>
+                          <ol className="list-decimal list-inside space-y-0.5 text-orange-400/80">
+                            <li>Скачай <code>bybit_bot.py</code> и <code>.env</code> в одну папку</li>
+                            <li>Открой <code>.env</code> в блокноте и вставь свои API-ключи</li>
+                            <li>В терминале: <code>pip install pybit python-dotenv</code></li>
+                            <li>Запусти: <code>python bybit_bot.py</code></li>
+                          </ol>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
               </div>
             </>
           )}

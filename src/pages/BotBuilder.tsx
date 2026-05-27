@@ -11,6 +11,7 @@ import PocketOptionBotForm from "@/components/bot-builder/PocketOptionBotForm"
 import TradeJournal from "@/components/bot-builder/TradeJournal"
 import { BybitBotConfig, BYBIT_DEFAULT_EXTRAS, BYBIT_ASSETS, generateBybitCode } from "@/components/bot-builder/BybitBotTypes"
 import BybitConnectionGuide from "@/components/bot-builder/BybitConnectionGuide"
+import BybitBacktester from "@/components/bot-builder/BybitBacktester"
 import Icon from "@/components/ui/icon"
 
 type Tab = "pocket_option" | "bybit" | "crypto"
@@ -1780,6 +1781,9 @@ input("Нажми Enter чтобы закрыть окно...")
                       </button>
                     </CardContent>
                   </Card>
+
+                  {/* 🟣 Бэктест стратегии */}
+                  <BybitBacktester config={bybitConfig} />
 
                   {/* Сгенерированный код */}
                   {bybitGenerated && (

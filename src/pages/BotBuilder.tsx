@@ -1783,7 +1783,10 @@ input("Нажми Enter чтобы закрыть окно...")
                   </Card>
 
                   {/* 🟣 Бэктест стратегии */}
-                  <BybitBacktester config={bybitConfig} />
+                  <BybitBacktester
+                    config={bybitConfig}
+                    onApplyTpSl={(tp, sl) => setBybitConfig((p) => ({ ...p, bybitTpPercent: tp, bybitSlPercent: sl }))}
+                  />
 
                   {/* Сгенерированный код */}
                   {bybitGenerated && (

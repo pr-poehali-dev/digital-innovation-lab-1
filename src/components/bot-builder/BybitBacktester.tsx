@@ -2,10 +2,12 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Icon from "@/components/ui/icon"
 import type { BybitBotConfig } from "./BybitBotTypes"
-import { fetchBybitHistory, runBacktest, type BacktestResult } from "./bybitBacktest"
+import { fetchBybitHistory, runBacktest, optimizeTpSl, type BacktestResult, type Candle, type OptResult } from "./bybitBacktest"
 
 interface Props {
   config: BybitBotConfig
+  /** Применить подобранные TP/SL обратно в форму конфига */
+  onApplyTpSl?: (tp: number, sl: number) => void
 }
 
 type Period = 7 | 14 | 30 | 90
@@ -21,45 +23,72 @@ type Period = 7 | 14 | 30 | 90
  *
  * Это первичный фильтр ДО запуска на тестнете. Не учитывает проскальзывание и спред.
  */
-export default function BybitBacktester({ config }: Props) {
+export default function BybitBacktester({ config, onApplyTpSl }: Props) {
   const [period, setPeriod] = useState<Period>(30)
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [result, setResult] = useState<BacktestResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showTrades, setShowTrades] = useState(false)
+  // Кэш загруженных свечей — чтобы оптимизатор не тянул API повторно
+  const [candles, setCandles] = useState<Candle[]>([])
+  // Результат автоподбора TP/SL
+  const [opt, setOpt] = useState<OptResult | null>(null)
+  const [optimizing, setOptimizing] = useState(false)
+  const [applied, setApplied] = useState(false)
 
   // Сколько свечей нужно для выбранного периода
   const candleCount = Math.ceil((period * 24 * 60) / config.bybitTimeframeMin)
+
+  const effectiveConfig = (): BybitBotConfig =>
+    config.comboMode
+      ? config
+      : { ...config, comboMode: true, comboStrategies: [config.strategy], comboLogic: "OR" }
 
   const run = async () => {
     setLoading(true)
     setError(null)
     setResult(null)
+    setOpt(null)
     setProgress(0)
     try {
       const category = config.bybitMode === "futures" ? "linear" : "spot"
-      const candles = await fetchBybitHistory(
+      const loaded = await fetchBybitHistory(
         config.asset,
         category,
         config.bybitTimeframeMin,
         candleCount,
-        (loaded, total) => setProgress(Math.min(100, (loaded / total) * 100)),
+        (l, total) => setProgress(Math.min(100, (l / total) * 100)),
       )
-      if (candles.length < 100) {
-        throw new Error(`Получено только ${candles.length} свечей — мало для теста`)
+      if (loaded.length < 100) {
+        throw new Error(`Получено только ${loaded.length} свечей — мало для теста`)
       }
-      // Передаём кофиг с гарантированным comboMode (для одиночных стратегий)
-      const effectiveCfg: BybitBotConfig = config.comboMode
-        ? config
-        : { ...config, comboMode: true, comboStrategies: [config.strategy], comboLogic: "OR" }
-      const res = runBacktest(candles, effectiveCfg)
+      setCandles(loaded)
+      const res = runBacktest(loaded, effectiveConfig())
       setResult(res)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
       setLoading(false)
     }
+  }
+
+  const runOptimize = () => {
+    if (candles.length < 100) return
+    setOptimizing(true)
+    // setTimeout чтобы UI успел показать спиннер (расчёт синхронный)
+    setTimeout(() => {
+      const o = optimizeTpSl(candles, effectiveConfig())
+      setOpt(o)
+      setOptimizing(false)
+    }, 50)
+  }
+
+  const applyBest = () => {
+    if (!opt?.best || !onApplyTpSl) return
+    onApplyTpSl(opt.best.tp, opt.best.sl)
+    setApplied(true)
+    setTimeout(() => setApplied(false), 2500)
   }
 
   const profit = result ? result.totalPnl : 0
@@ -245,6 +274,120 @@ export default function BybitBacktester({ config }: Props) {
                   {result.durationDays.toFixed(1)} дн ({result.candles.toLocaleString()} свечей)
                 </span>
               </div>
+            </div>
+
+            {/* 🔧 Автоподбор TP/SL */}
+            <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-3 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-orbitron text-cyan-300 text-xs font-bold flex items-center gap-1.5">
+                    <Icon name="Wand2" size={14} /> Автоподбор TP/SL
+                  </p>
+                  <p className="text-cyan-400/70 font-space-mono text-[10px] mt-0.5">
+                    Прогон 20 комбинаций по тем же свечам — найдёт лучшую по Profit Factor
+                  </p>
+                </div>
+                <button
+                  onClick={runOptimize}
+                  disabled={optimizing}
+                  className="flex-shrink-0 bg-cyan-500 hover:bg-cyan-400 disabled:bg-zinc-700 disabled:text-zinc-500 text-black font-orbitron text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1.5 transition-all"
+                >
+                  {optimizing ? (
+                    <>
+                      <Icon name="Loader2" size={13} className="animate-spin" /> Считаю...
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="Sparkles" size={13} /> Подобрать
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {opt && (
+                <>
+                  {/* Лучшая комбинация */}
+                  {opt.best && (
+                    <div className="bg-emerald-500/10 border border-emerald-500/40 rounded-lg p-3 flex items-center justify-between gap-3 flex-wrap">
+                      <div>
+                        <p className="text-emerald-300 font-orbitron text-xs font-bold">
+                          🏆 Лучшая: TP +{opt.best.tp}% / SL -{opt.best.sl}%
+                        </p>
+                        <p className="text-emerald-400/80 font-space-mono text-[10px] mt-0.5">
+                          WR {opt.best.winRate.toFixed(1)}% · PF {opt.best.profitFactor.toFixed(2)} ·{" "}
+                          {opt.best.totalPnl >= 0 ? "+" : ""}{opt.best.totalPnl.toFixed(2)} USDT · {opt.best.trades} сделок
+                        </p>
+                        {(opt.best.tp !== opt.current.tp || opt.best.sl !== opt.current.sl) && (
+                          <p className="text-zinc-500 font-space-mono text-[10px] mt-0.5">
+                            (у тебя сейчас TP +{opt.current.tp}% / SL -{opt.current.sl}%)
+                          </p>
+                        )}
+                      </div>
+                      {onApplyTpSl && (
+                        <button
+                          onClick={applyBest}
+                          className={`flex-shrink-0 font-orbitron text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1.5 transition-all ${
+                            applied
+                              ? "bg-emerald-500/20 border border-emerald-500 text-emerald-300"
+                              : "bg-emerald-500 hover:bg-emerald-400 text-black"
+                          }`}
+                        >
+                          <Icon name={applied ? "Check" : "Download"} size={13} />
+                          {applied ? "Применено!" : "Применить"}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Матрица всех комбинаций */}
+                  <div className="max-h-64 overflow-y-auto border border-zinc-800 rounded-lg">
+                    <table className="w-full text-[10px] font-space-mono">
+                      <thead className="bg-zinc-800/60 text-zinc-400 sticky top-0">
+                        <tr>
+                          <th className="text-left px-2 py-1.5">TP / SL</th>
+                          <th className="text-right px-2 py-1.5">WR</th>
+                          <th className="text-right px-2 py-1.5">PF</th>
+                          <th className="text-right px-2 py-1.5">P/L</th>
+                          <th className="text-right px-2 py-1.5">Сд.</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {opt.combos.map((c, idx) => {
+                          const isBest = opt.best && c.tp === opt.best.tp && c.sl === opt.best.sl
+                          const isCurrent = c.tp === opt.current.tp && c.sl === opt.current.sl
+                          return (
+                            <tr
+                              key={idx}
+                              className={`border-t border-zinc-800/60 ${
+                                isBest ? "bg-emerald-500/10" : isCurrent ? "bg-purple-500/10" : ""
+                              }`}
+                            >
+                              <td className="px-2 py-1 text-zinc-300">
+                                {isBest && "🏆 "}
+                                {isCurrent && !isBest && "📍 "}
+                                +{c.tp}% / -{c.sl}%
+                              </td>
+                              <td className={`px-2 py-1 text-right ${c.winRate >= 55 ? "text-emerald-400" : c.winRate >= 45 ? "text-amber-400" : "text-red-400"}`}>
+                                {c.winRate.toFixed(0)}%
+                              </td>
+                              <td className={`px-2 py-1 text-right ${c.profitFactor >= 1.5 ? "text-emerald-400" : c.profitFactor >= 1 ? "text-amber-400" : "text-red-400"}`}>
+                                {c.profitFactor.toFixed(2)}
+                              </td>
+                              <td className={`px-2 py-1 text-right font-bold ${c.totalPnl > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                {c.totalPnl > 0 ? "+" : ""}{c.totalPnl.toFixed(1)}
+                              </td>
+                              <td className="px-2 py-1 text-right text-zinc-500">{c.trades}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-zinc-600 font-space-mono text-[10px]">
+                    🏆 — лучшая по совокупному баллу · 📍 — твоя текущая. Подбор на истории ≠ гарантия будущего.
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Журнал сделок */}

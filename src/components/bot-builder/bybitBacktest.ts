@@ -352,3 +352,79 @@ export function runBacktest(candles: Candle[], cfg: BybitBotConfig): BacktestRes
     durationDays,
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// 🔧 Автоподбор оптимальных TP/SL (сетка по уже загруженным свечам)
+// ═══════════════════════════════════════════════════════════════════
+
+export interface OptCombo {
+  tp: number
+  sl: number
+  winRate: number
+  totalPnl: number
+  profitFactor: number
+  trades: number
+  maxDrawdown: number
+  /** Композитный скор для ранжирования (PF с учётом числа сделок и просадки) */
+  score: number
+}
+
+export interface OptResult {
+  combos: OptCombo[]
+  best: OptCombo | null
+  /** Текущая комбинация юзера (для сравнения) */
+  current: { tp: number; sl: number }
+}
+
+/** Сетка значений для перебора. */
+const TP_GRID = [0.5, 0.8, 1.2, 1.8, 2.5]
+const SL_GRID = [0.5, 0.8, 1.2, 1.8]
+
+/**
+ * Прогоняет 5×4=20 комбинаций TP/SL по одним и тем же свечам.
+ * Свечи уже загружены — повторного запроса к API нет, всё быстро в памяти.
+ *
+ * Ранжирование: composite score = profitFactor, но штрафуем:
+ *  - мало сделок (< 8) → ненадёжно,
+ *  - убыточные комбо отсекаем в score,
+ *  - высокая просадка снижает балл.
+ */
+export function optimizeTpSl(candles: Candle[], cfg: BybitBotConfig): OptResult {
+  const combos: OptCombo[] = []
+
+  for (const tp of TP_GRID) {
+    for (const sl of SL_GRID) {
+      const testCfg: BybitBotConfig = { ...cfg, bybitTpPercent: tp, bybitSlPercent: sl }
+      const r = runBacktest(candles, testCfg)
+      const ddPct = (r.maxDrawdown / r.startBalance) * 100
+
+      // Композитный скор
+      let score = r.profitFactor
+      if (r.trades.length < 8) score *= 0.3 // мало данных
+      if (r.totalPnl <= 0) score = Math.min(score, 0.5) // убыток — низкий приоритет
+      if (ddPct > 25) score *= 0.6 // большая просадка
+      score = score * (1 + Math.min(r.trades.length, 50) / 200) // лёгкий бонус за объём
+
+      combos.push({
+        tp,
+        sl,
+        winRate: r.winRate,
+        totalPnl: r.totalPnl,
+        profitFactor: r.profitFactor,
+        trades: r.trades.length,
+        maxDrawdown: r.maxDrawdown,
+        score,
+      })
+    }
+  }
+
+  combos.sort((a, b) => b.score - a.score)
+  // Лучшей считаем только прибыльную с достаточным числом сделок
+  const best = combos.find((c) => c.totalPnl > 0 && c.trades >= 5) || combos[0] || null
+
+  return {
+    combos,
+    best,
+    current: { tp: cfg.bybitTpPercent, sl: cfg.bybitSlPercent },
+  }
+}
